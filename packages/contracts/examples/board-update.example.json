@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0",
+  "boardId": "board-001",
+  "operation": "update",
+  "actorAgent": "vera",
+  "itemId": "item-42",
+  "payload": {
+    "status": "in_progress"
+  }
+}

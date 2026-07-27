@@ -1,0 +1,21 @@
+name: Evaluations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run evaluation placeholder check
+        run: |
+          chmod +x scripts/run-evals.sh
+          ./scripts/run-evals.sh

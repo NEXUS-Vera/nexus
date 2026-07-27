@@ -1,0 +1,14 @@
+---
+description: Python conventions for Nexus
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python rules
+
+- Follow naming conventions in `AGENTS.md` (`snake_case` modules, `PascalCase` classes).
+- Require type hints for public functions.
+- Prefer explicit models and typed schemas over untyped dictionaries at public boundaries.
+- Require tests for behavior changes.
+- Avoid untyped `dict` payloads at public module boundaries; use schemas or typed models.
+- Defer to `AGENTS.md` for architecture, contracts, and documentation policy.

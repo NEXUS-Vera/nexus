@@ -1,0 +1,14 @@
+---
+description: Repository-wide Nexus coding-agent rules
+alwaysApply: true
+---
+
+# Repository rules
+
+- Read and follow `AGENTS.md` as the canonical policy.
+- Respect architectural boundaries between `apps/`, `agents/`, `packages/`, `tools/`, `evals/`, and `infra/`.
+- Do not create unapproved Markdown files or prohibited summary/completion docs.
+- Do not create new top-level directories without human approval and an ADR.
+- Do not create duplicate implementations named `new`, `final`, `fixed`, `v2`, or `copy`.
+- Run `make check` before declaring work complete.
+- Summarize work in the final response or pull-request body, never in new repository files.

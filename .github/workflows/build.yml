@@ -1,0 +1,48 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect buildable TypeScript packages
+        id: detect
+        run: |
+          if find apps packages tools -type f \( -name 'package.json' \) 2>/dev/null | grep -v '^package.json$' | grep -q .; then
+            echo "packages=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "packages=false" >> "$GITHUB_OUTPUT"
+            echo "No package-level package.json files yet; skipping install/build."
+          fi
+
+      - name: Set up Node.js
+        if: steps.detect.outputs.packages == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable corepack / pnpm
+        if: steps.detect.outputs.packages == 'true'
+        run: corepack enable
+
+      - name: Install and build
+        if: steps.detect.outputs.packages == 'true'
+        run: |
+          pnpm install
+          pnpm run build
+
+      - name: Foundation build placeholder
+        if: steps.detect.outputs.packages != 'true'
+        run: |
+          chmod +x scripts/run-build.sh
+          ./scripts/run-build.sh

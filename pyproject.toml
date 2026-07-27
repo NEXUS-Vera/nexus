@@ -1,0 +1,51 @@
+[project]
+name = "nexus"
+version = "0.0.0"
+description = "Modular monorepo for the Nexus agentic engineering platform (foundation only)"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.8.0",
+  "pytest>=8.0.0",
+  "jsonschema>=4.23.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["agents", "packages", "tools", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.pytest.ini_options]
+testpaths = [
+  "agents",
+  "packages",
+  "tools",
+  "evals",
+]
+python_files = ["test_*.py"]
+addopts = "-q"
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+include = ["agents", "packages", "tools", "scripts"]
+exclude = ["**/__pycache__", "**/.venv", "**/node_modules"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+files = ["agents", "packages", "tools", "scripts"]

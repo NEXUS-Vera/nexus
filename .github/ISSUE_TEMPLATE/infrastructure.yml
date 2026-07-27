@@ -1,0 +1,43 @@
+name: Infrastructure change
+description: Request or track an infrastructure change
+title: "infra: "
+labels: ["type:infra"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Target environment
+      options:
+        - local
+        - staging
+        - production
+        - shared / multiple
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk and rollback notes
+    validations:
+      required: true
+  - type: checkboxes
+    id: approval
+    attributes:
+      label: Authorization
+      options:
+        - label: Explicit human approval is required before apply/destroy
+          required: true
+        - label: No secrets will be committed
+          required: true

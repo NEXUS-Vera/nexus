@@ -1,0 +1,14 @@
+---
+description: TypeScript conventions for Nexus
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# TypeScript rules
+
+- Follow naming conventions in `AGENTS.md` (`kebab-case` files, `PascalCase` types/components, `camelCase` functions).
+- Avoid `any` unless documented and unavoidable.
+- Use typed API and contract boundaries.
+- Require tests for behavior changes.
+- Do not duplicate shared contract types inside applications; consume `packages/contracts`.
+- Defer to `AGENTS.md` for architecture, contracts, and documentation policy.

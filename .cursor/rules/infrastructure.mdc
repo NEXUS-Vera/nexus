@@ -1,0 +1,14 @@
+---
+description: Infrastructure and CI safety rules
+globs: "{infra,.github/workflows}/**"
+alwaysApply: false
+---
+
+# Infrastructure rules
+
+- Do not apply or destroy infrastructure without explicit human approval.
+- Do not commit secrets.
+- Use least privilege for credentials and permissions.
+- Pin dependencies and GitHub Actions major versions where practical.
+- Infrastructure changes require validation steps and clear rollback notes.
+- Defer to `AGENTS.md` for repository-wide policy.

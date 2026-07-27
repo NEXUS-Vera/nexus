@@ -1,0 +1,67 @@
+name: Agent behavior failure
+description: Report incorrect or unsafe agent behavior
+title: "fix(agent): "
+labels: ["type:agent-behavior"]
+body:
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options:
+        - vera
+        - embedded-systems
+        - unknown / multiple
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input
+      description: Prompt, task contract, or triggering request
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Model or prompt version (if known)
+  - type: textarea
+    id: retrieval
+    attributes:
+      label: Retrieved sources (if relevant)
+  - type: textarea
+    id: tools
+    attributes:
+      label: Tool calls (if relevant)
+  - type: textarea
+    id: board
+    attributes:
+      label: Board state (if relevant)
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true
