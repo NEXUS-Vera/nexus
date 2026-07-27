@@ -8,9 +8,9 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = [
-  "ruff>=0.8.0",
-  "pytest>=8.0.0",
-  "jsonschema>=4.23.0",
+  "ruff>=0.16.0",
+  "pytest>=9.1.1",
+  "jsonschema>=4.26.0",
 ]
 
 [tool.ruff]
