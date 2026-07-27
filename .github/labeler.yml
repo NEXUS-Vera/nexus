@@ -1,0 +1,67 @@
+area:web:
+  - changed-files:
+      - any-glob-to-any-file: apps/web/**
+
+area:api:
+  - changed-files:
+      - any-glob-to-any-file: apps/api/**
+
+area:worker:
+  - changed-files:
+      - any-glob-to-any-file: apps/worker/**
+
+area:vera:
+  - changed-files:
+      - any-glob-to-any-file: agents/vera/**
+
+area:embedded:
+  - changed-files:
+      - any-glob-to-any-file: agents/embedded-systems/**
+
+area:runtime:
+  - changed-files:
+      - any-glob-to-any-file: packages/agent-runtime/**
+
+area:contracts:
+  - changed-files:
+      - any-glob-to-any-file: packages/contracts/**
+
+area:board:
+  - changed-files:
+      - any-glob-to-any-file: packages/board/**
+
+area:memory:
+  - changed-files:
+      - any-glob-to-any-file: packages/memory/**
+
+area:retrieval:
+  - changed-files:
+      - any-glob-to-any-file: packages/retrieval/**
+
+area:models:
+  - changed-files:
+      - any-glob-to-any-file: packages/model-gateway/**
+
+area:observability:
+  - changed-files:
+      - any-glob-to-any-file: packages/observability/**
+
+area:tools:
+  - changed-files:
+      - any-glob-to-any-file: tools/**
+
+area:evals:
+  - changed-files:
+      - any-glob-to-any-file: evals/**
+
+area:infra:
+  - changed-files:
+      - any-glob-to-any-file: infra/**
+
+area:docs:
+  - changed-files:
+      - any-glob-to-any-file: docs/**
+
+area:ci:
+  - changed-files:
+      - any-glob-to-any-file: .github/workflows/**

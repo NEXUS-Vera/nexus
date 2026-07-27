@@ -1,0 +1,49 @@
+name: Evaluation failure
+description: Report a failing or regressing agent evaluation
+title: "test(evals): "
+labels: ["type:evaluation"]
+body:
+  - type: input
+    id: suite
+    attributes:
+      label: Evaluation suite or scenario
+    validations:
+      required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Related agent
+      options:
+        - vera
+        - embedded-systems
+        - integration
+        - unknown
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected evaluation outcome
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual outcome
+    validations:
+      required: true
+  - type: textarea
+    id: fixture
+    attributes:
+      label: Fixture or input used
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - low
+        - medium
+        - high
+        - critical
+    validations:
+      required: true

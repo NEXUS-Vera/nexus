@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/task-contract.v1.schema.json",
+  "title": "TaskContract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "taskId", "objective", "ownerAgent"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "taskId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ownerAgent": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Agent responsible for executing the task."
+    },
+    "requestedBy": {
+      "type": "string",
+      "description": "Optional requesting agent or system identity."
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

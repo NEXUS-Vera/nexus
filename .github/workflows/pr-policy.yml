@@ -1,0 +1,20 @@
+name: Pull request policy
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  repository-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enforce repository content policy
+        run: |
+          chmod +x scripts/check-repository-policy.sh
+          ./scripts/check-repository-policy.sh

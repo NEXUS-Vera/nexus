@@ -1,0 +1,50 @@
+name: Feature
+description: Propose a new feature or enhancement
+title: "feat: "
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What should be added or improved?
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this needed?
+    validations:
+      required: true
+  - type: dropdown
+    id: module
+    attributes:
+      label: Owning module
+      options:
+        - apps/web
+        - apps/api
+        - apps/worker
+        - agents/vera
+        - agents/embedded-systems
+        - packages
+        - tools
+        - evals
+        - infra
+        - docs
+        - unknown
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: checkboxes
+    id: contracts
+    attributes:
+      label: Contract impact
+      options:
+        - label: Requires a public contract or schema change
+        - label: Requires an ADR

@@ -1,0 +1,42 @@
+name: TypeScript tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect TypeScript sources
+        id: detect
+        run: |
+          if find apps packages tools -type f \( -name '*.ts' -o -name '*.tsx' \) 2>/dev/null | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No TypeScript sources yet; skipping."
+          fi
+
+      - name: Set up Node.js
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Enable corepack / pnpm
+        if: steps.detect.outputs.present == 'true'
+        run: corepack enable
+
+      - name: Install and test
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          pnpm install
+          pnpm test

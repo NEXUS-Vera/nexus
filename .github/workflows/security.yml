@@ -1,0 +1,40 @@
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 12 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  security-basics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject tracked secrets and env files
+        run: |
+          chmod +x scripts/check-repository-policy.sh
+          ./scripts/check-repository-policy.sh
+
+      - name: Scan for high-risk secret patterns in tracked text files
+        run: |
+          set -euo pipefail
+          # Lightweight pattern scan; not a substitute for dedicated secret scanning.
+          if git grep -nI -E '(api[_-]?key|secret[_-]?key|BEGIN (RSA |OPENSSH )?PRIVATE KEY|AKIA[0-9A-Z]{16})' -- \
+            ':(exclude).github/workflows/security.yml' \
+            ':(exclude)scripts/check-repository-policy.sh' \
+            ':(exclude)AGENTS.md' \
+            ':(exclude)SECURITY.md' \
+            ':(exclude)CONTRIBUTING.md' \
+            ':(exclude).gitignore' \
+            ':(exclude).env.example'; then
+            echo "Potential secret pattern found in tracked files" >&2
+            exit 1
+          fi
+          echo "No high-risk secret patterns detected in basic scan."

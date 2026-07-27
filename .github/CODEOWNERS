@@ -1,0 +1,19 @@
+*                               @pranaykarpuram
+
+/apps/                          @pranaykarpuram
+/agents/vera/                   @pranaykarpuram
+/agents/embedded-systems/       @pranaykarpuram
+/packages/agent-runtime/        @pranaykarpuram
+/packages/contracts/            @pranaykarpuram
+/packages/board/                @pranaykarpuram
+/packages/memory/               @pranaykarpuram
+/packages/retrieval/            @pranaykarpuram
+/packages/model-gateway/        @pranaykarpuram
+/packages/observability/        @pranaykarpuram
+/tools/                         @pranaykarpuram
+/evals/                         @pranaykarpuram
+/infra/                         @pranaykarpuram
+/.github/workflows/             @pranaykarpuram
+/.github/CODEOWNERS             @pranaykarpuram
+/AGENTS.md                      @pranaykarpuram
+/SECURITY.md                    @pranaykarpuram

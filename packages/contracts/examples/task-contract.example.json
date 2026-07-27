@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0",
+  "taskId": "task-001",
+  "objective": "Estimate power budget for a sensor node",
+  "ownerAgent": "embedded-systems",
+  "requestedBy": "vera",
+  "context": {
+    "projectId": "proj-demo"
+  }
+}

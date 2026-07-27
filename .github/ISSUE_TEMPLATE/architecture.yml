@@ -1,0 +1,46 @@
+name: Architecture proposal
+description: Propose an architectural decision or boundary change
+title: "docs(arch): "
+labels: ["type:architecture"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What problem or constraint motivates this proposal?
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Proposed decision
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: true
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Tradeoffs
+    validations:
+      required: true
+  - type: textarea
+    id: modules
+    attributes:
+      label: Affected modules
+    validations:
+      required: true
+  - type: dropdown
+    id: adr
+    attributes:
+      label: Is an ADR required?
+      options:
+        - "Yes"
+        - "No"
+        - "Unclear / needs discussion"
+    validations:
+      required: true
