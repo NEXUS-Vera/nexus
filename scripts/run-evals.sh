@@ -4,14 +4,27 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# Evaluation runners are not implemented yet. Succeed only when no eval runner
-# is expected, or when no eval suites claim to be executable.
-EVAL_RUNNERS="$(find evals -type f \( -name '*.eval.yaml' -o -name 'run*.py' -o -name 'run*.sh' \) 2>/dev/null | wc -l | tr -d ' ')"
+RUNNER="evals/embedded_project_initialization/runners/run_eval.py"
 
-if [[ "$EVAL_RUNNERS" -eq 0 ]]; then
+if [[ ! -f "$RUNNER" ]]; then
   echo "eval: no evaluation suites implemented yet; skipping"
   exit 0
 fi
 
-echo "eval: evaluation files exist but no runner is configured yet" >&2
-exit 1
+if command -v python3.13 >/dev/null 2>&1; then
+  PYTHON="python3.13"
+elif command -v python3.12 >/dev/null 2>&1; then
+  PYTHON="python3.12"
+elif command -v python3.11 >/dev/null 2>&1; then
+  PYTHON="python3.11"
+else
+  PYTHON="python3"
+fi
+
+export PYTHONPATH="apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src"
+
+# `make check` only runs the embedded-project-initialization eval suite in
+# fake mode: it exercises the real provider pipeline against a scripted
+# `FakeModelGateway` and never requires `NEXUS_MODEL_API_KEY` or a live model.
+echo "eval: running embedded-project-initialization suite (provider=fake)"
+"$PYTHON" -m evals.embedded_project_initialization.runners.run_eval --provider fake

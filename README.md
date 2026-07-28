@@ -4,7 +4,7 @@ Nexus is a modular agentic engineering platform. Vera orchestrates specialist do
 
 ## Current status
 
-This repository contains the v1 embedded-project initialization contract foundation plus a fixture-backed API and Vera prototype UI.
+This repository contains the v1 embedded-project initialization contract foundation plus an API and Vera prototype UI. The embedded-systems initialization workflow supports three provider modes — `fixture` (default, deterministic, no model calls), `llm` (live staged generation with bounded repair), and `shadow` (runs both, serves `fixture`, logs the `llm` outcome) — selected via `NEXUS_INITIALIZATION_PROVIDER` (see `agents/embedded-systems/README.md` and `.env.example`).
 
 ## Architecture overview
 
@@ -76,6 +76,7 @@ make dev
 | `make contracts` | Validate contract schemas, examples, and generated types |
 | `make policy` | Enforce repository content policy |
 | `make check` | Run the full local verification suite |
+| `make eval-embedded-initialization` | Run the embedded-project-initialization eval suite (fake provider by default) |
 | `make build` | Build packages when build targets exist |
 | `make clean` | Remove local build and cache artifacts |
 | `make dev` / `make dev-api` / `make dev-web` | Local API and web servers |

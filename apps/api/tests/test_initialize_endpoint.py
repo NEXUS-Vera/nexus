@@ -190,7 +190,8 @@ async def test_corrupted_package_returns_structured_500(
         return result, id_map
 
     monkeypatch.setattr(
-        "nexus_embedded_systems.workflows.project_initialization.service.materialize_fixture_package",
+        "nexus_embedded_systems.workflows.project_initialization.providers."
+        "fixture_provider.materialize_fixture_package",
         corrupt,
     )
 
