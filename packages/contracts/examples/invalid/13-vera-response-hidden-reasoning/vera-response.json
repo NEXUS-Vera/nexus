@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_01USERMSG0000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "userFacingMessage": "I captured your indoor rover idea and produced a functional first architecture with explicit requirements and open questions for runtime, spatial resolution, and accuracy.",
+  "hiddenReasoning": {
+    "chainOfThought": "Do not allow this field."
+  },
+  "createdArtifactReferences": [
+    {
+      "artifactType": "project-brief",
+      "artifactId": "art_01ROVERPB000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    }
+  ],
+  "warningIssueReferences": [],
+  "blockerIssueReferences": [],
+  "openQuestionReferences": [],
+  "nextActionArtifactReference": {
+    "artifactType": "next-action",
+    "artifactId": "art_01ROVNXT000000000000000001",
+    "artifactVersion": 1,
+    "contentSchemaVersion": "1.0.0"
+  },
+  "projectStateSummary": {
+    "projectPhase": "concept",
+    "autonomyMode": "delegate",
+    "openQuestionCount": 0,
+    "validationIssueCount": 0
+  },
+  "completionStatus": "completed"
+}
+

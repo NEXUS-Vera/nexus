@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/content/requirement-set.v1.schema.json",
+  "title": "RequirementSetContent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requirements", "requirementSummary"],
+  "properties": {
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requirementId",
+          "displayId",
+          "statement",
+          "category",
+          "priority",
+          "sourceType",
+          "sourceReference",
+          "confidence",
+          "confirmationStatus",
+          "verificationMethod"
+        ],
+        "properties": {
+          "requirementId": {
+            "type": "string",
+            "pattern": "^req_[A-Za-z0-9]{16,}$"
+          },
+          "displayId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": { "type": "string", "minLength": 1 },
+          "category": {
+            "type": "string",
+            "enum": [
+              "functional",
+              "performance",
+              "interface",
+              "environmental",
+              "resource",
+              "physical",
+              "usability",
+              "safety",
+              "verification",
+              "project-constraint"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["must", "should", "could", "unclassified"]
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "user-explicit",
+              "user-implied",
+              "system-inferred",
+              "project-policy"
+            ]
+          },
+          "sourceReference": {
+            "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "confirmationStatus": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "proposed",
+              "needs-confirmation",
+              "rejected"
+            ]
+          },
+          "verificationMethod": { "type": "string", "minLength": 1 },
+          "targetQuantity": { "$ref": "https://nexus.local/schemas/common/quantity.v1.schema.json" },
+          "rationale": { "type": "string", "minLength": 1 },
+          "acceptanceCriteria": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "dependencyReferences": {
+            "type": "array",
+            "items": { "type": "string", "pattern": "^req_[A-Za-z0-9]{16,}$" }
+          }
+        }
+      }
+    },
+    "requirementSummary": { "type": "string", "minLength": 1 },
+    "missingDimensions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "openQuestionIds": {
+      "type": "array",
+      "items": { "$ref": "https://nexus.local/schemas/common/open-question-reference.v1.schema.json" }
+    }
+  }
+}
+

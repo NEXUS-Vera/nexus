@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/common/actor-reference.v1.schema.json",
+  "title": "ActorReference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "actorId", "actorType"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "actorId": {
+      "type": "string",
+      "pattern": "^actor_[A-Za-z0-9]{16,}$",
+      "minLength": 1
+    },
+    "actorType": {
+      "type": "string",
+      "enum": ["user", "vera", "embedded-systems-agent", "shared", "system"]
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+

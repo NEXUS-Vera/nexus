@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "1.0.0",
+  "routeId": "route_01ROUTE000000000000000001",
+  "turnId": "turn_01USERMSG0000000000000001",
+  "supported": true,
+  "routeType": "project-initialization",
+  "domain": "embedded-products",
+  "projectOperation": "create-project",
+  "complexity": "medium",
+  "autonomyMode": "delegate",
+  "chairmanRequiredEventually": false,
+  "reasons": [
+    "Prompt describes an early-stage embedded product idea."
+  ]
+}
+

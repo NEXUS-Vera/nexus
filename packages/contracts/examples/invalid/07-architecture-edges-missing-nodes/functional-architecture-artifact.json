@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_01ROVARCH0000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "artifactType": "functional-architecture",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_01VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_01USERMSG0000000000000001",
+  "workflowRunId": "run_01ROVERRUN0000000000000001",
+  "content": {
+    "architectureId": "arch_01INDOORARCH0000000000000001",
+    "architectureMaturity": "functional",
+    "systemBoundary": "A small indoor rover system that acquires environmental measurements while moving through a room, associates measurements with relative location, stores records, and produces analysis summaries for mapping decisions.",
+    "nodes": [
+      {
+        "nodeId": "node_01NODEINPUT0000000000000001",
+        "name": "Session Configuration Input",
+        "functionalType": "user-interface",
+        "responsibilities": [
+          "Accept user-intended mapping session context (indoor room run).",
+          "Provide placeholders for unknown runtime/accuracy/spatial-resolution constraints."
+        ],
+        "satisfiesRequirementIds": ["req_01RUNTIMEMINUNKNOWN0000000000001", "req_01ACCURACYUNKNOWN0000000000001"]
+      },
+      {
+        "nodeId": "node_01NODESENSING0000000000000001",
+        "name": "Environmental Measurement Acquisition",
+        "functionalType": "sensing",
+        "responsibilities": [
+          "Acquire temperature, humidity, and air-quality measurements as the rover is moving.",
+          "Emit measurement samples for downstream processing and storage."
+        ],
+        "satisfiesRequirementIds": ["req_01MEASTEMPHUMAIR0000000000000001"]
+      },
+      {
+        "nodeId": "node_01NODELOCATION00000000000001",
+        "name": "Timestamp + Location Association",
+        "functionalType": "processing",
+        "responsibilities": [
+          "Associate each measurement with a timestamp.",
+          "Associate each measurement with a relative indoor location context suitable for mapping bins.",
+          "Propagate unknown spatial-resolution assumptions to analysis metadata."
+        ],
+        "satisfiesRequirementIds": ["req_01ASSOCTIMELOC0000000000000001", "req_01SPATIALRESUNKNOWN000000000001"]
+      },
+      {
+        "nodeId": "node_01NODESTORAGE0000000000000001",
+        "name": "Timestamped Measurement Storage",
+        "functionalType": "storage",
+        "responsibilities": [
+          "Buffer and persist a measurement log containing timestamped, location-associated records.",
+          "Provide stored records to analysis and visualization steps."
+        ],
+        "satisfiesRequirementIds": ["req_01ASSOCTIMELOC0000000000000001", "req_01RUNTIMEMINUNKNOWN0000000000001"]
+      },
+      {
+        "nodeId": "node_01NODEANALYSIS00000000000001",
+        "name": "Indoor Mapping Analysis",
+        "functionalType": "analysis",
+        "responsibilities": [
+          "Aggregate stored records into mapping summaries.",
+          "Highlight mismatches between assumed and confirmed accuracy/spatial-resolution needs.",
+          "Produce decision-ready outputs to guide next embedded prototype steps."
+        ],
+        "satisfiesRequirementIds": ["req_01ACCURACYUNKNOWN0000000000001", "req_01SPATIALRESUNKNOWN000000000001"]
+      },
+      {
+        "nodeId": "node_01NODECONTROL000000000000001",
+        "name": "Rover Control & Motion Orchestration",
+        "functionalType": "control",
+        "responsibilities": [
+          "Schedule measurement acquisition while navigating inside the room.",
+          "Ensure runtime budget constraints are followed (values unknown until confirmed).",
+          "Coordinate acquisition and storage cadence."
+        ],
+        "satisfiesRequirementIds": ["req_01RUNTIMEMINUNKNOWN0000000000001", "req_01BUDGETUNKNOWN0000000000001"]
+      },
+      {
+        "nodeId": "node_01NODECOMM0000000000000001",
+        "name": "Mapping Data Export",
+        "functionalType": "communication",
+        "responsibilities": [
+          "Export summarized mapping outputs to an external consumer (e.g., desktop review tool).",
+          "Provide references to open questions affecting mapping assumptions."
+        ],
+        "satisfiesRequirementIds": ["req_01ASSOCTIMELOC0000000000000001"]
+      }
+    ],
+    "edges": [
+      {
+        "edgeId": "edge_01EDGEUSERCFG0000000000000001",
+        "fromNodeId": "node_01NODEINPUT0000000000000001",
+        "toNodeId": "node_01NODECONTROL000000000000001",
+        "flowType": "control",
+        "description": "Control parameters are applied to motion/orchestration and measurement cadence, while unknown constraints remain placeholders."
+      },
+      {
+        "edgeId": "edge_01EDGEACQTOASSOC0000000000000001",
+        "fromNodeId": "node_01NODESENSING0000000000000001",
+        "toNodeId": "node_01NODELOCATION00000000000001",
+        "flowType": "data",
+        "description": "Raw environmental measurement samples are emitted for timestamp and location association."
+      },
+      {
+        "edgeId": "edge_01EDGETOSTORAGE0000000000000001",
+        "fromNodeId": "node_01NODELOCATION00000000000001",
+        "toNodeId": "node_01NODESTORAGE0000000000000001",
+        "flowType": "data",
+        "description": "Associated measurement records are persisted as timestamped location-aware logs."
+      },
+      {
+        "edgeId": "edge_01EDGESTOANALYSIS0000000000000001",
+        "fromNodeId": "node_01NODESTORAGE0000000000000001",
+        "toNodeId": "node_01MISSINGANALYSIS0000000000001",
+        "flowType": "data",
+        "description": "Stored measurement logs are aggregated to produce mapping summaries and highlight unknowns."
+      },
+      {
+        "edgeId": "edge_01EDGEANALYSISTOEXPORT0000000000000001",
+        "fromNodeId": "node_01NODEANALYSIS00000000000001",
+        "toNodeId": "node_01NODECOMM0000000000000001",
+        "flowType": "data",
+        "description": "Analysis outputs are exported for review by an external consumer."
+      }
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "FA1",
+        "statement": "Functional architecture can capture unknown runtime, accuracy, and spatial-resolution as open questions without committing to specific components.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unresolvedDecisions": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01MEASTIME0000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01SPATIALRES000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01UNKNOWNACCUR00000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01BUDGETUNKNOWN0000000000001",
+        "displayId": "Q4"
+      }
+    ],
+    "requirementCoverage": {
+      "coveredRequirementIds": [
+        "req_01MEASTEMPHUMAIR0000000000000001",
+        "req_01ASSOCTIMELOC0000000000000001",
+        "req_01RUNTIMEMINUNKNOWN0000000000001",
+        "req_01ACCURACYUNKNOWN0000000000001",
+        "req_01SPATIALRESUNKNOWN000000000001",
+        "req_01BUDGETUNKNOWN0000000000001"
+      ]
+    }
+  }
+}
+

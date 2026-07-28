@@ -1,0 +1,29 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_01BLOCKRUNTIME000000000000001",
+    "projectId": "proj_01ROVERPROJ0000000000000001",
+    "severity": "high",
+    "code": "unknown-runtime-spatial-resolution",
+    "message": "Runtime budget and spatial-resolution granularity are not confirmed; the functional architecture must remain functional until these unknowns are resolved.",
+    "blocking": true,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:05Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Request the user to specify a minimum indoor mapping runtime and the required mapping granularity."
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_01WARNACCU000000000000001",
+    "projectId": "proj_01ROVERPROJ0000000000000001",
+    "severity": "medium",
+    "code": "unknown-accuracy-bounds",
+    "message": "Acceptable accuracy/error bounds are not confirmed for at least one environmental modality; capture as an open question before component selection.",
+    "blocking": false,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:06Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Ask the user for acceptable error tolerance for temperature, humidity, and air-quality readings."
+  }
+]
+

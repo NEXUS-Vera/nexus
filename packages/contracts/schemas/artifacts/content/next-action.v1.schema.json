@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/content/next-action.v1.schema.json",
+  "title": "NextActionContent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "actionId",
+    "title",
+    "description",
+    "rationale",
+    "owner",
+    "priority",
+    "prerequisites",
+    "blocks",
+    "completionCondition",
+    "sourceIssueIds",
+    "sourceQuestionIds"
+  ],
+  "properties": {
+    "actionId": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "description": { "type": "string", "minLength": 1 },
+    "rationale": { "type": "string", "minLength": 1 },
+    "owner": {
+      "type": "string",
+      "enum": ["user", "vera", "embedded-systems-agent", "shared"]
+    },
+    "priority": { "type": "string", "enum": ["critical", "high", "medium", "low"] },
+    "prerequisites": {
+      "type": "array",
+      "items": { "$ref": "https://nexus.local/schemas/common/open-question-reference.v1.schema.json" }
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["issueId"],
+        "properties": { "issueId": { "type": "string", "pattern": "^issue_[A-Za-z0-9]{16,}$" } }
+      }
+    },
+    "completionCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conditionType", "completionCriteria"],
+      "properties": {
+        "conditionType": {
+          "type": "string",
+          "enum": ["validation-issues-cleared", "unknowns-resolved", "requirements-confirmed"]
+        },
+        "completionCriteria": { "type": "string", "minLength": 1 }
+      }
+    },
+    "sourceIssueIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^issue_[A-Za-z0-9]{16,}$" }
+    },
+    "sourceQuestionIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^question_[A-Za-z0-9]{16,}$" }
+    }
+  }
+}
+

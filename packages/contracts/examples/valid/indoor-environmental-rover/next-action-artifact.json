@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_01ROVNXT000000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "artifactType": "next-action",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_01VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_01USERMSG0000000000000001",
+  "workflowRunId": "run_01ROVERRUN0000000000000001",
+  "content": {
+    "actionId": "act_01NEXTACTION0000000000000001",
+    "title": "Confirm runtime and spatial-resolution requirements before component selection",
+    "description": "Validate the runtime budget, spatial-resolution granularity, and acceptable measurement accuracy so future embedded component selection remains grounded in user-confirmed needs.",
+    "rationale": "The current functional architecture can capture unknowns as open questions, but selecting sensors, MCU classes, and communication/storage strategies requires confirmed mapping runtime and resolution constraints.",
+    "owner": "vera",
+    "priority": "high",
+    "prerequisites": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01MEASTIME0000000000000001",
+        "displayId": "Q1"
+      },
+      {
+          "schemaVersion": "1.0.0",
+          "questionId": "question_01SPATIALRES000000000000001",
+          "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01UNKNOWNACCUR00000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01BUDGETUNKNOWN0000000000001",
+        "displayId": "Q4"
+      }
+    ],
+    "blocks": [
+      {
+        "issueId": "issue_01BLOCKRUNTIME000000000000001"
+      }
+    ],
+    "completionCondition": {
+      "conditionType": "unknowns-resolved",
+      "completionCriteria": "Confirm (1) minimum indoor mapping runtime, (2) required spatial-resolution granularity, and (3) acceptable accuracy/error bounds, plus (4) the prototype budget constraint; then mark these open questions as answered/resolved."
+    },
+    "sourceIssueIds": [
+      "issue_01BLOCKRUNTIME000000000000001",
+      "issue_01WARNACCU000000000000001"
+    ],
+    "sourceQuestionIds": [
+      "question_01MEASTIME0000000000000001",
+      "question_01SPATIALRES000000000000001",
+      "question_01UNKNOWNACCUR00000000000001",
+      "question_01BUDGETUNKNOWN0000000000001"
+    ]
+  }
+}
+
