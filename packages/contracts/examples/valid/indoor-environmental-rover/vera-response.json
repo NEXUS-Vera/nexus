@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_01USERMSG0000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "userFacingMessage": "I captured your indoor rover idea and produced a functional first architecture with explicit requirements and open questions for runtime, spatial resolution, and accuracy. Next, confirm these measurement and runtime constraints (and your prototype budget) so later embedded component selection stays grounded.",
+  "createdArtifactReferences": [
+    {
+      "artifactType": "project-brief",
+      "artifactId": "art_01ROVERPB000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "requirement-set",
+      "artifactId": "art_01ROVREQ000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "functional-architecture",
+      "artifactId": "art_01ROVARCH0000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "next-action",
+      "artifactId": "art_01ROVNXT000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    }
+  ],
+  "warningIssueReferences": [
+    {
+      "issueId": "issue_01WARNACCU000000000000001"
+    }
+  ],
+  "blockerIssueReferences": [
+    {
+      "issueId": "issue_01BLOCKRUNTIME000000000000001"
+    }
+  ],
+  "openQuestionReferences": [
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_01MEASTIME0000000000000001",
+      "displayId": "Q1"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_01SPATIALRES000000000000001",
+      "displayId": "Q2"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_01UNKNOWNACCUR00000000000001",
+      "displayId": "Q3"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_01BUDGETUNKNOWN0000000000001",
+      "displayId": "Q4"
+    }
+  ],
+  "nextActionArtifactReference": {
+    "artifactType": "next-action",
+    "artifactId": "art_01ROVNXT000000000000000001",
+    "artifactVersion": 1,
+    "contentSchemaVersion": "1.0.0"
+  },
+  "projectStateSummary": {
+    "projectPhase": "concept",
+    "autonomyMode": "delegate",
+    "openQuestionCount": 4,
+    "validationIssueCount": 2
+  },
+  "completionStatus": "completed-with-warnings"
+}
+

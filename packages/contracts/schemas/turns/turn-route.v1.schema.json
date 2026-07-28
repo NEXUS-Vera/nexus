@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/turns/turn-route.v1.schema.json",
+  "title": "TurnRoute",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "routeId",
+    "turnId",
+    "supported",
+    "routeType",
+    "domain",
+    "projectOperation",
+    "complexity",
+    "autonomyMode",
+    "chairmanRequiredEventually",
+    "reasons"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "routeId": { "type": "string", "pattern": "^route_[A-Za-z0-9]{16,}$" },
+    "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+    "supported": { "type": "boolean" },
+    "routeType": { "type": "string", "enum": ["project-initialization", "unsupported"] },
+    "domain": { "type": "string", "const": "embedded-products" },
+    "projectOperation": { "type": "string", "enum": ["create-project", "none"] },
+    "complexity": { "type": "string", "enum": ["low", "medium", "high", "unknown"] },
+    "autonomyMode": { "type": "string", "enum": ["collaborate", "delegate"] },
+    "chairmanRequiredEventually": { "type": "boolean" },
+    "reasons": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "unsupportedReason": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "supported": { "const": false } }, "required": ["supported"] },
+      "then": {
+        "required": ["unsupportedReason"],
+        "properties": { "routeType": { "const": "unsupported" } }
+      }
+    }
+  ]
+}
+

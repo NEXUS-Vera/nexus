@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/common/quantity.v1.schema.json",
+  "title": "Quantity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "value", "unit"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "value": {
+      "type": "number"
+    },
+    "unit": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+

@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_01ROVREQ000000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "artifactType": "requirement-set",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_01VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_01USERMSG0000000000000001",
+  "workflowRunId": "run_01ROVERRUN0000000000000001",
+  "content": {
+    "requirements": [
+      {
+        "requirementId": "req_01MEASTEMPHUMAIR0000000000000001",
+        "displayId": "R1",
+        "statement": "Measure temperature, humidity, and air quality while the rover is moving inside an indoor room.",
+        "category": "environmental",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_01R1DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_01USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Run a functional indoor session and confirm timestamped records include temperature, humidity, and air-quality fields."
+      },
+      {
+        "requirementId": "req_01ASSOCTIMELOC0000000000000001",
+        "displayId": "R2",
+        "statement": "Associate each measurement with a timestamp and a relative indoor location context suitable for mapping analysis.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_01R2INF0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_01ROVERPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "project-brief unknowns"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Validate that every measurement record includes timestamp and location fields and that analysis can group records by location bins."
+      },
+      {
+        "requirementId": "req_01RUNTIMEMINUNKNOWN0000000000001",
+        "displayId": "R3",
+        "statement": "The rover must meet a user-required measurement runtime budget for an indoor mapping session (runtime value unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_01R3INFERUNKNOWN0000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_01USERMSG0000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "missing runtime details"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm runtime requirement with the user and ensure later functional design can support the confirmed runtime."
+      },
+      {
+        "requirementId": "req_01ACCURACYUNKNOWN0000000000001",
+        "displayId": "R4",
+        "statement": "The system must achieve acceptable measurement accuracy for temperature, humidity, and air quality for mapping purposes (accuracy value unknown in this phase).",
+        "category": "verification",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_01R4INFERACC00000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_01ROVERPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "accuracy is not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm acceptable error bounds and define a functional validation plan in a later workflow."
+      },
+      {
+        "requirementId": "req_01SPATIALRESUNKNOWN000000000001",
+        "displayId": "R5",
+        "statement": "The system must support spatial resolution needs for indoor mapping (spatial resolution unknown in this phase).",
+        "category": "verification",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_01R5INFERSPAT0000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_01ROVERPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "mapping requires location granularity"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm required location granularity and ensure mapping analysis can meet the confirmed resolution needs."
+      },
+      {
+        "requirementId": "req_01BUDGETUNKNOWN0000000000001",
+        "displayId": "R6",
+        "statement": "The project must respect an upfront budget constraint for an early prototype mapping session (budget unknown in this phase).",
+        "category": "project-constraint",
+        "priority": "could",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_01R6INFERBUDGET000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_01USERMSG0000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "budget is not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm budget constraint with the user and use it to constrain future component selection."
+      }
+    ],
+    "requirementSummary": "The rover must capture environmental measurements with timestamps and location context, while confirming key runtime, accuracy, spatial-resolution, and budget unknowns before component selection.",
+    "missingDimensions": [
+      "measurement interval / sampling rate",
+      "acceptable measurement error bounds across modalities",
+      "indoor location granularity model"
+    ],
+    "openQuestionIds": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01MEASTIME0000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01SPATIALRES000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01UNKNOWNACCUR00000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01BUDGETUNKNOWN0000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

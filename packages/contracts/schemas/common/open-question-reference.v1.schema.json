@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/common/open-question-reference.v1.schema.json",
+  "title": "OpenQuestionReference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "questionId"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "questionId": {
+      "type": "string",
+      "pattern": "^question_[A-Za-z0-9]{16,}$",
+      "minLength": 1
+    },
+    "displayId": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+

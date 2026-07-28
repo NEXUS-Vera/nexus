@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "workflowRunId": "run_04VIBRATIONRUN0000000000000001",
+  "workflowType": "embedded-project-initialization",
+  "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+  "turnId": "turn_04USERMSG0000000000000001",
+  "runStatus": "completed-with-warnings",
+  "stepRecords": [
+    {
+      "stepId": "step_04",
+      "stepType": "embedded-project-initialization",
+      "status": "completed",
+      "attempt": 1,
+      "startedAt": "2026-07-28T13:25:00Z",
+      "completedAt": "2026-07-28T13:25:20Z",
+      "outputArtifactReferences": [
+        {
+          "artifactType": "project-brief",
+          "artifactId": "art_04VIBRATIONPB000000000000000001",
+          "artifactVersion": 1,
+          "contentSchemaVersion": "1.0.0"
+        },
+        {
+          "artifactType": "requirement-set",
+          "artifactId": "art_04VIBRATIONREQ000000000000000001",
+          "artifactVersion": 1,
+          "contentSchemaVersion": "1.0.0"
+        },
+        {
+          "artifactType": "functional-architecture",
+          "artifactId": "art_04VIBRATIONARCH00000000000000001",
+          "artifactVersion": 1,
+          "contentSchemaVersion": "1.0.0"
+        },
+        {
+          "artifactType": "next-action",
+          "artifactId": "art_04VIBRATIONNXT000000000000000001",
+          "artifactVersion": 1,
+          "contentSchemaVersion": "1.0.0"
+        }
+      ]
+    }
+  ],
+  "startTime": "2026-07-28T13:25:00Z",
+  "completionTime": "2026-07-28T13:25:20Z",
+  "warnings": [
+    {
+      "issueId": "issue_04WARNBASELINECALIBRATIONMETHODOLOGYUNCLEAR000000000000001"
+    }
+  ],
+  "errorReferences": []
+}
+

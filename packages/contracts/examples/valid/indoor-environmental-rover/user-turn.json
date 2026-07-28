@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_01USERMSG0000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "rawUserMessage": "I want to build a small indoor rover that drives around a room and maps temperature, humidity, and air quality.",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_01USERACTOR0000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "timestamp": "2026-07-28T13:24:30Z"
+}
+

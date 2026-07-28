@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_02USERMSG0000000000000001",
+  "projectId": "proj_02TREMORPROJ0000000000000001",
+  "userFacingMessage": "I captured your wearable tremor monitor idea and produced a functional first architecture that measures hand tremors, captures timestamped motion data, and tracks open questions for runtime, tremor frequency range, sampling rate, and wearable calibration/form-factor constraints. Next, confirm these needs (and clarify your privacy-sensitive handling expectations) so later embedded component selection stays grounded.",
+  "createdArtifactReferences": [
+    {
+      "artifactType": "project-brief",
+      "artifactId": "art_02TREMORPB000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "requirement-set",
+      "artifactId": "art_02TREMORREQ000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "functional-architecture",
+      "artifactId": "art_02TREMORARCH00000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "next-action",
+      "artifactId": "art_02TREMORNXT000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    }
+  ],
+  "warningIssueReferences": [
+    {
+      "issueId": "issue_02WARNPRIVACYSENSITIVEHANDLING000000000000001"
+    }
+  ],
+  "blockerIssueReferences": [
+    {
+      "issueId": "issue_02BLOCKTREMORRUNTIMEFREQ000000000000001"
+    }
+  ],
+  "openQuestionReferences": [
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_02RUNTIMEBUDGETTREMOR000000000000001",
+      "displayId": "Q1"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_02TREMORFREQRANGEUNKNOWN000000000000001",
+      "displayId": "Q2"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_02SAMPLINGRATEUNKNOWN000000000000001",
+      "displayId": "Q3"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_02CALIBRATIONFORMFACTORUNKNOWN0000000000001",
+      "displayId": "Q4"
+    }
+  ],
+  "nextActionArtifactReference": {
+    "artifactType": "next-action",
+    "artifactId": "art_02TREMORNXT000000000000000001",
+    "artifactVersion": 1,
+    "contentSchemaVersion": "1.0.0"
+  },
+  "projectStateSummary": {
+    "projectPhase": "concept",
+    "autonomyMode": "delegate",
+    "openQuestionCount": 4,
+    "validationIssueCount": 2
+  },
+  "completionStatus": "completed-with-warnings"
+}
+

@@ -1,0 +1,246 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_03GREENHOUSEREQ000000000000000001",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "artifactType": "requirement-set",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_03VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_03USERMSG0000000000000001",
+  "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+  "content": {
+    "requirements": [
+      {
+        "requirementId": "req_03TEMPHUMIDITYMEASURE0000000000000001",
+        "displayId": "R1",
+        "statement": "The greenhouse node measures temperature and humidity for greenhouse monitoring.",
+        "category": "environmental",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R1DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_03USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Run a functional greenhouse monitoring test and confirm temperature and humidity readings are captured and stored as timestamped measurement records."
+      },
+      {
+        "requirementId": "req_03SOILMOISTUREMEASURE0000000000000001",
+        "displayId": "R2",
+        "statement": "The greenhouse node measures soil moisture for greenhouse monitoring.",
+        "category": "environmental",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R2DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_03USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Run a functional greenhouse monitoring test and confirm soil moisture readings are captured and stored as timestamped measurement records."
+      },
+      {
+        "requirementId": "req_03LIGHTMEASURE0000000000000001",
+        "displayId": "R3",
+        "statement": "The greenhouse node measures light for greenhouse monitoring.",
+        "category": "environmental",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R3DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_03USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Run a functional greenhouse monitoring test and confirm light readings are captured and stored as timestamped measurement records."
+      },
+      {
+        "requirementId": "req_03REMOTEREPORTREADINGS0000000000000001",
+        "displayId": "R4",
+        "statement": "The node reports the readings remotely for greenhouse monitoring.",
+        "category": "interface",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R4DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_03USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Confirm that recorded measurements can be transmitted for remote viewing as part of a periodic reporting workflow."
+      },
+      {
+        "requirementId": "req_03LOCALACQSTORAGEPERIODIC0000000000000001",
+        "displayId": "R5",
+        "statement": "The node must capture periodic timestamped measurement records for temperature, humidity, soil moisture, and light so they can be reported remotely.",
+        "category": "functional",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R5INFER0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_03GREENHOUSEPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "periodic acquisition needed for remote reporting"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm that measurement records include timestamps and can be assembled into remote reporting summaries."
+      },
+      {
+        "requirementId": "req_03ACCURACYBOUNDSUNKNOWN0000000000000001",
+        "displayId": "R6",
+        "statement": "The system must achieve acceptable measurement accuracy/error bounds for temperature, humidity, soil moisture, and light readings for greenhouse monitoring (accuracy value unknown in this phase).",
+        "category": "verification",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R6INFERACCUNKNOWN00000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_03GREENHOUSEPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "accuracy not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm acceptable error bounds for each modality are captured as open questions before component-level decisions in later workflows."
+      },
+      {
+        "requirementId": "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001",
+        "displayId": "R7",
+        "statement": "The node must meet targeted sampling and reporting interval needs for greenhouse monitoring (interval values unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R7INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_03USERMSG0000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "sampling/reporting interval not specified"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm sampling cadence and remote reporting frequency so later architecture can size storage/buffering and timing behavior without assuming components."
+      },
+      {
+        "requirementId": "req_03COMMUNICATIONRANGEUNKNOWN000000000000001",
+        "displayId": "R8",
+        "statement": "The system must operate with remote communication constraints suitable for greenhouse reporting (communication range/network availability unknown in this phase).",
+        "category": "interface",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R8INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_03GREENHOUSEPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "remote reporting implies communication constraints"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm communication constraints are captured as open requirements before selecting specific communication technologies."
+      },
+      {
+        "requirementId": "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001",
+        "displayId": "R9",
+        "statement": "The system must meet power-source constraints required for long-duration greenhouse operation (power/operation constraints unknown in this phase).",
+        "category": "performance",
+        "priority": "should",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R9INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_03GREENHOUSEPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "long-duration operation implies power constraints"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm power-source and operational duration constraints are captured before component selection."
+      },
+      {
+        "requirementId": "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001",
+        "displayId": "R10",
+        "statement": "The node must be suitable for the greenhouse deployment environment (deployment exposure and ingress/environment constraints unknown in this phase).",
+        "category": "physical",
+        "priority": "should",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_03R10INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_03USERMSG0000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "deployment environment not specified"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm deployment environment characteristics are captured as open questions before making physical design choices in later workflows."
+      }
+    ],
+    "requirementSummary": "The greenhouse sensing node must measure temperature, humidity, soil moisture, and light and report readings remotely, while confirming open constraints for deployment environment, acceptable accuracy, sampling/reporting intervals, and remote communication and power feasibility before component selection.",
+    "missingDimensions": [
+      "acceptable measurement accuracy/error bounds per modality",
+      "sampling interval and reporting cadence",
+      "remote communication constraints and operating range",
+      "deployment exposure/ingress expectations",
+      "power-source and operational duration constraints"
+    ],
+    "openQuestionIds": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

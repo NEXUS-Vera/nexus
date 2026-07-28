@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/responses/vera-response.v1.schema.json",
+  "title": "VeraResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "turnId",
+    "projectId",
+    "userFacingMessage",
+    "createdArtifactReferences",
+    "warningIssueReferences",
+    "blockerIssueReferences",
+    "openQuestionReferences",
+    "nextActionArtifactReference",
+    "projectStateSummary",
+    "completionStatus"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
+    "userFacingMessage": { "type": "string", "minLength": 1 },
+    "createdArtifactReferences": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "https://nexus.local/schemas/workflows/workflow-run.v1.schema.json#/$defs/artifactReference" }
+    },
+    "warningIssueReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["issueId"],
+        "properties": { "issueId": { "type": "string", "pattern": "^issue_[A-Za-z0-9]{16,}$" } }
+      }
+    },
+    "blockerIssueReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["issueId"],
+        "properties": { "issueId": { "type": "string", "pattern": "^issue_[A-Za-z0-9]{16,}$" } }
+      }
+    },
+    "openQuestionReferences": {
+      "type": "array",
+      "items": { "$ref": "https://nexus.local/schemas/common/open-question-reference.v1.schema.json" }
+    },
+    "nextActionArtifactReference": {
+      "$ref": "https://nexus.local/schemas/workflows/workflow-run.v1.schema.json#/$defs/artifactReference"
+    },
+    "projectStateSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["projectPhase", "autonomyMode", "openQuestionCount", "validationIssueCount"],
+      "properties": {
+        "projectPhase": { "type": "string", "enum": ["concept", "prototype-planning"] },
+        "autonomyMode": { "type": "string", "enum": ["collaborate", "delegate"] },
+        "openQuestionCount": { "type": "integer", "minimum": 0 },
+        "validationIssueCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "completionStatus": { "type": "string", "enum": ["completed", "completed-with-warnings", "failed"] }
+  }
+}
+

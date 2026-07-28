@@ -1,0 +1,95 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_01MEASTIME0000000000000001",
+    "projectId": "proj_01ROVERPROJ0000000000000001",
+    "question": "What minimum indoor mapping measurement runtime budget is required for a single rover session?",
+    "reason": "Runtime budget determines measurement cadence and functional feasibility of completing an indoor mapping run before data is incomplete.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_01USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_01BLOCKRUNTIME000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_01RUNTIMEMINUNKNOWN0000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:05Z",
+    "updatedAt": "2026-07-28T13:25:05Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_01SPATIALRES000000000000001",
+    "projectId": "proj_01ROVERPROJ0000000000000001",
+    "question": "What spatial-resolution granularity is required for the rover’s indoor mapping output (e.g., location bin size or mapping fidelity)?",
+    "reason": "Spatial-resolution needs influence how measurements are associated with location context and how mapping summaries are produced.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_01USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_01BLOCKRUNTIME000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_01SPATIALRESUNKNOWN000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:06Z",
+    "updatedAt": "2026-07-28T13:25:06Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_01UNKNOWNACCUR00000000000001",
+    "projectId": "proj_01ROVERPROJ0000000000000001",
+    "question": "What acceptable measurement accuracy/error bounds are required for temperature, humidity, and air-quality readings for indoor mapping purposes?",
+    "reason": "Accuracy requirements determine validation planning and how analysis interprets measurement uncertainty.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_01USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_01WARNACCU000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_01ACCURACYUNKNOWN0000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:07Z",
+    "updatedAt": "2026-07-28T13:25:07Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_01BUDGETUNKNOWN0000000000001",
+    "projectId": "proj_01ROVERPROJ0000000000000001",
+    "question": "What budget constraint should the early indoor rover prototype target for this mapping session?",
+    "reason": "Budget constraints must be confirmed before embedding component selection in later workflows.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_01USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": [],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_01BUDGETUNKNOWN0000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:08Z",
+    "updatedAt": "2026-07-28T13:25:08Z"
+  }
+]
+

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json",
+  "title": "ArtifactEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactId",
+    "projectId",
+    "artifactType",
+    "artifactVersion",
+    "contentSchemaVersion",
+    "lifecycleStatus",
+    "evidenceStatus",
+    "approvalStatus",
+    "createdBy",
+    "createdAt",
+    "updatedAt",
+    "sourceTurnId",
+    "workflowRunId",
+    "content"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "artifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
+    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
+    "artifactType": {
+      "type": "string",
+      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+    },
+    "artifactVersion": { "type": "integer", "minimum": 1 },
+    "contentSchemaVersion": { "type": "string", "const": "1.0.0" },
+    "lifecycleStatus": { "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/lifecycleStatus" },
+    "evidenceStatus": { "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus" },
+    "approvalStatus": { "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/approvalStatus" },
+    "createdBy": { "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "sourceTurnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+    "workflowRunId": { "type": "string", "pattern": "^run_[A-Za-z0-9]{16,}$" },
+    "supersedesArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
+    "supersedesArtifactVersion": { "type": "integer", "minimum": 1 },
+    "content": {
+      "oneOf": [
+        { "$ref": "https://nexus.local/schemas/artifacts/content/project-brief.v1.schema.json" },
+        { "$ref": "https://nexus.local/schemas/artifacts/content/requirement-set.v1.schema.json" },
+        { "$ref": "https://nexus.local/schemas/artifacts/content/functional-architecture.v1.schema.json" },
+        { "$ref": "https://nexus.local/schemas/artifacts/content/next-action.v1.schema.json" }
+      ]
+    }
+  }
+}
+

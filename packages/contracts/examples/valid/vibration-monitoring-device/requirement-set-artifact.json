@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_04VIBRATIONREQ000000000000000001",
+  "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+  "artifactType": "requirement-set",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_04VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_04USERMSG0000000000000001",
+  "workflowRunId": "run_04VIBRATIONRUN0000000000000001",
+  "content": {
+    "requirements": [
+      {
+        "requirementId": "req_04ATTACHRECORDVIBRATION0000000000000001",
+        "displayId": "R1",
+        "statement": "The device attaches to a machine and records vibration for analysis.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_04R1DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_04USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Attach the device to the target machine and confirm it records vibration data suitable for later comparison."
+      },
+      {
+        "requirementId": "req_04DETECTOPERATINGCHANGES0000000000000001",
+        "displayId": "R2",
+        "statement": "The vibration records allow the user to detect changes in how the machine is operating.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_04R2DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_04USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Collect vibration recordings during two distinct operating conditions and confirm the recorded data supports change-detection reasoning in a later analysis step."
+      },
+      {
+        "requirementId": "req_04TIMESTAMPEDVIBRATIONRECORDS0000000000000001",
+        "displayId": "R3",
+        "statement": "The system shall capture timestamped vibration records so machine operating states can be compared later.",
+        "category": "interface",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_04R3INFER0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_04VIBRATIONPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "change detection needs time-referenced records"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm vibration logs include timestamps and can be exported/processed consistently for later comparison."
+      },
+      {
+        "requirementId": "req_04VIBRATIONFREQUENCYRANGEUNKNOWN000000000000001",
+        "displayId": "R4",
+        "statement": "The system must support the required vibration frequency range (measurement bandwidth unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_04R4INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_04VIBRATIONPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "frequency range not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm the required vibration frequency range before selecting any measurement approach."
+      },
+      {
+        "requirementId": "req_04SAMPLERATEANDRECORDINGMODEUNKNOWN00000000000001",
+        "displayId": "R5",
+        "statement": "The system must support a target sampling rate and recording mode suitable for machine monitoring (sampling/recording mode unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_04R5INFERUNKNOWN00000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_04VIBRATIONPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "sampling rate / recording mode not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm sampling rate and whether recordings should be continuous vs triggered by change events."
+      },
+      {
+        "requirementId": "req_04DYNAMICRANGEACCELERATIONUNKNOWN000000000000001",
+        "displayId": "R6",
+        "statement": "The system must accommodate the required dynamic range / acceleration range so vibration changes can be captured without saturating (dynamic range unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_04R6INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_04VIBRATIONPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "dynamic range / acceleration range not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm the dynamic range requirements before selecting any measurement approach."
+      },
+      {
+        "requirementId": "req_04MOUNTINGBASELINECALIBRATIONUNKNOWN000000000000001",
+        "displayId": "R7",
+        "statement": "The system must define mounting constraints and a baseline/calibration approach so vibration recordings can be compared across operating conditions (mounting/baseline unknown in this phase).",
+        "category": "usability",
+        "priority": "should",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_04R7INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_04VIBRATIONPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "mounting effects and baseline comparison method not specified"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm how the device will be mounted and how baseline/monitoring comparisons should be performed for change detection."
+      }
+    ],
+    "requirementSummary": "The vibration-monitoring device must attach to a machine, record vibration, and enable detecting operating changes, while confirming open measurement-bandwidth, dynamic-range, recording-mode, and mounting/baseline calibration constraints before component selection.",
+    "missingDimensions": [
+      "vibration frequency range / measurement bandwidth",
+      "sampling rate and continuous vs triggered recording mode",
+      "dynamic range / acceleration range",
+      "mounting constraints and baseline/calibration approach",
+      "recording duration and baseline collection schedule"
+    ],
+    "openQuestionIds": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04VIBRATIONFREQUENCYBANDWIDTHUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04SAMPLERATERECORDINGMODEUNKNOWN00000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04DYNAMICRANGEACCELUNKNOWN000000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04MOUNTINGBASELINECALIBRATIONUNKNOWN000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

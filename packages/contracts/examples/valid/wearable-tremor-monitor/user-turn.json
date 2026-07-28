@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_02USERMSG0000000000000001",
+  "projectId": "proj_02TREMORPROJ0000000000000001",
+  "rawUserMessage": "I want to build a wrist-worn device that measures hand tremors and records the motion data for later analysis.",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02USERACTOR0000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "timestamp": "2026-07-28T13:24:30Z"
+}
+

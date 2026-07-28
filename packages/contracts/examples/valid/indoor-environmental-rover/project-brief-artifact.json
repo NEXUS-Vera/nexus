@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_01ROVERPB000000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "artifactType": "project-brief",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_01VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_01USERMSG0000000000000001",
+  "workflowRunId": "run_01ROVERRUN0000000000000001",
+  "content": {
+    "goal": "Enable indoor mapping of temperature, humidity, and air quality using a small indoor rover that records measurements with timestamps and associates them with location.",
+    "problemStatement": "Early-stage uncertainty exists around required measurement runtime, spatial resolution, and acceptable accuracy for indoor environmental mapping. The rover must start with a functional architecture that captures data flow and open questions without committing to specific components.",
+    "intendedContext": "A developer or early-stage team will run the rover in an indoor room and review collected measurements and generated summaries to decide next embedded prototype steps.",
+    "projectStage": "concept",
+    "scope": [
+      "Functional specification of data acquisition, timestamping, and location association.",
+      "Functional design for analysis and basic visualization/summary output.",
+      "Explicit identification of unknown measurement and runtime requirements."
+    ],
+    "outOfScope": [
+      "Component-part selection (specific sensor modules, MCUs, boards).",
+      "PCB layout, schematic validation, simulation execution, and firmware generation.",
+      "Regulatory certification, medical-device approval, and production manufacturing planning."
+    ],
+    "successCriteria": [
+      "All produced artifacts conform to the v1 contracts.",
+      "Explicit and inferred requirements are distinguishable.",
+      "Unsupported assumptions are not presented as facts.",
+      "The Next Action is derived from concrete blockers and open questions about measurement needs."
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "A1",
+        "statement": "The initial rover behavior can be evaluated in a single indoor room without needing outdoor mobility constraints.",
+        "sourceType": "user-implied",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      },
+      {
+        "assumptionId": "A2",
+        "statement": "Early prototypes will tolerate coarse accuracy until runtime, spatial resolution, and measurement quality requirements are confirmed.",
+        "sourceType": "system-inferred",
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation"
+      }
+    ],
+    "unknowns": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01MEASTIME0000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01SPATIALRES000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01UNKNOWNACCUR00000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_01BUDGETUNKNOWN0000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

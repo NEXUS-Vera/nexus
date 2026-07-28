@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_02TREMORARCH00000000000000001",
+  "projectId": "proj_02TREMORPROJ0000000000000001",
+  "artifactType": "functional-architecture",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_02USERMSG0000000000000001",
+  "workflowRunId": "run_02TREMORRUN0000000000000001",
+  "content": {
+    "architectureId": "arch_02TREMORARCH0000000000000001",
+    "architectureMaturity": "functional",
+    "systemBoundary": "A wrist-worn tremor monitoring system that captures hand-tremor motion data, attaches timestamps and calibration metadata, stores an analysis-ready log, and supports later export and summary review while keeping measurement targets as open questions until confirmed.",
+    "nodes": [
+      {
+        "nodeId": "node_02TREMORNODECONFIG0000000000000001",
+        "name": "Wearable Session Configuration Input",
+        "functionalType": "user-interface",
+        "responsibilities": [
+          "Accept user-intended tremor monitoring session context.",
+          "Provide placeholders for unknown wearable runtime, tremor frequency range, sampling rate, and calibration/form-factor constraints.",
+          "Surface privacy-sensitive handling considerations as non-medical constraints for later clarification."
+        ],
+        "satisfiesRequirementIds": [
+          "req_02RUNTIMEBUDGETTREMORUNKNOWN000000000000001",
+          "req_02TREMORFREQUENCYRANGEUNKNOWN000000000000001",
+          "req_02CALIBRATIONFORMFACTORUNKNOWN00000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_02TREMORNODESENSING0000000000000001",
+        "name": "Hand Tremor Motion Acquisition",
+        "functionalType": "sensing",
+        "responsibilities": [
+          "Measure hand tremors while the device is worn.",
+          "Capture motion data samples suitable for later analysis.",
+          "Emit motion samples for timestamp association and later storage."
+        ],
+        "satisfiesRequirementIds": [
+          "req_02HANDTREMORMEASURE0000000000000001",
+          "req_02MOTIONDATARECORD0000000000000001",
+          "req_02TIMESTAMPEDMOTIONLOG0000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_02TREMORNODEASSOC0000000000000001",
+        "name": "Timestamp + Calibration Metadata Association",
+        "functionalType": "processing",
+        "responsibilities": [
+          "Associate motion samples with timestamps.",
+          "Attach calibration/form-factor metadata placeholders needed for consistent later interpretation.",
+          "Propagate unknown measurement targets to analysis metadata without treating them as confirmed."
+        ],
+        "satisfiesRequirementIds": [
+          "req_02TIMESTAMPEDMOTIONLOG0000000000000001",
+          "req_02CALIBRATIONFORMFACTORUNKNOWN00000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_02TREMORNODESTORAGE0000000000000001",
+        "name": "Timestamped Motion Storage",
+        "functionalType": "storage",
+        "responsibilities": [
+          "Buffer and persist a motion log containing timestamped measurements and associated calibration metadata.",
+          "Support exportable records whose volume depends on sampling-rate needs."
+        ],
+        "satisfiesRequirementIds": [
+          "req_02TIMESTAMPEDMOTIONLOG0000000000000001",
+          "req_02SAMPLINGRATEUNKNOWN000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_02TREMORNODEANALYSIS0000000000000001",
+        "name": "Tremor-Focused Motion Analysis",
+        "functionalType": "analysis",
+        "responsibilities": [
+          "Aggregate stored records into analysis summaries oriented to tremor motion interpretation.",
+          "Highlight mismatches between assumed and confirmed tremor frequency range, runtime coverage, and sampling-rate targets.",
+          "Produce decision-ready outputs for next embedded prototype steps while remaining functional and non-component-specific."
+        ],
+        "satisfiesRequirementIds": [
+          "req_02TREMORFREQUENCYRANGEUNKNOWN000000000000001",
+          "req_02RUNTIMEBUDGETTREMORUNKNOWN000000000000001",
+          "req_02TIMESTAMPEDMOTIONLOG0000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_02TREMORNODEEXPORT0000000000000001",
+        "name": "Motion Data Export",
+        "functionalType": "communication",
+        "responsibilities": [
+          "Export analysis-ready motion datasets for later review.",
+          "Include references to open questions that constrain how later interpretation should proceed (e.g., runtime, frequency range, sampling, calibration/form-factor).",
+          "Make privacy-sensitive handling assumptions explicit for later clarification."
+        ],
+        "satisfiesRequirementIds": [
+          "req_02MOTIONDATARECORD0000000000000001",
+          "req_02CALIBRATIONFORMFACTORUNKNOWN00000000000001"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "edgeId": "edge_02TREMORCONTROLUSERCFG0000000000000001",
+        "fromNodeId": "node_02TREMORNODECONFIG0000000000000001",
+        "toNodeId": "node_02TREMORNODESENSING0000000000000001",
+        "flowType": "control",
+        "description": "Session constraints and unknown placeholders are applied to acquisition behavior without committing to components."
+      },
+      {
+        "edgeId": "edge_02TREMORDATATOASSOC0000000000000001",
+        "fromNodeId": "node_02TREMORNODESENSING0000000000000001",
+        "toNodeId": "node_02TREMORNODEASSOC0000000000000001",
+        "flowType": "data",
+        "description": "Raw motion samples are emitted for timestamp and calibration-metadata association."
+      },
+      {
+        "edgeId": "edge_02TREMORASSOCSTORAGE0000000000000001",
+        "fromNodeId": "node_02TREMORNODEASSOC0000000000000001",
+        "toNodeId": "node_02TREMORNODESTORAGE0000000000000001",
+        "flowType": "data",
+        "description": "Associated motion records are persisted as timestamped logs with calibration metadata."
+      },
+      {
+        "edgeId": "edge_02TREMORSTORAGEANALYSIS0000000000000001",
+        "fromNodeId": "node_02TREMORNODESTORAGE0000000000000001",
+        "toNodeId": "node_02TREMORNODEANALYSIS0000000000000001",
+        "flowType": "data",
+        "description": "Stored records are aggregated to produce tremor-oriented analysis summaries and highlight unknown constraints."
+      },
+      {
+        "edgeId": "edge_02TREMORANALYSISTOEXPORT0000000000000001",
+        "fromNodeId": "node_02TREMORNODEANALYSIS0000000000000001",
+        "toNodeId": "node_02TREMORNODEEXPORT0000000000000001",
+        "flowType": "data",
+        "description": "Analysis outputs are exported for later dataset review and next-step planning."
+      }
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "FA1",
+        "statement": "Functional architecture can treat wearable runtime, frequency-range needs, sampling-rate targets, and calibration/form-factor assumptions as configurable placeholders without committing to specific components.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unresolvedDecisions": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02RUNTIMEBUDGETTREMOR000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02TREMORFREQRANGEUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02SAMPLINGRATEUNKNOWN000000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02CALIBRATIONFORMFACTORUNKNOWN0000000000001",
+        "displayId": "Q4"
+      }
+    ],
+    "requirementCoverage": {
+      "coveredRequirementIds": [
+        "req_02HANDTREMORMEASURE0000000000000001",
+        "req_02MOTIONDATARECORD0000000000000001",
+        "req_02TIMESTAMPEDMOTIONLOG0000000000000001",
+        "req_02RUNTIMEBUDGETTREMORUNKNOWN000000000000001",
+        "req_02TREMORFREQUENCYRANGEUNKNOWN000000000000001",
+        "req_02SAMPLINGRATEUNKNOWN000000000000001",
+        "req_02CALIBRATIONFORMFACTORUNKNOWN00000000000001"
+      ]
+    }
+  }
+}
+

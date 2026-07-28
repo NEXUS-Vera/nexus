@@ -1,0 +1,29 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_04BLOCKVIBRATIONRANGERECORDINGMOUNTUNKNOWN000000000000001",
+    "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+    "severity": "high",
+    "code": "unknown-vibration-bandwidth-dynamic-range-and-recording-mode",
+    "message": "Vibration measurement bandwidth (frequency range), dynamic range (acceleration range), and recording mode (continuous vs triggered) are not confirmed; the functional architecture must remain functional until these unknowns are resolved.",
+    "blocking": true,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:05Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Ask for vibration frequency range/bandwidth, expected acceleration/dynamic range, and the intended recording mode and session duration constraints."
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_04WARNBASELINECALIBRATIONMETHODOLOGYUNCLEAR000000000000001",
+    "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+    "severity": "medium",
+    "code": "baseline-and-calibration-approach-unclear",
+    "message": "Mounting effects and baseline/calibration methodology are considered but not fully specified for the initial prototype scope.",
+    "blocking": false,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:06Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Clarify how baseline vibration will be collected and how mounting affects interpretation."
+  }
+]
+

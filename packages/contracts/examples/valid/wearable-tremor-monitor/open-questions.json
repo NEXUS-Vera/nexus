@@ -1,0 +1,95 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_02RUNTIMEBUDGETTREMOR000000000000001",
+    "projectId": "proj_02TREMORPROJ0000000000000001",
+    "question": "What minimum wearable tremor-measurement runtime budget is required for a single session, before data becomes incomplete?",
+    "reason": "Runtime budget determines whether a single worn session can capture enough tremor data for later analysis.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_02USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_02BLOCKTREMORRUNTIMEFREQ000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_02RUNTIMEBUDGETTREMORUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:05Z",
+    "updatedAt": "2026-07-28T13:25:05Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_02TREMORFREQRANGEUNKNOWN000000000000001",
+    "projectId": "proj_02TREMORPROJ0000000000000001",
+    "question": "What tremor frequency range (measurement bandwidth) should the wearable tremor monitor support for the target use context?",
+    "reason": "The required frequency range affects the usable sampling strategy and how analysis can interpret tremor motion.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_02USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_02BLOCKTREMORRUNTIMEFREQ000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_02TREMORFREQUENCYRANGEUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:06Z",
+    "updatedAt": "2026-07-28T13:25:06Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_02SAMPLINGRATEUNKNOWN000000000000001",
+    "projectId": "proj_02TREMORPROJ0000000000000001",
+    "question": "What sampling rate should be targeted for the motion data so tremor dynamics are captured without unnecessary data volume?",
+    "reason": "Sampling rate influences temporal resolution, power/runtime needs, and the downstream analysis fidelity.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_02USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_02BLOCKTREMORRUNTIMEFREQ000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_02SAMPLINGRATEUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:07Z",
+    "updatedAt": "2026-07-28T13:25:07Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_02CALIBRATIONFORMFACTORUNKNOWN0000000000001",
+    "projectId": "proj_02TREMORPROJ0000000000000001",
+    "question": "What wearable form-factor limits and calibration approach are needed so the device remains comfortable, usable, and capable of producing consistent motion data?",
+    "reason": "Form-factor and calibration affect user comfort, sensor placement assumptions, and how analysis can interpret motion data consistency.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_02USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_02BLOCKTREMORRUNTIMEFREQ000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_02CALIBRATIONFORMFACTORUNKNOWN00000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:08Z",
+    "updatedAt": "2026-07-28T13:25:08Z"
+  }
+]
+

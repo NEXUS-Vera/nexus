@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/responses/open-question.v1.schema.json",
+  "title": "OpenQuestion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "questionId",
+    "projectId",
+    "question",
+    "reason",
+    "requestedFrom",
+    "blocks",
+    "status",
+    "sourceReferences",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "questionId": { "type": "string", "pattern": "^question_[A-Za-z0-9]{16,}$" },
+    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
+    "question": { "type": "string", "minLength": 1 },
+    "reason": { "type": "string", "minLength": 1 },
+    "requestedFrom": { "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json" },
+    "blocks": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^issue_[A-Za-z0-9]{16,}$" }
+    },
+    "status": { "type": "string", "enum": ["open", "answered", "resolved", "dismissed"] },
+    "sourceReferences": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["artifact", "requirement"] },
+          "artifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
+          "requirementId": { "type": "string", "pattern": "^req_[A-Za-z0-9]{16,}$" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "kind": { "const": "artifact" } }, "required": ["kind"] },
+            "then": { "required": ["artifactId"] }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "requirement" } }, "required": ["kind"] },
+            "then": { "required": ["requirementId"] }
+          }
+        ]
+      }
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}
+

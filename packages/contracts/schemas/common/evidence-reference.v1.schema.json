@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json",
+  "title": "EvidenceReference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "evidenceId", "sourceType", "sourceId", "evidenceStrength"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "evidenceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceType": {
+      "type": "string",
+      "enum": [
+        "user-turn",
+        "project-policy",
+        "document",
+        "external-source",
+        "calculation",
+        "test-result",
+        "agent-inference"
+      ]
+    },
+    "sourceId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceLocator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "supportedClaim": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidenceStrength": {
+      "type": "string",
+      "enum": ["direct", "supporting", "inferred", "contradicting"]
+    },
+    "attribution": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    }
+  }
+}
+

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/artifact.v1.schema.json",
+  "title": "Artifact",
+  "type": "object",
+  "oneOf": [
+    {
+      "allOf": [
+        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": { "const": "project-brief" },
+            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/project-brief.v1.schema.json" }
+          },
+          "required": ["artifactType", "content"]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": { "const": "requirement-set" },
+            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/requirement-set.v1.schema.json" }
+          },
+          "required": ["artifactType", "content"]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": { "const": "functional-architecture" },
+            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/functional-architecture.v1.schema.json" }
+          },
+          "required": ["artifactType", "content"]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": { "const": "next-action" },
+            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/next-action.v1.schema.json" }
+          },
+          "required": ["artifactType", "content"]
+        }
+      ]
+    }
+  ]
+}
+

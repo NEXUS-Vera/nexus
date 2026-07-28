@@ -1,0 +1,29 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_02BLOCKTREMORRUNTIMEFREQ000000000000001",
+    "projectId": "proj_02TREMORPROJ0000000000000001",
+    "severity": "high",
+    "code": "unknown-tremor-runtime-frequency-sampling",
+    "message": "Key tremor measurement runtime, measurement bandwidth (frequency range), and sampling rate are not confirmed; the functional architecture must remain functional until these unknowns are resolved.",
+    "blocking": true,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:05Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Ask the user for a minimum measurement runtime, required tremor frequency range/bandwidth, and intended sampling rate."
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_02WARNPRIVACYSENSITIVEHANDLING000000000000001",
+    "projectId": "proj_02TREMORPROJ0000000000000001",
+    "severity": "medium",
+    "code": "privacy-sensitive-data-handling-unclear",
+    "message": "Privacy-sensitive data handling considerations are mentioned but not sufficiently operationalized for the initial prototype scope.",
+    "blocking": false,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:06Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Clarify how motion data will be stored, exported, and treated as non-medical information."
+  }
+]
+

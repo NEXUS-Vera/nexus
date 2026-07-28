@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_04USERMSG0000000000000001",
+  "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+  "rawUserMessage": "I want to build a device that attaches to a machine and records vibration so I can detect changes in how the machine is operating.",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_04USERACTOR0000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "timestamp": "2026-07-28T13:24:30Z"
+}
+

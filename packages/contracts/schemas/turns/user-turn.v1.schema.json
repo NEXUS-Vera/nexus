@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/turns/user-turn.v1.schema.json",
+  "title": "UserTurn",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "turnId", "projectId", "rawUserMessage", "actor", "timestamp"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
+    "rawUserMessage": { "type": "string", "minLength": 1 },
+    "actor": { "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "attachmentReferences": {
+      "type": "array",
+      "items": { "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json" }
+    },
+    "parentTurnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" }
+  }
+}
+

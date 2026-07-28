@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_01ROVNXT000000000000000001",
+  "projectId": "proj_01ROVERPROJ0000000000000001",
+  "artifactType": "next-action",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_01VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_01USERMSG0000000000000001",
+  "workflowRunId": "run_01ROVERRUN0000000000000001",
+  "content": {
+    "actionId": "act_01NEXTACTION0000000000000001",
+    "title": "Confirm runtime and spatial-resolution requirements before component selection",
+    "description": "Validate the runtime budget, spatial-resolution granularity, and acceptable measurement accuracy so future embedded component selection remains grounded in user-confirmed needs.",
+    "rationale": "The current functional architecture can capture unknowns as open questions, but selecting sensors, MCU classes, and communication/storage strategies requires confirmed mapping runtime and resolution constraints.",
+    "owner": "vera",
+    "priority": "high",
+    "prerequisites": [],
+    "blocks": [],
+    "completionCondition": {
+      "conditionType": "unknowns-resolved"
+    },
+    "sourceIssueIds": [],
+    "sourceQuestionIds": []
+  }
+}
+

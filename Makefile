@@ -5,7 +5,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := check
 
-.PHONY: setup format lint typecheck test test-unit test-integration eval contracts policy check build clean
+.PHONY: setup format lint typecheck test test-unit test-integration eval contracts policy check build clean generate-contract-types
 
 setup:
 	@./scripts/setup.sh
@@ -32,6 +32,9 @@ eval:
 
 contracts:
 	@./scripts/validate-contracts.sh
+
+generate-contract-types:
+	@python3 packages/contracts/scripts/generate_contract_types.py
 
 policy:
 	@./scripts/check-repository-policy.sh

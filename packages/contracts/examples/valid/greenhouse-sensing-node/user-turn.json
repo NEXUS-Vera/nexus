@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_03USERMSG0000000000000001",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "rawUserMessage": "I want to build a greenhouse monitoring node that measures temperature, humidity, soil moisture, and light, and reports the readings remotely.",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_03USERACTOR0000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "timestamp": "2026-07-28T13:24:30Z"
+}
+

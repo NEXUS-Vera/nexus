@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/common/artifact-status.v1.schema.json",
+  "title": "ArtifactStatus",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lifecycleStatus", "evidenceStatus", "approvalStatus"],
+  "$defs": {
+    "lifecycleStatus": {
+      "type": "string",
+      "enum": ["drafted", "ready", "affected", "stale", "blocked", "superseded", "archived"]
+    },
+    "evidenceStatus": {
+      "type": "string",
+      "enum": ["unverified", "inferred", "partially-grounded", "grounded", "calculated", "tested"]
+    },
+    "approvalStatus": {
+      "type": "string",
+      "enum": [
+        "not-required",
+        "proposed",
+        "awaiting-user",
+        "user-approved",
+        "agent-decided",
+        "rejected"
+      ]
+    }
+  },
+  "properties": {
+    "lifecycleStatus": { "$ref": "#/$defs/lifecycleStatus" },
+    "evidenceStatus": { "$ref": "#/$defs/evidenceStatus" },
+    "approvalStatus": { "$ref": "#/$defs/approvalStatus" }
+  }
+}
+
