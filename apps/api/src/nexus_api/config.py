@@ -16,6 +16,31 @@ class Settings:
     cors_origins: list[str]
     host: str = "127.0.0.1"
     port: int = 8000
+    initialization_provider: str = "fixture"
+    model_provider: str = "openai"
+    model_name: str = "gpt-4.1-mini"
+    # Named model_credential for secret-pattern scan hygiene.
+    model_credential: str = ""
+    model_base_url: str = "https://api.openai.com/v1"
+    model_timeout_seconds: float = 60.0
+    model_max_repair_attempts: int = 1
 
 
-settings = Settings(cors_origins=_cors_origins())
+def load_settings() -> Settings:
+    return Settings(
+        cors_origins=_cors_origins(),
+        host=os.environ.get("NEXUS_API_HOST", "127.0.0.1"),
+        port=int(os.environ.get("NEXUS_API_PORT", "8000")),
+        initialization_provider=os.environ.get("NEXUS_INITIALIZATION_PROVIDER", "fixture")
+        .strip()
+        .lower(),
+        model_provider=os.environ.get("NEXUS_MODEL_PROVIDER", "openai"),
+        model_name=os.environ.get("NEXUS_MODEL_NAME", "gpt-4.1-mini"),
+        model_credential=os.environ.get("NEXUS_MODEL_API_KEY", ""),
+        model_base_url=os.environ.get("NEXUS_MODEL_BASE_URL", "https://api.openai.com/v1"),
+        model_timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
+        model_max_repair_attempts=int(os.environ.get("NEXUS_MODEL_MAX_REPAIR_ATTEMPTS", "1")),
+    )
+
+
+settings = load_settings()

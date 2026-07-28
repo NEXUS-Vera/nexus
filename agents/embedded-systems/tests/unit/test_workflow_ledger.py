@@ -6,14 +6,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from nexus_embedded_systems.workflows.project_initialization.materializer import (
-    materialize_fixture_package,
-)
 from nexus_embedded_systems.workflows.project_initialization.repository import (
     InMemoryInitializationStore,
 )
 from nexus_embedded_systems.workflows.project_initialization.service import (
-    WORKFLOW_STEPS,
     InitializationService,
     InitializationValidationError,
 )
@@ -23,6 +19,20 @@ FIXTURES = ROOT / "packages/contracts/examples/valid"
 PROMPT = (
     "I want to build a wrist-worn device that measures hand tremors "
     "and records the motion data for later analysis."
+)
+
+# Fixed step order performed by FixtureInitializationProvider for a
+# successful run. Kept here rather than imported because it is a test-time
+# expectation, not a public contract of the provider.
+WORKFLOW_STEPS: tuple[str, ...] = (
+    "route-turn",
+    "select-fixture-family",
+    "create-project-context",
+    "materialize-fixture-package",
+    "validate-schema",
+    "validate-project-package",
+    "build-result",
+    "complete-workflow",
 )
 
 
@@ -85,6 +95,10 @@ async def test_schema_validation_failure_stops_later_steps(
 ) -> None:
     service = InitializationService(store=InMemoryInitializationStore(), fixtures_root=FIXTURES)
 
+    from nexus_embedded_systems.workflows.project_initialization.materializer import (
+        materialize_fixture_package,
+    )
+
     original = materialize_fixture_package
 
     def corrupt(*args: Any, **kwargs: Any) -> tuple[dict[str, Any], dict[str, str]]:
@@ -93,7 +107,8 @@ async def test_schema_validation_failure_stops_later_steps(
         return result, id_map
 
     monkeypatch.setattr(
-        "nexus_embedded_systems.workflows.project_initialization.service.materialize_fixture_package",
+        "nexus_embedded_systems.workflows.project_initialization.providers."
+        "fixture_provider.materialize_fixture_package",
         corrupt,
     )
 
@@ -140,7 +155,8 @@ async def test_semantic_validation_failure_stops_later_steps(
         ]
 
     monkeypatch.setattr(
-        "nexus_embedded_systems.workflows.project_initialization.service.validate_initialization_package",
+        "nexus_embedded_systems.workflows.project_initialization.providers."
+        "fixture_provider.validate_initialization_package",
         boom,
     )
 

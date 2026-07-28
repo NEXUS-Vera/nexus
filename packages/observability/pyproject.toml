@@ -1,9 +1,14 @@
 [project]
 name = "nexus-observability"
 version = "0.0.0"
-description = "Placeholder package for nexus observability"
+description = "Observation recorders (in-memory and structured-log) for Nexus agent and model-gateway events"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
 
 [build-system]
 requires = ["setuptools>=68"]

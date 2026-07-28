@@ -1,0 +1,95 @@
+# Golden-family eval cases for embedded-project-initialization.
+#
+# Each case mirrors one of the five supported fixture families
+# (see agents/embedded-systems/.../fixture_router.py) and documents the
+# explicit claims, missing dimensions, and forbidden component selections a
+# correct staged-generation run must produce or avoid.
+- id: golden-indoor-environmental-rover
+  category: indoor-environmental-rover
+  prompt: >-
+    I want to build a small indoor rover that drives around a room and maps
+    temperature, humidity, and air quality.
+  expectedOutcome: supported
+  expectedExplicitClaims:
+    - small indoor rover
+    - drives around a room
+    - maps temperature, humidity, and air quality
+  expectedMissingDimensions:
+    - battery life target
+    - navigation and mapping accuracy requirements
+  forbiddenSelections:
+    - ESP32
+    - Raspberry Pi
+    - BME280
+
+- id: golden-wearable-tremor-monitor
+  category: wearable-tremor-monitor
+  prompt: >-
+    I want to build a wrist-worn device that measures hand tremors and
+    records the motion data for later analysis.
+  expectedOutcome: supported
+  expectedExplicitClaims:
+    - wrist-worn device
+    - measures hand tremors
+    - records the motion data for later analysis
+  expectedMissingDimensions:
+    - battery life target
+    - connectivity requirements
+  forbiddenSelections:
+    - ESP32
+    - BMI270
+    - Arduino
+
+- id: golden-greenhouse-sensing-node
+  category: greenhouse-sensing-node
+  prompt: >-
+    I want to build a greenhouse monitoring node that measures temperature,
+    humidity, soil moisture, and light, and reports the readings remotely.
+  expectedOutcome: supported
+  expectedExplicitClaims:
+    - greenhouse monitoring node
+    - measures temperature, humidity, soil moisture, and light
+    - reports the readings remotely
+  expectedMissingDimensions:
+    - power source and battery life
+    - remote connectivity protocol
+  forbiddenSelections:
+    - ESP32
+    - LoRa module
+    - DHT22
+
+- id: golden-vibration-monitoring-device
+  category: vibration-monitoring-device
+  prompt: >-
+    I want to build a device that attaches to a machine and records
+    vibration so I can detect changes in how the machine is operating.
+  expectedOutcome: supported
+  expectedExplicitClaims:
+    - attaches to a machine
+    - records vibration
+    - detect changes in how the machine is operating
+  expectedMissingDimensions:
+    - sampling rate and frequency range
+    - mounting and environmental constraints
+  forbiddenSelections:
+    - ESP32
+    - MPU6050
+    - accelerometer part number
+
+- id: golden-robot-obstacle-detection-module
+  category: robot-obstacle-detection-module
+  prompt: >-
+    I want to build an obstacle-detection module for a small indoor robot
+    so it can detect objects in front of it and react before it hits them.
+  expectedOutcome: supported
+  expectedExplicitClaims:
+    - obstacle-detection module
+    - small indoor robot
+    - detect objects in front of it and react before it hits them
+  expectedMissingDimensions:
+    - detection range requirements
+    - reaction latency target
+  forbiddenSelections:
+    - ESP32
+    - HC-SR04
+    - ultrasonic sensor part number
