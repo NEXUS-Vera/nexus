@@ -1,4 +1,12 @@
 from .project_package_validator import validate_project_package_folder
+from .schema_validator import (
+    SchemaValidationError,
+    format_schema_errors,
+    load_schemas_by_id,
+    make_validator,
+    validate_against_schema,
+    validate_against_schema_id,
+)
 from .semantic_validators import (
     SemanticValidationError,
     find_hidden_reasoning_fields,
@@ -6,8 +14,14 @@ from .semantic_validators import (
 )
 
 __all__ = [
+    "SchemaValidationError",
     "SemanticValidationError",
-    "semantic_validate_bundle",
+    "format_schema_errors",
     "find_hidden_reasoning_fields",
+    "load_schemas_by_id",
+    "make_validator",
+    "semantic_validate_bundle",
+    "validate_against_schema",
+    "validate_against_schema_id",
     "validate_project_package_folder",
 ]

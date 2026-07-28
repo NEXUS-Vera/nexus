@@ -15,15 +15,15 @@ export interface OpenQuestion {
    */
   sourceReferences: [
     {
-      [k: string]: any;
-    } & {
-      [k: string]: any;
+      artifactId?: string;
+      kind: 'artifact' | 'requirement';
+      requirementId?: string;
     },
-    ...({
-      [k: string]: any;
-    } & {
-      [k: string]: any;
-    })[]
+    ...{
+      artifactId?: string;
+      kind: 'artifact' | 'requirement';
+      requirementId?: string;
+    }[]
   ];
   status: 'open' | 'answered' | 'resolved' | 'dismissed';
   updatedAt: string;

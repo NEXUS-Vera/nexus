@@ -1,37 +1,17 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
-export type Artifact =
-  | (ArtifactEnvelope & {
-      artifactType: 'project-brief';
-      content: ProjectBriefContent1;
-      [k: string]: any;
-    })
-  | (ArtifactEnvelope1 & {
-      artifactType: 'requirement-set';
-      content: RequirementSetContent2;
-      [k: string]: any;
-    })
-  | (ArtifactEnvelope2 & {
-      artifactType: 'functional-architecture';
-      content: FunctionalArchitectureContent3;
-      [k: string]: any;
-    })
-  | (ArtifactEnvelope3 & {
-      artifactType: 'next-action';
-      content: NextActionContent4;
-      [k: string]: any;
-    });
+export type Artifact = ArtifactEnvelope | ArtifactEnvelope1 | ArtifactEnvelope2 | ArtifactEnvelope3;
 
 export interface ArtifactEnvelope {
   approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
   artifactId: string;
-  artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+  artifactType: 'project-brief';
   artifactVersion: number;
-  content: ProjectBriefContent | RequirementSetContent | FunctionalArchitectureContent | NextActionContent;
+  content: ProjectBriefContent;
   contentSchemaVersion: '1.0.0';
   createdAt: string;
-  createdBy: ActorReference1;
+  createdBy: ActorReference;
   evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
   lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
   projectId: string;
@@ -69,6 +49,31 @@ export interface OpenQuestionReference {
   displayId?: string;
   questionId: string;
   schemaVersion: '1.0.0';
+}
+export interface ActorReference {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ArtifactEnvelope1 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'requirement-set';
+  artifactVersion: number;
+  content: RequirementSetContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference2;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
 }
 export interface RequirementSetContent {
   missingDimensions?: string[];
@@ -138,7 +143,7 @@ export interface OpenQuestionReference1 {
   schemaVersion: '1.0.0';
 }
 export interface EvidenceReference {
-  attribution?: ActorReference;
+  attribution?: ActorReference1;
   evidenceId: string;
   evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
   schemaVersion: '1.0.0';
@@ -148,7 +153,7 @@ export interface EvidenceReference {
     'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
   supportedClaim?: string;
 }
-export interface ActorReference {
+export interface ActorReference1 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -158,6 +163,31 @@ export interface Quantity {
   schemaVersion: '1.0.0';
   unit: string;
   value: number;
+}
+export interface ActorReference2 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ArtifactEnvelope2 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'functional-architecture';
+  artifactVersion: number;
+  content: FunctionalArchitectureContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference3;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
 }
 export interface FunctionalArchitectureContent {
   architectureId: string;
@@ -273,6 +303,31 @@ export interface OpenQuestionReference2 {
   questionId: string;
   schemaVersion: '1.0.0';
 }
+export interface ActorReference3 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ArtifactEnvelope3 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'next-action';
+  artifactVersion: number;
+  content: NextActionContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference4;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
 export interface NextActionContent {
   actionId: string;
   blocks: {
@@ -296,1100 +351,9 @@ export interface OpenQuestionReference3 {
   questionId: string;
   schemaVersion: '1.0.0';
 }
-export interface ActorReference1 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface ProjectBriefContent1 {
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  goal: string;
-  intendedContext: string;
-  outOfScope: string[];
-  problemStatement: string;
-  projectStage: 'concept' | 'prototype-planning';
-  /**
-   * @minItems 1
-   */
-  scope: [string, ...string[]];
-  /**
-   * @minItems 1
-   */
-  successCriteria: [string, ...string[]];
-  unknowns: OpenQuestionReference4[];
-}
-export interface OpenQuestionReference4 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface ArtifactEnvelope1 {
-  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
-  artifactId: string;
-  artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
-  artifactVersion: number;
-  content: ProjectBriefContent2 | RequirementSetContent1 | FunctionalArchitectureContent1 | NextActionContent1;
-  contentSchemaVersion: '1.0.0';
-  createdAt: string;
-  createdBy: ActorReference3;
-  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
-  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
-  projectId: string;
-  schemaVersion: '1.0.0';
-  sourceTurnId: string;
-  supersedesArtifactId?: string;
-  supersedesArtifactVersion?: number;
-  updatedAt: string;
-  workflowRunId: string;
-}
-export interface ProjectBriefContent2 {
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  goal: string;
-  intendedContext: string;
-  outOfScope: string[];
-  problemStatement: string;
-  projectStage: 'concept' | 'prototype-planning';
-  /**
-   * @minItems 1
-   */
-  scope: [string, ...string[]];
-  /**
-   * @minItems 1
-   */
-  successCriteria: [string, ...string[]];
-  unknowns: OpenQuestionReference5[];
-}
-export interface OpenQuestionReference5 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface RequirementSetContent1 {
-  missingDimensions?: string[];
-  openQuestionIds?: OpenQuestionReference6[];
-  requirementSummary: string;
-  /**
-   * @minItems 1
-   */
-  requirements: [
-    {
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference1;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity1;
-      verificationMethod: string;
-    },
-    ...{
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference1;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity1;
-      verificationMethod: string;
-    }[]
-  ];
-}
-export interface OpenQuestionReference6 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface EvidenceReference1 {
-  attribution?: ActorReference2;
-  evidenceId: string;
-  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
-  schemaVersion: '1.0.0';
-  sourceId: string;
-  sourceLocator?: string;
-  sourceType:
-    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
-  supportedClaim?: string;
-}
-export interface ActorReference2 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface Quantity1 {
-  schemaVersion: '1.0.0';
-  unit: string;
-  value: number;
-}
-export interface FunctionalArchitectureContent1 {
-  architectureId: string;
-  architectureMaturity: 'functional';
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  /**
-   * @minItems 1
-   */
-  edges: [
-    {
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    },
-    ...{
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    }[]
-  ];
-  /**
-   * @minItems 1
-   */
-  nodes: [
-    {
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    },
-    ...{
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    }[]
-  ];
-  requirementCoverage: {
-    /**
-     * @minItems 1
-     */
-    coveredRequirementIds: [string, ...string[]];
-  };
-  systemBoundary: string;
-  unresolvedDecisions: OpenQuestionReference7[];
-}
-export interface OpenQuestionReference7 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface NextActionContent1 {
-  actionId: string;
-  blocks: {
-    issueId: string;
-  }[];
-  completionCondition: {
-    completionCriteria: string;
-    conditionType: 'validation-issues-cleared' | 'unknowns-resolved' | 'requirements-confirmed';
-  };
-  description: string;
-  owner: 'user' | 'vera' | 'embedded-systems-agent' | 'shared';
-  prerequisites: OpenQuestionReference8[];
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  rationale: string;
-  sourceIssueIds: string[];
-  sourceQuestionIds: string[];
-  title: string;
-}
-export interface OpenQuestionReference8 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface ActorReference3 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface RequirementSetContent2 {
-  missingDimensions?: string[];
-  openQuestionIds?: OpenQuestionReference9[];
-  requirementSummary: string;
-  /**
-   * @minItems 1
-   */
-  requirements: [
-    {
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference2;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity2;
-      verificationMethod: string;
-    },
-    ...{
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference2;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity2;
-      verificationMethod: string;
-    }[]
-  ];
-}
-export interface OpenQuestionReference9 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface EvidenceReference2 {
-  attribution?: ActorReference4;
-  evidenceId: string;
-  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
-  schemaVersion: '1.0.0';
-  sourceId: string;
-  sourceLocator?: string;
-  sourceType:
-    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
-  supportedClaim?: string;
-}
 export interface ActorReference4 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface Quantity2 {
-  schemaVersion: '1.0.0';
-  unit: string;
-  value: number;
-}
-export interface ArtifactEnvelope2 {
-  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
-  artifactId: string;
-  artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
-  artifactVersion: number;
-  content: ProjectBriefContent3 | RequirementSetContent3 | FunctionalArchitectureContent2 | NextActionContent2;
-  contentSchemaVersion: '1.0.0';
-  createdAt: string;
-  createdBy: ActorReference6;
-  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
-  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
-  projectId: string;
-  schemaVersion: '1.0.0';
-  sourceTurnId: string;
-  supersedesArtifactId?: string;
-  supersedesArtifactVersion?: number;
-  updatedAt: string;
-  workflowRunId: string;
-}
-export interface ProjectBriefContent3 {
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  goal: string;
-  intendedContext: string;
-  outOfScope: string[];
-  problemStatement: string;
-  projectStage: 'concept' | 'prototype-planning';
-  /**
-   * @minItems 1
-   */
-  scope: [string, ...string[]];
-  /**
-   * @minItems 1
-   */
-  successCriteria: [string, ...string[]];
-  unknowns: OpenQuestionReference10[];
-}
-export interface OpenQuestionReference10 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface RequirementSetContent3 {
-  missingDimensions?: string[];
-  openQuestionIds?: OpenQuestionReference11[];
-  requirementSummary: string;
-  /**
-   * @minItems 1
-   */
-  requirements: [
-    {
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference3;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity3;
-      verificationMethod: string;
-    },
-    ...{
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference3;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity3;
-      verificationMethod: string;
-    }[]
-  ];
-}
-export interface OpenQuestionReference11 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface EvidenceReference3 {
-  attribution?: ActorReference5;
-  evidenceId: string;
-  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
-  schemaVersion: '1.0.0';
-  sourceId: string;
-  sourceLocator?: string;
-  sourceType:
-    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
-  supportedClaim?: string;
-}
-export interface ActorReference5 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface Quantity3 {
-  schemaVersion: '1.0.0';
-  unit: string;
-  value: number;
-}
-export interface FunctionalArchitectureContent2 {
-  architectureId: string;
-  architectureMaturity: 'functional';
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  /**
-   * @minItems 1
-   */
-  edges: [
-    {
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    },
-    ...{
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    }[]
-  ];
-  /**
-   * @minItems 1
-   */
-  nodes: [
-    {
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    },
-    ...{
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    }[]
-  ];
-  requirementCoverage: {
-    /**
-     * @minItems 1
-     */
-    coveredRequirementIds: [string, ...string[]];
-  };
-  systemBoundary: string;
-  unresolvedDecisions: OpenQuestionReference12[];
-}
-export interface OpenQuestionReference12 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface NextActionContent2 {
-  actionId: string;
-  blocks: {
-    issueId: string;
-  }[];
-  completionCondition: {
-    completionCriteria: string;
-    conditionType: 'validation-issues-cleared' | 'unknowns-resolved' | 'requirements-confirmed';
-  };
-  description: string;
-  owner: 'user' | 'vera' | 'embedded-systems-agent' | 'shared';
-  prerequisites: OpenQuestionReference13[];
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  rationale: string;
-  sourceIssueIds: string[];
-  sourceQuestionIds: string[];
-  title: string;
-}
-export interface OpenQuestionReference13 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface ActorReference6 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface FunctionalArchitectureContent3 {
-  architectureId: string;
-  architectureMaturity: 'functional';
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  /**
-   * @minItems 1
-   */
-  edges: [
-    {
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    },
-    ...{
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    }[]
-  ];
-  /**
-   * @minItems 1
-   */
-  nodes: [
-    {
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    },
-    ...{
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    }[]
-  ];
-  requirementCoverage: {
-    /**
-     * @minItems 1
-     */
-    coveredRequirementIds: [string, ...string[]];
-  };
-  systemBoundary: string;
-  unresolvedDecisions: OpenQuestionReference14[];
-}
-export interface OpenQuestionReference14 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface ArtifactEnvelope3 {
-  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
-  artifactId: string;
-  artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
-  artifactVersion: number;
-  content: ProjectBriefContent4 | RequirementSetContent4 | FunctionalArchitectureContent4 | NextActionContent3;
-  contentSchemaVersion: '1.0.0';
-  createdAt: string;
-  createdBy: ActorReference8;
-  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
-  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
-  projectId: string;
-  schemaVersion: '1.0.0';
-  sourceTurnId: string;
-  supersedesArtifactId?: string;
-  supersedesArtifactVersion?: number;
-  updatedAt: string;
-  workflowRunId: string;
-}
-export interface ProjectBriefContent4 {
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  goal: string;
-  intendedContext: string;
-  outOfScope: string[];
-  problemStatement: string;
-  projectStage: 'concept' | 'prototype-planning';
-  /**
-   * @minItems 1
-   */
-  scope: [string, ...string[]];
-  /**
-   * @minItems 1
-   */
-  successCriteria: [string, ...string[]];
-  unknowns: OpenQuestionReference15[];
-}
-export interface OpenQuestionReference15 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface RequirementSetContent4 {
-  missingDimensions?: string[];
-  openQuestionIds?: OpenQuestionReference16[];
-  requirementSummary: string;
-  /**
-   * @minItems 1
-   */
-  requirements: [
-    {
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference4;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity4;
-      verificationMethod: string;
-    },
-    ...{
-      acceptanceCriteria?: string[];
-      category:
-        | 'functional'
-        | 'performance'
-        | 'interface'
-        | 'environmental'
-        | 'resource'
-        | 'physical'
-        | 'usability'
-        | 'safety'
-        | 'verification'
-        | 'project-constraint';
-      confidence: 'high' | 'medium' | 'low';
-      confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-      dependencyReferences?: string[];
-      displayId: string;
-      priority: 'must' | 'should' | 'could' | 'unclassified';
-      rationale?: string;
-      requirementId: string;
-      sourceReference: EvidenceReference4;
-      sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-      statement: string;
-      targetQuantity?: Quantity4;
-      verificationMethod: string;
-    }[]
-  ];
-}
-export interface OpenQuestionReference16 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface EvidenceReference4 {
-  attribution?: ActorReference7;
-  evidenceId: string;
-  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
-  schemaVersion: '1.0.0';
-  sourceId: string;
-  sourceLocator?: string;
-  sourceType:
-    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
-  supportedClaim?: string;
-}
-export interface ActorReference7 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface Quantity4 {
-  schemaVersion: '1.0.0';
-  unit: string;
-  value: number;
-}
-export interface FunctionalArchitectureContent4 {
-  architectureId: string;
-  architectureMaturity: 'functional';
-  assumptions: {
-    assumptionId: string;
-    confidence: 'high' | 'medium' | 'low';
-    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
-    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
-    statement: string;
-  }[];
-  /**
-   * @minItems 1
-   */
-  edges: [
-    {
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    },
-    ...{
-      description: string;
-      edgeId: string;
-      flowType: 'data' | 'control' | 'power' | 'user-input' | 'physical-output';
-      fromNodeId: string;
-      toNodeId: string;
-    }[]
-  ];
-  /**
-   * @minItems 1
-   */
-  nodes: [
-    {
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    },
-    ...{
-      functionalType:
-        | 'input'
-        | 'sensing'
-        | 'processing'
-        | 'control'
-        | 'storage'
-        | 'communication'
-        | 'power'
-        | 'output'
-        | 'actuation'
-        | 'analysis'
-        | 'user-interface'
-        | 'external-system';
-      inputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      name: string;
-      nodeId: string;
-      outputs?: {
-        dataType: string;
-        description: string;
-      }[];
-      /**
-       * @minItems 1
-       */
-      responsibilities: [string, ...string[]];
-      /**
-       * @minItems 1
-       */
-      satisfiesRequirementIds: [string, ...string[]];
-    }[]
-  ];
-  requirementCoverage: {
-    /**
-     * @minItems 1
-     */
-    coveredRequirementIds: [string, ...string[]];
-  };
-  systemBoundary: string;
-  unresolvedDecisions: OpenQuestionReference17[];
-}
-export interface OpenQuestionReference17 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface NextActionContent3 {
-  actionId: string;
-  blocks: {
-    issueId: string;
-  }[];
-  completionCondition: {
-    completionCriteria: string;
-    conditionType: 'validation-issues-cleared' | 'unknowns-resolved' | 'requirements-confirmed';
-  };
-  description: string;
-  owner: 'user' | 'vera' | 'embedded-systems-agent' | 'shared';
-  prerequisites: OpenQuestionReference18[];
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  rationale: string;
-  sourceIssueIds: string[];
-  sourceQuestionIds: string[];
-  title: string;
-}
-export interface OpenQuestionReference18 {
-  displayId?: string;
-  questionId: string;
-  schemaVersion: '1.0.0';
-}
-export interface ActorReference8 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface NextActionContent4 {
-  actionId: string;
-  blocks: {
-    issueId: string;
-  }[];
-  completionCondition: {
-    completionCriteria: string;
-    conditionType: 'validation-issues-cleared' | 'unknowns-resolved' | 'requirements-confirmed';
-  };
-  description: string;
-  owner: 'user' | 'vera' | 'embedded-systems-agent' | 'shared';
-  prerequisites: OpenQuestionReference19[];
-  priority: 'critical' | 'high' | 'medium' | 'low';
-  rationale: string;
-  sourceIssueIds: string[];
-  sourceQuestionIds: string[];
-  title: string;
-}
-export interface OpenQuestionReference19 {
-  displayId?: string;
-  questionId: string;
   schemaVersion: '1.0.0';
 }

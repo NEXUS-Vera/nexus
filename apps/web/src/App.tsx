@@ -59,8 +59,7 @@ export default function App() {
     };
   }, [result]);
 
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
+  async function submitMessage() {
     if (loading || !message.trim()) return;
     setLoading(true);
     setError(null);
@@ -106,6 +105,11 @@ export default function App() {
       window.clearInterval(timer);
       setLoading(false);
     }
+  }
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    await submitMessage();
   }
 
   return (
@@ -176,13 +180,7 @@ export default function App() {
                 <p>Narrow the prompt to one supported project family. Vera will not choose for you.</p>
               ) : null}
               {error.kind === 'server' || error.kind === 'network' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const form = document.querySelector('form.prompt-form');
-                    form?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                  }}
-                >
+                <button type="button" onClick={() => void submitMessage()}>
                   Retry
                 </button>
               ) : null}

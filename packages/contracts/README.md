@@ -118,6 +118,15 @@ Generated files include a do-not-edit notice. Re-running generation with unchang
 
 Backend and frontend import these generated types rather than hand-authoring duplicate contract interfaces.
 
+### TypeScript generation notes
+
+Canonical schemas keep `additionalProperties: false` and conditional keywords (`contains`, `if`/`then`/`else`). For TypeScript codegen only, the generator:
+
+1. collapses compatible object `allOf` branches so discriminated artifact unions do not gain permissive `[k: string]: any` index signatures;
+2. strips `contains` / `if` / `then` / `else` (still enforced by runtime JSON Schema validation).
+
+Do not manually edit generated TypeScript. If a future generator regression reintroduces index signatures on `Artifact`, fix bundling/codegen — not the schemas.
+
 ## Project Initialization Result Wrapper
 
 `schemas/responses/project-initialization-result.v1.schema.json` is the canonical package wrapper for a successful embedded initialization response. It `$ref`s existing contracts and requires exactly the four v1 artifact types.

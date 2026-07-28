@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator, RefResolver
+from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[3]
 CONTRACTS_DIR = ROOT / "packages" / "contracts"
@@ -16,12 +15,11 @@ EXAMPLES_DIR = CONTRACTS_DIR / "examples"
 SEMANTIC_SRC = CONTRACTS_DIR / "src"
 sys.path.insert(0, str(SEMANTIC_SRC))
 
-
-@dataclass(frozen=True)
-class SchemaValidationError:
-    code: str
-    message: str
-    path: str | None
+from nexus_contracts.validation.schema_validator import (  # noqa: E402
+    SchemaValidationError,
+    load_schemas_by_id,
+    make_resolver,
+)
 
 
 def _load_json(path: Path) -> Any:
@@ -33,14 +31,10 @@ def _iter_schema_files() -> list[Path]:
 
 
 def _load_schemas() -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
-    schemas_by_id: dict[str, dict[str, Any]] = {}
+    schemas_by_id = dict(load_schemas_by_id())
     schemas_by_filename: dict[str, Any] = {}
     for path in _iter_schema_files():
         data = _load_json(path)
-        schema_id = data.get("$id")
-        if not isinstance(schema_id, str) or not schema_id:
-            raise ValueError(f"Schema missing/invalid $id: {path}")
-        schemas_by_id[schema_id] = data
         schemas_by_filename[path.name] = data
     return schemas_by_id, schemas_by_filename
 
@@ -57,9 +51,8 @@ def _semantic_validate_bundle(bundle: dict[str, Any]) -> list[Any]:
     return _impl(bundle)
 
 
-def _make_resolver(store: dict[str, Any], base_schema: dict[str, Any]) -> RefResolver:
-    # Disable remote loading; everything must resolve from local store.
-    return RefResolver.from_schema(base_schema, store=store, cache_remote=False)
+def _make_resolver(store: dict[str, Any], base_schema: dict[str, Any]) -> Any:
+    return make_resolver(store, base_schema)
 
 
 def _validate_json_against_schema(
@@ -98,6 +91,7 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
     project_schema = schemas_by_id["https://nexus.local/schemas/project/project.v1.schema.json"]
     user_turn_schema = schemas_by_id["https://nexus.local/schemas/turns/user-turn.v1.schema.json"]
     turn_route_schema = schemas_by_id["https://nexus.local/schemas/turns/turn-route.v1.schema.json"]
+
     workflow_run_schema = schemas_by_id[
         "https://nexus.local/schemas/workflows/workflow-run.v1.schema.json"
     ]
