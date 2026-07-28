@@ -30,6 +30,8 @@ ID_PREFIXES: tuple[str, ...] = (
     "issue_",
     "question_",
     "actor_",
+    "event_",
+    "act_",
 )
 
 # Longest prefix first so "question_" wins over shorter accidental matches.
@@ -100,6 +102,8 @@ _TIMESTAMP_KEYS = frozenset(
         "startedAt",
         "completedAt",
         "routedAt",
+        "startTime",
+        "completionTime",
     }
 )
 

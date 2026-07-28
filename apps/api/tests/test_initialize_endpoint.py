@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from nexus_api.main import app
@@ -33,6 +35,23 @@ def anyio_backend() -> str:
     return "asyncio"
 
 
+def _collect_ids(payload: dict, prefix: str) -> set[str]:
+    found: set[str] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+        elif isinstance(node, str) and node.startswith(prefix):
+            found.add(node)
+
+    walk(payload)
+    return found
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("family", list(PROMPTS))
 async def test_initialize_supported_families(family: str) -> None:
@@ -55,6 +74,18 @@ async def test_initialize_supported_families(family: str) -> None:
     assert len(payload["artifacts"]) == 4
     next_ref = payload["veraResponse"]["nextActionArtifactReference"]["artifactId"]
     assert any(a["artifactId"] == next_ref for a in payload["artifacts"])
+    steps = [s["stepType"] for s in payload["workflowRun"]["stepRecords"]]
+    assert steps == [
+        "route-turn",
+        "select-fixture-family",
+        "create-project-context",
+        "materialize-fixture-package",
+        "validate-schema",
+        "validate-project-package",
+        "build-result",
+        "complete-workflow",
+    ]
+    assert all(s["status"] == "completed" for s in payload["workflowRun"]["stepRecords"])
 
 
 @pytest.mark.asyncio
@@ -77,11 +108,7 @@ async def test_initialize_ambiguous() -> None:
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
             "/v1/projects/initialize",
-            json={
-                "message": (
-                    "greenhouse vibration tremor rover obstacle detection machine"
-                )
-            },
+            json={"message": ("greenhouse vibration tremor rover obstacle detection machine")},
         )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "AMBIGUOUS_EMBEDDED_PROJECT_FOR_FIXTURE_PHASE"
@@ -107,3 +134,79 @@ async def test_initialize_invalid_autonomy_mode() -> None:
             json={"message": PROMPTS["wearable-tremor-monitor"], "autonomyMode": "chaos"},
         )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_repeated_initialize_produces_fresh_runtime_ids() -> None:
+    transport = ASGITransport(app=app)
+    prompt = PROMPTS["greenhouse-sensing-node"]
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        first = await client.post(
+            "/v1/projects/initialize",
+            json={"message": prompt, "autonomyMode": "collaborate"},
+        )
+        second = await client.post(
+            "/v1/projects/initialize",
+            json={"message": prompt, "autonomyMode": "collaborate"},
+        )
+    assert first.status_code == 200
+    assert second.status_code == 200
+    left = first.json()
+    right = second.json()
+    for prefix in (
+        "proj_",
+        "turn_",
+        "route_",
+        "run_",
+        "art_",
+        "req_",
+        "arch_",
+        "node_",
+        "edge_",
+        "issue_",
+        "question_",
+        "act_",
+        "actor_",
+    ):
+        a = _collect_ids(left, prefix)
+        b = _collect_ids(right, prefix)
+        if not a and not b:
+            continue
+        assert a and b
+        assert a.isdisjoint(b), prefix
+
+
+@pytest.mark.asyncio
+async def test_corrupted_package_returns_structured_500(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nexus_embedded_systems.workflows.project_initialization import materializer
+
+    original = materializer.materialize_fixture_package
+
+    def corrupt(*args: Any, **kwargs: Any) -> tuple[dict[str, Any], dict[str, str]]:
+        result, id_map = original(*args, **kwargs)
+        result["artifacts"] = result["artifacts"][:1]
+        return result, id_map
+
+    monkeypatch.setattr(
+        "nexus_embedded_systems.workflows.project_initialization.service.materialize_fixture_package",
+        corrupt,
+    )
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/v1/projects/initialize",
+            json={
+                "message": PROMPTS["wearable-tremor-monitor"],
+                "autonomyMode": "collaborate",
+            },
+        )
+    assert response.status_code == 500
+    body = response.json()
+    assert body["error"]["code"] == "INITIALIZATION_PACKAGE_VALIDATION_FAILED"
+    assert "project" not in body
+    assert "artifacts" not in body
+    assert "Traceback" not in response.text
+    assert "traceback" not in response.text.lower()
