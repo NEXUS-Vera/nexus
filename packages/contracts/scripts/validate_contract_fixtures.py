@@ -1,0 +1,272 @@
+from __future__ import annotations
+
+import json
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from jsonschema import Draft202012Validator, RefResolver
+
+ROOT = Path(__file__).resolve().parents[3]
+CONTRACTS_DIR = ROOT / "packages" / "contracts"
+SCHEMA_DIR = CONTRACTS_DIR / "schemas"
+EXAMPLES_DIR = CONTRACTS_DIR / "examples"
+
+SEMANTIC_SRC = CONTRACTS_DIR / "src"
+sys.path.insert(0, str(SEMANTIC_SRC))
+
+
+@dataclass(frozen=True)
+class SchemaValidationError:
+    code: str
+    message: str
+    path: str | None
+
+
+def _load_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _iter_schema_files() -> list[Path]:
+    return sorted(SCHEMA_DIR.glob("**/*.schema.json"))
+
+
+def _load_schemas() -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    schemas_by_id: dict[str, dict[str, Any]] = {}
+    schemas_by_filename: dict[str, Any] = {}
+    for path in _iter_schema_files():
+        data = _load_json(path)
+        schema_id = data.get("$id")
+        if not isinstance(schema_id, str) or not schema_id:
+            raise ValueError(f"Schema missing/invalid $id: {path}")
+        schemas_by_id[schema_id] = data
+        schemas_by_filename[path.name] = data
+    return schemas_by_id, schemas_by_filename
+
+
+def _validate_schema_definitions(schemas_by_id: dict[str, dict[str, Any]]) -> None:
+    for _schema_id, schema in sorted(schemas_by_id.items(), key=lambda x: x[0]):
+        Draft202012Validator.check_schema(schema)
+
+
+def _semantic_validate_bundle(bundle: dict[str, Any]) -> list[Any]:
+    # Local import to keep module import order stable for linters.
+    from nexus_contracts.validation.semantic_validators import semantic_validate_bundle as _impl
+
+    return _impl(bundle)
+
+
+def _make_resolver(store: dict[str, Any], base_schema: dict[str, Any]) -> RefResolver:
+    # Disable remote loading; everything must resolve from local store.
+    return RefResolver.from_schema(base_schema, store=store, cache_remote=False)
+
+
+def _validate_json_against_schema(
+    validator: Draft202012Validator, payload: Any
+) -> list[SchemaValidationError]:
+    errors: list[SchemaValidationError] = []
+    for e in sorted(validator.iter_errors(payload), key=lambda err: list(err.path)):
+        path = ".".join([str(p) for p in e.path]) if e.path else None
+        errors.append(
+            SchemaValidationError(
+                code="SCHEMA_VALIDATION_FAILED",
+                message=str(e.message),
+                path=path,
+            )
+        )
+    return errors
+
+
+def _artifact_content_and_type(
+    artifact_envelope: dict[str, Any],
+) -> tuple[str | None, dict[str, Any] | None]:
+    if not isinstance(artifact_envelope, dict):
+        return None, None
+    artifact_type = artifact_envelope.get("artifactType")
+    content = artifact_envelope.get("content")
+    if isinstance(content, dict):
+        return artifact_type, content
+    return artifact_type, None
+
+
+def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
+    schemas_by_id, _ = _load_schemas()
+    store = dict(schemas_by_id)
+
+    # Root schemas used for this phase.
+    project_schema = schemas_by_id["https://nexus.local/schemas/project/project.v1.schema.json"]
+    user_turn_schema = schemas_by_id["https://nexus.local/schemas/turns/user-turn.v1.schema.json"]
+    turn_route_schema = schemas_by_id["https://nexus.local/schemas/turns/turn-route.v1.schema.json"]
+    workflow_run_schema = schemas_by_id[
+        "https://nexus.local/schemas/workflows/workflow-run.v1.schema.json"
+    ]
+    artifact_union_schema = schemas_by_id[
+        "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
+    ]
+    validation_issue_schema = schemas_by_id[
+        "https://nexus.local/schemas/validation/validation-issue.v1.schema.json"
+    ]
+    open_question_schema = schemas_by_id[
+        "https://nexus.local/schemas/responses/open-question.v1.schema.json"
+    ]
+    vera_response_schema = schemas_by_id[
+        "https://nexus.local/schemas/responses/vera-response.v1.schema.json"
+    ]
+
+    root_validators: dict[str, Draft202012Validator] = {}
+
+    def v(schema_name: str, schema: dict[str, Any]) -> Draft202012Validator:
+        if schema_name not in root_validators:
+            resolver = _make_resolver(store=store, base_schema=schema)
+            root_validators[schema_name] = Draft202012Validator(schema, resolver=resolver)
+        return root_validators[schema_name]
+
+    # Validate every known file in the fixture folder.
+    schema_errors: list[str] = []
+    semantic_errors: list[str] = []
+
+    artifact_envelopes: list[dict[str, Any]] = []
+    requirement_set_content: dict[str, Any] | None = None
+    functional_architecture_content: dict[str, Any] | None = None
+    vera_response: dict[str, Any] | None = None
+
+    for file_path in sorted(folder.glob("*.json")):
+        filename = file_path.name
+        payload = _load_json(file_path)
+
+        try:
+            if filename == "project.json":
+                errors = _validate_json_against_schema(v("project", project_schema), payload)
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+            elif filename == "user-turn.json":
+                errors = _validate_json_against_schema(v("user-turn", user_turn_schema), payload)
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+            elif filename == "turn-route.json":
+                errors = _validate_json_against_schema(v("turn-route", turn_route_schema), payload)
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+            elif filename == "workflow-run.json":
+                errors = _validate_json_against_schema(
+                    v("workflow-run", workflow_run_schema), payload
+                )
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+            elif filename.endswith("-artifact.json"):
+                if not isinstance(payload, dict):
+                    raise TypeError(f"Expected object for artifact: {filename}")
+                artifact_envelopes.append(payload)
+                errors = _validate_json_against_schema(
+                    v("artifact", artifact_union_schema), payload
+                )
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+                artifact_type, content = _artifact_content_and_type(payload)
+                if artifact_type == "requirement-set" and content is not None:
+                    requirement_set_content = content
+                if artifact_type == "functional-architecture" and content is not None:
+                    functional_architecture_content = content
+            elif filename == "validation-issues.json":
+                if not isinstance(payload, list):
+                    raise TypeError("validation-issues.json must be an array")
+                for i, item in enumerate(payload):
+                    errors = _validate_json_against_schema(
+                        v(f"validation-issue[{i}]", validation_issue_schema), item
+                    )
+                    if errors:
+                        message_snippet = [e.message for e in errors[:2]]
+                        schema_errors.append(
+                            f"{filename}[{i}]: {len(errors)} errors: {message_snippet}"
+                        )
+            elif filename == "open-questions.json":
+                if not isinstance(payload, list):
+                    raise TypeError("open-questions.json must be an array")
+                for i, item in enumerate(payload):
+                    errors = _validate_json_against_schema(
+                        v(f"open-question[{i}]", open_question_schema), item
+                    )
+                    if errors:
+                        message_snippet = [e.message for e in errors[:2]]
+                        schema_errors.append(
+                            f"{filename}[{i}]: {len(errors)} errors: {message_snippet}"
+                        )
+            elif filename == "vera-response.json":
+                if not isinstance(payload, dict):
+                    raise TypeError("vera-response.json must be an object")
+                vera_response = payload
+                errors = _validate_json_against_schema(
+                    v("vera-response", vera_response_schema), payload
+                )
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+            else:
+                # Ignore unrelated JSON files.
+                continue
+        except Exception as exc:  # noqa: BLE001
+            schema_errors.append(f"{filename}: exception during validation: {exc}")
+
+    semantic_bundle = {
+        "artifact_envelopes": artifact_envelopes,
+        "requirement_set_content": requirement_set_content,
+        "functional_architecture_content": functional_architecture_content,
+        "vera_response": vera_response,
+    }
+    semantic_errors_items = _semantic_validate_bundle(semantic_bundle)
+    for err in semantic_errors_items:
+        semantic_errors.append(f"{err.code}: {err.message}")
+
+    if expect_valid:
+        if schema_errors or semantic_errors:
+            raise AssertionError(
+                f"Expected valid fixture but found errors in {folder}.\n"
+                f"Schema errors: {schema_errors[:5]}\n"
+                f"Semantic errors: {semantic_errors[:5]}"
+            )
+    else:
+        if not schema_errors and not semantic_errors:
+            raise AssertionError(
+                "Expected invalid fixture to fail but it passed schema+semantic validation: "
+                f"{folder}"
+            )
+
+
+def main() -> None:
+    schemas_by_id, _ = _load_schemas()
+    _validate_schema_definitions(schemas_by_id)
+
+    valid_dir = EXAMPLES_DIR / "valid"
+    invalid_dir = EXAMPLES_DIR / "invalid"
+
+    if not valid_dir.exists():
+        raise SystemExit(f"Missing valid fixtures directory: {valid_dir}")
+    if not invalid_dir.exists():
+        raise SystemExit(f"Missing invalid fixtures directory: {invalid_dir}")
+
+    valid_folders = sorted([p for p in valid_dir.iterdir() if p.is_dir()])
+    invalid_folders = sorted([p for p in invalid_dir.iterdir() if p.is_dir()])
+
+    for folder in valid_folders:
+        _validate_fixture_folder(folder, expect_valid=True)
+
+    for folder in invalid_folders:
+        _validate_fixture_folder(folder, expect_valid=False)
+
+    print("contracts: ok")
+
+
+if __name__ == "__main__":
+    main()
