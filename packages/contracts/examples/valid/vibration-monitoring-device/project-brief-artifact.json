@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_04VIBRATIONPB000000000000000001",
+  "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+  "artifactType": "project-brief",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_04VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_04USERMSG0000000000000001",
+  "workflowRunId": "run_04VIBRATIONRUN0000000000000001",
+  "content": {
+    "goal": "Enable a vibration-monitoring device that attaches to a machine, records vibration data, and supports detecting meaningful changes in how the machine is operating while confirming vibration bandwidth, dynamic range, recording mode, and mounting/baseline constraints before component selection.",
+    "problemStatement": "The initial vibration-monitoring device concept requires a functional architecture, but key measurement bandwidth, dynamic range, recording-mode/session constraints, and mounting/baseline calibration needs remain unconfirmed. The prototype must remain non-component-specific until these unknowns are resolved.",
+    "intendedContext": "An early-stage team will prototype the device, attach it to a machine, collect vibration recordings, and export analysis-ready logs to validate change-detection assumptions and next embedded steps.",
+    "projectStage": "concept",
+    "scope": [
+      "Functional specification for vibration sensing and timestamped data storage.",
+      "Functional design for buffering/recording and providing analysis-ready change-detection inputs.",
+      "Explicit identification of unknown bandwidth, dynamic range, recording mode, and mounting/baseline constraints."
+    ],
+    "outOfScope": [
+      "Component-part selection (specific sensors, ADCs, MCUs, storage devices).",
+      "Firmware generation, PCB layout, schematic validation, and simulation execution.",
+      "Production manufacturing planning and deployment infrastructure."
+    ],
+    "successCriteria": [
+      "All produced artifacts conform to the v1 contracts.",
+      "Explicit and inferred requirements are distinguishable.",
+      "Unsupported assumptions are not presented as facts.",
+      "The Next Action is derived from concrete blockers and open questions about vibration measurement needs."
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "A1",
+        "statement": "Initial prototypes can capture vibration as analysis-ready logs while calibration and mounting unknowns are still open, as long as assumptions are surfaced explicitly as open questions.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unknowns": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04VIBRATIONFREQUENCYBANDWIDTHUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04SAMPLERATERECORDINGMODEUNKNOWN00000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04DYNAMICRANGEACCELUNKNOWN000000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_04MOUNTINGBASELINECALIBRATIONUNKNOWN000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

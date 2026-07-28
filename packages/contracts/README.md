@@ -56,6 +56,44 @@ This package includes deterministic validation tooling that:
 
 Semantic validators live under `packages/contracts/src/` and are executed by the contract validation script and tests.
 
+## v1 Golden Contract Set (Fixture Stability)
+
+For embedded initialization v1, the five valid project fixture families are treated as the **v1 golden contract set**:
+
+- `indoor-environmental-rover`
+- `wearable-tremor-monitor`
+- `greenhouse-sensing-node`
+- `vibration-monitoring-device`
+- `robot-obstacle-detection-module`
+
+These fixtures are **manually curated deterministic inputs** (not LLM outputs). Any change to schemas or semantic validators must keep this golden set passing unless an intentional contract revision is approved.
+
+## Blocking Errors vs Non-Blocking Warnings
+
+Semantic validators can emit both blocking errors and non-blocking warnings.
+
+Repository policy for v1 golden fixtures:
+
+- Golden valid fixtures must produce **no blocking semantic errors**.
+- Non-blocking warnings are allowed **only** when explicitly allowlisted by validator code and/or the fixture path.
+- Unexpected non-blocking warnings fail contract validation (so validator regressions do not silently accumulate).
+
+## Conservative Provenance Validation
+
+Provenance validation in v1 is intentionally conservative and deterministic:
+
+- `user-explicit` requirements must reference the referenced `UserTurn` by `turnId`.
+- Lexical/numeric evidence checks are used to detect obvious mismatches; the validator must not claim semantic truth beyond the referenced text.
+- Later workflow generation should preserve source spans or structured extraction traces so provenance can be validated more strongly in future phases.
+
+## Component Language Heuristics (Functional Architecture)
+
+The functional-architecture semantic validator distinguishes:
+
+- **Blocking**: concrete component/part identifiers (MCU/sensor/board model strings) appearing at `architectureMaturity = functional`.
+- **Non-blocking warnings**: ambiguous technology-level language that may become acceptable at a later logical maturity.
+- **No finding**: ordinary functional architecture language and generic abbreviations should not be treated as evidence of concrete component selection.
+
 ## Type Generation (Deterministic)
 
 Generated types are intended to be derived from the JSON Schemas:

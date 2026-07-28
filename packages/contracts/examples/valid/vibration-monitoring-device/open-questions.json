@@ -1,0 +1,95 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_04VIBRATIONFREQUENCYBANDWIDTHUNKNOWN000000000000001",
+    "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+    "question": "What vibration frequency range (measurement bandwidth) should the device support for detecting meaningful changes in machine operation?",
+    "reason": "Frequency range requirements define what kinds of vibration dynamics can be captured and analyzed for change detection.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_04USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_04BLOCKVIBRATIONRANGERECORDINGMOUNTUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_04VIBRATIONFREQUENCYRANGEUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:05Z",
+    "updatedAt": "2026-07-28T13:25:05Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_04SAMPLERATERECORDINGMODEUNKNOWN00000000000001",
+    "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+    "question": "What sampling rate and recording mode (continuous vs triggered) should the vibration-monitoring device use for the target machines and operating changes?",
+    "reason": "Sampling rate and recording mode determine temporal resolution, data volume, and how change events can be detected reliably.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_04USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_04BLOCKVIBRATIONRANGERECORDINGMOUNTUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_04SAMPLERATEANDRECORDINGMODEUNKNOWN00000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:06Z",
+    "updatedAt": "2026-07-28T13:25:06Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_04DYNAMICRANGEACCELUNKNOWN000000000000001",
+    "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+    "question": "What acceleration/dynamic range should the device accommodate so vibration changes are captured without saturating in the target operating environment?",
+    "reason": "Dynamic range requirements impact how vibration signals can be represented and whether baseline comparisons remain meaningful.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_04USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_04BLOCKVIBRATIONRANGERECORDINGMOUNTUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_04DYNAMICRANGEACCELERATIONUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:07Z",
+    "updatedAt": "2026-07-28T13:25:07Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_04MOUNTINGBASELINECALIBRATIONUNKNOWN000000000001",
+    "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+    "question": "What mounting constraints and baseline/calibration approach are needed so vibration recordings can be compared across operating conditions?",
+    "reason": "Mounting effects and calibration/baseline methodology strongly influence how change detection should interpret differences in vibration signals.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_04USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_04BLOCKVIBRATIONRANGERECORDINGMOUNTUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_04MOUNTINGBASELINECALIBRATIONUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:08Z",
+    "updatedAt": "2026-07-28T13:25:08Z"
+  }
+]
+

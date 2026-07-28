@@ -1,0 +1,95 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+    "projectId": "proj_05ROBOTPROJ0000000000000001",
+    "question": "What minimum and maximum detection distance and field of view should the indoor robot obstacle-detection module support?",
+    "reason": "Detection range and field of view determine what obstacles can be detected early enough for safe reaction behavior.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_05USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_05BLOCKOBSTACLECONSTRAINTSINTERFACEENVUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_05DETECTIONRANGEFOVUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:05Z",
+    "updatedAt": "2026-07-28T13:25:05Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_05REACTIONLATENCYUNKNOWN000000000000001",
+    "projectId": "proj_05ROBOTPROJ0000000000000001",
+    "question": "What maximum required reaction latency is needed so the robot can respond before it hits objects it detects?",
+    "reason": "Reaction latency affects the control decision timing required for safe obstacle avoidance behavior.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_05USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_05BLOCKOBSTACLECONSTRAINTSINTERFACEENVUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_05REACTIONLATENCYUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:06Z",
+    "updatedAt": "2026-07-28T13:25:06Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+    "projectId": "proj_05ROBOTPROJ0000000000000001",
+    "question": "What interface behavior is required between the obstacle-detection module and the existing robot controller?",
+    "reason": "The module must issue reaction commands with the expected semantics, timing, and safety behavior supported by the robot controller.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_05USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_05BLOCKOBSTACLECONSTRAINTSINTERFACEENVUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:07Z",
+    "updatedAt": "2026-07-28T13:25:07Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_05ENVIRONMENTSAFETYUNKNOWN000000000000001",
+    "projectId": "proj_05ROBOTPROJ0000000000000001",
+    "question": "What indoor environmental constraints and fail-safe safety behavior should the obstacle-detection module assume for safe reactions?",
+    "reason": "Indoor environmental constraints and fail-safe behavior define how the robot should behave when obstacle detection is uncertain.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_05USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_05BLOCKOBSTACLECONSTRAINTSINTERFACEENVUNKNOWN000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:08Z",
+    "updatedAt": "2026-07-28T13:25:08Z"
+  }
+]
+

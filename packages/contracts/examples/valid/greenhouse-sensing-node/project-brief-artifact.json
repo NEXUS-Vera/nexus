@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_03GREENHOUSEPB000000000000000001",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "artifactType": "project-brief",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_03VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_03USERMSG0000000000000001",
+  "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+  "content": {
+    "goal": "Enable a greenhouse monitoring sensing node that measures temperature, humidity, soil moisture, and light, and reports readings remotely while confirming deployment environment, measurement accuracy, sampling/reporting intervals, and power/communication constraints before component selection.",
+    "problemStatement": "The greenhouse sensing node must begin with a functional architecture, but key constraints for deployment environment, acceptable accuracy/error bounds, periodic sampling/reporting cadence, and remote communication/power feasibility are not yet confirmed. The prototype must not assume specific component choices prematurely.",
+    "intendedContext": "An early-stage team will prototype the node and review timestamped measurements and remote summaries to decide next embedded constraints and component steps.",
+    "projectStage": "concept",
+    "scope": [
+      "Functional specification for multi-modal environmental sensing and periodic acquisition.",
+      "Functional design for timestamped storage, remote reporting, and analysis-ready summaries.",
+      "Explicit identification of unknown constraints (accuracy, sampling/reporting cadence, deployment exposure, and power/communication)."
+    ],
+    "outOfScope": [
+      "Component-part selection (specific sensor modules, MCUs, radios, protocols, and cloud platforms).",
+      "Firmware libraries, PCB layout, schematic validation, and simulation execution.",
+      "Production manufacturing planning and long-term deployment operations."
+    ],
+    "successCriteria": [
+      "All produced artifacts conform to the v1 contracts.",
+      "Explicit and inferred requirements are distinguishable.",
+      "Unsupported assumptions are not presented as facts.",
+      "The Next Action is derived from concrete blockers and open questions about greenhouse monitoring constraints."
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "A1",
+        "statement": "Initial prototypes can operate with placeholder constraints for accuracy and cadence until the user confirms target values for the remote reporting workflow.",
+        "sourceType": "system-inferred",
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "assumptionId": "A2",
+        "statement": "Remote reporting requirements can be represented functionally without committing to a specific communication technology in this phase.",
+        "sourceType": "user-implied",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unknowns": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

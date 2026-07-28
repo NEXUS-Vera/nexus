@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_02TREMORREQ000000000000000001",
+  "projectId": "proj_02TREMORPROJ0000000000000001",
+  "artifactType": "requirement-set",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_02USERMSG0000000000000001",
+  "workflowRunId": "run_02TREMORRUN0000000000000001",
+  "content": {
+    "requirements": [
+      {
+        "requirementId": "req_02HANDTREMORMEASURE0000000000000001",
+        "displayId": "R1",
+        "statement": "The device shall measure hand tremors while the user is wearing it.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_02R1DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_02USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Run a short wearable session and confirm timestamped motion data indicates hand-tremor capture while the device is worn."
+      },
+      {
+        "requirementId": "req_02MOTIONDATARECORD0000000000000001",
+        "displayId": "R2",
+        "statement": "The device shall record motion data for later analysis.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_02R2DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_02USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Run a session and confirm the device produces motion-data records that can be exported for later analysis."
+      },
+      {
+        "requirementId": "req_02TIMESTAMPEDMOTIONLOG0000000000000001",
+        "displayId": "R3",
+        "statement": "The system shall capture timestamped motion measurements and provide analysis-ready records suitable for later export.",
+        "category": "interface",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_02R3INFER0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_02TREMORPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "project-brief unknowns"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm the exported motion dataset includes timestamps and supports later analysis workflows."
+      },
+      {
+        "requirementId": "req_02RUNTIMEBUDGETTREMORUNKNOWN000000000000001",
+        "displayId": "R4",
+        "statement": "The device must meet a user-required measurement runtime budget for a wearable tremor session (runtime value unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_02R4INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_02USERMSG0000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "missing runtime details"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm the runtime requirement with the user and ensure later architecture captures the confirmed runtime constraints without assuming specific components."
+      },
+      {
+        "requirementId": "req_02TREMORFREQUENCYRANGEUNKNOWN000000000000001",
+        "displayId": "R5",
+        "statement": "The system must support a required tremor frequency range (measurement bandwidth unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_02R5INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_02TREMORPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "tremor bandwidth required"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm the required tremor frequency range/bandwidth before selecting any measurement approach."
+      },
+      {
+        "requirementId": "req_02SAMPLINGRATEUNKNOWN000000000000001",
+        "displayId": "R6",
+        "statement": "The system must support a target sampling rate for motion data capture (sampling rate unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_02R6INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_02TREMORPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "sampling rate not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm sampling rate needs so later analysis can capture required temporal dynamics without making component-level assumptions."
+      },
+      {
+        "requirementId": "req_02CALIBRATIONFORMFACTORUNKNOWN00000000000001",
+        "displayId": "R7",
+        "statement": "The system must define a wearable calibration approach and form-factor constraints needed for consistent tremor motion data (calibration/form-factor unknown in this phase).",
+        "category": "usability",
+        "priority": "should",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_02R7INFERUNKNOWN00000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_02TREMORPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "form-factor and calibration not specified"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm wearable form-factor limits and calibration approach needed for consistent motion data before component selection."
+      }
+    ],
+    "requirementSummary": "The wearable tremor monitor must measure hand tremors and record motion data, while confirming runtime, tremor frequency range, sampling rate, and wearable form-factor/calibration needs before selecting components.",
+    "missingDimensions": [
+      "tremor frequency range / measurement bandwidth targets",
+      "sampling rate and temporal resolution targets",
+      "minimum wearable runtime/session duration",
+      "wearable form-factor limits and calibration approach",
+      "noise/accuracy tolerance targets and privacy-safe handling constraints"
+    ],
+    "openQuestionIds": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02RUNTIMEBUDGETTREMOR000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02TREMORFREQRANGEUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02SAMPLINGRATEUNKNOWN000000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_02CALIBRATIONFORMFACTORUNKNOWN0000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

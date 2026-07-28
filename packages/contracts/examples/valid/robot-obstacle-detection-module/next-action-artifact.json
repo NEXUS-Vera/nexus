@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_05ROBOTNXT000000000000000001",
+  "projectId": "proj_05ROBOTPROJ0000000000000001",
+  "artifactType": "next-action",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_05VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_05USERMSG0000000000000001",
+  "workflowRunId": "run_05ROBOTRUN0000000000000001",
+  "content": {
+    "actionId": "act_05NEXTACTION0000000000000001",
+    "title": "Confirm detection range, reaction latency, robot interface, and indoor safety constraints before component selection",
+    "description": "Validate the obstacle detection range/field of view, maximum reaction latency, robot-controller interface semantics, and indoor safety/fail-safe assumptions so future embedded component selection remains grounded in confirmed needs.",
+    "rationale": "The current functional architecture can represent unknown constraints as open questions, but selecting concrete obstacle sensing and reaction behaviors depends on confirmed range, timing, interface behavior, and indoor safety expectations.",
+    "owner": "vera",
+    "priority": "high",
+    "prerequisites": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05REACTIONLATENCYUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05ENVIRONMENTSAFETYUNKNOWN000000000000001",
+        "displayId": "Q4"
+      }
+    ],
+    "blocks": [
+      {
+        "issueId": "issue_05BLOCKOBSTACLECONSTRAINTSINTERFACEENVUNKNOWN000000000000001"
+      }
+    ],
+    "completionCondition": {
+      "conditionType": "unknowns-resolved",
+      "completionCriteria": "Confirm (1) obstacle detection range and field of view, (2) required maximum reaction latency, (3) robot-controller interface behavior semantics, and (4) indoor safety/fail-safe assumptions; then mark Q1-Q4 as answered/resolved and proceed to component selection in the next workflow."
+    },
+    "sourceIssueIds": [
+      "issue_05BLOCKOBSTACLECONSTRAINTSINTERFACEENVUNKNOWN000000000000001",
+      "issue_05WARNFALSEPOSNEGCASESUNCLEAR000000000000001"
+    ],
+    "sourceQuestionIds": [
+      "question_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+      "question_05REACTIONLATENCYUNKNOWN000000000000001",
+      "question_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+      "question_05ENVIRONMENTSAFETYUNKNOWN000000000000001"
+    ]
+  }
+}
+

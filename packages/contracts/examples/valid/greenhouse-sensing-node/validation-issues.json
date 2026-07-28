@@ -1,0 +1,29 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "severity": "high",
+    "code": "unknown-deployment-power-communication-and-accuracy",
+    "message": "Deployment environment, acceptable measurement accuracy, power-source constraints, and communication constraints are not yet confirmed; the functional architecture must remain functional until these unknowns are resolved.",
+    "blocking": true,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:05Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Confirm greenhouse deployment conditions, acceptable measurement accuracy, intended communication constraints, and expected power-source constraints before component selection."
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_03WARNMAINTENANCEINTERVALUNKNOWN000000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "severity": "medium",
+    "code": "maintenance-interval-unclear",
+    "message": "Maintenance interval and operational care constraints are mentioned as considerations but not clearly confirmed for the initial prototype scope.",
+    "blocking": false,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:06Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Clarify how often the node must be serviced and how long data capture should continue between maintenance activities."
+  }
+]
+

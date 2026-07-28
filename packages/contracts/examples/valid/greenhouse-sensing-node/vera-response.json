@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_03USERMSG0000000000000001",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "userFacingMessage": "I captured your greenhouse sensing node idea and produced a functional first architecture for measuring temperature, humidity, soil moisture, and light, with timestamped storage and remote reporting as a functional output. Next, confirm the deployment environment, acceptable measurement accuracy, sampling/reporting cadence, and power/communication constraints (and we will keep maintenance considerations separate until clarified) so later component selection remains grounded.",
+  "createdArtifactReferences": [
+    {
+      "artifactType": "project-brief",
+      "artifactId": "art_03GREENHOUSEPB000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "requirement-set",
+      "artifactId": "art_03GREENHOUSEREQ000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "functional-architecture",
+      "artifactId": "art_03GREENHOUSEARCH00000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "next-action",
+      "artifactId": "art_03GREENHOUSENXT000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    }
+  ],
+  "warningIssueReferences": [
+    {
+      "issueId": "issue_03WARNMAINTENANCEINTERVALUNKNOWN000000000000001"
+    }
+  ],
+  "blockerIssueReferences": [
+    {
+      "issueId": "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+    }
+  ],
+  "openQuestionReferences": [
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+      "displayId": "Q1"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+      "displayId": "Q2"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+      "displayId": "Q3"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+      "displayId": "Q4"
+    }
+  ],
+  "nextActionArtifactReference": {
+    "artifactType": "next-action",
+    "artifactId": "art_03GREENHOUSENXT000000000000000001",
+    "artifactVersion": 1,
+    "contentSchemaVersion": "1.0.0"
+  },
+  "projectStateSummary": {
+    "projectPhase": "concept",
+    "autonomyMode": "delegate",
+    "openQuestionCount": 4,
+    "validationIssueCount": 2
+  },
+  "completionStatus": "completed-with-warnings"
+}
+

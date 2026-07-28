@@ -1,0 +1,99 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "question": "What deployment environment characteristics (including indoor vs outdoor greenhouse exposure and ingress protection expectations) should the sensing node target?",
+    "reason": "Deployment environment constraints influence how the node can operate reliably and what protective assumptions are acceptable.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_03USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:05Z",
+    "updatedAt": "2026-07-28T13:25:05Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "question": "What acceptable measurement accuracy/error bounds are required for temperature, humidity, soil moisture, and light readings for greenhouse monitoring?",
+    "reason": "Accuracy requirements determine how downstream analysis should interpret measurement uncertainty and whether validation steps are needed.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_03USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_03ACCURACYBOUNDSUNKNOWN0000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:06Z",
+    "updatedAt": "2026-07-28T13:25:06Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "question": "What sampling interval and reporting interval should be targeted so the remote readings are timely without creating unnecessary data volume?",
+    "reason": "Sampling and reporting intervals impact data freshness, power/runtime, and how often remote summaries must be updated.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_03USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:07Z",
+    "updatedAt": "2026-07-28T13:25:07Z"
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "question": "What remote communication constraints (range/network availability) and power-source constraints should the node target for long-duration operation?",
+    "reason": "Communication and power constraints determine feasibility of periodic remote reporting and the operational duration between maintenance events.",
+    "requestedFrom": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_03USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "blocks": ["issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"],
+    "status": "open",
+    "sourceReferences": [
+      {
+        "kind": "requirement",
+        "requirementId": "req_03COMMUNICATIONRANGEUNKNOWN000000000000001"
+      },
+      {
+        "kind": "requirement",
+        "requirementId": "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:08Z",
+    "updatedAt": "2026-07-28T13:25:08Z"
+  }
+]
+

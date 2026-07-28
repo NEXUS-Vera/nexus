@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_05USERMSG0000000000000001",
+  "projectId": "proj_05ROBOTPROJ0000000000000001",
+  "rawUserMessage": "I want to build an obstacle-detection module for a small indoor robot so it can detect objects in front of it and react before it hits them.",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_05USERACTOR0000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "timestamp": "2026-07-28T13:24:30Z"
+}
+

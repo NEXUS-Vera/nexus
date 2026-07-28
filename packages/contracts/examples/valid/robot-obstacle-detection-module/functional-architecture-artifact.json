@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_05ROBOTARCH00000000000000001",
+  "projectId": "proj_05ROBOTPROJ0000000000000001",
+  "artifactType": "functional-architecture",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_05VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_05USERMSG0000000000000001",
+  "workflowRunId": "run_05ROBOTRUN0000000000000001",
+  "content": {
+    "architectureId": "arch_05ROBOTARCH0000000000000001",
+    "architectureMaturity": "functional",
+    "systemBoundary": "A functional obstacle-detection module for a small indoor robot that detects objects in front, produces timestamped obstacle evidence, decides timely reactions to avoid collisions, and interfaces with an existing robot controller while keeping detection range, reaction latency, interface semantics, and indoor safety assumptions as open questions until confirmed.",
+    "nodes": [
+      {
+        "nodeId": "node_05ROBOTSESSIONCONFIG0000000000000001",
+        "name": "Indoor Robot Session Configuration Input",
+        "functionalType": "user-interface",
+        "responsibilities": [
+          "Accept indoor robot deployment context and monitoring session intent.",
+          "Provide placeholders for detection distance/field of view, reaction latency, robot-controller interface behavior, and indoor safety/fail-safe assumptions.",
+          "Represent uncertainty without claiming component-level implementation choices."
+        ],
+        "satisfiesRequirementIds": [
+          "req_05SMALLINDOORROBOTCONTEXT000000000000001",
+          "req_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+          "req_05REACTIONLATENCYUNKNOWN000000000000001",
+          "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+          "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_05OBSTACLESENSING0000000000000001",
+        "name": "Obstacle Evidence Generation (In Front)",
+        "functionalType": "sensing",
+        "responsibilities": [
+          "Detect objects in front of the robot.",
+          "Emit obstacle evidence inputs for later interpretation and reaction decision-making.",
+          "Keep detection range/field of view requirements as open placeholders."
+        ],
+        "satisfiesRequirementIds": [
+          "req_05DETECTOBJECTSINFRONT0000000000000001",
+          "req_05DETECTIONRANGEFOVUNKNOWN000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_05INTERPRET0000000000000001",
+        "name": "Obstacle Interpretation & Timestamping",
+        "functionalType": "processing",
+        "responsibilities": [
+          "Interpret obstacle evidence for downstream reaction decision-making.",
+          "Attach timestamps to obstacle evidence so later analysis can compare states.",
+          "Propagate unknown detection range and reaction-latency placeholders into interpretation metadata."
+        ],
+        "satisfiesRequirementIds": [
+          "req_05TIMESTAMPEDOBSTACLEDATA0000000000000001",
+          "req_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+          "req_05REACTIONLATENCYUNKNOWN000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_05DECIDE0000000000000001",
+        "name": "Reaction Decision Logic",
+        "functionalType": "control",
+        "responsibilities": [
+          "Decide the robot reaction behavior before collisions given detected obstacles and required reaction latency.",
+          "Select fail-safe behavior when obstacle detection is uncertain based on open safety assumptions.",
+          "Remain non-component-specific and avoid claiming validated thresholds."
+        ],
+        "satisfiesRequirementIds": [
+          "req_05REACTBEFOREHITS0000000000000001",
+          "req_05REACTIONLATENCYUNKNOWN000000000000001",
+          "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_05CONTROLLERIF0000000000000001",
+        "name": "Robot-Controller Interface",
+        "functionalType": "communication",
+        "responsibilities": [
+          "Integrate with the existing robot controller interface so reaction commands are issued with expected semantics.",
+          "Issue reaction commands derived from the reaction decision logic and reflect uncertainty when appropriate."
+        ],
+        "satisfiesRequirementIds": [
+          "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+          "req_05REACTBEFOREHITS0000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_05SAFETYOUTPUT0000000000000001",
+        "name": "Status & Safety Output",
+        "functionalType": "analysis",
+        "responsibilities": [
+          "Provide timestamped status/diagnostic output for later analysis.",
+          "Expose which open assumptions constrain safety decisions (range, latency, indoor environment).",
+          "Maintain fail-safe behavior aligned with indoor safety assumptions."
+        ],
+        "satisfiesRequirementIds": [
+          "req_05TIMESTAMPEDOBSTACLEDATA0000000000000001",
+          "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001",
+          "req_05SMALLINDOORROBOTCONTEXT000000000000001"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "edgeId": "edge_05SESSIONTOEVID0000000000000001",
+        "fromNodeId": "node_05ROBOTSESSIONCONFIG0000000000000001",
+        "toNodeId": "node_05OBSTACLESENSING0000000000000001",
+        "flowType": "control",
+        "description": "Indoor session constraints guide how obstacle evidence generation behaves while keeping unknowns open."
+      },
+      {
+        "edgeId": "edge_05EVIDTOINTERP0000000000000001",
+        "fromNodeId": "node_05OBSTACLESENSING0000000000000001",
+        "toNodeId": "node_05INTERPRET0000000000000001",
+        "flowType": "data",
+        "description": "Obstacle evidence inputs are processed and timestamped for reaction decision-making."
+      },
+      {
+        "edgeId": "edge_05INTERPTODECIDE0000000000000001",
+        "fromNodeId": "node_05INTERPRET0000000000000001",
+        "toNodeId": "node_05DECIDE0000000000000001",
+        "flowType": "control",
+        "description": "Interpretation outputs drive reaction decision logic under unknown latency/safety constraints."
+      },
+      {
+        "edgeId": "edge_05DECIDETOCTRL0000000000000001",
+        "fromNodeId": "node_05DECIDE0000000000000001",
+        "toNodeId": "node_05CONTROLLERIF0000000000000001",
+        "flowType": "control",
+        "description": "Reaction decision logic issues reaction commands to the robot controller interface."
+      },
+      {
+        "edgeId": "edge_05CTRLTOOUTPUT0000000000000001",
+        "fromNodeId": "node_05CONTROLLERIF0000000000000001",
+        "toNodeId": "node_05SAFETYOUTPUT0000000000000001",
+        "flowType": "data",
+        "description": "Reaction outcomes and status information are provided to diagnostic/status output."
+      }
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "FA1",
+        "statement": "Functional architecture can capture indoor safety assumptions and unknown detection range/latency/interface behaviors as open questions without making component-specific claims.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unresolvedDecisions": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05REACTIONLATENCYUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05ENVIRONMENTSAFETYUNKNOWN000000000000001",
+        "displayId": "Q4"
+      }
+    ],
+    "requirementCoverage": {
+      "coveredRequirementIds": [
+        "req_05DETECTOBJECTSINFRONT0000000000000001",
+        "req_05REACTBEFOREHITS0000000000000001",
+        "req_05SMALLINDOORROBOTCONTEXT000000000000001",
+        "req_05TIMESTAMPEDOBSTACLEDATA0000000000000001",
+        "req_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+        "req_05REACTIONLATENCYUNKNOWN000000000000001",
+        "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+        "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001"
+      ]
+    }
+  }
+}
+

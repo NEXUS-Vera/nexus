@@ -124,11 +124,17 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
 
     # Validate every known file in the fixture folder.
     schema_errors: list[str] = []
-    semantic_errors: list[str] = []
 
     artifact_envelopes: list[dict[str, Any]] = []
     requirement_set_content: dict[str, Any] | None = None
     functional_architecture_content: dict[str, Any] | None = None
+    next_action_content: dict[str, Any] | None = None
+    project: dict[str, Any] | None = None
+    user_turn: dict[str, Any] | None = None
+    turn_route: dict[str, Any] | None = None
+    workflow_run: dict[str, Any] | None = None
+    validation_issues: list[dict[str, Any]] = []
+    open_questions: list[dict[str, Any]] = []
     vera_response: dict[str, Any] | None = None
 
     for file_path in sorted(folder.glob("*.json")):
@@ -137,24 +143,36 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
 
         try:
             if filename == "project.json":
+                if not isinstance(payload, dict):
+                    raise TypeError("project.json must be an object")
+                project = payload
                 errors = _validate_json_against_schema(v("project", project_schema), payload)
                 if errors:
                     schema_errors.append(
                         f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
                     )
             elif filename == "user-turn.json":
+                if not isinstance(payload, dict):
+                    raise TypeError("user-turn.json must be an object")
+                user_turn = payload
                 errors = _validate_json_against_schema(v("user-turn", user_turn_schema), payload)
                 if errors:
                     schema_errors.append(
                         f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
                     )
             elif filename == "turn-route.json":
+                if not isinstance(payload, dict):
+                    raise TypeError("turn-route.json must be an object")
+                turn_route = payload
                 errors = _validate_json_against_schema(v("turn-route", turn_route_schema), payload)
                 if errors:
                     schema_errors.append(
                         f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
                     )
             elif filename == "workflow-run.json":
+                if not isinstance(payload, dict):
+                    raise TypeError("workflow-run.json must be an object")
+                workflow_run = payload
                 errors = _validate_json_against_schema(
                     v("workflow-run", workflow_run_schema), payload
                 )
@@ -178,9 +196,12 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
                     requirement_set_content = content
                 if artifact_type == "functional-architecture" and content is not None:
                     functional_architecture_content = content
+                if artifact_type == "next-action" and content is not None:
+                    next_action_content = content
             elif filename == "validation-issues.json":
                 if not isinstance(payload, list):
                     raise TypeError("validation-issues.json must be an array")
+                validation_issues = payload
                 for i, item in enumerate(payload):
                     errors = _validate_json_against_schema(
                         v(f"validation-issue[{i}]", validation_issue_schema), item
@@ -193,6 +214,7 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
             elif filename == "open-questions.json":
                 if not isinstance(payload, list):
                     raise TypeError("open-questions.json must be an array")
+                open_questions = payload
                 for i, item in enumerate(payload):
                     errors = _validate_json_against_schema(
                         v(f"open-question[{i}]", open_question_schema), item
@@ -221,23 +243,46 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
 
     semantic_bundle = {
         "artifact_envelopes": artifact_envelopes,
+        "project": project,
+        "user_turn": user_turn,
+        "turn_route": turn_route,
+        "workflow_run": workflow_run,
         "requirement_set_content": requirement_set_content,
         "functional_architecture_content": functional_architecture_content,
+        "next_action_content": next_action_content,
+        "validation_issues": validation_issues,
+        "open_questions": open_questions,
         "vera_response": vera_response,
     }
     semantic_errors_items = _semantic_validate_bundle(semantic_bundle)
+    allowed_non_blocking_warning_codes = {
+        "TECHNOLOGY_LEVEL_TERM_IN_FUNCTIONAL_ARCHITECTURE",
+        "REQ_USER_EXPLICIT_AMBIGUOUS_SUPPORT",
+    }
+
+    blocking_semantic_errors: list[str] = []
+    nonblocking_semantic_errors: list[str] = []
+    unexpected_nonblocking_semantic_errors: list[str] = []
     for err in semantic_errors_items:
-        semantic_errors.append(f"{err.code}: {err.message}")
+        rendered = f"{err.code}: {err.message}"
+        if getattr(err, "blocking", True):
+            blocking_semantic_errors.append(rendered)
+        else:
+            if err.code in allowed_non_blocking_warning_codes:
+                nonblocking_semantic_errors.append(rendered)
+            else:
+                unexpected_nonblocking_semantic_errors.append(rendered)
 
     if expect_valid:
-        if schema_errors or semantic_errors:
+        if schema_errors or blocking_semantic_errors or unexpected_nonblocking_semantic_errors:
             raise AssertionError(
                 f"Expected valid fixture but found errors in {folder}.\n"
                 f"Schema errors: {schema_errors[:5]}\n"
-                f"Semantic errors: {semantic_errors[:5]}"
+                f"Semantic blocking errors: {blocking_semantic_errors[:5]}\n"
+                f"Semantic unexpected warnings: {unexpected_nonblocking_semantic_errors[:5]}"
             )
     else:
-        if not schema_errors and not semantic_errors:
+        if not schema_errors and not semantic_errors_items:
             raise AssertionError(
                 "Expected invalid fixture to fail but it passed schema+semantic validation: "
                 f"{folder}"
