@@ -1,25 +1,20 @@
-# embedded-systems
+# Embedded Systems Agent
 
 ## Purpose
 
-Domain agent for embedded-systems specialist work.
+Domain agent for embedded-product engineering workflows.
+
+## Current implementation
+
+Fixture-backed embedded project initialization lives under:
+
+```text
+src/nexus_embedded_systems/workflows/project_initialization/
+```
+
+This phase routes supported prompts to golden contract fixtures, materializes a fresh project package with remapped IDs, and validates the package with the shared contracts validators. No LLM calls are used.
 
 ## Ownership boundary
 
-Embedded-systems domain agent package.
-
-## What belongs here
-
-- Embedded workflows
-- Domain prompts, validators, and policies
-- Adapters to shared contracts and tools
-
-## What must not be placed here
-
-- Global orchestration (belongs in Vera)
-- Shared platform libraries (belong in packages)
-- Imports of another agent private internals
-
-## Current status
-
-Placeholder only. Package metadata and module directories exist; no agent logic is implemented.
+- Belongs here: embedded workflows, validators, prompts, adapters to contracts/tools
+- Must not: Vera orchestration, shared platform libraries, other agents' private code

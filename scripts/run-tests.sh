@@ -6,7 +6,7 @@ cd "$ROOT"
 
 MODE="${1:-all}"
 
-TEST_LIST="$(find agents packages tools -type f -name "test_*.py" 2>/dev/null | sort || true)"
+TEST_LIST="$(find agents apps packages tools -type f -name "test_*.py" 2>/dev/null | sort || true)"
 
 if [[ -z "${TEST_LIST}" ]]; then
   echo "test (${MODE}): no Python tests found; skipping"
@@ -19,8 +19,14 @@ if ! command -v pytest >/dev/null 2>&1 && ! python3 -c "import pytest" >/dev/nul
 fi
 
 run_pytest() {
-  # shellcheck disable=SC2068
-  if command -v pytest >/dev/null 2>&1; then
+  # Prefer Python 3.11+ when available.
+  if command -v python3.13 >/dev/null 2>&1; then
+    python3.13 -m pytest "$@"
+  elif command -v python3.12 >/dev/null 2>&1; then
+    python3.12 -m pytest "$@"
+  elif command -v python3.11 >/dev/null 2>&1; then
+    python3.11 -m pytest "$@"
+  elif command -v pytest >/dev/null 2>&1; then
     pytest "$@"
   else
     python3 -m pytest "$@"

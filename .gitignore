@@ -27,6 +27,7 @@ build/
 out/
 .next/
 .turbo/
+*.tsbuildinfo
 *.egg
 .wheels/
 

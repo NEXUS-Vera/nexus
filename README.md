@@ -4,7 +4,7 @@ Nexus is a modular agentic engineering platform. Vera orchestrates specialist do
 
 ## Current status
 
-This repository currently contains **foundation and governance only**. No product logic, agents, APIs, or user interfaces have been implemented yet.
+This repository contains the v1 embedded-project initialization contract foundation plus a fixture-backed API and Vera prototype UI.
 
 ## Architecture overview
 
@@ -41,8 +41,8 @@ nexus/
 
 - Git
 - Make
-- Python 3.11+ (for future Python packages and policy scripts)
-- Node.js 20+ and [pnpm](https://pnpm.io/) (for future TypeScript packages)
+- Python 3.11+ (API, contracts, agents)
+- Node.js 20+ and [pnpm](https://pnpm.io/) (web)
 - [GitHub CLI](https://cli.github.com/) (`gh`) for contribution workflows
 
 ## Setup
@@ -53,25 +53,38 @@ cd nexus
 make setup
 ```
 
+## Local development
+
+```bash
+make generate-contract-types
+make dev-api    # http://127.0.0.1:8000
+make dev-web    # http://localhost:5173
+# or both:
+make dev
+```
+
 ## Common commands
 
 | Command | Purpose |
 | --- | --- |
 | `make setup` | Install available tooling and prepare the workspace |
+| `make generate-contract-types` | Generate Python/TS types from JSON Schemas |
 | `make format` | Format source files where tooling exists |
 | `make lint` | Lint source files where tooling exists |
 | `make typecheck` | Run type checkers where applicable |
 | `make test` | Run unit and integration tests |
-| `make contracts` | Validate contract schemas and examples |
+| `make contracts` | Validate contract schemas, examples, and generated types |
 | `make policy` | Enforce repository content policy |
 | `make check` | Run the full local verification suite |
 | `make build` | Build packages when build targets exist |
 | `make clean` | Remove local build and cache artifacts |
+| `make dev` / `make dev-api` / `make dev-web` | Local API and web servers |
 
 ## Documentation
 
 - [AGENTS.md](./AGENTS.md) — canonical operating contract for coding agents
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — contribution workflow
 - [docs/index.md](./docs/index.md) — documentation index
-
-Product functionality is intentionally not implemented in this initialization.
+- [apps/api/README.md](./apps/api/README.md) — API application
+- [apps/web/README.md](./apps/web/README.md) — web application
+- [packages/contracts/README.md](./packages/contracts/README.md) — contract package

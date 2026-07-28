@@ -1,0 +1,30 @@
+[project]
+name = "nexus-api"
+version = "0.0.0"
+description = "Nexus HTTP API application"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.0.0",
+  "nexus-agent-embedded-systems",
+  "nexus-contracts",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0", "httpx>=0.27.0"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = [
+  "src",
+  "../../agents/embedded-systems/src",
+  "../../packages/contracts/src",
+]

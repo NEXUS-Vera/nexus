@@ -4,7 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-PY_FILES="$(find agents packages tools scripts -type f -name '*.py' 2>/dev/null | sort || true)"
+PY_FILES="$(find agents apps packages tools scripts -type f -name '*.py' \
+  ! -path '*/generated/*' \
+  ! -path '*/.venv/*' \
+  ! -path '*/node_modules/*' \
+  2>/dev/null | sort || true)"
 
 if [[ -z "${PY_FILES}" ]]; then
   echo "typecheck: no Python sources found; skipping"
@@ -22,7 +26,7 @@ else
 fi
 
 if [[ -f package.json ]] && command -v pnpm >/dev/null 2>&1; then
-  pnpm run typecheck || true
+  pnpm run typecheck
 fi
 
 echo "typecheck: done"

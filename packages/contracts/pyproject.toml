@@ -3,11 +3,22 @@ name = "nexus-contracts"
 version = "0.0.0"
 description = "Canonical schemas and interfaces for Nexus"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "jsonschema>=4.23.0",
+]
 
 [project.optional-dependencies]
-dev = ["jsonschema>=4.23.0", "pytest>=8.0.0"]
+dev = [
+  "pytest>=8.0.0",
+  "datamodel-code-generator>=0.26.0",
+]
 
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+nexus_contracts = ["py.typed"]

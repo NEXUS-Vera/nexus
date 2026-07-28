@@ -1,9 +1,15 @@
 [project]
 name = "nexus-agent-embedded-systems"
 version = "0.0.0"
-description = "Placeholder package for the embedded-systems agent"
+description = "Embedded-systems domain agent"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "nexus-contracts",
+  "jsonschema>=4.23.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.23.0"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -11,3 +17,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["src", "../../../packages/contracts/src"]

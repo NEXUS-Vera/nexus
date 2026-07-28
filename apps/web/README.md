@@ -2,23 +2,25 @@
 
 ## Purpose
 
-Future user-facing Nexus web application.
+User-facing Vera prototype for embedded project initialization (Phase 6).
 
 ## Ownership boundary
 
-Deployable frontend application only.
+Deployable frontend only. Contract types are imported from `@nexus/contracts` (generated from JSON Schemas).
 
-## What belongs here
+## Local development
 
-- UI routes and presentation
-- App-specific wiring to shared packages and APIs
+```bash
+cp apps/web/.env.example apps/web/.env   # optional
+make dev-web
+# or
+pnpm --filter @nexus/web dev
+```
 
-## What must not be placed here
+The UI expects the API at `VITE_API_BASE_URL` (default `http://127.0.0.1:8000`).
 
-- Shared business logic (belongs in packages)
-- Agent implementations
-- Infrastructure modules
+## Tests
 
-## Current status
-
-Placeholder only.
+```bash
+pnpm --filter @nexus/web test
+```
