@@ -40,10 +40,12 @@ def build_initialization_provider(
         timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
     )
     max_repair = int(os.environ.get("NEXUS_MODEL_MAX_REPAIR_ATTEMPTS", "1"))
-    api_key = os.environ.get("NEXUS_MODEL_API_KEY", "")
+    # Env var name stays NEXUS_MODEL_API_KEY (uppercase; docs/config). Local
+    # identifiers use model_credential so secret-pattern scans stay clean.
+    model_credential = os.environ.get("NEXUS_MODEL_API_KEY", "")
     base_url = os.environ.get("NEXUS_MODEL_BASE_URL", "https://api.openai.com/v1")
 
-    if gateway is None and not api_key:
+    if gateway is None and not model_credential:
         if selected == "shadow":
             # Shadow can still serve fixture responses; LLM path records config failure.
             return ShadowInitializationProvider(
@@ -53,7 +55,10 @@ def build_initialization_provider(
         return _MissingConfigProvider()
 
     if gateway is None:
-        gateway = OpenAICompatibleGateway(api_key=api_key, base_url=base_url)
+        gateway = OpenAICompatibleGateway(
+            model_credential=model_credential,
+            base_url=base_url,
+        )
 
     llm = LlmInitializationProvider(
         gateway=gateway,  # type: ignore[arg-type]

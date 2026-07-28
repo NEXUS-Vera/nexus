@@ -141,4 +141,9 @@ if [[ "$FAILURES" -gt 0 ]]; then
   exit 1
 fi
 
+# Also run the shared secret-pattern scan so local `make policy` catches
+# the same identifier-style false positives as the Security workflow.
+chmod +x scripts/scan-secret-patterns.sh
+./scripts/scan-secret-patterns.sh
+
 echo "Repository policy check passed."
