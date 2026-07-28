@@ -158,6 +158,126 @@ def _bundle_node(
     return out
 
 
+def _merge_object_schemas(parts: list[dict[str, Any]]) -> dict[str, Any]:
+    """Merge allOf object schemas into one object for stricter TypeScript output.
+
+    json-schema-to-typescript emits permissive `[k: string]: any` index signatures for
+    allOf intersections. Collapsing compatible object allOf nodes preserves
+    additionalProperties: false and keeps discriminated unions usable.
+    """
+
+    merged: dict[str, Any] = {"type": "object"}
+    properties: dict[str, Any] = {}
+    required: list[str] = []
+    additional_false = False
+
+    for part in parts:
+        if part.get("type") not in (None, "object"):
+            raise TypeError("Cannot collapse allOf containing non-object schemas")
+        for key, value in part.items():
+            if key in {"type", "properties", "required", "additionalProperties"}:
+                continue
+            # Prefer later sibling metadata when keys collide.
+            merged[key] = value
+        for key, value in (part.get("properties") or {}).items():
+            properties[key] = value
+        for key in part.get("required") or []:
+            if key not in required:
+                required.append(key)
+        if part.get("additionalProperties") is False:
+            additional_false = True
+
+    merged["properties"] = properties
+    if required:
+        merged["required"] = required
+    if additional_false:
+        merged["additionalProperties"] = False
+    return merged
+
+
+def _collapse_allof(node: Any) -> Any:
+    if isinstance(node, list):
+        return [_collapse_allof(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+
+    collapsed = {key: _collapse_allof(value) for key, value in node.items()}
+    allof = collapsed.get("allOf")
+    if not isinstance(allof, list) or not allof:
+        return collapsed
+
+    # Arrays that combine items + contains/allOf must keep their array shape.
+    if collapsed.get("type") == "array" or "items" in collapsed or "contains" in collapsed:
+        return collapsed
+
+    # Only collapse when every branch is a plain object schema (no nested combinators).
+    object_parts: list[dict[str, Any]] = []
+    for part in allof:
+        if not isinstance(part, dict):
+            return collapsed
+        if any(k in part for k in ("allOf", "oneOf", "anyOf", "$ref", "contains")):
+            return collapsed
+        if part.get("type") not in (None, "object"):
+            return collapsed
+        if (
+            "properties" not in part
+            and "required" not in part
+            and "additionalProperties" not in part
+        ):
+            return collapsed
+        object_parts.append(part)
+
+    if not object_parts:
+        return collapsed
+
+    merged = _merge_object_schemas(object_parts)
+    for key, value in collapsed.items():
+        if key == "allOf":
+            continue
+        if key in merged and key in {"properties", "required", "additionalProperties", "type"}:
+            continue
+        merged[key] = value
+    return merged
+
+
+def _strip_codegen_unsupported_keywords(node: Any) -> Any:
+    """Remove JSON Schema keywords that json-schema-to-typescript mishandles.
+
+    Runtime validation still enforces these via the canonical schemas. Stripping them
+    for TypeScript generation avoids spurious `[k: string]: any` intersections from
+    `contains`, `if`/`then`/`else`, and empty allOf leftovers.
+    """
+
+    if isinstance(node, list):
+        return [_strip_codegen_unsupported_keywords(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+
+    skip = {"contains", "if", "then", "else"}
+    out: dict[str, Any] = {}
+    for key, value in node.items():
+        if key in skip:
+            continue
+        out[key] = _strip_codegen_unsupported_keywords(value)
+
+    allof = out.get("allOf")
+    if isinstance(allof, list):
+        filtered = [part for part in allof if isinstance(part, dict) and part]
+        if not filtered:
+            out.pop("allOf", None)
+        else:
+            out["allOf"] = filtered
+            out = _collapse_allof(out)
+    return out
+
+
+def _prepare_schema_for_typescript(schema: dict[str, Any]) -> dict[str, Any]:
+    prepared = _strip_codegen_unsupported_keywords(_deep_copy(schema))
+    if not isinstance(prepared, dict):
+        raise TypeError("Prepared TypeScript schema must be an object")
+    return prepared
+
+
 def _bundle_schema(schema: dict[str, Any], store: dict[str, dict[str, Any]]) -> dict[str, Any]:
     schema_id = schema.get("$id")
     stack = [schema_id] if isinstance(schema_id, str) else []
@@ -165,7 +285,7 @@ def _bundle_schema(schema: dict[str, Any], store: dict[str, dict[str, Any]]) -> 
     bundled_any = _bundle_node(root, store, stack, root)
     if not isinstance(bundled_any, dict):
         raise TypeError("Bundled schema must be an object")
-    bundled: dict[str, Any] = bundled_any
+    bundled: dict[str, Any] = _collapse_allof(bundled_any)
     # Keep identity metadata; drop external $id to avoid remote fetch hints.
     bundled.pop("$schema", None)
     if "title" not in bundled and isinstance(schema.get("title"), str):
@@ -327,8 +447,8 @@ async function main() {
     exports.push(outName.replace(/\\.ts$/, ''));
   }
   const indexLines = [
-    "export type { ProjectInitializationResult, Artifact }"
-      + " from './project-initialization-result_v1';",
+    "export type { ProjectInitializationResult } from './project-initialization-result_v1';",
+    "export type { Artifact } from './artifact_v1';",
     "export type { Project } from './project_v1';",
     "export type { UserTurn } from './user-turn_v1';",
     "export type { TurnRoute } from './turn-route_v1';",
@@ -399,13 +519,19 @@ def generate(*, check: bool = False) -> int:
     with tempfile.TemporaryDirectory(prefix="nexus-schema-bundle-") as tmp:
         bundled_dir = Path(tmp) / "bundled"
         bundled_dir.mkdir(parents=True, exist_ok=True)
+        ts_bundled_dir = Path(tmp) / "bundled-ts"
+        ts_bundled_dir.mkdir(parents=True, exist_ok=True)
         for stem in PUBLIC_SCHEMA_STEMS:
             schema = schemas_by_stem[stem]
             bundled = _bundle_schema(schema, store)
             _write_json(bundled_dir / f"{stem}.schema.json", bundled)
+            _write_json(
+                ts_bundled_dir / f"{stem}.schema.json",
+                _prepare_schema_for_typescript(bundled),
+            )
 
         _generate_python(bundled_dir, GENERATED_PYTHON)
-        _generate_typescript(bundled_dir, GENERATED_TYPESCRIPT)
+        _generate_typescript(ts_bundled_dir, GENERATED_TYPESCRIPT)
 
     # Remove legacy placeholders if present.
     for keep in (GENERATED_PYTHON / ".gitkeep", GENERATED_TYPESCRIPT / ".gitkeep"):

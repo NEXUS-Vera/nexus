@@ -1,9 +1,7 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
-export type TurnRoute = {
-  [k: string]: any;
-} & {
+export interface TurnRoute {
   autonomyMode: 'collaborate' | 'delegate';
   chairmanRequiredEventually: boolean;
   complexity: 'low' | 'medium' | 'high' | 'unknown';
@@ -19,4 +17,4 @@ export type TurnRoute = {
   supported: boolean;
   turnId: string;
   unsupportedReason?: string;
-};
+}

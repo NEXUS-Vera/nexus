@@ -3,6 +3,7 @@
 from .fixture_router import FixtureRouteDecision, FixtureRouteOutcome, route_fixture_family
 from .repository import InMemoryInitializationStore
 from .service import (
+    InitializationProviderError,
     InitializationRoutingError,
     InitializationService,
     InitializationValidationError,
@@ -13,6 +14,7 @@ __all__ = [
     "FixtureRouteDecision",
     "FixtureRouteOutcome",
     "InMemoryInitializationStore",
+    "InitializationProviderError",
     "InitializationRoutingError",
     "InitializationService",
     "InitializationValidationError",

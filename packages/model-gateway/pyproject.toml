@@ -1,9 +1,15 @@
 [project]
 name = "nexus-model-gateway"
 version = "0.0.0"
-description = "Placeholder package for nexus model-gateway"
+description = "Structured-generation model gateway protocol, fake, and OpenAI-compatible implementations for Nexus"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-asyncio>=0.23.0",
+]
 
 [build-system]
 requires = ["setuptools>=68"]
