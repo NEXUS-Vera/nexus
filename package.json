@@ -2,16 +2,17 @@
   "name": "nexus",
   "private": true,
   "version": "0.0.0",
-  "description": "Modular monorepo for the Nexus agentic engineering platform (foundation only)",
+  "description": "Modular monorepo for the Nexus agentic engineering platform",
   "packageManager": "pnpm@9.15.0",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
-    "lint": "echo \"No TypeScript packages with lint scripts yet; skipping.\"",
-    "format": "echo \"No TypeScript packages with format scripts yet; skipping.\"",
-    "typecheck": "echo \"No TypeScript packages with typecheck scripts yet; skipping.\"",
-    "test": "echo \"No TypeScript packages with test scripts yet; skipping.\"",
-    "build": "echo \"No TypeScript packages with build scripts yet; skipping.\""
+    "lint": "pnpm --filter @nexus/web lint",
+    "format": "echo \"TypeScript format deferred to package tooling\"",
+    "typecheck": "pnpm --filter @nexus/web typecheck",
+    "test": "pnpm --filter @nexus/web test",
+    "build": "pnpm --filter @nexus/web build",
+    "dev:web": "pnpm --filter @nexus/web dev"
   }
 }

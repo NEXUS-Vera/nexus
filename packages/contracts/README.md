@@ -96,25 +96,33 @@ The functional-architecture semantic validator distinguishes:
 
 ## Type Generation (Deterministic)
 
-Generated types are intended to be derived from the JSON Schemas:
+Generated types are derived from the JSON Schemas:
 
 - `packages/contracts/generated/python/`
 - `packages/contracts/generated/typescript/`
 
-For this phase, type generation is **prepared** but not fully implemented if the selected generator cannot faithfully represent the discriminated unions and cross-record invariants without drift.
+Commands:
 
-If generation is blocked:
+```bash
+make generate-contract-types
+```
 
-- `make generate-contract-types` will document the limitation in output (and exit non-zero in this phase)
-- `packages/contracts/generated/**` remains empty except for a tracked placeholder (`.gitkeep`)
-- contract validation still works without generated types
+`make contracts` regenerates in check mode and fails if committed generated output is stale.
 
-## Future API & Events Notes (Not Implemented Here)
+Tooling:
 
-This slice does not create HTTP APIs or message-driven infrastructure.
+- Python: `datamodel-code-generator` → `typing.TypedDict`
+- TypeScript: `json-schema-to-typescript`
 
-Notes:
+Generated files include a do-not-edit notice. Re-running generation with unchanged schemas must produce no Git diff.
 
-- future HTTP APIs will use OpenAPI 3.1 and reference these schemas
-- future internal events will use CloudEvents-compatible envelopes
-- AsyncAPI will be added only when message-driven interfaces exist
+Backend and frontend import these generated types rather than hand-authoring duplicate contract interfaces.
+
+## Project Initialization Result Wrapper
+
+`schemas/responses/project-initialization-result.v1.schema.json` is the canonical package wrapper for a successful embedded initialization response. It `$ref`s existing contracts and requires exactly the four v1 artifact types.
+
+## Future API & Events Notes
+
+- HTTP APIs use OpenAPI-compatible request models at the edge and return canonical contract payloads.
+- CloudEvents / AsyncAPI remain deferred until message-driven interfaces exist.

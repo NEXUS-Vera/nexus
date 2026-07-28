@@ -1,0 +1,240 @@
+:root {
+  --bg: #f3efe6;
+  --ink: #1c1a16;
+  --muted: #5e584e;
+  --panel: #fffaf2;
+  --accent: #0f5c4c;
+  --accent-soft: #d7ebe4;
+  --danger: #8a2f1d;
+  --warning: #7a5b12;
+  --line: #d9d0c1;
+  --focus: #0b3d8c;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-display: 'Source Serif 4', serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, #e7f0ea 0%, transparent 40%),
+    linear-gradient(180deg, #f7f3ea 0%, var(--bg) 100%);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+.conversation,
+.artifacts-panel {
+  background: color-mix(in srgb, var(--panel) 92%, white);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1.25rem;
+}
+
+.brand {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.vera-header h1 {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.lede,
+.muted,
+.empty-artifacts {
+  color: var(--muted);
+}
+
+.prompt-form {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.prompt-form textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.example-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.example-chip,
+.prompt-form button[type='submit'],
+.error-banner button {
+  border: 1px solid var(--line);
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
+.prompt-form button[type='submit'] {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  justify-self: start;
+}
+
+.prompt-form button[type='submit']:disabled,
+.example-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.status-region {
+  margin-top: 1.25rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.loading-state {
+  font-weight: 500;
+}
+
+.error-banner {
+  border: 1px solid var(--danger);
+  background: #f8e8e3;
+  padding: 0.85rem;
+}
+
+.error-banner.kind-ambiguous {
+  border-color: var(--warning);
+  background: #f7efd8;
+}
+
+.vera-response {
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.artifacts-panel {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+}
+
+.artifact-card {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1rem;
+  background: #fff;
+}
+
+.next-action-card {
+  border-color: var(--accent);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.status-dimensions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.status-dimensions dt {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.status-dimensions dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.requirement-list,
+.arch-nodes {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.requirement-item,
+.arch-node {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+.requirement-item.status-confirmed {
+  border-left: 4px solid #1f6b3a;
+}
+
+.requirement-item.status-proposed {
+  border-left: 4px solid #8a6d1d;
+}
+
+.requirement-item.status-needs-confirmation {
+  border-left: 4px solid #1d4f8a;
+}
+
+.requirement-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.badge {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+.completion {
+  margin-top: 0.75rem;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .artifacts-panel {
+    max-height: none;
+  }
+}

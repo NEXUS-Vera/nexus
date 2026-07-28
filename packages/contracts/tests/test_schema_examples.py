@@ -149,6 +149,9 @@ def _validate_bundle_assets(
     vera_response_schema = schemas_by_id[
         "https://nexus.local/schemas/responses/vera-response.v1.schema.json"
     ]
+    initialization_result_schema = schemas_by_id[
+        "https://nexus.local/schemas/responses/project-initialization-result.v1.schema.json"
+    ]
 
     validators = {
         "project": _make_validator(project_schema, store),
@@ -159,6 +162,7 @@ def _validate_bundle_assets(
         "validation-issue": _make_validator(validation_issue_schema, store),
         "open-question": _make_validator(open_question_schema, store),
         "vera-response": _make_validator(vera_response_schema, store),
+        "project-initialization-result": _make_validator(initialization_result_schema, store),
     }
 
     schema_errors: list[str] = []
@@ -178,7 +182,53 @@ def _validate_bundle_assets(
         payload = _load_json(path)
         filename = path.name
         try:
-            if filename == "project.json":
+            if filename == "project-initialization-result.json":
+                assert isinstance(payload, dict)
+                errs = sorted(
+                    validators["project-initialization-result"].iter_errors(payload),
+                    key=lambda e: list(e.path),
+                )
+                if errs:
+                    schema_errors.append(f"{filename}: {[e.message for e in errs[:2]]}")
+                project = (
+                    payload.get("project") if isinstance(payload.get("project"), dict) else project
+                )
+                user_turn = (
+                    payload.get("userTurn")
+                    if isinstance(payload.get("userTurn"), dict)
+                    else user_turn
+                )
+                turn_route = (
+                    payload.get("turnRoute")
+                    if isinstance(payload.get("turnRoute"), dict)
+                    else turn_route
+                )
+                workflow_run = (
+                    payload.get("workflowRun")
+                    if isinstance(payload.get("workflowRun"), dict)
+                    else workflow_run
+                )
+                vera_response = (
+                    payload.get("veraResponse")
+                    if isinstance(payload.get("veraResponse"), dict)
+                    else vera_response
+                )
+                if isinstance(payload.get("validationIssues"), list):
+                    validation_issues = payload["validationIssues"]
+                if isinstance(payload.get("openQuestions"), list):
+                    open_questions = payload["openQuestions"]
+                if isinstance(payload.get("artifacts"), list):
+                    for art in payload["artifacts"]:
+                        if not isinstance(art, dict):
+                            continue
+                        artifact_envelopes.append(art)
+                        if art.get("artifactType") == "requirement-set":
+                            requirement_set_content = art.get("content")
+                        if art.get("artifactType") == "functional-architecture":
+                            functional_architecture_content = art.get("content")
+                        if art.get("artifactType") == "next-action":
+                            next_action_content = art.get("content")
+            elif filename == "project.json":
                 assert isinstance(payload, dict)
                 project = payload
                 errs = sorted(

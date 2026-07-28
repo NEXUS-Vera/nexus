@@ -16,7 +16,10 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["agents", "packages", "tools", "scripts"]
+src = ["agents", "apps", "packages", "tools", "scripts"]
+extend-exclude = [
+  "packages/contracts/generated",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
@@ -29,18 +32,26 @@ line-ending = "lf"
 [tool.pytest.ini_options]
 testpaths = [
   "agents",
+  "apps",
   "packages",
   "tools",
   "evals",
 ]
 python_files = ["test_*.py"]
+pythonpath = [
+  "apps/api/src",
+  "agents/embedded-systems/src",
+  "packages/contracts/src",
+  "packages/contracts/generated/python",
+]
 addopts = "-q"
+asyncio_mode = "auto"
 
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
-include = ["agents", "packages", "tools", "scripts"]
-exclude = ["**/__pycache__", "**/.venv", "**/node_modules"]
+include = ["agents", "apps", "packages", "tools", "scripts"]
+exclude = ["**/__pycache__", "**/.venv", "**/node_modules", "packages/contracts/generated"]
 
 [tool.mypy]
 python_version = "3.11"
@@ -48,4 +59,5 @@ warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
-files = ["agents", "packages", "tools", "scripts"]
+files = ["agents", "apps", "packages", "tools", "scripts"]
+exclude = "packages/contracts/generated/"

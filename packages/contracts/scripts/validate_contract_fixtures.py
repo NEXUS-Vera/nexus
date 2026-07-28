@@ -113,6 +113,9 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
     vera_response_schema = schemas_by_id[
         "https://nexus.local/schemas/responses/vera-response.v1.schema.json"
     ]
+    initialization_result_schema = schemas_by_id[
+        "https://nexus.local/schemas/responses/project-initialization-result.v1.schema.json"
+    ]
 
     root_validators: dict[str, Draft202012Validator] = {}
 
@@ -142,7 +145,58 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
         payload = _load_json(file_path)
 
         try:
-            if filename == "project.json":
+            if filename == "project-initialization-result.json":
+                if not isinstance(payload, dict):
+                    raise TypeError("project-initialization-result.json must be an object")
+                errors = _validate_json_against_schema(
+                    v("project-initialization-result", initialization_result_schema),
+                    payload,
+                )
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+                # Expand wrapper into package fields for semantic checks when present.
+                project = (
+                    payload.get("project") if isinstance(payload.get("project"), dict) else project
+                )
+                user_turn = (
+                    payload.get("userTurn")
+                    if isinstance(payload.get("userTurn"), dict)
+                    else user_turn
+                )
+                turn_route = (
+                    payload.get("turnRoute")
+                    if isinstance(payload.get("turnRoute"), dict)
+                    else turn_route
+                )
+                workflow_run = (
+                    payload.get("workflowRun")
+                    if isinstance(payload.get("workflowRun"), dict)
+                    else workflow_run
+                )
+                vera_response = (
+                    payload.get("veraResponse")
+                    if isinstance(payload.get("veraResponse"), dict)
+                    else vera_response
+                )
+                if isinstance(payload.get("validationIssues"), list):
+                    validation_issues = payload["validationIssues"]
+                if isinstance(payload.get("openQuestions"), list):
+                    open_questions = payload["openQuestions"]
+                if isinstance(payload.get("artifacts"), list):
+                    for art in payload["artifacts"]:
+                        if not isinstance(art, dict):
+                            continue
+                        artifact_envelopes.append(art)
+                        artifact_type, content = _artifact_content_and_type(art)
+                        if artifact_type == "requirement-set" and content is not None:
+                            requirement_set_content = content
+                        if artifact_type == "functional-architecture" and content is not None:
+                            functional_architecture_content = content
+                        if artifact_type == "next-action" and content is not None:
+                            next_action_content = content
+            elif filename == "project.json":
                 if not isinstance(payload, dict):
                     raise TypeError("project.json must be an object")
                 project = payload

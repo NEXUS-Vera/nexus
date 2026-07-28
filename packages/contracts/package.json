@@ -1,0 +1,11 @@
+{
+  "name": "@nexus/contracts",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./generated/typescript/index.ts",
+  "types": "./generated/typescript/index.ts",
+  "exports": {
+    ".": "./generated/typescript/index.ts"
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/responses/project-initialization-result.v1.schema.json",
+  "title": "ProjectInitializationResult",
+  "description": "Canonical wrapper for a successful fixture-backed embedded project initialization package.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project",
+    "userTurn",
+    "turnRoute",
+    "workflowRun",
+    "artifacts",
+    "validationIssues",
+    "openQuestions",
+    "veraResponse"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "project": {
+      "$ref": "https://nexus.local/schemas/project/project.v1.schema.json"
+    },
+    "userTurn": {
+      "$ref": "https://nexus.local/schemas/turns/user-turn.v1.schema.json"
+    },
+    "turnRoute": {
+      "$ref": "https://nexus.local/schemas/turns/turn-route.v1.schema.json"
+    },
+    "workflowRun": {
+      "$ref": "https://nexus.local/schemas/workflows/workflow-run.v1.schema.json"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "project-brief" }
+            },
+            "required": ["artifactType"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "requirement-set" }
+            },
+            "required": ["artifactType"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "functional-architecture" }
+            },
+            "required": ["artifactType"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "next-action" }
+            },
+            "required": ["artifactType"]
+          }
+        }
+      ]
+    },
+    "validationIssues": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/validation/validation-issue.v1.schema.json"
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/responses/open-question.v1.schema.json"
+      }
+    },
+    "veraResponse": {
+      "$ref": "https://nexus.local/schemas/responses/vera-response.v1.schema.json"
+    }
+  }
+}

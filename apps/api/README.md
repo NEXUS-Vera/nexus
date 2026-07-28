@@ -2,23 +2,37 @@
 
 ## Purpose
 
-Future public or internal Nexus HTTP API.
+Public HTTP API for Nexus. Phase 5 exposes fixture-backed embedded project initialization.
 
 ## Ownership boundary
 
-Deployable API application only.
+Deployable API application only. Domain workflow logic lives in `agents/embedded-systems`.
 
-## What belongs here
+## Endpoints
 
-- HTTP handlers and app composition
-- Auth/session wiring at the application edge
+- `GET /healthz`
+- `POST /v1/projects/initialize`
 
-## What must not be placed here
+Request body:
 
-- Shared domain logic (belongs in packages)
-- Agent private implementations
-- Long-running worker orchestration code
+```json
+{
+  "message": "I want to build a wrist-worn device that measures hand tremors...",
+  "autonomyMode": "collaborate"
+}
+```
 
-## Current status
+Successful responses return the canonical `ProjectInitializationResult` contract.
 
-Placeholder only.
+Unsupported or ambiguous fixture-phase prompts return HTTP 422 with a stable error code.
+
+## Local development
+
+```bash
+make dev-api
+# or
+PYTHONPATH=apps/api/src:agents/embedded-systems/src:packages/contracts/src \
+  python3 -m uvicorn nexus_api.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+CORS origins default to `http://localhost:5173` and can be overridden with `NEXUS_API_CORS_ORIGINS`.
