@@ -16,13 +16,13 @@ from .fixture_router import (
 from .materializer import (
     initialization_dict_to_package_bundle,
     materialize_fixture_package,
-    utc_now,
 )
 from .repository import InMemoryInitializationStore
 from .validation import (
     validate_initialization_package,
     validate_initialization_result_schema,
 )
+from .workflow_ledger import WorkflowLedger
 
 AutonomyMode = Literal["collaborate", "delegate"]
 
@@ -32,6 +32,8 @@ FIXTURES_ROOT = (
     Path(__file__).resolve().parents[6] / "packages" / "contracts" / "examples" / "valid"
 )
 
+# Truthful fixture-phase steps only. Do not claim LLM, Chairman, Board, research,
+# or generation work that this path does not perform.
 WORKFLOW_STEPS = (
     "route-turn",
     "select-fixture-family",
@@ -59,10 +61,17 @@ class InitializationRoutingError(Exception):
 
 
 class InitializationValidationError(Exception):
-    def __init__(self, *, codes: list[str], message: str) -> None:
+    def __init__(
+        self,
+        *,
+        codes: list[str],
+        message: str,
+        workflow_run: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.codes = codes
         self.message = message
+        self.workflow_run = workflow_run
 
 
 @dataclass
@@ -83,6 +92,7 @@ class InitializationService:
             extra={"request_id": request_id, "autonomy_mode": autonomy_mode},
         )
 
+        # Routing happens before a WorkflowRun exists; failures never invent steps.
         decision = route_fixture_family(message)
         if decision.outcome is FixtureRouteOutcome.UNSUPPORTED:
             logger.info(
@@ -128,53 +138,117 @@ class InitializationService:
                 message=f"Fixture family directory missing: {family}",
             )
 
-        now = utc_now()
+        # Materialize first so the ledger can use remapped IDs for the WorkflowRun shell.
         result, _id_map = materialize_fixture_package(
             fixture_folder,
             message=message,
             autonomy_mode=autonomy_mode,
-            now=now,
         )
 
-        # Rewrite workflow step records to reflect actual execution.
-        result["workflowRun"] = _rewrite_workflow_run(
-            result,
-            now=now,
-            family=family,
+        fixture_workflow = result.get("workflowRun") or {}
+        ledger = WorkflowLedger(
+            workflow_run_id=str(fixture_workflow.get("workflowRunId")),
+            workflow_type=str(
+                fixture_workflow.get("workflowType") or "embedded-project-initialization"
+            ),
+            project_id=str(result["project"]["projectId"]),
+            turn_id=str(result["userTurn"]["turnId"]),
+            warnings=list(fixture_workflow.get("warnings") or []),
+            error_references=[],
         )
+        ledger.begin_run()
 
+        # Re-record routing as completed steps now that a run exists.
+        step = ledger.start_step("route-turn")
+        ledger.complete_step(step)
+
+        step = ledger.start_step("select-fixture-family")
+        ledger.complete_step(step)
+
+        step = ledger.start_step("create-project-context")
+        ledger.complete_step(step)
+
+        artifact_refs = _artifact_refs(result)
+        step = ledger.start_step("materialize-fixture-package")
+        ledger.complete_step(step, output_artifact_references=artifact_refs)
+
+        # Attach the in-progress workflow before validation so the payload is complete.
+        result["workflowRun"] = ledger.to_workflow_run()
+
+        step = ledger.start_step("validate-schema")
         schema_errors = validate_initialization_result_schema(result)
         if schema_errors:
+            ledger.fail_step(step)
+            failed_run = ledger.to_workflow_run()
+            result["workflowRun"] = failed_run
+            self.store.save_workflow_run(failed_run)
             logger.error(
                 "package_validation_failed",
                 extra={
                     "request_id": request_id,
                     "route_family": family,
                     "validation_codes": ["SCHEMA_VALIDATION_FAILED"],
+                    "workflow_run_id": failed_run["workflowRunId"],
                 },
             )
             raise InitializationValidationError(
                 codes=["SCHEMA_VALIDATION_FAILED"],
                 message="Materialized package failed schema validation.",
+                workflow_run=failed_run,
             )
+        ledger.complete_step(step)
+        result["workflowRun"] = ledger.to_workflow_run()
 
+        step = ledger.start_step("validate-project-package")
         package_bundle = initialization_dict_to_package_bundle(result)
         semantic_errors = validate_initialization_package(package_bundle)
         blocking = [e for e in semantic_errors if getattr(e, "blocking", True)]
         if blocking:
             codes = sorted({e.code for e in blocking})
+            ledger.fail_step(step)
+            failed_run = ledger.to_workflow_run()
+            result["workflowRun"] = failed_run
+            self.store.save_workflow_run(failed_run)
             logger.error(
                 "package_validation_failed",
                 extra={
                     "request_id": request_id,
                     "route_family": family,
                     "validation_codes": codes,
-                    "workflow_run_id": result["workflowRun"]["workflowRunId"],
+                    "workflow_run_id": failed_run["workflowRunId"],
                 },
             )
             raise InitializationValidationError(
                 codes=codes,
                 message="Materialized package failed project-package semantic validation.",
+                workflow_run=failed_run,
+            )
+        ledger.complete_step(step)
+
+        step = ledger.start_step("build-result")
+        ledger.complete_step(step, output_artifact_references=artifact_refs)
+
+        step = ledger.start_step("complete-workflow")
+        ledger.complete_step(step, output_artifact_references=artifact_refs)
+        ledger.finish_success()
+        result["workflowRun"] = ledger.to_workflow_run()
+
+        # Final schema check against the completed workflow payload.
+        final_schema_errors = validate_initialization_result_schema(result)
+        if final_schema_errors:
+            logger.error(
+                "package_validation_failed",
+                extra={
+                    "request_id": request_id,
+                    "route_family": family,
+                    "validation_codes": ["SCHEMA_VALIDATION_FAILED"],
+                    "workflow_run_id": result["workflowRun"]["workflowRunId"],
+                },
+            )
+            raise InitializationValidationError(
+                codes=["SCHEMA_VALIDATION_FAILED"],
+                message="Completed initialization package failed schema validation.",
+                workflow_run=result["workflowRun"],
             )
 
         logger.info(
@@ -220,37 +294,6 @@ def _artifact_refs(result: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return refs
-
-
-def _rewrite_workflow_run(result: dict[str, Any], *, now: str, family: str) -> dict[str, Any]:
-    workflow = dict(result["workflowRun"])
-    refs = _artifact_refs(result)
-    warning_refs = list(workflow.get("warnings") or [])
-    step_records = []
-    for index, step_type in enumerate(WORKFLOW_STEPS, start=1):
-        step: dict[str, Any] = {
-            "stepId": f"step_{index:02d}_{step_type}",
-            "stepType": step_type,
-            "status": "completed",
-            "attempt": 1,
-            "startedAt": now,
-            "completedAt": now,
-        }
-        if step_type in {"materialize-fixture-package", "build-result", "complete-workflow"}:
-            step["outputArtifactReferences"] = refs
-        step_records.append(step)
-
-    run_status = "completed-with-warnings" if warning_refs else "completed"
-    workflow["stepRecords"] = step_records
-    workflow["runStatus"] = run_status
-    workflow["startTime"] = now
-    workflow["completionTime"] = now
-    # Keep warnings/errorReferences as remapped from fixture content.
-    workflow["warnings"] = warning_refs
-    workflow["errorReferences"] = list(workflow.get("errorReferences") or [])
-    # Family is used only for logging context; not a schema field.
-    _ = family
-    return workflow
 
 
 def supported_family_examples() -> list[dict[str, str]]:

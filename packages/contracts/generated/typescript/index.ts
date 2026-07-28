@@ -1,7 +1,8 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
-export type { ProjectInitializationResult, Artifact } from './project-initialization-result_v1';
+export type { ProjectInitializationResult } from './project-initialization-result_v1';
+export type { Artifact } from './artifact_v1';
 export type { Project } from './project_v1';
 export type { UserTurn } from './user-turn_v1';
 export type { TurnRoute } from './turn-route_v1';
