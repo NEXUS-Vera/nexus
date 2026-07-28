@@ -17,3 +17,4 @@ Durable long-form documentation for Nexus lives under `docs/`. Module-level purp
 ## Product
 
 - [Product overview](./product/overview.md)
+- [Embedded project initialization v1](./product/embedded-project-initialization-v1.md)
