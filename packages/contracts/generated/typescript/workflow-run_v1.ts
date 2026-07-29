@@ -32,5 +32,5 @@ export interface WorkflowRun {
     issueId: string;
   }[];
   workflowRunId: string;
-  workflowType: 'embedded-project-initialization';
+  workflowType: 'embedded-project-initialization' | 'embedded-project-modification';
 }

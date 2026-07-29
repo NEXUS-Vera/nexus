@@ -1,0 +1,56 @@
+name: Playwright E2E
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "20"
+
+      - name: Enable corepack / pnpm
+        run: corepack enable
+
+      - name: Install Python runtime dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install \
+            pytest \
+            jsonschema \
+            httpx \
+            fastapi \
+            "uvicorn[standard]" \
+            pydantic \
+            pyyaml \
+            sqlalchemy \
+            "psycopg[binary]" \
+            alembic
+
+      - name: Install JS dependencies
+        run: pnpm install
+
+      - name: Run Playwright E2E (fixture + memory)
+        env:
+          NEXUS_INITIALIZATION_PROVIDER: fixture
+          NEXUS_STORAGE_BACKEND: memory
+          NEXUS_E2E: "1"
+        run: |
+          chmod +x scripts/run-e2e.sh
+          ./scripts/run-e2e.sh

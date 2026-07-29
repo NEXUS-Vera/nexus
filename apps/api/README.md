@@ -2,45 +2,42 @@
 
 ## Purpose
 
-Public HTTP API for Nexus. Exposes embedded project initialization backed by
-the `fixture`, `llm`, or `shadow` provider (see
-`agents/embedded-systems/README.md`).
+Public HTTP API for Nexus. Exposes embedded project initialization and
+multi-turn modification with optional PostgreSQL persistence.
 
 ## Ownership boundary
 
-Deployable API application only. Domain workflow logic lives in `agents/embedded-systems`.
+Deployable API application only. Domain workflow logic lives in
+`agents/embedded-systems`. Persistence adapters live in `packages/persistence`.
 
 ## Endpoints
 
 - `GET /healthz`
 - `POST /v1/projects/initialize`
+- `GET /v1/projects/{projectId}`
+- `GET /v1/projects/{projectId}/artifacts`
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}?version=`
+- `GET /v1/projects/{projectId}/history`
+- `POST /v1/projects/{projectId}/turns`
 
-Request body:
+Successful initialize responses return `ProjectInitializationResult`.
+Successful turn responses return `ProjectTurnResult` (includes current state and
+impact analysis).
 
-```json
-{
-  "message": "I want to build a wrist-worn device that measures hand tremors...",
-  "autonomyMode": "collaborate"
-}
-```
+## Configuration
 
-Successful responses return the canonical `ProjectInitializationResult` contract.
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `NEXUS_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
+| `NEXUS_DATABASE_URL` | local postgres URL | Used when backend is `postgres` |
+| `NEXUS_INITIALIZATION_PROVIDER` | `fixture` | `fixture`, `llm`, or `shadow` |
 
-Unsupported or ambiguous prompts return HTTP 422 with a stable error code.
-
-The active provider is controlled by `NEXUS_INITIALIZATION_PROVIDER`
-(`fixture` default, `llm`, or `shadow`); `llm`/`shadow` also read
-`NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`, `NEXUS_MODEL_API_KEY`,
-`NEXUS_MODEL_TIMEOUT_SECONDS`, and `NEXUS_MODEL_MAX_REPAIR_ATTEMPTS` (see
-`.env.example`). Nothing is persisted beyond the process lifetime.
+Authentication and multi-user tenancy are **not** implemented.
 
 ## Local development
 
 ```bash
+make dev-db          # optional postgres
+make db-migrate
 make dev-api
-# or
-PYTHONPATH=apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/model-gateway/src:packages/observability/src \
-  python3 -m uvicorn nexus_api.main:app --reload --host 127.0.0.1 --port 8000
 ```
-
-CORS origins default to `http://localhost:5173` and can be overridden with `NEXUS_API_CORS_ORIGINS`.

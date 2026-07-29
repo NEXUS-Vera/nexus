@@ -394,10 +394,19 @@ class TurnRoute(TypedDict, closed=True):
     chairmanRequiredEventually: bool
     complexity: Literal['low', 'medium', 'high', 'unknown']
     domain: Literal['embedded-products']
-    projectOperation: Literal['create-project', 'none']
+    projectOperation: Literal[
+        'create-project',
+        'clarify-requirement',
+        'add-requirement',
+        'change-requirement',
+        'remove-proposed-requirement',
+        'answer-open-question',
+        'change-project-scope',
+        'none',
+    ]
     reasons: list[str]
     routeId: str
-    routeType: Literal['project-initialization', 'unsupported']
+    routeType: Literal['project-initialization', 'project-modification', 'unsupported']
     schemaVersion: Literal['1.0.0']
     supported: bool
     turnId: str
@@ -537,7 +546,9 @@ class WorkflowRun(TypedDict, closed=True):
     turnId: str
     warnings: list[Warning]
     workflowRunId: str
-    workflowType: Literal['embedded-project-initialization']
+    workflowType: Literal[
+        'embedded-project-initialization', 'embedded-project-modification'
+    ]
 
 class ProjectInitializationResultV1(TypedDict, closed=True):
     artifacts: list[Artifacts | Artifacts1 | Artifacts2 | Artifacts3] | Artifacts4

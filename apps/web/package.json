@@ -9,15 +9,18 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "lint": "echo \"No eslint configured yet\"",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
     "@nexus/contracts": "workspace:*",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
   },
-    "devDependencies": {
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.1",

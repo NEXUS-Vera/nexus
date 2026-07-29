@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/responses/project-history.v1.schema.json",
+  "title": "ProjectHistory",
+  "description": "Lightweight append-only history of a project: the turns that were submitted, the workflow runs they triggered, every artifact revision produced, and the user-facing responses returned.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "turns",
+    "workflowRuns",
+    "artifactRevisions",
+    "veraResponses"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
+    "turns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["turnId", "timestamp", "rawUserMessage"],
+        "properties": {
+          "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "rawUserMessage": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "workflowRuns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["workflowRunId", "turnId", "workflowType", "status", "startedAt"],
+        "properties": {
+          "workflowRunId": { "type": "string", "pattern": "^run_[A-Za-z0-9]{16,}$" },
+          "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+          "workflowType": {
+            "type": "string",
+            "enum": ["embedded-project-initialization", "embedded-project-modification"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "completed-with-warnings", "failed"]
+          },
+          "startedAt": { "type": "string", "format": "date-time" },
+          "completedAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "artifactRevisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifactId",
+          "artifactType",
+          "artifactVersion",
+          "lifecycleStatus",
+          "createdAt",
+          "sourceTurnId"
+        ],
+        "properties": {
+          "artifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
+          "artifactType": {
+            "type": "string",
+            "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+          },
+          "artifactVersion": { "type": "integer", "minimum": 1 },
+          "lifecycleStatus": {
+            "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/lifecycleStatus"
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "sourceTurnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+          "supersedesArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
+          "supersedesArtifactVersion": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "veraResponses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["turnId", "timestamp", "userFacingMessage"],
+        "properties": {
+          "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "userFacingMessage": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

@@ -22,9 +22,24 @@
     "routeId": { "type": "string", "pattern": "^route_[A-Za-z0-9]{16,}$" },
     "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
     "supported": { "type": "boolean" },
-    "routeType": { "type": "string", "enum": ["project-initialization", "unsupported"] },
+    "routeType": {
+      "type": "string",
+      "enum": ["project-initialization", "project-modification", "unsupported"]
+    },
     "domain": { "type": "string", "const": "embedded-products" },
-    "projectOperation": { "type": "string", "enum": ["create-project", "none"] },
+    "projectOperation": {
+      "type": "string",
+      "enum": [
+        "create-project",
+        "clarify-requirement",
+        "add-requirement",
+        "change-requirement",
+        "remove-proposed-requirement",
+        "answer-open-question",
+        "change-project-scope",
+        "none"
+      ]
+    },
     "complexity": { "type": "string", "enum": ["low", "medium", "high", "unknown"] },
     "autonomyMode": { "type": "string", "enum": ["collaborate", "delegate"] },
     "chairmanRequiredEventually": { "type": "boolean" },

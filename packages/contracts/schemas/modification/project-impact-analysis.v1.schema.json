@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/modification/project-impact-analysis.v1.schema.json",
+  "title": "ProjectImpactAnalysis",
+  "description": "Deterministic classification of how a project change propagates across artifact types. Every non-unchanged classification must carry an explicit reason so downstream regeneration is auditable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "changed",
+    "affected",
+    "stale",
+    "regenerate",
+    "unchanged",
+    "reasonByArtifact"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "changed": { "$ref": "#/$defs/artifactTypeList" },
+    "affected": { "$ref": "#/$defs/artifactTypeList" },
+    "stale": { "$ref": "#/$defs/artifactTypeList" },
+    "regenerate": { "$ref": "#/$defs/artifactTypeList" },
+    "unchanged": { "$ref": "#/$defs/artifactTypeList" },
+    "reasonByArtifact": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifactType", "reason"],
+        "properties": {
+          "artifactType": { "$ref": "#/$defs/artifactType" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifactType": {
+      "type": "string",
+      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+    },
+    "artifactTypeList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/artifactType" }
+    }
+  }
+}

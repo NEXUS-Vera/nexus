@@ -43,7 +43,9 @@ class WorkflowRunV1(TypedDict, closed=True):
     turnId: str
     warnings: list[Warning]
     workflowRunId: str
-    workflowType: Literal['embedded-project-initialization']
+    workflowType: Literal[
+        'embedded-project-initialization', 'embedded-project-modification'
+    ]
 
 class ArtifactReference(TypedDict, closed=True):
     artifactId: str

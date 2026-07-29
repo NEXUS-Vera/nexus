@@ -11,6 +11,20 @@ permissions:
 jobs:
   test-python:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexus
+          POSTGRES_PASSWORD: nexus
+          POSTGRES_DB: nexus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nexus -d nexus"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -40,11 +54,23 @@ jobs:
             "uvicorn[standard]" \
             pydantic \
             pyyaml \
+            sqlalchemy \
+            "psycopg[binary]" \
+            alembic \
             "datamodel-code-generator>=0.26.0"
+
+      - name: Migrate Postgres for store contract tests
+        env:
+          NEXUS_DATABASE_URL: postgresql+psycopg://nexus:nexus@localhost:5432/nexus
+        run: |
+          cd packages/persistence
+          PYTHONPATH=src python -m alembic -c alembic.ini upgrade head
 
       - name: Run Python tests when present
         env:
           NEXUS_INITIALIZATION_PROVIDER: fixture
+          NEXUS_STORAGE_BACKEND: memory
+          NEXUS_TEST_DATABASE_URL: postgresql+psycopg://nexus:nexus@localhost:5432/nexus
         run: |
           chmod +x scripts/run-tests.sh
           ./scripts/run-tests.sh unit

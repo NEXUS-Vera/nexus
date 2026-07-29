@@ -35,6 +35,18 @@ Additional rules:
 - Public contract changes must not be made silently.
 - Enum expansion may break exhaustive consumers and requires compatibility testing.
 
+## Artifact Revision Identity (Phase 9+)
+
+Persisted projects keep every artifact revision. Revisions are immutable records, not mutable rows:
+
+- Each physical revision gets a **new** `artifactId`. An existing revision is never rewritten in place.
+- `artifactVersion` is monotonically increasing per `(projectId, artifactType)`. It is a per-artifact-type revision counter, not a global sequence and not a schema version.
+- A replacing revision points backwards with `supersedesArtifactId` and `supersedesArtifactVersion`. The superseded revision keeps its own identity and moves to lifecycle status `superseded`.
+- `project.currentArtifactReferences` points at the current heads only — one reference per artifact type. Reading a project follows these references; it never scans history.
+- Uniqueness constraint: `projectId` + `artifactType` + `artifactVersion` identifies exactly one revision.
+
+`schemas/responses/project-history.v1.schema.json` exposes the revision chain (including `supersedes*` links) so history can be audited without loading full artifact content.
+
 ## Status Dimensions Stay Separate
 
 Artifact status is modeled with separate dimensions:
@@ -130,6 +142,17 @@ Do not manually edit generated TypeScript. If a future generator regression rein
 ## Project Initialization Result Wrapper
 
 `schemas/responses/project-initialization-result.v1.schema.json` is the canonical package wrapper for a successful embedded initialization response. It `$ref`s existing contracts and requires exactly the four v1 artifact types.
+
+## Project Read and Modification Contracts
+
+Persistence and modification responses reuse the same package shape:
+
+- `schemas/responses/project-current-state.v1.schema.json` is the canonical read response for a persisted project. It keeps the initialization-result shape and adds optional `dependencies` and `previousTurnIds`.
+- `schemas/responses/project-history.v1.schema.json` is the lightweight audit view (turns, workflow runs, artifact revisions, responses).
+- `schemas/modification/project-change-intent.v1.schema.json` records how a modification request was interpreted, including ambiguities and whether user confirmation is required.
+- `schemas/modification/project-impact-analysis.v1.schema.json` classifies propagation across artifact types and requires an explicit reason per affected artifact type.
+- `schemas/dependencies/artifact-dependency.v1.schema.json` records directed dependencies between artifact types, optionally pinned to specific revisions.
+- `schemas/responses/project-turn-result.v1.schema.json` is the canonical modification-turn response combining current state, intent, impact analysis, and what was changed or regenerated.
 
 ## Future API & Events Notes
 

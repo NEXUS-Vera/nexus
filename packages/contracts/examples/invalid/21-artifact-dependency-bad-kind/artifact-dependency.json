@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "1.0.0",
+  "dependencyId": "dep_03GREENHOUSEREQFROMBRIEF00000001",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "sourceArtifactType": "requirement-set",
+  "targetArtifactType": "project-brief",
+  "dependencyKind": "unknown",
+  "reason": "Requirements were extracted from the captured project brief.",
+  "createdAt": "2026-07-28T13:25:00Z",
+  "sourceArtifactId": "art_03GREENHOUSEREQ000000000000000001",
+  "targetArtifactId": "art_03GREENHOUSEPB000000000000000001"
+}

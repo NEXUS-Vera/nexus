@@ -2,6 +2,12 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type { ProjectInitializationResult } from './project-initialization-result_v1';
+export type { ProjectCurrentState } from './project-current-state_v1';
+export type { ProjectHistory } from './project-history_v1';
+export type { ProjectTurnResult } from './project-turn-result_v1';
+export type { ProjectChangeIntent } from './project-change-intent_v1';
+export type { ProjectImpactAnalysis } from './project-impact-analysis_v1';
+export type { ArtifactDependency } from './artifact-dependency_v1';
 export type { Artifact } from './artifact_v1';
 export type { Project } from './project_v1';
 export type { UserTurn } from './user-turn_v1';

@@ -2,11 +2,22 @@
 
 ## Purpose
 
-Placeholder for future Docker and compose configuration.
+Container definitions for local Nexus services.
 
-## Ownership boundary
+## Local PostgreSQL
 
-Container definitions for local and deployable services.
+```bash
+make dev-db
+make db-migrate
+```
+
+Default connection (see root `.env.example`):
+
+```text
+postgresql+psycopg://nexus:nexus@localhost:5432/nexus
+```
+
+Compose file: `infra/docker/docker-compose.yml`.
 
 ## What belongs here
 
@@ -17,7 +28,3 @@ Container definitions for local and deployable services.
 
 - Application business logic
 - Secrets
-
-## Current status
-
-Placeholder only.

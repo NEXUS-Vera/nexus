@@ -4,6 +4,7 @@
 
 from .actor_reference_v1 import *  # noqa: F403
 from .approval_record_v1 import *  # noqa: F403
+from .artifact_dependency_v1 import *  # noqa: F403
 from .artifact_envelope_v1 import *  # noqa: F403
 from .artifact_status_v1 import *  # noqa: F403
 from .artifact_v1 import *  # noqa: F403
@@ -13,7 +14,12 @@ from .next_action_v1 import *  # noqa: F403
 from .open_question_reference_v1 import *  # noqa: F403
 from .open_question_v1 import *  # noqa: F403
 from .project_brief_v1 import *  # noqa: F403
+from .project_change_intent_v1 import *  # noqa: F403
+from .project_current_state_v1 import *  # noqa: F403
+from .project_history_v1 import *  # noqa: F403
+from .project_impact_analysis_v1 import *  # noqa: F403
 from .project_initialization_result_v1 import *  # noqa: F403
+from .project_turn_result_v1 import *  # noqa: F403
 from .project_v1 import *  # noqa: F403
 from .quantity_v1 import *  # noqa: F403
 from .requirement_set_v1 import *  # noqa: F403
@@ -26,6 +32,7 @@ from .workflow_run_v1 import *  # noqa: F403
 __all__ = [
     "actor_reference_v1",
     "approval_record_v1",
+    "artifact_dependency_v1",
     "artifact_envelope_v1",
     "artifact_status_v1",
     "artifact_v1",
@@ -35,7 +42,12 @@ __all__ = [
     "open_question_reference_v1",
     "open_question_v1",
     "project_brief_v1",
+    "project_change_intent_v1",
+    "project_current_state_v1",
+    "project_history_v1",
+    "project_impact_analysis_v1",
     "project_initialization_result_v1",
+    "project_turn_result_v1",
     "project_v1",
     "quantity_v1",
     "requirement_set_v1",

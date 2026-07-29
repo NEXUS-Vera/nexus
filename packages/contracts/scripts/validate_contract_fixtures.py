@@ -21,6 +21,35 @@ from nexus_contracts.validation.schema_validator import (  # noqa: E402
     make_resolver,
 )
 
+# Fixture filenames validated against a single root schema, without expansion into the
+# cross-record semantic bundle.
+RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
+    "project-history.json": "https://nexus.local/schemas/responses/project-history.v1.schema.json",
+    "project-turn-result.json": (
+        "https://nexus.local/schemas/responses/project-turn-result.v1.schema.json"
+    ),
+    "project-change-intent.json": (
+        "https://nexus.local/schemas/modification/project-change-intent.v1.schema.json"
+    ),
+    "project-impact-analysis.json": (
+        "https://nexus.local/schemas/modification/project-impact-analysis.v1.schema.json"
+    ),
+    "artifact-dependency.json": (
+        "https://nexus.local/schemas/dependencies/artifact-dependency.v1.schema.json"
+    ),
+}
+
+# Package wrappers that carry a full project package inline and are therefore also
+# expanded into the semantic bundle.
+PACKAGE_WRAPPER_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
+    "project-initialization-result.json": (
+        "https://nexus.local/schemas/responses/project-initialization-result.v1.schema.json"
+    ),
+    "project-current-state.json": (
+        "https://nexus.local/schemas/responses/project-current-state.v1.schema.json"
+    ),
+}
+
 
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -107,9 +136,6 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
     vera_response_schema = schemas_by_id[
         "https://nexus.local/schemas/responses/vera-response.v1.schema.json"
     ]
-    initialization_result_schema = schemas_by_id[
-        "https://nexus.local/schemas/responses/project-initialization-result.v1.schema.json"
-    ]
 
     root_validators: dict[str, Draft202012Validator] = {}
 
@@ -139,11 +165,12 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
         payload = _load_json(file_path)
 
         try:
-            if filename == "project-initialization-result.json":
+            if filename in PACKAGE_WRAPPER_SCHEMA_IDS_BY_FILENAME:
                 if not isinstance(payload, dict):
-                    raise TypeError("project-initialization-result.json must be an object")
+                    raise TypeError(f"{filename} must be an object")
+                wrapper_schema_id = PACKAGE_WRAPPER_SCHEMA_IDS_BY_FILENAME[filename]
                 errors = _validate_json_against_schema(
-                    v("project-initialization-result", initialization_result_schema),
+                    v(filename, schemas_by_id[wrapper_schema_id]),
                     payload,
                 )
                 if errors:
@@ -278,6 +305,17 @@ def _validate_fixture_folder(folder: Path, expect_valid: bool) -> None:
                 vera_response = payload
                 errors = _validate_json_against_schema(
                     v("vera-response", vera_response_schema), payload
+                )
+                if errors:
+                    schema_errors.append(
+                        f"{filename}: {len(errors)} errors: {[e.message for e in errors[:2]]}"
+                    )
+            elif filename in RECORD_SCHEMA_IDS_BY_FILENAME:
+                if not isinstance(payload, dict):
+                    raise TypeError(f"{filename} must be an object")
+                record_schema_id = RECORD_SCHEMA_IDS_BY_FILENAME[filename]
+                errors = _validate_json_against_schema(
+                    v(filename, schemas_by_id[record_schema_id]), payload
                 )
                 if errors:
                     schema_errors.append(

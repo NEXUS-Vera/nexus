@@ -5,10 +5,10 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := check
 
-.PHONY: setup format lint typecheck test test-unit test-integration eval eval-embedded-initialization contracts policy check build clean generate-contract-types dev dev-api dev-web
+.PHONY: setup format lint typecheck test test-unit test-integration eval eval-embedded-initialization contracts policy check build clean generate-contract-types dev dev-api dev-web dev-db db-migrate db-reset-local test-e2e
 
 PYTHON ?= $(shell command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3)
-PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src
+PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
 
 setup:
 	@./scripts/setup.sh
@@ -67,17 +67,36 @@ build:
 clean:
 	@./scripts/clean.sh
 
+dev-db:
+	@docker compose -f infra/docker/docker-compose.yml up -d postgres
+
+db-migrate:
+	@cd packages/persistence && PYTHONPATH=src $(PYTHON) -m alembic -c alembic.ini upgrade head
+
+db-reset-local:
+	@if [[ "$(CONFIRM)" != "1" ]]; then \
+	  echo "Refusing to reset local DB. Re-run with CONFIRM=1 (local-only)."; \
+	  exit 1; \
+	fi
+	@docker compose -f infra/docker/docker-compose.yml down -v
+	@$(MAKE) dev-db
+	@sleep 3
+	@$(MAKE) db-migrate
+
 dev-api:
-	@PYTHONPATH="$(PYTHON_PATH)" $(PYTHON) -m uvicorn nexus_api.main:app --reload --host 127.0.0.1 --port 8000
+	@PYTHONPATH="$(PYTHON_PATH)" NEXUS_STORAGE_BACKEND="$${NEXUS_STORAGE_BACKEND:-memory}" NEXUS_INITIALIZATION_PROVIDER="$${NEXUS_INITIALIZATION_PROVIDER:-fixture}" $(PYTHON) -m uvicorn nexus_api.main:app --reload --host 127.0.0.1 --port 8000
 
 dev-web:
 	@pnpm --filter @nexus/web dev
 
 dev:
 	@echo "Starting API and web. Use Ctrl-C to stop."
-	@PYTHONPATH="$(PYTHON_PATH)" $(PYTHON) -m uvicorn nexus_api.main:app --host 127.0.0.1 --port 8000 & \
+	@PYTHONPATH="$(PYTHON_PATH)" NEXUS_STORAGE_BACKEND="$${NEXUS_STORAGE_BACKEND:-memory}" NEXUS_INITIALIZATION_PROVIDER="$${NEXUS_INITIALIZATION_PROVIDER:-fixture}" $(PYTHON) -m uvicorn nexus_api.main:app --host 127.0.0.1 --port 8000 & \
 	  API_PID=$$!; \
 	  pnpm --filter @nexus/web dev & \
 	  WEB_PID=$$!; \
 	  trap 'kill $$API_PID $$WEB_PID 2>/dev/null || true' INT TERM EXIT; \
 	  wait
+
+test-e2e:
+	@./scripts/run-e2e.sh
