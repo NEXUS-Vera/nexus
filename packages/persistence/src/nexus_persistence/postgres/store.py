@@ -335,6 +335,9 @@ class PostgresProjectStore:
             row.payload = project
             row.updated_at = _parse_dt(project["updatedAt"])
 
+        # Ensure project exists before turns (FK).
+        session.flush()
+
         if session.get(UserTurnRow, turn["turnId"]) is None:
             session.add(
                 UserTurnRow(
@@ -345,6 +348,8 @@ class PostgresProjectStore:
                     payload=turn,
                 )
             )
+        # Flush so turn_routes / workflow_runs FK checks see the new turn row.
+        session.flush()
         if session.get(TurnRouteRow, route["routeId"]) is None:
             session.add(
                 TurnRouteRow(
