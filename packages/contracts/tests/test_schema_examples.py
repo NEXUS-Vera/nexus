@@ -22,6 +22,34 @@ from nexus_contracts.validation.semantic_validators import (  # noqa: E402
     semantic_validate_bundle,
 )
 
+# Fixture filenames validated against a single root schema only.
+RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
+    "project-history.json": "https://nexus.local/schemas/responses/project-history.v1.schema.json",
+    "project-turn-result.json": (
+        "https://nexus.local/schemas/responses/project-turn-result.v1.schema.json"
+    ),
+    "project-change-intent.json": (
+        "https://nexus.local/schemas/modification/project-change-intent.v1.schema.json"
+    ),
+    "project-impact-analysis.json": (
+        "https://nexus.local/schemas/modification/project-impact-analysis.v1.schema.json"
+    ),
+    "artifact-dependency.json": (
+        "https://nexus.local/schemas/dependencies/artifact-dependency.v1.schema.json"
+    ),
+}
+
+# Package wrappers that inline a full project package and are also expanded into the
+# cross-record semantic bundle.
+PACKAGE_WRAPPER_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
+    "project-initialization-result.json": (
+        "https://nexus.local/schemas/responses/project-initialization-result.v1.schema.json"
+    ),
+    "project-current-state.json": (
+        "https://nexus.local/schemas/responses/project-current-state.v1.schema.json"
+    ),
+}
+
 
 def _load_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -149,9 +177,6 @@ def _validate_bundle_assets(
     vera_response_schema = schemas_by_id[
         "https://nexus.local/schemas/responses/vera-response.v1.schema.json"
     ]
-    initialization_result_schema = schemas_by_id[
-        "https://nexus.local/schemas/responses/project-initialization-result.v1.schema.json"
-    ]
 
     validators = {
         "project": _make_validator(project_schema, store),
@@ -162,8 +187,12 @@ def _validate_bundle_assets(
         "validation-issue": _make_validator(validation_issue_schema, store),
         "open-question": _make_validator(open_question_schema, store),
         "vera-response": _make_validator(vera_response_schema, store),
-        "project-initialization-result": _make_validator(initialization_result_schema, store),
     }
+    for record_filename, record_schema_id in {
+        **RECORD_SCHEMA_IDS_BY_FILENAME,
+        **PACKAGE_WRAPPER_SCHEMA_IDS_BY_FILENAME,
+    }.items():
+        validators[record_filename] = _make_validator(schemas_by_id[record_schema_id], store)
 
     schema_errors: list[str] = []
     artifact_envelopes: list[dict[str, Any]] = []
@@ -182,10 +211,10 @@ def _validate_bundle_assets(
         payload = _load_json(path)
         filename = path.name
         try:
-            if filename == "project-initialization-result.json":
+            if filename in PACKAGE_WRAPPER_SCHEMA_IDS_BY_FILENAME:
                 assert isinstance(payload, dict)
                 errs = sorted(
-                    validators["project-initialization-result"].iter_errors(payload),
+                    validators[filename].iter_errors(payload),
                     key=lambda e: list(e.path),
                 )
                 if errs:
@@ -298,6 +327,11 @@ def _validate_bundle_assets(
                 errs = sorted(
                     validators["vera-response"].iter_errors(payload), key=lambda e: list(e.path)
                 )
+                if errs:
+                    schema_errors.append(f"{filename}: {[e.message for e in errs[:2]]}")
+            elif filename in RECORD_SCHEMA_IDS_BY_FILENAME:
+                assert isinstance(payload, dict)
+                errs = sorted(validators[filename].iter_errors(payload), key=lambda e: list(e.path))
                 if errs:
                     schema_errors.append(f"{filename}: {[e.message for e in errs[:2]]}")
         except Exception as exc:  # noqa: BLE001

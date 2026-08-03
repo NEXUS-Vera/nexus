@@ -1,0 +1,1017 @@
+{
+  "schemaVersion": "1.0.0",
+  "project": {
+    "schemaVersion": "1.0.0",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "title": "Greenhouse Sensing Node",
+    "domain": "embedded-products",
+    "projectPhase": "concept",
+    "currentStateVersion": 1,
+    "autonomyMode": "delegate",
+    "currentArtifactReferences": [
+      {
+        "artifactType": "project-brief",
+        "artifactId": "art_03GREENHOUSEPB000000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      },
+      {
+        "artifactType": "requirement-set",
+        "artifactId": "art_03GREENHOUSEREQ000000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      },
+      {
+        "artifactType": "functional-architecture",
+        "artifactId": "art_03GREENHOUSEARCH00000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      },
+      {
+        "artifactType": "next-action",
+        "artifactId": "art_03GREENHOUSENXT000000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      }
+    ],
+    "openQuestionReferences": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+        "displayId": "Q4"
+      }
+    ],
+    "blockerOrValidationIssueReferences": [
+      {
+        "issueId": "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+      }
+    ],
+    "createdAt": "2026-07-28T13:25:00Z",
+    "updatedAt": "2026-07-28T13:25:00Z"
+  },
+  "userTurn": {
+    "schemaVersion": "1.0.0",
+    "turnId": "turn_03USERMSG0000000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "rawUserMessage": "I want to build a greenhouse monitoring node that measures temperature, humidity, soil moisture, and light, and reports the readings remotely.",
+    "actor": {
+      "schemaVersion": "1.0.0",
+      "actorId": "actor_03USERACTOR0000000000000001",
+      "actorType": "user",
+      "displayName": "User"
+    },
+    "timestamp": "2026-07-28T13:24:30Z"
+  },
+  "turnRoute": {
+    "schemaVersion": "1.0.0",
+    "routeId": "route_03ROUTE000000000000000001",
+    "turnId": "turn_03USERMSG0000000000000001",
+    "supported": true,
+    "routeType": "project-initialization",
+    "domain": "embedded-products",
+    "projectOperation": "create-project",
+    "complexity": "medium",
+    "autonomyMode": "delegate",
+    "chairmanRequiredEventually": false,
+    "reasons": [
+      "Prompt describes an early-stage embedded product idea."
+    ]
+  },
+  "workflowRun": {
+    "schemaVersion": "1.0.0",
+    "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+    "workflowType": "embedded-project-initialization",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "turnId": "turn_03USERMSG0000000000000001",
+    "runStatus": "completed-with-warnings",
+    "stepRecords": [
+      {
+        "stepId": "step_03",
+        "stepType": "embedded-project-initialization",
+        "status": "completed",
+        "attempt": 1,
+        "startedAt": "2026-07-28T13:25:00Z",
+        "completedAt": "2026-07-28T13:25:20Z",
+        "outputArtifactReferences": [
+          {
+            "artifactType": "project-brief",
+            "artifactId": "art_03GREENHOUSEPB000000000000000001",
+            "artifactVersion": 1,
+            "contentSchemaVersion": "1.0.0"
+          },
+          {
+            "artifactType": "requirement-set",
+            "artifactId": "art_03GREENHOUSEREQ000000000000000001",
+            "artifactVersion": 1,
+            "contentSchemaVersion": "1.0.0"
+          },
+          {
+            "artifactType": "functional-architecture",
+            "artifactId": "art_03GREENHOUSEARCH00000000000000001",
+            "artifactVersion": 1,
+            "contentSchemaVersion": "1.0.0"
+          },
+          {
+            "artifactType": "next-action",
+            "artifactId": "art_03GREENHOUSENXT000000000000000001",
+            "artifactVersion": 1,
+            "contentSchemaVersion": "1.0.0"
+          }
+        ]
+      }
+    ],
+    "startTime": "2026-07-28T13:25:00Z",
+    "completionTime": "2026-07-28T13:25:20Z",
+    "warnings": [
+      {
+        "issueId": "issue_03WARNMAINTENANCEINTERVALUNKNOWN000000000000001"
+      }
+    ],
+    "errorReferences": []
+  },
+  "artifacts": [
+    {
+      "schemaVersion": "1.0.0",
+      "artifactId": "art_03GREENHOUSEPB000000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "artifactType": "project-brief",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0",
+      "lifecycleStatus": "ready",
+      "evidenceStatus": "unverified",
+      "approvalStatus": "proposed",
+      "createdBy": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03VERAACTOR0000000000000001",
+        "actorType": "vera",
+        "displayName": "Vera"
+      },
+      "createdAt": "2026-07-28T13:25:00Z",
+      "updatedAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001",
+      "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+      "content": {
+        "goal": "Enable a greenhouse monitoring sensing node that measures temperature, humidity, soil moisture, and light, and reports readings remotely while confirming deployment environment, measurement accuracy, sampling/reporting intervals, and power/communication constraints before component selection.",
+        "problemStatement": "The greenhouse sensing node must begin with a functional architecture, but key constraints for deployment environment, acceptable accuracy/error bounds, periodic sampling/reporting cadence, and remote communication/power feasibility are not yet confirmed. The prototype must not assume specific component choices prematurely.",
+        "intendedContext": "An early-stage team will prototype the node and review timestamped measurements and remote summaries to decide next embedded constraints and component steps.",
+        "projectStage": "concept",
+        "scope": [
+          "Functional specification for multi-modal environmental sensing and periodic acquisition.",
+          "Functional design for timestamped storage, remote reporting, and analysis-ready summaries.",
+          "Explicit identification of unknown constraints (accuracy, sampling/reporting cadence, deployment exposure, and power/communication)."
+        ],
+        "outOfScope": [
+          "Component-part selection (specific sensor modules, MCUs, radios, protocols, and cloud platforms).",
+          "Firmware libraries, PCB layout, schematic validation, and simulation execution.",
+          "Production manufacturing planning and long-term deployment operations."
+        ],
+        "successCriteria": [
+          "All produced artifacts conform to the v1 contracts.",
+          "Explicit and inferred requirements are distinguishable.",
+          "Unsupported assumptions are not presented as facts.",
+          "The Next Action is derived from concrete blockers and open questions about greenhouse monitoring constraints."
+        ],
+        "assumptions": [
+          {
+            "assumptionId": "A1",
+            "statement": "Initial prototypes can operate with placeholder constraints for accuracy and cadence until the user confirms target values for the remote reporting workflow.",
+            "sourceType": "system-inferred",
+            "confidence": "low",
+            "confirmationStatus": "needs-confirmation"
+          },
+          {
+            "assumptionId": "A2",
+            "statement": "Remote reporting requirements can be represented functionally without committing to a specific communication technology in this phase.",
+            "sourceType": "user-implied",
+            "confidence": "medium",
+            "confirmationStatus": "proposed"
+          }
+        ],
+        "unknowns": [
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+            "displayId": "Q1"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+            "displayId": "Q2"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+            "displayId": "Q3"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+            "displayId": "Q4"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "artifactId": "art_03GREENHOUSEREQ000000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "artifactType": "requirement-set",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0",
+      "lifecycleStatus": "ready",
+      "evidenceStatus": "unverified",
+      "approvalStatus": "proposed",
+      "createdBy": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03VERAACTOR0000000000000001",
+        "actorType": "vera",
+        "displayName": "Vera"
+      },
+      "createdAt": "2026-07-28T13:25:00Z",
+      "updatedAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001",
+      "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+      "content": {
+        "requirements": [
+          {
+            "requirementId": "req_03TEMPHUMIDITYMEASURE0000000000000001",
+            "displayId": "R1",
+            "statement": "The greenhouse node measures temperature and humidity for greenhouse monitoring.",
+            "category": "environmental",
+            "priority": "must",
+            "sourceType": "user-explicit",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R1DIRECT0000000000000001",
+              "sourceType": "user-turn",
+              "sourceId": "turn_03USERMSG0000000000000001",
+              "evidenceStrength": "direct",
+              "sourceLocator": "rawUserMessage"
+            },
+            "confidence": "high",
+            "confirmationStatus": "confirmed",
+            "verificationMethod": "Run a functional greenhouse monitoring test and confirm temperature and humidity readings are captured and stored as timestamped measurement records."
+          },
+          {
+            "requirementId": "req_03SOILMOISTUREMEASURE0000000000000001",
+            "displayId": "R2",
+            "statement": "The greenhouse node measures soil moisture for greenhouse monitoring.",
+            "category": "environmental",
+            "priority": "must",
+            "sourceType": "user-explicit",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R2DIRECT0000000000000001",
+              "sourceType": "user-turn",
+              "sourceId": "turn_03USERMSG0000000000000001",
+              "evidenceStrength": "direct",
+              "sourceLocator": "rawUserMessage"
+            },
+            "confidence": "high",
+            "confirmationStatus": "confirmed",
+            "verificationMethod": "Run a functional greenhouse monitoring test and confirm soil moisture readings are captured and stored as timestamped measurement records."
+          },
+          {
+            "requirementId": "req_03LIGHTMEASURE0000000000000001",
+            "displayId": "R3",
+            "statement": "The greenhouse node measures light for greenhouse monitoring.",
+            "category": "environmental",
+            "priority": "must",
+            "sourceType": "user-explicit",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R3DIRECT0000000000000001",
+              "sourceType": "user-turn",
+              "sourceId": "turn_03USERMSG0000000000000001",
+              "evidenceStrength": "direct",
+              "sourceLocator": "rawUserMessage"
+            },
+            "confidence": "high",
+            "confirmationStatus": "confirmed",
+            "verificationMethod": "Run a functional greenhouse monitoring test and confirm light readings are captured and stored as timestamped measurement records."
+          },
+          {
+            "requirementId": "req_03REMOTEREPORTREADINGS0000000000000001",
+            "displayId": "R4",
+            "statement": "The node reports the readings remotely for greenhouse monitoring.",
+            "category": "interface",
+            "priority": "must",
+            "sourceType": "user-explicit",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R4DIRECT0000000000000001",
+              "sourceType": "user-turn",
+              "sourceId": "turn_03USERMSG0000000000000001",
+              "evidenceStrength": "direct",
+              "sourceLocator": "rawUserMessage"
+            },
+            "confidence": "high",
+            "confirmationStatus": "confirmed",
+            "verificationMethod": "Confirm that recorded measurements can be transmitted for remote viewing as part of a periodic reporting workflow."
+          },
+          {
+            "requirementId": "req_03LOCALACQSTORAGEPERIODIC0000000000000001",
+            "displayId": "R5",
+            "statement": "The node must capture periodic timestamped measurement records for temperature, humidity, soil moisture, and light so they can be reported remotely.",
+            "category": "functional",
+            "priority": "should",
+            "sourceType": "system-inferred",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R5INFER0000000000000001",
+              "sourceType": "agent-inference",
+              "sourceId": "art_03GREENHOUSEPB000000000000000001",
+              "evidenceStrength": "inferred",
+              "sourceLocator": "periodic acquisition needed for remote reporting"
+            },
+            "confidence": "medium",
+            "confirmationStatus": "proposed",
+            "verificationMethod": "Confirm that measurement records include timestamps and can be assembled into remote reporting summaries."
+          },
+          {
+            "requirementId": "req_03ACCURACYBOUNDSUNKNOWN0000000000000001",
+            "displayId": "R6",
+            "statement": "The system must achieve acceptable measurement accuracy/error bounds for temperature, humidity, soil moisture, and light readings for greenhouse monitoring (accuracy value unknown in this phase).",
+            "category": "verification",
+            "priority": "must",
+            "sourceType": "system-inferred",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R6INFERACCUNKNOWN00000000000001",
+              "sourceType": "agent-inference",
+              "sourceId": "art_03GREENHOUSEPB000000000000000001",
+              "evidenceStrength": "inferred",
+              "sourceLocator": "accuracy not specified"
+            },
+            "confidence": "low",
+            "confirmationStatus": "needs-confirmation",
+            "verificationMethod": "Confirm acceptable error bounds for each modality are captured as open questions before component-level decisions in later workflows."
+          },
+          {
+            "requirementId": "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001",
+            "displayId": "R7",
+            "statement": "The node must meet targeted sampling and reporting interval needs for greenhouse monitoring (interval values unknown in this phase).",
+            "category": "performance",
+            "priority": "must",
+            "sourceType": "user-implied",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R7INFERUNKNOWN000000000000001",
+              "sourceType": "agent-inference",
+              "sourceId": "turn_03USERMSG0000000000000001",
+              "evidenceStrength": "inferred",
+              "sourceLocator": "sampling/reporting interval not specified"
+            },
+            "confidence": "medium",
+            "confirmationStatus": "needs-confirmation",
+            "verificationMethod": "Confirm sampling cadence and remote reporting frequency so later architecture can size storage/buffering and timing behavior without assuming components."
+          },
+          {
+            "requirementId": "req_03COMMUNICATIONRANGEUNKNOWN000000000000001",
+            "displayId": "R8",
+            "statement": "The system must operate with remote communication constraints suitable for greenhouse reporting (communication range/network availability unknown in this phase).",
+            "category": "interface",
+            "priority": "should",
+            "sourceType": "system-inferred",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R8INFERUNKNOWN000000000000001",
+              "sourceType": "agent-inference",
+              "sourceId": "art_03GREENHOUSEPB000000000000000001",
+              "evidenceStrength": "inferred",
+              "sourceLocator": "remote reporting implies communication constraints"
+            },
+            "confidence": "low",
+            "confirmationStatus": "needs-confirmation",
+            "verificationMethod": "Confirm communication constraints are captured as open requirements before selecting specific communication technologies."
+          },
+          {
+            "requirementId": "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001",
+            "displayId": "R9",
+            "statement": "The system must meet power-source constraints required for long-duration greenhouse operation (power/operation constraints unknown in this phase).",
+            "category": "performance",
+            "priority": "should",
+            "sourceType": "user-implied",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R9INFERUNKNOWN000000000000001",
+              "sourceType": "agent-inference",
+              "sourceId": "art_03GREENHOUSEPB000000000000000001",
+              "evidenceStrength": "inferred",
+              "sourceLocator": "long-duration operation implies power constraints"
+            },
+            "confidence": "low",
+            "confirmationStatus": "needs-confirmation",
+            "verificationMethod": "Confirm power-source and operational duration constraints are captured before component selection."
+          },
+          {
+            "requirementId": "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001",
+            "displayId": "R10",
+            "statement": "The node must be suitable for the greenhouse deployment environment (deployment exposure and ingress/environment constraints unknown in this phase).",
+            "category": "physical",
+            "priority": "should",
+            "sourceType": "user-implied",
+            "sourceReference": {
+              "schemaVersion": "1.0.0",
+              "evidenceId": "evi_03R10INFERUNKNOWN000000000000001",
+              "sourceType": "agent-inference",
+              "sourceId": "turn_03USERMSG0000000000000001",
+              "evidenceStrength": "inferred",
+              "sourceLocator": "deployment environment not specified"
+            },
+            "confidence": "medium",
+            "confirmationStatus": "needs-confirmation",
+            "verificationMethod": "Confirm deployment environment characteristics are captured as open questions before making physical design choices in later workflows."
+          }
+        ],
+        "requirementSummary": "The greenhouse sensing node must measure temperature, humidity, soil moisture, and light and report readings remotely, while confirming open constraints for deployment environment, acceptable accuracy, sampling/reporting intervals, and remote communication and power feasibility before component selection.",
+        "missingDimensions": [
+          "acceptable measurement accuracy/error bounds per modality",
+          "sampling interval and reporting cadence",
+          "remote communication constraints and operating range",
+          "deployment exposure/ingress expectations",
+          "power-source and operational duration constraints"
+        ],
+        "openQuestionIds": [
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+            "displayId": "Q1"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+            "displayId": "Q2"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+            "displayId": "Q3"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+            "displayId": "Q4"
+          }
+        ]
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "artifactId": "art_03GREENHOUSEARCH00000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "artifactType": "functional-architecture",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0",
+      "lifecycleStatus": "ready",
+      "evidenceStatus": "unverified",
+      "approvalStatus": "proposed",
+      "createdBy": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03VERAACTOR0000000000000001",
+        "actorType": "vera",
+        "displayName": "Vera"
+      },
+      "createdAt": "2026-07-28T13:25:00Z",
+      "updatedAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001",
+      "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+      "content": {
+        "architectureId": "arch_03GREENHOUSEARCH0000000000000001",
+        "architectureMaturity": "functional",
+        "systemBoundary": "A greenhouse sensing node that periodically measures temperature, humidity, soil moisture, and light, attaches timestamps to measurements, stores an analysis-ready log, and supports remote reporting while keeping deployment, accuracy, sampling/reporting cadence, and communication/power constraints as open questions until confirmed.",
+        "nodes": [
+          {
+            "nodeId": "node_03GREENHOUSESINIT0000000000000001",
+            "name": "Deployment & Session Configuration Input",
+            "functionalType": "user-interface",
+            "responsibilities": [
+              "Accept greenhouse deployment context (indoor vs outdoor exposure) and session intent.",
+              "Provide placeholders for unknown deployment environment, measurement accuracy, sampling/reporting cadence, and remote communication/power constraints.",
+              "Represent unknown maintenance-related operational constraints as non-blocking placeholders where needed."
+            ],
+            "satisfiesRequirementIds": [
+              "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001",
+              "req_03ACCURACYBOUNDSUNKNOWN0000000000000001",
+              "req_03COMMUNICATIONRANGEUNKNOWN000000000000001",
+              "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001"
+            ]
+          },
+          {
+            "nodeId": "node_03GREENHOUSEENVACQ0000000000000001",
+            "name": "Environmental Measurement Acquisition",
+            "functionalType": "sensing",
+            "responsibilities": [
+              "Measure temperature and humidity for greenhouse monitoring.",
+              "Measure light for greenhouse monitoring.",
+              "Emit measurement samples with timestamps for later storage and reporting."
+            ],
+            "satisfiesRequirementIds": [
+              "req_03TEMPHUMIDITYMEASURE0000000000000001",
+              "req_03LIGHTMEASURE0000000000000001"
+            ]
+          },
+          {
+            "nodeId": "node_03GREENHOUSES0ILACQ0000000000000001",
+            "name": "Soil Moisture Measurement Acquisition",
+            "functionalType": "sensing",
+            "responsibilities": [
+              "Measure soil moisture for greenhouse monitoring.",
+              "Emit soil-moisture measurement samples with timestamps for later storage and reporting."
+            ],
+            "satisfiesRequirementIds": [
+              "req_03SOILMOISTUREMEASURE0000000000000001"
+            ]
+          },
+          {
+            "nodeId": "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
+            "name": "Timestamped Measurement Storage",
+            "functionalType": "storage",
+            "responsibilities": [
+              "Buffer and persist periodic timestamped measurement records.",
+              "Support storage/log sizing based on sampling and reporting interval targets (unknown in this phase).",
+              "Provide stored records to analysis and remote reporting steps."
+            ],
+            "satisfiesRequirementIds": [
+              "req_03LOCALACQSTORAGEPERIODIC0000000000000001",
+              "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001"
+            ]
+          },
+          {
+            "nodeId": "node_03GREENHOUSEANALYSIS0000000000000001",
+            "name": "Greenhouse Measurement Analysis & Summaries",
+            "functionalType": "analysis",
+            "responsibilities": [
+              "Aggregate stored records into analysis-ready greenhouse monitoring summaries.",
+              "Highlight gaps between assumed and confirmed measurement accuracy requirements.",
+              "Prepare data structures suitable for remote reporting of readings."
+            ],
+            "satisfiesRequirementIds": [
+              "req_03ACCURACYBOUNDSUNKNOWN0000000000000001",
+              "req_03LOCALACQSTORAGEPERIODIC0000000000000001"
+            ]
+          },
+          {
+            "nodeId": "node_03GREENHOUSECOMM0000000000000001",
+            "name": "Remote Readings Reporting",
+            "functionalType": "communication",
+            "responsibilities": [
+              "Transmit greenhouse readings to a remote consumer for monitoring.",
+              "Represent unknown communication constraints that affect reporting feasibility without committing to a specific protocol.",
+              "Include references to open constraints influencing interpretation."
+            ],
+            "satisfiesRequirementIds": [
+              "req_03REMOTEREPORTREADINGS0000000000000001",
+              "req_03COMMUNICATIONRANGEUNKNOWN000000000000001"
+            ]
+          },
+          {
+            "nodeId": "node_03GREENHOUSEPOWER0000000000000001",
+            "name": "Power & Long-Duration Operation Management",
+            "functionalType": "power",
+            "responsibilities": [
+              "Coordinate long-duration operation with unknown power-source constraints.",
+              "Provide placeholders for power budgeting behavior that depends on sampling/reporting cadence.",
+              "Support safe shutdown or maintenance coordination without specifying physical power hardware."
+            ],
+            "satisfiesRequirementIds": [
+              "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001",
+              "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001"
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "edgeId": "edge_03GREENHCTRLDEPLOY0000000000000001",
+            "fromNodeId": "node_03GREENHOUSESINIT0000000000000001",
+            "toNodeId": "node_03GREENHOUSEENVACQ0000000000000001",
+            "flowType": "control",
+            "description": "Deployment/session constraints are applied to how acquisition and reporting behave while unknown targets remain placeholders."
+          },
+          {
+            "edgeId": "edge_03GREENHCTRLSTORAGE0000000000000001",
+            "fromNodeId": "node_03GREENHOUSESINIT0000000000000001",
+            "toNodeId": "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
+            "flowType": "control",
+            "description": "Sampling cadence and unknown storage-sizing constraints control how periodic measurement logs are buffered and stored."
+          },
+          {
+            "edgeId": "edge_03GREENHEVNTOSTORAGE0000000000000001",
+            "fromNodeId": "node_03GREENHOUSEENVACQ0000000000000001",
+            "toNodeId": "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
+            "flowType": "data",
+            "description": "Environmental samples are routed into timestamped storage."
+          },
+          {
+            "edgeId": "edge_03GREENHSOILTOSTORAGE0000000000000001",
+            "fromNodeId": "node_03GREENHOUSES0ILACQ0000000000000001",
+            "toNodeId": "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
+            "flowType": "data",
+            "description": "Soil-moisture samples are routed into timestamped storage."
+          },
+          {
+            "edgeId": "edge_03GREENSTORANALYSIS0000000000000001",
+            "fromNodeId": "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
+            "toNodeId": "node_03GREENHOUSEANALYSIS0000000000000001",
+            "flowType": "data",
+            "description": "Stored measurement logs are aggregated into greenhouse monitoring summaries and analysis-ready outputs."
+          },
+          {
+            "edgeId": "edge_03GREENANALYSISCOMM0000000000000001",
+            "fromNodeId": "node_03GREENHOUSEANALYSIS0000000000000001",
+            "toNodeId": "node_03GREENHOUSECOMM0000000000000001",
+            "flowType": "data",
+            "description": "Analysis-ready readings are routed to remote reporting while communication constraints remain unconfirmed."
+          },
+          {
+            "edgeId": "edge_03GREENHPOWERTOSTOR0000000000000001",
+            "fromNodeId": "node_03GREENHOUSEPOWER0000000000000001",
+            "toNodeId": "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
+            "flowType": "power",
+            "description": "Power management behavior influences the ability to buffer and persist measurement records during long-duration sessions."
+          }
+        ],
+        "assumptions": [
+          {
+            "assumptionId": "FA1",
+            "statement": "A functional architecture can represent unknown deployment exposure, communication/power feasibility, and accuracy/cadence requirements as open questions without committing to specific components.",
+            "sourceType": "system-inferred",
+            "confidence": "medium",
+            "confirmationStatus": "proposed"
+          }
+        ],
+        "unresolvedDecisions": [
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+            "displayId": "Q1"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+            "displayId": "Q2"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+            "displayId": "Q3"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+            "displayId": "Q4"
+          }
+        ],
+        "requirementCoverage": {
+          "coveredRequirementIds": [
+            "req_03TEMPHUMIDITYMEASURE0000000000000001",
+            "req_03SOILMOISTUREMEASURE0000000000000001",
+            "req_03LIGHTMEASURE0000000000000001",
+            "req_03REMOTEREPORTREADINGS0000000000000001",
+            "req_03LOCALACQSTORAGEPERIODIC0000000000000001",
+            "req_03ACCURACYBOUNDSUNKNOWN0000000000000001",
+            "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001",
+            "req_03COMMUNICATIONRANGEUNKNOWN000000000000001",
+            "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001",
+            "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001"
+          ]
+        }
+      }
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "artifactId": "art_03GREENHOUSENXT000000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "artifactType": "next-action",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0",
+      "lifecycleStatus": "ready",
+      "evidenceStatus": "unverified",
+      "approvalStatus": "proposed",
+      "createdBy": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03VERAACTOR0000000000000001",
+        "actorType": "vera",
+        "displayName": "Vera"
+      },
+      "createdAt": "2026-07-28T13:25:00Z",
+      "updatedAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001",
+      "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+      "content": {
+        "actionId": "act_03NEXTACTION0000000000000001",
+        "title": "Confirm deployment, measurement accuracy, power, and communication constraints before component selection",
+        "description": "Validate greenhouse deployment exposure and ingress constraints, acceptable measurement accuracy, sampling/reporting cadence requirements, and remote communication/power feasibility so future component selection stays grounded in confirmed needs.",
+        "rationale": "The current functional architecture can represent unknown constraints as open questions, but selecting specific components for sensing, timing, and remote reporting depends on confirmed deployment and measurement targets.",
+        "owner": "vera",
+        "priority": "high",
+        "prerequisites": [
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+            "displayId": "Q1"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+            "displayId": "Q2"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+            "displayId": "Q3"
+          },
+          {
+            "schemaVersion": "1.0.0",
+            "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+            "displayId": "Q4"
+          }
+        ],
+        "blocks": [
+          {
+            "issueId": "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+          }
+        ],
+        "completionCondition": {
+          "conditionType": "unknowns-resolved",
+          "completionCriteria": "Confirm (1) greenhouse deployment environment/ingress expectations, (2) acceptable measurement accuracy/error bounds, (3) sampling and reporting cadence needs, and (4) power-source and remote communication constraints; then mark Q1-Q4 as answered/resolved and proceed to component selection in the next workflow."
+        },
+        "sourceIssueIds": [
+          "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001",
+          "issue_03WARNMAINTENANCEINTERVALUNKNOWN000000000000001"
+        ],
+        "sourceQuestionIds": [
+          "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+          "question_03MEASACCBOUNDUNKNOWN000000000000001",
+          "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+          "question_03COMMPOWERUNKNOWN0000000000000001"
+        ]
+      }
+    }
+  ],
+  "validationIssues": [
+    {
+      "schemaVersion": "1.0.0",
+      "issueId": "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "severity": "high",
+      "code": "unknown-deployment-power-communication-and-accuracy",
+      "message": "Deployment environment, acceptable measurement accuracy, power-source constraints, and communication constraints are not yet confirmed; the functional architecture must remain functional until these unknowns are resolved.",
+      "blocking": true,
+      "resolutionType": "manual-review",
+      "createdAt": "2026-07-28T13:25:05Z",
+      "resolutionStatus": "open",
+      "suggestedResolution": "Confirm greenhouse deployment conditions, acceptable measurement accuracy, intended communication constraints, and expected power-source constraints before component selection."
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "issueId": "issue_03WARNMAINTENANCEINTERVALUNKNOWN000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "severity": "medium",
+      "code": "maintenance-interval-unclear",
+      "message": "Maintenance interval and operational care constraints are mentioned as considerations but not clearly confirmed for the initial prototype scope.",
+      "blocking": false,
+      "resolutionType": "manual-review",
+      "createdAt": "2026-07-28T13:25:06Z",
+      "resolutionStatus": "open",
+      "suggestedResolution": "Clarify how often the node must be serviced and how long data capture should continue between maintenance activities."
+    }
+  ],
+  "openQuestions": [
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "question": "What deployment environment characteristics (including indoor vs outdoor greenhouse exposure and ingress protection expectations) should the sensing node target?",
+      "reason": "Deployment environment constraints influence how the node can operate reliably and what protective assumptions are acceptable.",
+      "requestedFrom": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03USERACTOR0000000000000001",
+        "actorType": "user",
+        "displayName": "User"
+      },
+      "blocks": [
+        "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+      ],
+      "status": "open",
+      "sourceReferences": [
+        {
+          "kind": "requirement",
+          "requirementId": "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001"
+        }
+      ],
+      "createdAt": "2026-07-28T13:25:05Z",
+      "updatedAt": "2026-07-28T13:25:05Z"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "question": "What acceptable measurement accuracy/error bounds are required for temperature, humidity, soil moisture, and light readings for greenhouse monitoring?",
+      "reason": "Accuracy requirements determine how downstream analysis should interpret measurement uncertainty and whether validation steps are needed.",
+      "requestedFrom": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03USERACTOR0000000000000001",
+        "actorType": "user",
+        "displayName": "User"
+      },
+      "blocks": [
+        "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+      ],
+      "status": "open",
+      "sourceReferences": [
+        {
+          "kind": "requirement",
+          "requirementId": "req_03ACCURACYBOUNDSUNKNOWN0000000000000001"
+        }
+      ],
+      "createdAt": "2026-07-28T13:25:06Z",
+      "updatedAt": "2026-07-28T13:25:06Z"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "question": "What sampling interval and reporting interval should be targeted so the remote readings are timely without creating unnecessary data volume?",
+      "reason": "Sampling and reporting intervals impact data freshness, power/runtime, and how often remote summaries must be updated.",
+      "requestedFrom": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03USERACTOR0000000000000001",
+        "actorType": "user",
+        "displayName": "User"
+      },
+      "blocks": [
+        "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+      ],
+      "status": "open",
+      "sourceReferences": [
+        {
+          "kind": "requirement",
+          "requirementId": "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001"
+        }
+      ],
+      "createdAt": "2026-07-28T13:25:07Z",
+      "updatedAt": "2026-07-28T13:25:07Z"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "question": "What remote communication constraints (range/network availability) and power-source constraints should the node target for long-duration operation?",
+      "reason": "Communication and power constraints determine feasibility of periodic remote reporting and the operational duration between maintenance events.",
+      "requestedFrom": {
+        "schemaVersion": "1.0.0",
+        "actorId": "actor_03USERACTOR0000000000000001",
+        "actorType": "user",
+        "displayName": "User"
+      },
+      "blocks": [
+        "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+      ],
+      "status": "open",
+      "sourceReferences": [
+        {
+          "kind": "requirement",
+          "requirementId": "req_03COMMUNICATIONRANGEUNKNOWN000000000000001"
+        },
+        {
+          "kind": "requirement",
+          "requirementId": "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001"
+        }
+      ],
+      "createdAt": "2026-07-28T13:25:08Z",
+      "updatedAt": "2026-07-28T13:25:08Z"
+    }
+  ],
+  "veraResponse": {
+    "schemaVersion": "1.0.0",
+    "turnId": "turn_03USERMSG0000000000000001",
+    "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+    "userFacingMessage": "I captured your greenhouse sensing node idea and produced a functional first architecture for measuring temperature, humidity, soil moisture, and light, with timestamped storage and remote reporting as a functional output. Next, confirm the deployment environment, acceptable measurement accuracy, sampling/reporting cadence, and power/communication constraints (and we will keep maintenance considerations separate until clarified) so later component selection remains grounded.",
+    "createdArtifactReferences": [
+      {
+        "artifactType": "project-brief",
+        "artifactId": "art_03GREENHOUSEPB000000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      },
+      {
+        "artifactType": "requirement-set",
+        "artifactId": "art_03GREENHOUSEREQ000000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      },
+      {
+        "artifactType": "functional-architecture",
+        "artifactId": "art_03GREENHOUSEARCH00000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      },
+      {
+        "artifactType": "next-action",
+        "artifactId": "art_03GREENHOUSENXT000000000000000001",
+        "artifactVersion": 1,
+        "contentSchemaVersion": "1.0.0"
+      }
+    ],
+    "warningIssueReferences": [
+      {
+        "issueId": "issue_03WARNMAINTENANCEINTERVALUNKNOWN000000000000001"
+      }
+    ],
+    "blockerIssueReferences": [
+      {
+        "issueId": "issue_03BLOCKGREENHOUSEDEPLOYPOWERCOMM000000000000001"
+      }
+    ],
+    "openQuestionReferences": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03DEPLOYMENTENVUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03MEASACCBOUNDUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_03COMMPOWERUNKNOWN0000000000000001",
+        "displayId": "Q4"
+      }
+    ],
+    "nextActionArtifactReference": {
+      "artifactType": "next-action",
+      "artifactId": "art_03GREENHOUSENXT000000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    "projectStateSummary": {
+      "projectPhase": "concept",
+      "autonomyMode": "delegate",
+      "openQuestionCount": 4,
+      "validationIssueCount": 2
+    },
+    "completionStatus": "completed-with-warnings"
+  },
+  "dependencies": [
+    {
+      "schemaVersion": "1.0.0",
+      "dependencyId": "dep_03GREENHOUSEREQFROMBRIEF00000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "sourceArtifactType": "requirement-set",
+      "targetArtifactType": "project-brief",
+      "dependencyKind": "derives-from",
+      "reason": "Requirements were extracted from the captured project brief.",
+      "createdAt": "2026-07-28T13:25:00Z",
+      "sourceArtifactId": "art_03GREENHOUSEREQ000000000000000001",
+      "targetArtifactId": "art_03GREENHOUSEPB000000000000000001"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "dependencyId": "dep_03GREENHOUSEARCHCOVERSREQ0000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "sourceArtifactType": "functional-architecture",
+      "targetArtifactType": "requirement-set",
+      "dependencyKind": "covers",
+      "reason": "Functional architecture nodes cover the current requirement set.",
+      "createdAt": "2026-07-28T13:25:00Z",
+      "sourceArtifactId": "art_03GREENHOUSEARCH00000000000000001",
+      "targetArtifactId": "art_03GREENHOUSEREQ000000000000000001"
+    },
+    {
+      "schemaVersion": "1.0.0",
+      "dependencyId": "dep_03GREENHOUSENXTFROMARCH00000001",
+      "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+      "sourceArtifactType": "next-action",
+      "targetArtifactType": "functional-architecture",
+      "dependencyKind": "derives-from",
+      "reason": "The proposed next action follows from unresolved architecture decisions.",
+      "createdAt": "2026-07-28T13:25:00Z",
+      "sourceArtifactId": "art_03GREENHOUSENXT000000000000000001",
+      "targetArtifactId": "art_03GREENHOUSEARCH00000000000000001"
+    }
+  ],
+  "previousTurnIds": []
+}

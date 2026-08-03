@@ -43,6 +43,9 @@ htmlcov/
 .tox/
 .nox/
 .hypothesis/
+test-results/
+playwright-report/
+blob-report/
 
 # Logs and generated results
 logs/

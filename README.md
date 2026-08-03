@@ -4,7 +4,7 @@ Nexus is a modular agentic engineering platform. Vera orchestrates specialist do
 
 ## Current status
 
-This repository contains the v1 embedded-project initialization contract foundation plus an API and Vera prototype UI. The embedded-systems initialization workflow supports three provider modes — `fixture` (default, deterministic, no model calls), `llm` (live staged generation with bounded repair), and `shadow` (runs both, serves `fixture`, logs the `llm` outcome) — selected via `NEXUS_INITIALIZATION_PROVIDER` (see `agents/embedded-systems/README.md` and `.env.example`).
+This repository contains the v1 embedded-project initialization and multi-turn modification stack: shared contracts, an API with project persistence/retrieval, fixture-mode workflows (no model key required by default), and a Vera prototype UI with project workspace routing. Initialization providers are `fixture` (default), `llm`, and `shadow`, selected via `NEXUS_INITIALIZATION_PROVIDER`. Project storage is `memory` (default for tests) or `postgres` via `NEXUS_STORAGE_BACKEND` (see `.env.example`, `packages/persistence/README.md`).
 
 ## Architecture overview
 
@@ -77,9 +77,10 @@ make dev
 | `make policy` | Enforce repository content policy |
 | `make check` | Run the full local verification suite |
 | `make eval-embedded-initialization` | Run the embedded-project-initialization eval suite (fake provider by default) |
-| `make build` | Build packages when build targets exist |
-| `make clean` | Remove local build and cache artifacts |
 | `make dev` / `make dev-api` / `make dev-web` | Local API and web servers |
+| `make dev-db` / `make db-migrate` | Start local Postgres and apply migrations |
+| `make test-e2e` | Playwright E2E (fixture + memory; no model key) |
+| `make clean` | Remove local build and cache artifacts |
 
 ## Documentation
 
@@ -89,3 +90,4 @@ make dev
 - [apps/api/README.md](./apps/api/README.md) — API application
 - [apps/web/README.md](./apps/web/README.md) — web application
 - [packages/contracts/README.md](./packages/contracts/README.md) — contract package
+- [packages/persistence/README.md](./packages/persistence/README.md) — project package store (memory / Postgres)

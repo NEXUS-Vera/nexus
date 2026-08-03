@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/modification/project-change-intent.v1.schema.json",
+  "title": "ProjectChangeIntent",
+  "description": "Interpreted intent of a project-modification turn. Intent is recorded explicitly so ambiguous requests can require user confirmation before any artifact is regenerated.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operation",
+    "targetArtifactType",
+    "requestedChange",
+    "sourceTurnId",
+    "confidence",
+    "ambiguities",
+    "requiresUserConfirmation"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "clarify-requirement",
+        "add-requirement",
+        "change-requirement",
+        "remove-proposed-requirement",
+        "answer-open-question",
+        "change-project-scope"
+      ]
+    },
+    "targetArtifactType": {
+      "type": ["string", "null"],
+      "enum": [
+        "project-brief",
+        "requirement-set",
+        "functional-architecture",
+        "next-action",
+        null
+      ]
+    },
+    "requestedChange": { "type": "string", "minLength": 1 },
+    "sourceTurnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+    "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+    "ambiguities": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "requiresUserConfirmation": { "type": "boolean" },
+    "targetRequirementId": { "type": "string", "pattern": "^req_[A-Za-z0-9]{16,}$" },
+    "targetQuestionId": { "type": "string", "pattern": "^question_[A-Za-z0-9]{16,}$" }
+  }
+}

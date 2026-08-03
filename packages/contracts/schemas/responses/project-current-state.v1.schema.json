@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/responses/project-current-state.v1.schema.json",
+  "title": "ProjectCurrentState",
+  "description": "Canonical current-state package for a persisted embedded project. This is the contract returned when reading a project, and it carries the current artifact heads plus the turn that produced them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "project",
+    "userTurn",
+    "turnRoute",
+    "workflowRun",
+    "artifacts",
+    "validationIssues",
+    "openQuestions",
+    "veraResponse"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "project": {
+      "$ref": "https://nexus.local/schemas/project/project.v1.schema.json"
+    },
+    "userTurn": {
+      "$ref": "https://nexus.local/schemas/turns/user-turn.v1.schema.json"
+    },
+    "turnRoute": {
+      "$ref": "https://nexus.local/schemas/turns/turn-route.v1.schema.json"
+    },
+    "workflowRun": {
+      "$ref": "https://nexus.local/schemas/workflows/workflow-run.v1.schema.json"
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
+      },
+      "allOf": [
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "project-brief" }
+            },
+            "required": ["artifactType"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "requirement-set" }
+            },
+            "required": ["artifactType"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "functional-architecture" }
+            },
+            "required": ["artifactType"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "next-action" }
+            },
+            "required": ["artifactType"]
+          }
+        }
+      ]
+    },
+    "validationIssues": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/validation/validation-issue.v1.schema.json"
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/responses/open-question.v1.schema.json"
+      }
+    },
+    "veraResponse": {
+      "$ref": "https://nexus.local/schemas/responses/vera-response.v1.schema.json"
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/dependencies/artifact-dependency.v1.schema.json"
+      }
+    },
+    "previousTurnIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" }
+    }
+  }
+}

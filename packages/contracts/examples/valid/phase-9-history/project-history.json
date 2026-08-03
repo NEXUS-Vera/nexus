@@ -1,0 +1,82 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "turns": [
+    {
+      "turnId": "turn_03USERMSG0000000000000001",
+      "timestamp": "2026-07-28T13:24:30Z",
+      "rawUserMessage": "I want to build a greenhouse monitoring node that measures temperature, humidity, soil moisture, and light, and reports the readings remotely."
+    },
+    {
+      "turnId": "turn_03GREENHOUSECLARIFY000000000001",
+      "timestamp": "2026-07-29T09:15:00Z",
+      "rawUserMessage": "Sample every 10 minutes and report once an hour."
+    }
+  ],
+  "workflowRuns": [
+    {
+      "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+      "turnId": "turn_03USERMSG0000000000000001",
+      "workflowType": "embedded-project-initialization",
+      "status": "completed-with-warnings",
+      "startedAt": "2026-07-28T13:25:00Z",
+      "completedAt": "2026-07-28T13:25:20Z"
+    }
+  ],
+  "artifactRevisions": [
+    {
+      "artifactId": "art_03GREENHOUSEPB000000000000000001",
+      "artifactType": "project-brief",
+      "artifactVersion": 1,
+      "lifecycleStatus": "ready",
+      "createdAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001"
+    },
+    {
+      "artifactId": "art_03GREENHOUSEREQ000000000000000001",
+      "artifactType": "requirement-set",
+      "artifactVersion": 1,
+      "lifecycleStatus": "superseded",
+      "createdAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001"
+    },
+    {
+      "artifactId": "art_03GREENHOUSEARCH00000000000000001",
+      "artifactType": "functional-architecture",
+      "artifactVersion": 1,
+      "lifecycleStatus": "affected",
+      "createdAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001"
+    },
+    {
+      "artifactId": "art_03GREENHOUSENXT000000000000000001",
+      "artifactType": "next-action",
+      "artifactVersion": 1,
+      "lifecycleStatus": "affected",
+      "createdAt": "2026-07-28T13:25:00Z",
+      "sourceTurnId": "turn_03USERMSG0000000000000001"
+    },
+    {
+      "artifactId": "art_03GREENHOUSEREQ000000000000000002",
+      "artifactType": "requirement-set",
+      "artifactVersion": 2,
+      "lifecycleStatus": "ready",
+      "createdAt": "2026-07-29T09:15:20Z",
+      "sourceTurnId": "turn_03GREENHOUSECLARIFY000000000001",
+      "supersedesArtifactId": "art_03GREENHOUSEREQ000000000000000001",
+      "supersedesArtifactVersion": 1
+    }
+  ],
+  "veraResponses": [
+    {
+      "turnId": "turn_03USERMSG0000000000000001",
+      "timestamp": "2026-07-28T13:25:20Z",
+      "userFacingMessage": "I captured your greenhouse sensing node idea and produced a functional first architecture, with open questions about deployment and reporting intervals."
+    },
+    {
+      "turnId": "turn_03GREENHOUSECLARIFY000000000001",
+      "timestamp": "2026-07-29T09:15:20Z",
+      "userFacingMessage": "I recorded the 10 minute sampling and hourly reporting intervals and revised the requirement set."
+    }
+  ]
+}

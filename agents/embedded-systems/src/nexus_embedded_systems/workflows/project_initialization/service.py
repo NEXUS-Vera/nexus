@@ -6,7 +6,7 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 from .fixture_router import SUPPORTED_FAMILIES
 from .providers.base import InitializationProvider, InitializationRequestContext
@@ -18,11 +18,16 @@ from .providers.fixture_provider import (
     FixtureValidationError,
 )
 from .providers.llm_provider import LlmInitializationError
-from .repository import InMemoryInitializationStore
 
 AutonomyMode = Literal["collaborate", "delegate"]
 
 logger = logging.getLogger("nexus.embedded.project_initialization")
+
+
+class InitializationStore(Protocol):
+    def save_initialization_package(self, package: dict[str, Any]) -> None: ...
+
+    def save_workflow_run(self, workflow_run: dict[str, Any]) -> None: ...
 
 
 class InitializationRoutingError(Exception):
@@ -72,12 +77,35 @@ class InitializationProviderError(Exception):
 
 
 @dataclass
+class _LegacyStoreAdapter:
+    """Adapts the historical InMemoryInitializationStore to the package store API."""
+
+    inner: Any
+
+    def save_initialization_package(self, package: dict[str, Any]) -> None:
+        self.inner.save_project(package["project"])
+        self.inner.save_turn(package["userTurn"])
+        self.inner.save_workflow_run(package["workflowRun"])
+        self.inner.save_artifacts(package["artifacts"])
+        self.inner.save_package(package["project"]["projectId"], package)
+
+    def save_workflow_run(self, workflow_run: dict[str, Any]) -> None:
+        self.inner.save_workflow_run(workflow_run)
+
+
+@dataclass
 class InitializationService:
-    store: InMemoryInitializationStore
+    store: Any
     provider: InitializationProvider = field(
         default_factory=lambda: build_initialization_provider("fixture")
     )
     fixtures_root: Path = FIXTURES_ROOT
+
+    def __post_init__(self) -> None:
+        if hasattr(self.store, "save_initialization_package"):
+            self._store: InitializationStore = self.store
+        else:
+            self._store = _LegacyStoreAdapter(self.store)
 
     async def initialize_embedded_project(
         self,
@@ -93,7 +121,6 @@ class InitializationService:
         )
         context = InitializationRequestContext(request_id=request_id)
 
-        # Keep fixture provider rooted at configured fixtures_root.
         if isinstance(self.provider, FixtureInitializationProvider):
             self.provider.fixtures_root = self.fixtures_root
 
@@ -107,7 +134,7 @@ class InitializationService:
             ) from exc
         except FixtureValidationError as exc:
             if exc.workflow_run:
-                self.store.save_workflow_run(exc.workflow_run)
+                self._store.save_workflow_run(exc.workflow_run)
             raise InitializationValidationError(
                 codes=exc.codes,
                 message=exc.message,
@@ -115,7 +142,7 @@ class InitializationService:
             ) from exc
         except LlmInitializationError as exc:
             if exc.workflow_run:
-                self.store.save_workflow_run(exc.workflow_run)
+                self._store.save_workflow_run(exc.workflow_run)
             raise InitializationProviderError(
                 code=exc.code,
                 message=exc.message,
@@ -123,12 +150,7 @@ class InitializationService:
                 details=exc.details,
             ) from exc
 
-        project_id = result["project"]["projectId"]
-        self.store.save_project(result["project"])
-        self.store.save_turn(result["userTurn"])
-        self.store.save_workflow_run(result["workflowRun"])
-        self.store.save_artifacts(result["artifacts"])
-        self.store.save_package(project_id, result)
+        self._store.save_initialization_package(result)
 
         duration_ms = int((time.perf_counter() - started) * 1000)
         logger.info(

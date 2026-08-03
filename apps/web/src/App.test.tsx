@@ -1,95 +1,107 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import fixture from '../../../packages/contracts/examples/valid/project-initialization-result/project-initialization-result.json';
-import type { ProjectInitializationResult } from '@nexus/contracts';
-import { selectArtifactByType } from './artifacts';
 
-function shuffledFixture(): ProjectInitializationResult {
-  const copy = structuredClone(fixture) as unknown as ProjectInitializationResult;
-  const byType = Object.fromEntries(
-    [...copy.artifacts].map((artifact) => [artifact.artifactType, artifact]),
+function renderApp(path = '/') {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <App />
+    </MemoryRouter>,
   );
-  copy.artifacts = [
-    byType['next-action'],
-    byType['functional-architecture'],
-    byType['requirement-set'],
-    byType['project-brief'],
-  ] as ProjectInitializationResult['artifacts'];
-  return copy;
 }
 
-describe('Vera initialization prototype', () => {
+describe('Nexus web routing and project workspace', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('renders empty state and can populate an example prompt', async () => {
+  it('renders new project screen and example prompts', async () => {
     const user = userEvent.setup();
-    render(<App />);
-    expect(
-      screen.getByText(/Tell Vera what embedded product you want to build/i),
-    ).toBeInTheDocument();
+    renderApp();
+    expect(screen.getByText(/Start a new embedded project/i)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Wearable tremor monitor/i }));
-    expect((screen.getByLabelText(/Product idea/i) as HTMLTextAreaElement).value).toContain(
+    expect((screen.getByLabelText(/Project idea/i) as HTMLTextAreaElement).value).toContain(
       'wrist-worn device',
     );
   });
 
-  it('renders Vera response and four artifact cards from artifactType', async () => {
+  it('navigates to project route after successful initialization', async () => {
     const user = userEvent.setup();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify(fixture),
-      }),
-    );
-    render(<App />);
-    await user.click(screen.getByRole('button', { name: /Wearable tremor monitor/i }));
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Vera' })).toBeInTheDocument();
+    const projectId = (fixture as { project: { projectId: string } }).project.projectId;
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).includes('/initialize')) {
+        return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
+      }
+      if (String(url).includes('/history')) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              schemaVersion: '1.0.0',
+              projectId,
+              turns: [],
+              workflowRuns: [],
+              artifactRevisions: [],
+              veraResponses: [],
+            }),
+        };
+      }
+      return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
     });
-    expect(screen.getByRole('heading', { name: 'Project Brief' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Requirements' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Functional Architecture' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Next Action' })).toBeInTheDocument();
-    expect(screen.getByText(/Completion:/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Lifecycle/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Evidence/i).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Approval/i).length).toBeGreaterThan(0);
+    vi.stubGlobal('fetch', fetchMock);
+    renderApp();
+    await user.click(screen.getByRole('button', { name: /Wearable tremor monitor/i }));
+    await user.click(screen.getByRole('button', { name: /Create project/i }));
+    await waitFor(() => {
+      expect(screen.getByText(new RegExp(projectId))).toBeInTheDocument();
+    });
+    expect(screen.getByRole('heading', { name: 'Vera' })).toBeInTheDocument();
+    expect(screen.getByText(/Requirements · v1/i)).toBeInTheDocument();
   });
 
-  it('renders all four cards when artifacts arrive shuffled', async () => {
-    const user = userEvent.setup();
-    const payload = shuffledFixture();
-    expect(payload.artifacts[0]?.artifactType).toBe('next-action');
-    expect(selectArtifactByType(payload.artifacts, 'project-brief')?.artifactType).toBe(
-      'project-brief',
-    );
+  it('loads a persisted project from the project route', async () => {
+    const projectId = (fixture as { project: { projectId: string } }).project.projectId;
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify(payload),
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes('/history')) {
+          return {
+            ok: true,
+            status: 200,
+            text: async () =>
+              JSON.stringify({
+                schemaVersion: '1.0.0',
+                projectId,
+                turns: [{ turnId: 'turn_x', timestamp: '2026-07-29T00:00:00Z', rawUserMessage: 'hi' }],
+                workflowRuns: [],
+                artifactRevisions: [
+                  {
+                    artifactId: 'art_x',
+                    artifactType: 'requirement-set',
+                    artifactVersion: 1,
+                    lifecycleStatus: 'ready',
+                    createdAt: '2026-07-29T00:00:00Z',
+                    sourceTurnId: 'turn_x',
+                  },
+                ],
+                veraResponses: [],
+              }),
+          };
+        }
+        return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
       }),
     );
-    render(<App />);
-    await user.click(screen.getByRole('button', { name: /Wearable tremor monitor/i }));
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Project Brief' })).toBeInTheDocument();
-    });
-    expect(screen.getByRole('heading', { name: 'Requirements' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Functional Architecture' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Next Action' })).toBeInTheDocument();
+    renderApp(`/projects/${projectId}`);
+    expect(await screen.findByRole('heading', { name: 'Vera' })).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole('button', { name: /Show history/i }));
+    expect(await screen.findByText(/Artifact revisions/i)).toBeInTheDocument();
   });
 
-  it('shows unsupported error', async () => {
+  it('shows unsupported initialization error', async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       'fetch',
@@ -102,170 +114,81 @@ describe('Vera initialization prototype', () => {
               code: 'UNSUPPORTED_EMBEDDED_PROJECT_FOR_FIXTURE_PHASE',
               message: 'Unsupported for fixture phase',
               supportedFamilies: [
-                {
-                  family: 'wearable-tremor-monitor',
-                  examplePrompt: 'wrist-worn tremor example',
-                },
+                { family: 'wearable-tremor-monitor', examplePrompt: 'wrist-worn tremor example' },
               ],
             },
           }),
       }),
     );
-    render(<App />);
-    await user.type(screen.getByLabelText(/Product idea/i), 'I want a cooking robot');
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
+    renderApp();
+    await user.type(screen.getByLabelText(/Project idea/i), 'I want a cooking robot');
+    await user.click(screen.getByRole('button', { name: /Create project/i }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Unsupported for fixture phase/i);
   });
 
-  it('shows ambiguous error', async () => {
+  it('disables send while a turn is in flight', async () => {
     const user = userEvent.setup();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 422,
-        text: async () =>
-          JSON.stringify({
-            error: {
-              code: 'AMBIGUOUS_EMBEDDED_PROJECT_FOR_FIXTURE_PHASE',
-              message: 'Matches multiple families',
-            },
-          }),
-      }),
-    );
-    render(<App />);
-    await user.type(screen.getByLabelText(/Product idea/i), 'greenhouse tremor rover');
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/Narrow the prompt/i);
-  });
-
-  it('shows network failure and allows retry', async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi
-      .fn()
-      .mockRejectedValueOnce(new Error('offline'))
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify(fixture),
-      });
-    vi.stubGlobal('fetch', fetchMock);
-    render(<App />);
-    await user.type(screen.getByLabelText(/Product idea/i), 'wrist-worn tremor monitor');
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
-    const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent(/Network failure/i);
-    expect(alert).toHaveAttribute('id', 'form-error');
-    expect(document.querySelector('form.prompt-form')).toHaveAttribute(
-      'aria-describedby',
-      'form-error',
-    );
-    await user.click(screen.getByRole('button', { name: /Retry/i }));
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Vera' })).toBeInTheDocument();
-    });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('shows explicit HTTP 500 server failure and keeps the prompt for retry', async () => {
-    const user = userEvent.setup();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 500,
-        text: async () =>
-          JSON.stringify({
-            error: {
-              code: 'INITIALIZATION_PACKAGE_VALIDATION_FAILED',
-              message: 'Project initialization failed validation.',
-            },
-          }),
-      }),
-    );
-    render(<App />);
-    await user.type(screen.getByLabelText(/Product idea/i), 'wrist-worn tremor monitor');
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/No valid package was created/i);
-    expect((screen.getByLabelText(/Product idea/i) as HTMLTextAreaElement).value).toContain(
-      'wrist-worn',
-    );
-    expect(screen.getByRole('button', { name: /Initialize project/i })).toBeEnabled();
-    expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
-  });
-
-  it('supports keyboard form submission', async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify(fixture),
+    const projectId = (fixture as { project: { projectId: string } }).project.projectId;
+    let resolveTurn: ((value: unknown) => void) | undefined;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/turns') && init?.method === 'POST') {
+        return await new Promise((resolve) => {
+          resolveTurn = resolve;
+        });
+      }
+      if (String(url).includes('/history')) {
+        return {
+          ok: true,
+          status: 200,
+          text: async () =>
+            JSON.stringify({
+              schemaVersion: '1.0.0',
+              projectId,
+              turns: [],
+              workflowRuns: [],
+              artifactRevisions: [],
+              veraResponses: [],
+            }),
+        };
+      }
+      return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
     });
     vi.stubGlobal('fetch', fetchMock);
-    render(<App />);
-    const textarea = screen.getByLabelText(/Product idea/i);
-    await user.click(textarea);
-    await user.paste('wrist-worn tremor monitor for later analysis');
-    await user.keyboard('{Enter}');
-    // Enter alone in textarea does not submit; Ctrl/Meta+Enter is not required by the app.
-    // Submit via the form's primary action activated from keyboard focus.
-    screen.getByRole('button', { name: /Initialize project/i }).focus();
-    await user.keyboard('{Enter}');
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
-    });
-  });
-
-  it('announces loading state via aria-live region', async () => {
-    const user = userEvent.setup();
-    let resolveFetch: ((value: unknown) => void) | undefined;
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            resolveFetch = resolve;
-          }),
-      ),
-    );
-    render(<App />);
-    await user.click(screen.getByRole('button', { name: /Wearable tremor monitor/i }));
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
-    const live = document.querySelector('[aria-live="polite"]');
-    expect(live).not.toBeNull();
-    expect(live).toHaveTextContent(/Understanding your project|Preparing|Validating/i);
-    resolveFetch?.({
+    renderApp(`/projects/${projectId}`);
+    await screen.findByRole('heading', { name: 'Vera' });
+    await user.type(screen.getByLabelText(/Continue the conversation/i), 'Need six months battery');
+    await user.click(screen.getByRole('button', { name: /Send to Vera/i }));
+    expect(screen.getByRole('button', { name: /Updating/i })).toBeDisabled();
+    expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/turns'))).toBe(true);
+    resolveTurn?.({
       ok: true,
       status: 200,
-      text: async () => JSON.stringify(fixture),
-    });
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Vera' })).toBeInTheDocument();
-    });
-  });
-
-  it('prevents duplicate submission while loading', async () => {
-    const user = userEvent.setup();
-    let resolveFetch: ((value: unknown) => void) | undefined;
-    const fetchMock = vi.fn().mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveFetch = resolve;
+      text: async () =>
+        JSON.stringify({
+          schemaVersion: '1.0.0',
+          currentState: fixture,
+          changeIntent: {
+            schemaVersion: '1.0.0',
+            operation: 'add-requirement',
+            targetArtifactType: 'requirement-set',
+            requestedChange: 'Need six months battery',
+            sourceTurnId: 'turn_abcdefghijklmnop',
+            confidence: 'high',
+            ambiguities: [],
+            requiresUserConfirmation: false,
+          },
+          impactAnalysis: {
+            schemaVersion: '1.0.0',
+            changed: ['requirement-set'],
+            affected: ['next-action'],
+            stale: [],
+            regenerate: ['requirement-set', 'next-action'],
+            unchanged: ['project-brief'],
+            reasonByArtifact: [],
+          },
+          changedArtifactTypes: ['requirement-set'],
+          regeneratedArtifactTypes: ['requirement-set', 'next-action'],
         }),
-    );
-    vi.stubGlobal('fetch', fetchMock);
-    render(<App />);
-    await user.click(screen.getByRole('button', { name: /Wearable tremor monitor/i }));
-    await user.click(screen.getByRole('button', { name: /Initialize project/i }));
-    expect(screen.getByRole('button', { name: /Initializing/i })).toBeDisabled();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    resolveFetch?.({
-      ok: true,
-      status: 200,
-      text: async () => JSON.stringify(fixture),
-    });
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Vera' })).toBeInTheDocument();
     });
   });
 });

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/responses/project-turn-result.v1.schema.json",
+  "title": "ProjectTurnResult",
+  "description": "Canonical response for a project-modification turn: the resulting current state together with the interpreted intent, the propagation analysis, and which artifact types were actually changed or regenerated.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "currentState",
+    "changeIntent",
+    "impactAnalysis",
+    "changedArtifactTypes",
+    "regeneratedArtifactTypes"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "currentState": {
+      "$ref": "https://nexus.local/schemas/responses/project-current-state.v1.schema.json"
+    },
+    "changeIntent": {
+      "$ref": "https://nexus.local/schemas/modification/project-change-intent.v1.schema.json"
+    },
+    "impactAnalysis": {
+      "$ref": "https://nexus.local/schemas/modification/project-impact-analysis.v1.schema.json"
+    },
+    "changedArtifactTypes": { "$ref": "#/$defs/artifactTypeList" },
+    "regeneratedArtifactTypes": { "$ref": "#/$defs/artifactTypeList" }
+  },
+  "$defs": {
+    "artifactType": {
+      "type": "string",
+      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+    },
+    "artifactTypeList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/artifactType" }
+    }
+  }
+}

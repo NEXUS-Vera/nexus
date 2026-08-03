@@ -229,6 +229,28 @@ textarea:focus-visible {
   font-size: 1.05rem;
 }
 
+.revision-badge {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.project-page .artifact-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin-top: 1.5rem;
+}
+
+.open-questions,
+.history-panel,
+.vera-panel {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
 @media (max-width: 960px) {
   .app-shell {
     grid-template-columns: 1fr;

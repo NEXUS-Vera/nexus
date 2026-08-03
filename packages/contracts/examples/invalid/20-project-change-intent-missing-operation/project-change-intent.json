@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0",
+  "targetArtifactType": "requirement-set",
+  "requestedChange": "Record the sampling interval and reporting interval as explicit requirements.",
+  "sourceTurnId": "turn_03USERMSG0000000000000001",
+  "confidence": "high",
+  "ambiguities": [],
+  "requiresUserConfirmation": false,
+  "targetQuestionId": "question_03SAMPLINGREPORTINTERVALUNKNOWN0000000000001"
+}

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/dependencies/artifact-dependency.v1.schema.json",
+  "title": "ArtifactDependency",
+  "description": "Directed dependency between two project artifacts. Dependencies are recorded at artifact-type level so they survive artifact revisions, and may additionally pin the specific revisions involved.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "dependencyId",
+    "projectId",
+    "sourceArtifactType",
+    "targetArtifactType",
+    "dependencyKind",
+    "reason",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "dependencyId": { "type": "string", "pattern": "^dep_[A-Za-z0-9]{16,}$" },
+    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
+    "sourceArtifactType": { "$ref": "#/$defs/artifactType" },
+    "targetArtifactType": { "$ref": "#/$defs/artifactType" },
+    "dependencyKind": {
+      "type": "string",
+      "enum": ["derives-from", "constrains", "covers", "blocks", "invalidates"]
+    },
+    "reason": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "sourceArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
+    "targetArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" }
+  },
+  "$defs": {
+    "artifactType": {
+      "type": "string",
+      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+    }
+  }
+}
