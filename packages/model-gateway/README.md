@@ -32,13 +32,21 @@ Two implementations exist:
 - `OpenAICompatibleGateway` — calls an OpenAI-compatible chat-completions
   endpoint over `urllib` (no extra HTTP dependency) and parses/validates the
   JSON response against the caller's schema.
+- `AnthropicGateway` — calls Anthropic Messages (`/v1/messages`) with forced
+  tool use so the model returns JSON matching the caller's schema.
 - `FakeModelGateway` — a scripted, in-memory gateway for deterministic tests
   and the eval harness. Register per-task-name callables with `set_script`
   (or a default with `set_default_script`); scripts can return a payload dict
   or raise `ModelGatewayError` to simulate transport/validation failures. Every
   call is recorded in `.calls` for assertions.
 
-Consumers select a provider via `NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`,
-`NEXUS_MODEL_API_KEY`, `NEXUS_MODEL_TIMEOUT_SECONDS`, and
+Consumers select a provider via `NEXUS_MODEL_PROVIDER` (`openai` or
+`anthropic`), `NEXUS_MODEL_NAME`, `NEXUS_MODEL_API_KEY`,
+`NEXUS_MODEL_BASE_URL`, `NEXUS_MODEL_TIMEOUT_SECONDS`, and
 `NEXUS_MODEL_MAX_REPAIR_ATTEMPTS` (see the embedded-systems agent's
 `providers/factory.py` for the concrete wiring).
+
+Anthropic defaults when `NEXUS_MODEL_PROVIDER=anthropic`:
+
+- `NEXUS_MODEL_NAME=claude-sonnet-4-20250514`
+- `NEXUS_MODEL_BASE_URL=https://api.anthropic.com`
