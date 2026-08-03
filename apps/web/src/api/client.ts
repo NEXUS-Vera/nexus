@@ -7,6 +7,7 @@ export type ApiErrorBody = {
     requestId?: string;
     supportedFamilies?: Array<{ family: string; examplePrompt: string }>;
     matchedFamilies?: string[];
+    details?: string[];
   };
 };
 

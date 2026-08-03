@@ -147,8 +147,22 @@ async def initialize_project(
             "MODEL_CONFIGURATION_MISSING",
         }:
             status = 503
-        logger.error("initialization_provider_failed code=%s request_id=%s", exc.code, request_id)
-        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+        logger.error(
+            "initialization_provider_failed code=%s request_id=%s details=%s",
+            exc.code,
+            request_id,
+            exc.details,
+        )
+        extra: dict[str, Any] | None = None
+        if exc.details:
+            extra = {"details": list(exc.details)[:40]}
+        return _error(
+            status,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+            extra=extra,
+        )
     except InitializationValidationError as exc:
         logger.error(
             "initialization_validation_failed codes=%s request_id=%s",
