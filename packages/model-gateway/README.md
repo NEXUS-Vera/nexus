@@ -48,5 +48,5 @@ Consumers select a provider via `NEXUS_MODEL_PROVIDER` (`openai` or
 
 Anthropic defaults when `NEXUS_MODEL_PROVIDER=anthropic`:
 
-- `NEXUS_MODEL_NAME=claude-sonnet-4-20250514`
+- `NEXUS_MODEL_NAME=claude-sonnet-4-6`
 - `NEXUS_MODEL_BASE_URL=https://api.anthropic.com`

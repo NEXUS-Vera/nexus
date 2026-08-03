@@ -11,7 +11,7 @@ import pytest
 from nexus_model_gateway import AnthropicGateway, ModelGatewayError, ModelPolicy
 from nexus_model_gateway.anthropic import _CREDENTIAL_HEADER
 
-POLICY = ModelPolicy(provider="anthropic", model="claude-sonnet-4-20250514")
+POLICY = ModelPolicy(provider="anthropic", model="claude-sonnet-4-6")
 
 
 def _messages_payload(tool_input: dict[str, Any]) -> dict[str, Any]:
