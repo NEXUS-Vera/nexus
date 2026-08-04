@@ -259,10 +259,12 @@ class ArtifactCommandService:
             actual_project_state_version=int(project["currentStateVersion"]),
         )
         consequence = command["input"].get("consequenceLevel") or "medium"
+        if consequence not in {"low", "medium", "high", "safety-critical"}:
+            consequence = "medium"
         approval = evaluate_approval_requirement(
             actor_kind,  # type: ignore[arg-type]
             "artifact.propose-revision",
-            consequence,
+            consequence,  # type: ignore[arg-type]
             project.get("autonomyMode") or "collaborate",
         )
         now = utc_now_iso()
@@ -382,7 +384,7 @@ class ArtifactCommandService:
             "contentSchemaVersion": "1.0.0",
             "lifecycleStatus": "ready",
             "evidenceStatus": "unverified",
-            "approvalStatus": "approved" if actor_kind == "user" else "proposed",
+            "approvalStatus": "user-approved" if actor_kind == "user" else "agent-decided",
             "createdBy": command["requestedBy"],
             "createdAt": now,
             "updatedAt": now,
@@ -485,8 +487,9 @@ class ArtifactCommandService:
                 "new_artifact": new_artifact,
                 "next_state_version": next_state_version,
                 "updated_at": now,
-                "resolvedAt": now,
-                "resolvedBy": command["requestedBy"],
+                "decidedAt": now,
+                "decidedBy": command["requestedBy"],
+                "decisionReason": command["input"].get("reason") or "accepted",
                 "events": events,
                 "graph_nodes": graph_nodes,
                 "graph_edges": graph_edges,
@@ -532,9 +535,9 @@ class ArtifactCommandService:
         now = utc_now_iso()
         proposal = dict(proposal)
         proposal["status"] = "rejected"
-        proposal["resolvedAt"] = now
-        proposal["resolvedBy"] = command["requestedBy"]
-        proposal["rejectionReason"] = command["input"].get("reason") or "rejected"
+        proposal["decidedAt"] = now
+        proposal["decidedBy"] = command["requestedBy"]
+        proposal["decisionReason"] = command["input"].get("reason") or "rejected"
         self._kernel.update_proposal_status(proposal_id, proposal)
         self._ledger.append(
             project_id=command["projectId"],
@@ -544,7 +547,7 @@ class ArtifactCommandService:
             subject_id=proposal_id,
             payload={
                 "proposalId": proposal_id,
-                "reason": proposal["rejectionReason"],
+                "reason": proposal["decisionReason"],
             },
             causation_id=command["commandId"],
             correlation_id=command["commandId"],

@@ -154,8 +154,8 @@ def _minimal_package(project_id: str) -> dict[str, Any]:
 @pytest.fixture(params=["memory", "postgres"])
 def stores(request: pytest.FixtureRequest) -> Any:
     if request.param == "memory":
-        project = InMemoryProjectStore()
-        yield project, InMemoryKernelStore(project_store=project)
+        memory_project = InMemoryProjectStore()
+        yield memory_project, InMemoryKernelStore(project_store=memory_project)
         return
     url = os.environ.get("NEXUS_TEST_DATABASE_URL")
     if not url or PostgresKernelStore is None:
@@ -164,9 +164,9 @@ def stores(request: pytest.FixtureRequest) -> Any:
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     factory = create_session_factory(engine)
-    project = PostgresProjectStore(factory)
-    kernel = PostgresKernelStore(factory, project_store=project)
-    yield project, kernel
+    pg_project = PostgresProjectStore(factory)
+    pg_kernel = PostgresKernelStore(factory, project_store=pg_project)
+    yield pg_project, pg_kernel
     Base.metadata.drop_all(engine)
 
 

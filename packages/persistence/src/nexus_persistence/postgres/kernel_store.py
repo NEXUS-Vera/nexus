@@ -446,10 +446,12 @@ class PostgresKernelStore:
                 proposal["status"] = "accepted"
                 proposal["resultingArtifactId"] = new_artifact["artifactId"]
                 proposal["resultingArtifactVersion"] = new_artifact["artifactVersion"]
-                if "resolvedAt" in payload:
-                    proposal["resolvedAt"] = payload["resolvedAt"]
-                if "resolvedBy" in payload:
-                    proposal["resolvedBy"] = payload["resolvedBy"]
+                if "decidedAt" in payload:
+                    proposal["decidedAt"] = payload["decidedAt"]
+                if "decidedBy" in payload:
+                    proposal["decidedBy"] = payload["decidedBy"]
+                if "decisionReason" in payload:
+                    proposal["decisionReason"] = payload["decisionReason"]
                 live.payload = proposal
                 live.status = "accepted"
 

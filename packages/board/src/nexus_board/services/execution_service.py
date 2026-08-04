@@ -183,7 +183,10 @@ class ExecutionService:
                     subject_id=f"ev_{output['outputId'][4:]}",
                     payload={
                         "outputId": output["outputId"],
+                        "executionRunId": run_id,
+                        "evidenceId": f"ev_{output['outputId'][4:]}",
                         "evidenceStatus": "unverified",
+                        "status": "unverified",
                     },
                     causation_id=causation_id,
                     correlation_id=causation_id,

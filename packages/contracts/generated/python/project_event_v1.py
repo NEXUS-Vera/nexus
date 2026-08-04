@@ -13,6 +13,7 @@ class Actor(TypedDict, closed=True):
     schemaVersion: Literal['1.0.0']
 
 class Payload(TypedDict, closed=True):
+    artifactId: NotRequired[str]
     artifactType: NotRequired[
         Literal[
             'project-brief',
@@ -36,14 +37,38 @@ class Payload(TypedDict, closed=True):
     ]
     decisionId: NotRequired[str]
     evidenceId: NotRequired[str]
+    evidenceStatus: NotRequired[
+        Literal[
+            'unverified',
+            'inferred',
+            'partially-grounded',
+            'grounded',
+            'calculated',
+            'tested',
+        ]
+    ]
     executionRunId: NotRequired[str]
     outputId: NotRequired[str]
+    outputType: NotRequired[
+        Literal[
+            'validation-report',
+            'log',
+            'structured-result',
+            'file-reference',
+            'plot-reference',
+            'binary-reference',
+            'test-report',
+        ]
+    ]
     proposalId: NotRequired[str]
     questionId: NotRequired[str]
     reason: NotRequired[str]
+    resultingArtifactId: NotRequired[str]
+    resultingArtifactVersion: NotRequired[int]
     snapshotId: NotRequired[str]
     status: NotRequired[str]
     summary: NotRequired[str]
+    supersededBy: NotRequired[str]
     workspaceId: NotRequired[str]
 
 class Subject(TypedDict, closed=True):

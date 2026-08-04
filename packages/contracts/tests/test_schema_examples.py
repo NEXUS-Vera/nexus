@@ -61,9 +61,7 @@ RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
     "execution-request.json": (
         "https://nexus.local/schemas/executions/execution-request.v1.schema.json"
     ),
-    "execution-run.json": (
-        "https://nexus.local/schemas/executions/execution-run.v1.schema.json"
-    ),
+    "execution-run.json": ("https://nexus.local/schemas/executions/execution-run.v1.schema.json"),
     "execution-result.json": (
         "https://nexus.local/schemas/executions/execution-result.v1.schema.json"
     ),
@@ -76,9 +74,7 @@ RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
     "external-workspace-reference.json": (
         "https://nexus.local/schemas/providers/external-workspace-reference.v1.schema.json"
     ),
-    "project-event.json": (
-        "https://nexus.local/schemas/events/project-event.v1.schema.json"
-    ),
+    "project-event.json": ("https://nexus.local/schemas/events/project-event.v1.schema.json"),
     "project-board-projection.json": (
         "https://nexus.local/schemas/projections/project-board-projection.v1.schema.json"
     ),
