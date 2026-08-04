@@ -13,7 +13,7 @@ from .types import ModelGatewayError, ModelPolicy, StructuredGenerationResult
 # Stable tool name used to force JSON conforming to output_schema.
 _STRUCTURED_TOOL_NAME = "emit_structured_output"
 _DEFAULT_ANTHROPIC_VERSION = "2023-06-01"
-# Built without a contiguous lowercase api-key token (repository secret scan).
+# Built to avoid lowercase secret-pattern false positives in source text.
 _CREDENTIAL_HEADER = "x-" + "api" + "-key"
 
 
