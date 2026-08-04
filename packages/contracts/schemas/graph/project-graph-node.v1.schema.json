@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/graph/project-graph-node.v1.schema.json",
+  "title": "ProjectGraphNode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "nodeId",
+    "projectId",
+    "nodeType",
+    "label",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "nodeId": {
+      "type": "string",
+      "pattern": "^gnode_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "nodeType": {
+      "type": "string",
+      "enum": [
+        "artifact",
+        "artifact-revision",
+        "requirement",
+        "architecture-node",
+        "question",
+        "validation-issue",
+        "decision",
+        "evidence",
+        "execution",
+        "output",
+        "workspace"
+      ]
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1
+    },
+    "refId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "artifactType": {
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdByEventId": {
+      "type": "string",
+      "pattern": "^evt_[A-Za-z0-9]{16,}$"
+    }
+  }
+}

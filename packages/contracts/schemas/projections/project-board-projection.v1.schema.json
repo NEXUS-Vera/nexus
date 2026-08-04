@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/projections/project-board-projection.v1.schema.json",
+  "title": "ProjectBoardProjection",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "projectionVersion",
+    "projectStateVersion",
+    "projectTitle",
+    "currentPhase",
+    "artifactSummaries",
+    "nextActionSummary",
+    "openQuestionCount",
+    "blockingIssueCount",
+    "recentExecutionSummaries",
+    "recentChanges",
+    "evidenceSummary",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "projectionVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "projectStateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "projectTitle": {
+      "type": "string",
+      "minLength": 1
+    },
+    "currentPhase": {
+      "type": "string",
+      "enum": [
+        "DEFINE",
+        "DESIGN",
+        "BUILD",
+        "VERIFY"
+      ]
+    },
+    "artifactSummaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifactType",
+          "artifactId",
+          "artifactVersion",
+          "lifecycleStatus",
+          "evidenceStatus",
+          "approvalStatus",
+          "workspaceStatus",
+          "blockerCount",
+          "openQuestionCount",
+          "lastChangedAt"
+        ],
+        "properties": {
+          "artifactType": {
+            "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+          },
+          "artifactId": {
+            "type": "string",
+            "pattern": "^art_[A-Za-z0-9]{16,}$"
+          },
+          "artifactVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "lifecycleStatus": {
+            "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/lifecycleStatus"
+          },
+          "evidenceStatus": {
+            "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
+          },
+          "approvalStatus": {
+            "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/approvalStatus"
+          },
+          "workspaceStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "creating",
+              "ready",
+              "dirty",
+              "validating",
+              "blocked",
+              "archived"
+            ]
+          },
+          "blockerCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "openQuestionCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "lastExecutionStatus": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "starting",
+              "running",
+              "completed",
+              "completed-with-warnings",
+              "failed",
+              "cancelled",
+              "timed-out",
+              "stale"
+            ]
+          },
+          "lastChangedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "nextActionSummary": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "artifactVersion",
+        "title",
+        "priority"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "artifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "blocking"
+          ]
+        },
+        "blockerCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "openQuestionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "blockingIssueCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "recentExecutionSummaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "executionRunId",
+          "capability",
+          "status",
+          "startedAt"
+        ],
+        "properties": {
+          "executionRunId": {
+            "type": "string",
+            "pattern": "^exec_[A-Za-z0-9]{16,}$"
+          },
+          "capability": {
+            "type": "string",
+            "enum": [
+              "structured-validation",
+              "fake-execution",
+              "file-workspace",
+              "embedded-build",
+              "python-kernel",
+              "circuit-simulation",
+              "architecture-export"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "starting",
+              "running",
+              "completed",
+              "completed-with-warnings",
+              "failed",
+              "cancelled",
+              "timed-out",
+              "stale"
+            ]
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "artifactType": {
+            "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+          }
+        }
+      }
+    },
+    "recentChanges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "eventId",
+          "eventType",
+          "occurredAt",
+          "summary"
+        ],
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "pattern": "^evt_[A-Za-z0-9]{16,}$"
+          },
+          "eventType": {
+            "type": "string",
+            "enum": [
+              "workspace.created",
+              "workspace.snapshot-created",
+              "artifact.revision-proposed",
+              "artifact.revision-accepted",
+              "artifact.revision-rejected",
+              "artifact.marked-affected",
+              "artifact.superseded",
+              "execution.queued",
+              "execution.started",
+              "execution.completed",
+              "execution.failed",
+              "output.produced",
+              "evidence.attached",
+              "evidence.contradicted",
+              "evidence.superseded",
+              "question.opened",
+              "question.resolved",
+              "decision.accepted",
+              "decision.reversed"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "evidenceSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalCount",
+        "unverifiedCount",
+        "testedCount",
+        "contradictedCount"
+      ],
+      "properties": {
+        "totalCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unverifiedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "testedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contradictedCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_02PHASE11WORK0000000000001",
+  "draftVersion": 2,
+  "baseArtifactVersion": 1,
+  "baseProjectStateVersion": 1,
+  "content": {
+    "note": "draft edit"
+  },
+  "validationState": "unvalidated",
+  "createdAt": "2026-08-04T12:00:00Z",
+  "updatedAt": "2026-08-04T12:00:00Z",
+  "updatedBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02USERACTOR000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  }
+}

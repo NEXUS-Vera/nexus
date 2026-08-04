@@ -14,18 +14,37 @@
     "veraResponses"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
-    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
     "turns": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["turnId", "timestamp", "rawUserMessage"],
+        "required": [
+          "turnId",
+          "timestamp",
+          "rawUserMessage"
+        ],
         "properties": {
-          "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
-          "timestamp": { "type": "string", "format": "date-time" },
-          "rawUserMessage": { "type": "string", "minLength": 1 }
+          "turnId": {
+            "type": "string",
+            "pattern": "^turn_[A-Za-z0-9]{16,}$"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rawUserMessage": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     },
@@ -34,20 +53,47 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["workflowRunId", "turnId", "workflowType", "status", "startedAt"],
+        "required": [
+          "workflowRunId",
+          "turnId",
+          "workflowType",
+          "status",
+          "startedAt"
+        ],
         "properties": {
-          "workflowRunId": { "type": "string", "pattern": "^run_[A-Za-z0-9]{16,}$" },
-          "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+          "workflowRunId": {
+            "type": "string",
+            "pattern": "^run_[A-Za-z0-9]{16,}$"
+          },
+          "turnId": {
+            "type": "string",
+            "pattern": "^turn_[A-Za-z0-9]{16,}$"
+          },
           "workflowType": {
             "type": "string",
-            "enum": ["embedded-project-initialization", "embedded-project-modification"]
+            "enum": [
+              "embedded-project-initialization",
+              "embedded-project-modification"
+            ]
           },
           "status": {
             "type": "string",
-            "enum": ["pending", "running", "completed", "completed-with-warnings", "failed"]
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "completed-with-warnings",
+              "failed"
+            ]
           },
-          "startedAt": { "type": "string", "format": "date-time" },
-          "completedAt": { "type": "string", "format": "date-time" }
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       }
     },
@@ -65,19 +111,36 @@
           "sourceTurnId"
         ],
         "properties": {
-          "artifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
-          "artifactType": {
+          "artifactId": {
             "type": "string",
-            "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+            "pattern": "^art_[A-Za-z0-9]{16,}$"
           },
-          "artifactVersion": { "type": "integer", "minimum": 1 },
+          "artifactType": {
+            "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+          },
+          "artifactVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
           "lifecycleStatus": {
             "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/lifecycleStatus"
           },
-          "createdAt": { "type": "string", "format": "date-time" },
-          "sourceTurnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
-          "supersedesArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
-          "supersedesArtifactVersion": { "type": "integer", "minimum": 1 }
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "sourceTurnId": {
+            "type": "string",
+            "pattern": "^turn_[A-Za-z0-9]{16,}$"
+          },
+          "supersedesArtifactId": {
+            "type": "string",
+            "pattern": "^art_[A-Za-z0-9]{16,}$"
+          },
+          "supersedesArtifactVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
         }
       }
     },
@@ -86,11 +149,24 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["turnId", "timestamp", "userFacingMessage"],
+        "required": [
+          "turnId",
+          "timestamp",
+          "userFacingMessage"
+        ],
         "properties": {
-          "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
-          "timestamp": { "type": "string", "format": "date-time" },
-          "userFacingMessage": { "type": "string", "minLength": 1 }
+          "turnId": {
+            "type": "string",
+            "pattern": "^turn_[A-Za-z0-9]{16,}$"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "userFacingMessage": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }

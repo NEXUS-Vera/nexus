@@ -17,7 +17,10 @@
     "veraResponse"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
     "project": {
       "$ref": "https://nexus.local/schemas/project/project.v1.schema.json"
     },
@@ -33,7 +36,7 @@
     "artifacts": {
       "type": "array",
       "minItems": 4,
-      "maxItems": 4,
+      "maxItems": 5,
       "items": {
         "$ref": "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
       },
@@ -42,36 +45,52 @@
           "contains": {
             "type": "object",
             "properties": {
-              "artifactType": { "const": "project-brief" }
+              "artifactType": {
+                "const": "project-brief"
+              }
             },
-            "required": ["artifactType"]
+            "required": [
+              "artifactType"
+            ]
           }
         },
         {
           "contains": {
             "type": "object",
             "properties": {
-              "artifactType": { "const": "requirement-set" }
+              "artifactType": {
+                "const": "requirement-set"
+              }
             },
-            "required": ["artifactType"]
+            "required": [
+              "artifactType"
+            ]
           }
         },
         {
           "contains": {
             "type": "object",
             "properties": {
-              "artifactType": { "const": "functional-architecture" }
+              "artifactType": {
+                "const": "functional-architecture"
+              }
             },
-            "required": ["artifactType"]
+            "required": [
+              "artifactType"
+            ]
           }
         },
         {
           "contains": {
             "type": "object",
             "properties": {
-              "artifactType": { "const": "next-action" }
+              "artifactType": {
+                "const": "next-action"
+              }
             },
-            "required": ["artifactType"]
+            "required": [
+              "artifactType"
+            ]
           }
         }
       ]
@@ -99,7 +118,10 @@
     },
     "previousTurnIds": {
       "type": "array",
-      "items": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" }
+      "items": {
+        "type": "string",
+        "pattern": "^turn_[A-Za-z0-9]{16,}$"
+      }
     }
   }
 }

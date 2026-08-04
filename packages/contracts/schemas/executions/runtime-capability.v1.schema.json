@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/runtime-capability.v1.schema.json",
+  "title": "RuntimeCapability",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "capabilityId",
+    "displayName",
+    "providerId",
+    "available"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "capabilityId": {
+      "type": "string",
+      "enum": [
+        "structured-validation",
+        "fake-execution",
+        "file-workspace",
+        "embedded-build",
+        "python-kernel",
+        "circuit-simulation",
+        "architecture-export"
+      ]
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "providerId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "available": {
+      "type": "boolean"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

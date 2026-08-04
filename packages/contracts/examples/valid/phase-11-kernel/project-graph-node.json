@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "nodeId": "gnode_02PHASE11NODE00000000001",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "nodeType": "artifact",
+  "label": "Requirements",
+  "refId": "art_02PHASE11REQ00000000000001",
+  "artifactType": "requirement-set",
+  "createdAt": "2026-08-04T12:00:00Z",
+  "createdByEventId": "evt_02PHASE11EVT0000000000001"
+}

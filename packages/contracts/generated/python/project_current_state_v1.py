@@ -332,7 +332,56 @@ class Artifacts3(TypedDict, closed=True):
     updatedAt: str
     workflowRunId: str
 
-class Artifacts4(TypedDict):
+class Content4(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    candidateCount: int
+    constraintSummary: str
+    selectionState: Literal['draft', 'proposed', 'accepted', 'blocked']
+    unresolvedCompatibilityChecks: list[str]
+
+class Artifacts4(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    artifactId: str
+    artifactType: Literal['component-plan']
+    artifactVersion: int
+    content: Content4
+    contentSchemaVersion: Literal['1.0.0']
+    createdAt: str
+    createdBy: CreatedBy
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    lifecycleStatus: Literal[
+        'drafted', 'ready', 'affected', 'stale', 'blocked', 'superseded', 'archived'
+    ]
+    projectId: str
+    schemaVersion: Literal['1.0.0']
+    sourceTurnId: str
+    supersedesArtifactId: NotRequired[str]
+    supersedesArtifactVersion: NotRequired[int]
+    updatedAt: str
+    workflowRunId: str
+
+class Artifacts5(TypedDict):
     pass
 
 class Dependency(TypedDict, closed=True):
@@ -346,11 +395,19 @@ class Dependency(TypedDict, closed=True):
     schemaVersion: Literal['1.0.0']
     sourceArtifactId: NotRequired[str]
     sourceArtifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     targetArtifactId: NotRequired[str]
     targetArtifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
 
 class RequestedFrom(TypedDict, closed=True):
@@ -383,7 +440,11 @@ class BlockerOrValidationIssueReference(TypedDict, closed=True):
 class CurrentArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -492,7 +553,11 @@ class BlockerIssueReference(TypedDict, closed=True):
 class CreatedArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -500,7 +565,11 @@ class CreatedArtifactReference(TypedDict, closed=True):
 class NextActionArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -533,7 +602,11 @@ class ErrorReference(TypedDict, closed=True):
 class OutputArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -569,7 +642,9 @@ class WorkflowRun(TypedDict, closed=True):
     ]
 
 class ProjectCurrentStateV1(TypedDict, closed=True):
-    artifacts: list[Artifacts | Artifacts1 | Artifacts2 | Artifacts3] | Artifacts4
+    artifacts: (
+        list[Artifacts | Artifacts1 | Artifacts2 | Artifacts3 | Artifacts4] | Artifacts5
+    )
     dependencies: NotRequired[list[Dependency]]
     openQuestions: list[OpenQuestion]
     previousTurnIds: NotRequired[list[str]]

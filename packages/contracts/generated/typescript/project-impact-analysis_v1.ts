@@ -1,15 +1,31 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
+export type ArtifactType =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType1 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType2 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType3 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType4 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType5 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+
+/**
+ * Deterministic classification of how a project change propagates across artifact types. Every non-unchanged classification must carry an explicit reason so downstream regeneration is auditable.
+ */
 export interface ProjectImpactAnalysis {
-  affected: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
-  changed: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  affected: ArtifactType[];
+  changed: ArtifactType1[];
   reasonByArtifact: {
-    artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+    artifactType: ArtifactType2;
     reason: string;
   }[];
-  regenerate: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  regenerate: ArtifactType3[];
   schemaVersion: '1.0.0';
-  stale: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
-  unchanged: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  stale: ArtifactType4[];
+  unchanged: ArtifactType5[];
 }

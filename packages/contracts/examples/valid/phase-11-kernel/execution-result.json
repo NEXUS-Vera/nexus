@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "executionRunId": "exec_02PHASE11RUN000000000001",
+  "status": "completed",
+  "outputReferences": [
+    "out_02PHASE11OUT0000000000001"
+  ],
+  "evidenceReferences": [
+    "ev_fake_validation_1"
+  ],
+  "completedAt": "2026-08-04T12:00:00Z",
+  "summary": "Fake structured validation completed"
+}

@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/artifact-proposal.v1.schema.json",
+  "title": "ArtifactProposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "proposalId",
+    "projectId",
+    "artifactId",
+    "artifactType",
+    "workspaceId",
+    "snapshotId",
+    "baseArtifactVersion",
+    "baseProjectStateVersion",
+    "status",
+    "proposedBy",
+    "proposedAt",
+    "consequenceLevel",
+    "approvalRequirement"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "proposalId": {
+      "type": "string",
+      "pattern": "^prop_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "artifactType": {
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9]{16,}$"
+    },
+    "snapshotId": {
+      "type": "string",
+      "pattern": "^snap_[A-Za-z0-9]{16,}$"
+    },
+    "baseArtifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseProjectStateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "proposed",
+        "awaiting-approval",
+        "accepted",
+        "rejected",
+        "superseded",
+        "conflicted"
+      ]
+    },
+    "proposedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "proposedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decidedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "decidedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decisionReason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "consequenceLevel": {
+      "$ref": "https://nexus.local/schemas/governance/consequence-level.v1.schema.json"
+    },
+    "approvalRequirement": {
+      "$ref": "https://nexus.local/schemas/governance/approval-requirement.v1.schema.json"
+    },
+    "resultingArtifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "resultingArtifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}
