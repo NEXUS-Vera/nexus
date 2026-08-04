@@ -16,7 +16,9 @@ Frontend application only. Contract types are imported from `@nexus/contracts`
 apps/web/src/
   pages/           Home (init) + project workspace
   components/      layout shell, inspector, statuses, feedback
-  artifacts/       registry + live/placeholder workspaces
+  artifacts/       product registry + workspaces
+    renderers/     frontend workspace renderer registry (by artifactType)
+    shell/         shared ArtifactWorkspaceShell
   api/             typed API client
   hooks/           theme + URL workspace state
   views/           overview + mind graph
@@ -25,6 +27,10 @@ apps/web/src/
 
 The project board uses a 64px header, collapsible workflow rail, central
 workspace, and collapsible context inspector.
+
+`ARTIFACT_REGISTRY` describes product availability and rail metadata.
+`WORKSPACE_RENDERER_REGISTRY` maps `artifactType` / route keys to React
+workspace components. Lookup is by key, never array position.
 
 ## Routes
 
@@ -53,7 +59,7 @@ Browser refresh reloads live project state from the API.
 | Requirements | Live (`requirement-set`) |
 | Architecture | Live (`functional-architecture`) |
 | Next Action | Live global (`next-action`) |
-| Components | Placeholder |
+| Components | Proof (`component-plan`) |
 | Firmware | Placeholder |
 | Analysis | Placeholder |
 | Test Plan | Placeholder |
@@ -83,6 +89,16 @@ Client methods in `src/api/client.ts`:
 - `GET /v1/projects/:id/artifacts/:type?version=`
 - `GET /v1/projects/:id/history`
 - `POST /v1/projects/:id/turns`
+- `GET /v1/artifact-types`
+- `GET /v1/projects/:id/board`
+- `GET|POST /v1/projects/:id/artifacts/:type/workspace`
+- `POST /v1/projects/:id/artifact-commands`
+- `GET /v1/projects/:id/executions`
+- `GET /v1/projects/:id/events`
+- `GET /v1/projects/:id/graph`
+
+Board / kernel endpoints may return 404 until the API lands; the UI falls back
+gracefully to current-state artifacts.
 
 ## Local development
 
@@ -110,7 +126,8 @@ make test-e2e   # Playwright; starts API+web in fixture/memory mode, then runs
 
 ## Current limitations
 
-- Unfinished artifact workspaces are honest placeholders.
+- Component plan is a proof workspace (empty candidates, retrieval notice).
+- Remaining unfinished artifact workspaces are honest placeholders.
 - Electrical/Physical architecture modes are labeled placeholders.
 - Mind Graph is a preview derived from board slots, not graph memory.
 - Device simulation, verification runs, firmware execution, and notebooks are
@@ -118,4 +135,5 @@ make test-e2e   # Playwright; starts API+web in fixture/memory mode, then runs
 - Historical revision inspect uses metadata; versioned fetch is available via
   `getArtifactVersion` for future detail views.
 
-Future artifact workspace implementations belong under `src/artifacts/<name>/`.
+Future artifact workspace implementations belong under `src/artifacts/<name>/`
+and must be registered in `artifacts/renderers/registry.tsx`.

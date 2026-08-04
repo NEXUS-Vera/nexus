@@ -56,11 +56,12 @@ function railStatusFor(
   if (def.availability === 'placeholder' || !def.artifactType) {
     return { status: 'unavailable' };
   }
-  const live = selectArtifactByType(
-    artifacts,
-    def.artifactType as 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action',
-  );
-  if (!live) return { status: 'unavailable' };
+  const live = selectArtifactByType(artifacts, def.artifactType);
+  if (!live) {
+    return {
+      status: def.availability === 'proof' ? 'drafted' : 'unavailable',
+    };
+  }
   const change = changeByType?.[def.artifactType];
   if (change === 'Affected') return { status: 'affected', version: live.artifactVersion };
   if (change === 'Stale') return { status: 'stale', version: live.artifactVersion };
