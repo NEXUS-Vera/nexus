@@ -34,10 +34,18 @@ test.describe('fixture-mode persistence and modification', () => {
     await page.getByRole('navigation', { name: /Workflow artifacts/i }).getByRole('button', { name: /Next Action/i }).click();
     await expect(page.getByTestId('workspace-next-action')).toBeVisible();
 
-    for (const label of ['Components', 'Firmware', 'Analysis', 'Test Plan', 'Risk Register']) {
+    for (const label of ['Firmware', 'Analysis', 'Test Plan', 'Risk Register']) {
       await page.getByRole('button', { name: new RegExp(`^${label}$`, 'i') }).click();
       await expect(page.getByTestId('artifact-placeholder')).toBeVisible();
     }
+
+    await page.getByRole('button', { name: /^Components$/i }).click();
+    await expect(page.getByTestId('workspace-component-plan')).toBeVisible();
+    await expect(page.getByTestId('component-plan-retrieval-notice')).toBeVisible();
+    const componentsUrl = page.url();
+    await page.reload();
+    await expect(page.getByTestId('workspace-component-plan')).toBeVisible({ timeout: 30_000 });
+    expect(componentsUrl).toMatch(/artifact=component-plan/);
 
     await page
       .getByLabel(/Continue the conversation/i)

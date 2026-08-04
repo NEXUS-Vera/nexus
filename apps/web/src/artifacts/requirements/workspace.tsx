@@ -1,11 +1,9 @@
 import type { Artifact } from '@nexus/contracts';
-import { WorkspaceHeader } from '../../components/layout/WorkspaceHeader';
 import { StatusBadge } from '../../components/statuses/StatusBadge';
 import { themeColors } from '../../lib/theme';
 
 type Props = {
   artifact: Extract<Artifact, { artifactType: 'requirement-set' }>;
-  changeIndicator?: string;
   isDark: boolean;
   selectedRequirementId: string | null;
   onSelectRequirement: (id: string) => void;
@@ -14,14 +12,13 @@ type Props = {
 
 export function RequirementsWorkspace({
   artifact,
-  changeIndicator,
   isDark,
   selectedRequirementId,
   onSelectRequirement,
   architectureNodeIdsByRequirement = {},
 }: Props) {
   const t = themeColors(isDark);
-  const { requirements, requirementSummary, openQuestionIds } = artifact.content;
+  const { requirements, openQuestionIds } = artifact.content;
   const byStatus = requirements.reduce<Record<string, number>>((acc, req) => {
     acc[req.confirmationStatus] = (acc[req.confirmationStatus] ?? 0) + 1;
     return acc;
@@ -33,16 +30,6 @@ export function RequirementsWorkspace({
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} data-testid="workspace-requirements">
-      <WorkspaceHeader
-        title="Requirements"
-        subtitle={`${requirements.length} requirements · ${requirementSummary}`}
-        version={artifact.artifactVersion}
-        lifecycleStatus={artifact.lifecycleStatus}
-        evidenceStatus={artifact.evidenceStatus}
-        approvalStatus={artifact.approvalStatus}
-        changeIndicator={changeIndicator}
-        isDark={isDark}
-      />
       <div
         style={{
           display: 'flex',

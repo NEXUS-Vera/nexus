@@ -31,6 +31,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+const CORE_ARTIFACT_TYPES = [
+  'project-brief',
+  'requirement-set',
+  'functional-architecture',
+  'next-action',
+] as const;
+
 function parseProjectPackage(payload: unknown): import('@nexus/contracts').ProjectCurrentState {
   if (!isRecord(payload)) {
     throw new Error('Project response is not an object');
@@ -38,8 +45,23 @@ function parseProjectPackage(payload: unknown): import('@nexus/contracts').Proje
   if (payload.schemaVersion !== '1.0.0') {
     throw new Error('Unexpected project schemaVersion');
   }
-  if (!Array.isArray(payload.artifacts) || payload.artifacts.length !== 4) {
-    throw new Error('Project response must include exactly four artifacts');
+  if (
+    !Array.isArray(payload.artifacts) ||
+    payload.artifacts.length < 4 ||
+    payload.artifacts.length > 5
+  ) {
+    throw new Error('Project response must include four or five artifacts');
+  }
+  const types = new Set(
+    payload.artifacts
+      .filter(isRecord)
+      .map((artifact) => artifact.artifactType)
+      .filter((type): type is string => typeof type === 'string'),
+  );
+  for (const required of CORE_ARTIFACT_TYPES) {
+    if (!types.has(required)) {
+      throw new Error(`Project response missing required artifact: ${required}`);
+    }
   }
   if (!isRecord(payload.veraResponse) || typeof payload.veraResponse.userFacingMessage !== 'string') {
     throw new Error('Project response missing veraResponse.userFacingMessage');
@@ -145,4 +167,98 @@ export async function getArtifactVersion(input: {
   return (await requestJson(
     `/v1/projects/${input.projectId}/artifacts/${input.artifactType}${query}`,
   )) as import('@nexus/contracts').Artifact;
+}
+
+export async function listArtifactTypes(): Promise<
+  import('@nexus/contracts').ArtifactTypeDefinition[]
+> {
+  const json = await requestJson('/v1/artifact-types');
+  if (Array.isArray(json)) {
+    return json as import('@nexus/contracts').ArtifactTypeDefinition[];
+  }
+  if (isRecord(json) && Array.isArray(json.artifactTypes)) {
+    return json.artifactTypes as import('@nexus/contracts').ArtifactTypeDefinition[];
+  }
+  throw new Error('Artifact types response must be an array or { artifactTypes }');
+}
+
+export async function getProjectBoard(
+  projectId: string,
+): Promise<import('@nexus/contracts').ProjectBoardProjection> {
+  const json = await requestJson(`/v1/projects/${projectId}/board`);
+  if (
+    !isRecord(json) ||
+    json.schemaVersion !== '1.0.0' ||
+    typeof json.projectId !== 'string' ||
+    !Array.isArray(json.artifactSummaries)
+  ) {
+    throw new Error('Invalid project board projection');
+  }
+  return json as unknown as import('@nexus/contracts').ProjectBoardProjection;
+}
+
+export async function getWorkspace(
+  projectId: string,
+  artifactType: string,
+): Promise<import('@nexus/contracts').WorkspaceDescriptor> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace`,
+  )) as import('@nexus/contracts').WorkspaceDescriptor;
+}
+
+export async function createWorkspace(
+  projectId: string,
+  artifactType: string,
+  body?: Record<string, unknown>,
+): Promise<import('@nexus/contracts').WorkspaceDescriptor> {
+  return (await requestJson(`/v1/projects/${projectId}/artifacts/${artifactType}/workspace`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+  })) as import('@nexus/contracts').WorkspaceDescriptor;
+}
+
+export async function submitArtifactCommand(
+  projectId: string,
+  command: import('@nexus/contracts').ArtifactCommand,
+): Promise<import('@nexus/contracts').ArtifactCommandResult> {
+  return (await requestJson(`/v1/projects/${projectId}/artifact-commands`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+  })) as import('@nexus/contracts').ArtifactCommandResult;
+}
+
+export async function listExecutions(
+  projectId: string,
+): Promise<import('@nexus/contracts').ExecutionRun[]> {
+  const json = await requestJson(`/v1/projects/${projectId}/executions`);
+  if (Array.isArray(json)) {
+    return json as import('@nexus/contracts').ExecutionRun[];
+  }
+  if (isRecord(json) && Array.isArray(json.executions)) {
+    return json.executions as import('@nexus/contracts').ExecutionRun[];
+  }
+  throw new Error('Executions response must be an array or { executions }');
+}
+
+export async function listEvents(
+  projectId: string,
+): Promise<import('@nexus/contracts').ProjectEvent[]> {
+  const json = await requestJson(`/v1/projects/${projectId}/events`);
+  if (Array.isArray(json)) {
+    return json as import('@nexus/contracts').ProjectEvent[];
+  }
+  if (isRecord(json) && Array.isArray(json.events)) {
+    return json.events as import('@nexus/contracts').ProjectEvent[];
+  }
+  throw new Error('Events response must be an array or { events }');
+}
+
+export async function getProjectGraph(
+  projectId: string,
+): Promise<import('@nexus/contracts').GraphTraversalResult> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/graph`,
+  )) as import('@nexus/contracts').GraphTraversalResult;
 }

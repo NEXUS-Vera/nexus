@@ -2,19 +2,28 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Toaster } from 'sonner';
-import type { ProjectCurrentState, ProjectHistory } from '@nexus/contracts';
+import type {
+  ExecutionRun,
+  ProjectBoardProjection,
+  ProjectCurrentState,
+  ProjectEvent,
+  ProjectHistory,
+} from '@nexus/contracts';
 import {
   ApiClientError,
   getProject,
+  getProjectBoard,
   getProjectHistory,
+  listEvents,
+  listExecutions,
   submitProjectTurn,
 } from '../api/client';
 import { selectArtifactByType } from '../artifacts';
-import { ArchitectureWorkspace } from '../artifacts/architecture/workspace';
-import { FutureArtifactPlaceholder } from '../artifacts/placeholders';
-import { NextActionWorkspace } from '../artifacts/next-action/workspace';
-import { ProjectBriefWorkspace } from '../artifacts/project-brief/workspace';
-import { RequirementsWorkspace } from '../artifacts/requirements/workspace';
+import {
+  resolveWorkspaceRenderer,
+  shellMetaFor,
+} from '../artifacts/renderers/registry';
+import { ArtifactWorkspaceShell } from '../artifacts/shell/ArtifactWorkspaceShell';
 import type { ArtifactRouteKey } from '../artifacts/types';
 import { changeIndicatorFor } from '../artifacts/types';
 import { AppHeader } from '../components/layout/AppHeader';
@@ -29,6 +38,17 @@ import { themeColors } from '../lib/theme';
 import { MindGraphWorkspace } from '../views/MindGraphWorkspace';
 import { ProjectOverview } from '../views/ProjectOverview';
 
+async function loadOptional<T>(loader: () => Promise<T>): Promise<T | null> {
+  try {
+    return await loader();
+  } catch (err) {
+    if (err instanceof ApiClientError && (err.status === 404 || err.status === 501)) {
+      return null;
+    }
+    return null;
+  }
+}
+
 export function ProjectPage() {
   const { projectId = '' } = useParams();
   const { isDark, toggleDark } = useTheme();
@@ -37,6 +57,9 @@ export function ProjectPage() {
 
   const [state, setState] = useState<ProjectCurrentState | null>(null);
   const [history, setHistory] = useState<ProjectHistory | null>(null);
+  const [board, setBoard] = useState<ProjectBoardProjection | null>(null);
+  const [events, setEvents] = useState<ProjectEvent[]>([]);
+  const [executions, setExecutions] = useState<ExecutionRun[]>([]);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -56,13 +79,20 @@ export function ProjectPage() {
       setLoading(true);
       setError(null);
       try {
-        const [project, hist] = await Promise.all([
-          getProject(projectId),
-          getProjectHistory(projectId),
-        ]);
+        const [project, hist, boardProjection, projectEvents, projectExecutions] =
+          await Promise.all([
+            getProject(projectId),
+            getProjectHistory(projectId),
+            loadOptional(() => getProjectBoard(projectId)),
+            loadOptional(() => listEvents(projectId)),
+            loadOptional(() => listExecutions(projectId)),
+          ]);
         if (!cancelled) {
           setState(project);
           setHistory(hist);
+          setBoard(boardProjection);
+          setEvents(projectEvents ?? []);
+          setExecutions(projectExecutions ?? []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -96,15 +126,23 @@ export function ProjectPage() {
       requirements: selectArtifactByType(state.artifacts, 'requirement-set'),
       architecture: selectArtifactByType(state.artifacts, 'functional-architecture'),
       nextAction: selectArtifactByType(state.artifacts, 'next-action'),
+      componentPlan: selectArtifactByType(state.artifacts, 'component-plan'),
     };
   }, [state]);
 
   const changeByType = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const type of ['project-brief', 'requirement-set', 'functional-architecture', 'next-action']) {
+    for (const type of [
+      'project-brief',
+      'requirement-set',
+      'functional-architecture',
+      'next-action',
+      'component-plan',
+    ]) {
       const version =
         live && type in live
-          ? (live[type as keyof typeof live] as { artifactVersion: number } | undefined)?.artifactVersion ?? 1
+          ? (live[type as keyof typeof live] as { artifactVersion: number } | undefined)
+              ?.artifactVersion ?? 1
           : 1;
       map[type] = changeIndicatorFor(type, version, regenerated, changed, affected, stale);
     }
@@ -120,6 +158,17 @@ export function ProjectPage() {
     }
     return map;
   }, [live?.architecture]);
+
+  async function refreshBoardSideChannels() {
+    const [boardProjection, projectEvents, projectExecutions] = await Promise.all([
+      loadOptional(() => getProjectBoard(projectId)),
+      loadOptional(() => listEvents(projectId)),
+      loadOptional(() => listExecutions(projectId)),
+    ]);
+    setBoard(boardProjection);
+    setEvents(projectEvents ?? []);
+    setExecutions(projectExecutions ?? []);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -138,6 +187,7 @@ export function ProjectPage() {
       setStale(result.impactAnalysis?.stale ?? []);
       setMessage('');
       setHistory(await getProjectHistory(projectId));
+      await refreshBoardSideChannels();
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'Failed to submit turn');
     } finally {
@@ -164,12 +214,50 @@ export function ProjectPage() {
 
   const openQuestions = (state.openQuestions ?? []).filter((q) => q.status === 'open');
 
+  function renderRegisteredWorkspace(rendererKey: string) {
+    const Renderer = resolveWorkspaceRenderer(rendererKey);
+    const meta = shellMetaFor(rendererKey, state!, changeByType);
+    return (
+      <ArtifactWorkspaceShell
+        title={meta.title}
+        subtitle={meta.subtitle}
+        version={meta.version}
+        lifecycleStatus={meta.lifecycleStatus}
+        evidenceStatus={meta.evidenceStatus}
+        approvalStatus={meta.approvalStatus}
+        changeIndicator={meta.changeIndicator}
+        isDark={isDark}
+        testId={meta.testId}
+      >
+        <Renderer
+          projectId={projectId}
+          rendererKey={rendererKey}
+          state={state!}
+          isDark={isDark}
+          changeIndicator={meta.changeIndicator}
+          selectedRequirementId={url.selectedRequirement}
+          selectedNodeId={url.selectedArchNode}
+          onSelectRequirement={url.setSelectedRequirement}
+          onSelectNode={url.setSelectedArchNode}
+          onSelectItem={url.setInspectorSelection}
+          architectureNodeIdsByRequirement={architectureCoverage}
+          nextActionTitle={live!.nextAction!.content.title}
+          onCommandResult={() => {
+            void refreshBoardSideChannels();
+          }}
+        />
+      </ArtifactWorkspaceShell>
+    );
+  }
+
   function renderCenter() {
     if (url.globalView === 'overview') {
       return (
         <ProjectOverview
           state={state!}
+          board={board}
           history={history}
+          executions={executions}
           isDark={isDark}
           onNavigate={(key) => {
             setShowNextAction(false);
@@ -197,67 +285,9 @@ export function ProjectPage() {
       );
     }
     if (showNextAction) {
-      return (
-        <NextActionWorkspace
-          artifact={live!.nextAction!}
-          changeIndicator={changeByType['next-action']}
-          isDark={isDark}
-        />
-      );
+      return renderRegisteredWorkspace('next-action');
     }
-
-    const key = url.selectedArtifact;
-    if (key === 'project-brief') {
-      return (
-        <ProjectBriefWorkspace
-          artifact={live!.brief!}
-          changeIndicator={changeByType['project-brief']}
-          isDark={isDark}
-          onSelectItem={url.setInspectorSelection}
-        />
-      );
-    }
-    if (key === 'requirement-set') {
-      return (
-        <RequirementsWorkspace
-          artifact={live!.requirements!}
-          changeIndicator={changeByType['requirement-set']}
-          isDark={isDark}
-          selectedRequirementId={url.selectedRequirement}
-          onSelectRequirement={(id) => {
-            url.setSelectedRequirement(id);
-          }}
-          architectureNodeIdsByRequirement={architectureCoverage}
-        />
-      );
-    }
-    if (key === 'functional-architecture') {
-      return (
-        <ArchitectureWorkspace
-          artifact={live!.architecture!}
-          changeIndicator={changeByType['functional-architecture']}
-          isDark={isDark}
-          selectedNodeId={url.selectedArchNode}
-          onSelectNode={(id) => url.setSelectedArchNode(id)}
-        />
-      );
-    }
-    if (
-      key === 'component-plan' ||
-      key === 'firmware-scaffold' ||
-      key === 'analysis-notebook' ||
-      key === 'test-plan' ||
-      key === 'risk-register'
-    ) {
-      return (
-        <FutureArtifactPlaceholder
-          routeKey={key}
-          isDark={isDark}
-          nextActionTitle={live!.nextAction!.content.title}
-        />
-      );
-    }
-    return null;
+    return renderRegisteredWorkspace(url.selectedArtifact);
   }
 
   function selectArtifact(key: ArtifactRouteKey) {
@@ -381,6 +411,10 @@ export function ProjectPage() {
               activeArtifact={url.selectedArtifact}
               selection={url.selection}
               state={state}
+              board={board}
+              events={events}
+              executions={executions}
+              history={history}
               changedArtifactTypes={changed}
               regeneratedArtifactTypes={regenerated}
               onFocusVera={url.focusVera}
