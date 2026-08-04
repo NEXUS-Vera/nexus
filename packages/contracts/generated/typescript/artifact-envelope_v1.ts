@@ -1,12 +1,20 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
+export type ArtifactType =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+
 export interface ArtifactEnvelope {
   approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
   artifactId: string;
-  artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+  artifactType: ArtifactType;
   artifactVersion: number;
-  content: ProjectBriefContent | RequirementSetContent | FunctionalArchitectureContent | NextActionContent;
+  content:
+    | ProjectBriefContent
+    | RequirementSetContent
+    | FunctionalArchitectureContent
+    | NextActionContent
+    | ComponentPlanContent;
   contentSchemaVersion: '1.0.0';
   createdAt: string;
   createdBy: ActorReference1;
@@ -273,6 +281,13 @@ export interface OpenQuestionReference3 {
   displayId?: string;
   questionId: string;
   schemaVersion: '1.0.0';
+}
+export interface ComponentPlanContent {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  candidateCount: number;
+  constraintSummary: string;
+  selectionState: 'draft' | 'proposed' | 'accepted' | 'blocked';
+  unresolvedCompatibilityChecks: string[];
 }
 export interface ActorReference1 {
   actorId: string;

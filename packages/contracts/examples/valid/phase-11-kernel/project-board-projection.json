@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "projectionVersion": 1,
+  "projectStateVersion": 1,
+  "projectTitle": "Phase 11 Kernel Fixture",
+  "currentPhase": "DEFINE",
+  "artifactSummaries": [
+    {
+      "artifactType": "requirement-set",
+      "artifactId": "art_02PHASE11REQ00000000000001",
+      "artifactVersion": 1,
+      "lifecycleStatus": "ready",
+      "evidenceStatus": "unverified",
+      "approvalStatus": "proposed",
+      "workspaceStatus": "ready",
+      "blockerCount": 0,
+      "openQuestionCount": 0,
+      "lastChangedAt": "2026-08-04T12:00:00Z"
+    }
+  ],
+  "nextActionSummary": {
+    "artifactId": "art_02PHASE11NA00000000000001",
+    "artifactVersion": 1,
+    "title": "Confirm sampling constraints",
+    "priority": "high",
+    "blockerCount": 0
+  },
+  "openQuestionCount": 1,
+  "blockingIssueCount": 0,
+  "recentExecutionSummaries": [
+    {
+      "executionRunId": "exec_02PHASE11RUN000000000001",
+      "capability": "structured-validation",
+      "status": "completed",
+      "startedAt": "2026-08-04T12:00:00Z",
+      "completedAt": "2026-08-04T12:00:00Z",
+      "artifactType": "requirement-set"
+    }
+  ],
+  "recentChanges": [
+    {
+      "eventId": "evt_02PHASE11EVT0000000000001",
+      "eventType": "workspace.snapshot-created",
+      "occurredAt": "2026-08-04T12:00:00Z",
+      "summary": "Snapshot created for requirements"
+    }
+  ],
+  "evidenceSummary": {
+    "totalCount": 1,
+    "unverifiedCount": 1,
+    "testedCount": 0,
+    "contradictedCount": 0
+  },
+  "updatedAt": "2026-08-04T12:00:00Z"
+}

@@ -22,33 +22,83 @@
     "content"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
-    "artifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
-    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
-    "artifactType": {
+    "schemaVersion": {
       "type": "string",
-      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+      "const": "1.0.0"
     },
-    "artifactVersion": { "type": "integer", "minimum": 1 },
-    "contentSchemaVersion": { "type": "string", "const": "1.0.0" },
-    "lifecycleStatus": { "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/lifecycleStatus" },
-    "evidenceStatus": { "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus" },
-    "approvalStatus": { "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/approvalStatus" },
-    "createdBy": { "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json" },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "updatedAt": { "type": "string", "format": "date-time" },
-    "sourceTurnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
-    "workflowRunId": { "type": "string", "pattern": "^run_[A-Za-z0-9]{16,}$" },
-    "supersedesArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
-    "supersedesArtifactVersion": { "type": "integer", "minimum": 1 },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "artifactType": {
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+    },
+    "artifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "contentSchemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "lifecycleStatus": {
+      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/lifecycleStatus"
+    },
+    "evidenceStatus": {
+      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
+    },
+    "approvalStatus": {
+      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/approvalStatus"
+    },
+    "createdBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceTurnId": {
+      "type": "string",
+      "pattern": "^turn_[A-Za-z0-9]{16,}$"
+    },
+    "workflowRunId": {
+      "type": "string",
+      "pattern": "^run_[A-Za-z0-9]{16,}$"
+    },
+    "supersedesArtifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "supersedesArtifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
     "content": {
       "oneOf": [
-        { "$ref": "https://nexus.local/schemas/artifacts/content/project-brief.v1.schema.json" },
-        { "$ref": "https://nexus.local/schemas/artifacts/content/requirement-set.v1.schema.json" },
-        { "$ref": "https://nexus.local/schemas/artifacts/content/functional-architecture.v1.schema.json" },
-        { "$ref": "https://nexus.local/schemas/artifacts/content/next-action.v1.schema.json" }
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/content/project-brief.v1.schema.json"
+        },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/content/requirement-set.v1.schema.json"
+        },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/content/functional-architecture.v1.schema.json"
+        },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/content/next-action.v1.schema.json"
+        },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/content/component-plan.v1.schema.json"
+        }
       ]
     }
   }
 }
-

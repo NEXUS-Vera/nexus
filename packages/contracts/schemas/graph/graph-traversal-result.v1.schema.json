@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/graph/graph-traversal-result.v1.schema.json",
+  "title": "GraphTraversalResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "projectId",
+    "rootNodeId",
+    "direction",
+    "maxDepth",
+    "nodes",
+    "edges",
+    "truncated",
+    "nodeLimitReached",
+    "edgeLimitReached"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "rootNodeId": {
+      "type": "string",
+      "pattern": "^gnode_[A-Za-z0-9]{16,}$"
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "upstream",
+        "downstream",
+        "neighbors",
+        "subgraph"
+      ]
+    },
+    "maxDepth": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/graph/project-graph-node.v1.schema.json"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/graph/project-graph-edge.v1.schema.json"
+      }
+    },
+    "truncated": {
+      "type": "boolean"
+    },
+    "nodeLimitReached": {
+      "type": "boolean"
+    },
+    "edgeLimitReached": {
+      "type": "boolean"
+    }
+  }
+}

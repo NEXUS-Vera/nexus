@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "1.0.0",
+  "outputId": "out_02PHASE11OUT0000000000001",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "artifactId": "art_02PHASE11REQ00000000000001",
+  "workspaceId": "ws_02PHASE11WORK0000000000001",
+  "executionRunId": "exec_02PHASE11RUN000000000001",
+  "outputType": "validation-report",
+  "name": "fake-validation-report",
+  "mediaType": "application/json",
+  "content": {
+    "kind": "inline-structured",
+    "structuredResult": {
+      "ok": true,
+      "issueCount": 0
+    }
+  },
+  "contentDigest": "sha256:out1",
+  "createdAt": "2026-08-04T12:00:00Z",
+  "evidenceStatus": "unverified",
+  "supports": [
+    {
+      "supportKind": "artifact",
+      "targetId": "art_02PHASE11REQ00000000000001"
+    }
+  ]
+}

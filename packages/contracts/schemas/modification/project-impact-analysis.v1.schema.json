@@ -15,34 +15,56 @@
     "reasonByArtifact"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
-    "changed": { "$ref": "#/$defs/artifactTypeList" },
-    "affected": { "$ref": "#/$defs/artifactTypeList" },
-    "stale": { "$ref": "#/$defs/artifactTypeList" },
-    "regenerate": { "$ref": "#/$defs/artifactTypeList" },
-    "unchanged": { "$ref": "#/$defs/artifactTypeList" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "changed": {
+      "$ref": "#/$defs/artifactTypeList"
+    },
+    "affected": {
+      "$ref": "#/$defs/artifactTypeList"
+    },
+    "stale": {
+      "$ref": "#/$defs/artifactTypeList"
+    },
+    "regenerate": {
+      "$ref": "#/$defs/artifactTypeList"
+    },
+    "unchanged": {
+      "$ref": "#/$defs/artifactTypeList"
+    },
     "reasonByArtifact": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["artifactType", "reason"],
+        "required": [
+          "artifactType",
+          "reason"
+        ],
         "properties": {
-          "artifactType": { "$ref": "#/$defs/artifactType" },
-          "reason": { "type": "string", "minLength": 1 }
+          "artifactType": {
+            "$ref": "#/$defs/artifactType"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       }
     }
   },
   "$defs": {
     "artifactType": {
-      "type": "string",
-      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
     },
     "artifactTypeList": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/artifactType" }
+      "items": {
+        "$ref": "#/$defs/artifactType"
+      }
     }
   }
 }

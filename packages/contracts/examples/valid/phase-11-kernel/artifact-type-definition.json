@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactType": "requirement-set",
+  "displayName": "Requirements",
+  "phase": "DEFINE",
+  "workspaceType": "structured-document",
+  "supportedCommandTypes": [
+    "workspace.create",
+    "workspace.update-draft",
+    "workspace.create-snapshot",
+    "artifact.propose-revision",
+    "artifact.accept-revision",
+    "artifact.reject-revision",
+    "artifact.validate-draft",
+    "artifact.execute"
+  ],
+  "requiredCapabilities": [
+    "structured-validation",
+    "fake-execution"
+  ],
+  "dependencies": [
+    {
+      "artifactType": "project-brief",
+      "relationship": "depends-on",
+      "required": true
+    }
+  ],
+  "editable": true,
+  "executable": true,
+  "approvalPolicyId": "default-collaborate",
+  "boardVisibility": "primary"
+}

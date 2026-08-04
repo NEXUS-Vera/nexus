@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "1.0.0",
+  "required": true,
+  "reason": "High consequence change",
+  "consequenceLevel": "high",
+  "allowedApproverKinds": [
+    "user"
+  ],
+  "autoAcceptAllowed": false
+}

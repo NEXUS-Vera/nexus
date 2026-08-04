@@ -1,7 +1,15 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
-export type Artifact = ArtifactEnvelope | ArtifactEnvelope1 | ArtifactEnvelope2 | ArtifactEnvelope3;
+export type Artifact = ArtifactEnvelope | ArtifactEnvelope1 | ArtifactEnvelope2 | ArtifactEnvelope3 | ArtifactEnvelope4;
+export type ArtifactType =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType1 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType2 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType3 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
 
 /**
  * Canonical wrapper for a successful fixture-backed embedded project initialization package.
@@ -375,6 +383,38 @@ export interface ActorReference4 {
   displayName?: string;
   schemaVersion: '1.0.0';
 }
+export interface ArtifactEnvelope4 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'component-plan';
+  artifactVersion: number;
+  content: ComponentPlanContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference5;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
+export interface ComponentPlanContent {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  candidateCount: number;
+  constraintSummary: string;
+  selectionState: 'draft' | 'proposed' | 'accepted' | 'blocked';
+  unresolvedCompatibilityChecks: string[];
+}
+export interface ActorReference5 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
 export interface OpenQuestion {
   blocks: string[];
   createdAt: string;
@@ -382,7 +422,7 @@ export interface OpenQuestion {
   question: string;
   questionId: string;
   reason: string;
-  requestedFrom: ActorReference5;
+  requestedFrom: ActorReference6;
   schemaVersion: '1.0.0';
   /**
    * @minItems 1
@@ -402,7 +442,7 @@ export interface OpenQuestion {
   status: 'open' | 'answered' | 'resolved' | 'dismissed';
   updatedAt: string;
 }
-export interface ActorReference5 {
+export interface ActorReference6 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -416,7 +456,7 @@ export interface Project {
   createdAt: string;
   currentArtifactReferences: {
     artifactId: string;
-    artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+    artifactType: ArtifactType;
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   }[];
@@ -460,7 +500,7 @@ export interface TurnRoute {
   unsupportedReason?: string;
 }
 export interface UserTurn {
-  actor: ActorReference6;
+  actor: ActorReference7;
   attachmentReferences?: EvidenceReference1[];
   parentTurnId?: string;
   projectId: string;
@@ -469,14 +509,14 @@ export interface UserTurn {
   timestamp: string;
   turnId: string;
 }
-export interface ActorReference6 {
+export interface ActorReference7 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
   schemaVersion: '1.0.0';
 }
 export interface EvidenceReference1 {
-  attribution?: ActorReference7;
+  attribution?: ActorReference8;
   evidenceId: string;
   evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
   schemaVersion: '1.0.0';
@@ -486,7 +526,7 @@ export interface EvidenceReference1 {
     'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
   supportedClaim?: string;
 }
-export interface ActorReference7 {
+export interface ActorReference8 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -519,20 +559,20 @@ export interface VeraResponse {
   createdArtifactReferences: [
     {
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType1;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     },
     ...{
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType1;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[]
   ];
   nextActionArtifactReference: {
     artifactId: string;
-    artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+    artifactType: ArtifactType2;
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   };
@@ -573,7 +613,7 @@ export interface WorkflowRun {
     };
     outputArtifactReferences?: {
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType3;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[];

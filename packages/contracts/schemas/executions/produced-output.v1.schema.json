@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/produced-output.v1.schema.json",
+  "title": "ProducedOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "outputId",
+    "projectId",
+    "artifactId",
+    "workspaceId",
+    "executionRunId",
+    "outputType",
+    "name",
+    "mediaType",
+    "content",
+    "contentDigest",
+    "createdAt",
+    "evidenceStatus",
+    "supports"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "outputId": {
+      "type": "string",
+      "pattern": "^out_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9]{16,}$"
+    },
+    "executionRunId": {
+      "type": "string",
+      "pattern": "^exec_[A-Za-z0-9]{16,}$"
+    },
+    "outputType": {
+      "type": "string",
+      "enum": [
+        "validation-report",
+        "log",
+        "structured-result",
+        "file-reference",
+        "plot-reference",
+        "binary-reference",
+        "test-report"
+      ]
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mediaType": {
+      "type": "string",
+      "minLength": 1
+    },
+    "content": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "structuredResult"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "inline-structured"
+            },
+            "structuredResult": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "storageKind",
+            "uri"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "storage-reference"
+            },
+            "storageKind": {
+              "type": "string",
+              "enum": [
+                "postgres-jsonb",
+                "object-store",
+                "file-store"
+              ]
+            },
+            "uri": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "contentDigest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidenceStatus": {
+      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
+    },
+    "supports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "supportKind",
+          "targetId"
+        ],
+        "properties": {
+          "supportKind": {
+            "type": "string",
+            "enum": [
+              "artifact",
+              "requirement",
+              "architecture-node",
+              "validation-issue",
+              "decision"
+            ]
+          },
+          "targetId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

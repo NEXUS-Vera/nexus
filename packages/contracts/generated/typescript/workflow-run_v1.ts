@@ -1,6 +1,9 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
+export type ArtifactType =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+
 export interface WorkflowRun {
   completionTime?: string;
   errorReferences: {
@@ -18,7 +21,7 @@ export interface WorkflowRun {
     };
     outputArtifactReferences?: {
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[];

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/content/component-plan.v1.schema.json",
+  "title": "ComponentPlanContent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "selectionState",
+    "candidateCount",
+    "constraintSummary",
+    "unresolvedCompatibilityChecks",
+    "approvalStatus"
+  ],
+  "properties": {
+    "selectionState": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "proposed",
+        "accepted",
+        "blocked"
+      ]
+    },
+    "candidateCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "constraintSummary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "unresolvedCompatibilityChecks": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "approvalStatus": {
+      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/approvalStatus"
+    }
+  }
+}

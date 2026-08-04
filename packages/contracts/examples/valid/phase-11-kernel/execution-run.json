@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "1.0.0",
+  "executionRunId": "exec_02PHASE11RUN000000000001",
+  "executionRequestId": "execreq_02PHASE11REQ0000000001",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "artifactId": "art_02PHASE11REQ00000000000001",
+  "workspaceId": "ws_02PHASE11WORK0000000000001",
+  "providerId": "fake",
+  "capability": "structured-validation",
+  "status": "completed",
+  "baseArtifactVersion": 1,
+  "baseProjectStateVersion": 1,
+  "inputSnapshotId": "snap_02PHASE11SNAP000000000001",
+  "startedAt": "2026-08-04T12:00:00Z",
+  "completedAt": "2026-08-04T12:00:00Z",
+  "outputReferences": [
+    "out_02PHASE11OUT0000000000001"
+  ],
+  "evidenceReferences": [
+    "ev_fake_validation_1"
+  ],
+  "logReference": "out_02PHASE11OUT0000000000001"
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "actorKind": "user",
+  "authorities": [
+    "propose",
+    "edit-draft",
+    "execute",
+    "validate",
+    "approve",
+    "reject",
+    "supersede"
+  ]
+}

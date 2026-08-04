@@ -12,7 +12,11 @@ class ErrorReference(TypedDict, closed=True):
 class OutputArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -50,7 +54,11 @@ class WorkflowRunV1(TypedDict, closed=True):
 class ArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

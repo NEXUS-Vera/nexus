@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/governance/artifact-authority.v1.schema.json",
+  "title": "ArtifactAuthority",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "actorKind",
+    "authorities"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "actorKind": {
+      "type": "string",
+      "enum": [
+        "user",
+        "agent",
+        "system",
+        "execution",
+        "external-provider"
+      ]
+    },
+    "authorities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "propose",
+          "edit-draft",
+          "execute",
+          "validate",
+          "approve",
+          "reject",
+          "supersede"
+        ]
+      },
+      "uniqueItems": true
+    }
+  }
+}
