@@ -29,4 +29,6 @@ Vera communicates with domain agents through `packages/contracts`, not by import
 
 ## Current status
 
-Foundation and governance only. Product modules are placeholders.
+Foundation modules plus the Phase 11 Artifact Workspace / Project-State Kernel
+in `packages/board` and `packages/persistence` (Project Board control plane).
+HTTP exposure is in `apps/api`; UI surfaces remain separate.

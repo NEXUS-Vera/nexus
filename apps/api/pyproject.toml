@@ -9,6 +9,8 @@ dependencies = [
   "pydantic>=2.0.0",
   "nexus-agent-embedded-systems",
   "nexus-contracts",
+  "nexus-board",
+  "nexus-persistence",
 ]
 
 [project.optional-dependencies]
@@ -26,5 +28,8 @@ asyncio_mode = "auto"
 pythonpath = [
   "src",
   "../../agents/embedded-systems/src",
+  "../../packages/board/src",
   "../../packages/contracts/src",
+  "../../packages/contracts/generated/python",
+  "../../packages/persistence/src",
 ]

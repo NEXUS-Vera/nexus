@@ -19,10 +19,19 @@ Deployable API application only. Domain workflow logic lives in
 - `GET /v1/projects/{projectId}/artifacts/{artifactType}?version=`
 - `GET /v1/projects/{projectId}/history`
 - `POST /v1/projects/{projectId}/turns`
+- `GET /v1/artifact-types`
+- `GET /v1/projects/{projectId}/board`
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace`
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace`
+- `POST /v1/projects/{projectId}/artifact-commands`
+- `GET /v1/projects/{projectId}/executions?limit=&cursor=`
+- `GET /v1/projects/{projectId}/events?limit=&cursor=`
+- `GET /v1/projects/{projectId}/graph?root=&direction=&maxDepth=`
 
 Successful initialize responses return `ProjectInitializationResult`.
 Successful turn responses return `ProjectTurnResult` (includes current state and
-impact analysis).
+impact analysis). Artifact commands return `ArtifactCommandResult` (or a
+structured conflict/governance error envelope).
 
 ## Configuration
 
