@@ -1,0 +1,686 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/artifact-command.v1.schema.json",
+  "title": "ArtifactCommand",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "workspace.create"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "artifactType"
+          ],
+          "properties": {
+            "artifactType": {
+              "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+            },
+            "initialContent": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "workspace.update-draft"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "content",
+            "expectedDraftVersion"
+          ],
+          "properties": {
+            "content": {
+              "type": "object"
+            },
+            "expectedDraftVersion": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "workspace.create-snapshot"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "workspace.restore-snapshot"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotId"
+          ],
+          "properties": {
+            "snapshotId": {
+              "type": "string",
+              "pattern": "^snap_[A-Za-z0-9]{16,}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "artifact.validate-draft"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotId"
+          ],
+          "properties": {
+            "snapshotId": {
+              "type": "string",
+              "pattern": "^snap_[A-Za-z0-9]{16,}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "artifact.propose-revision"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotId",
+            "consequenceLevel"
+          ],
+          "properties": {
+            "snapshotId": {
+              "type": "string",
+              "pattern": "^snap_[A-Za-z0-9]{16,}$"
+            },
+            "consequenceLevel": {
+              "$ref": "https://nexus.local/schemas/governance/consequence-level.v1.schema.json"
+            },
+            "summary": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "artifact.accept-revision"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "proposalId"
+          ],
+          "properties": {
+            "proposalId": {
+              "type": "string",
+              "pattern": "^prop_[A-Za-z0-9]{16,}$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "artifact.reject-revision"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "proposalId",
+            "reason"
+          ],
+          "properties": {
+            "proposalId": {
+              "type": "string",
+              "pattern": "^prop_[A-Za-z0-9]{16,}$"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input",
+        "workspaceId"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "artifact.execute"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotId",
+            "capability"
+          ],
+          "properties": {
+            "snapshotId": {
+              "type": "string",
+              "pattern": "^snap_[A-Za-z0-9]{16,}$"
+            },
+            "capability": {
+              "type": "string",
+              "enum": [
+                "structured-validation",
+                "fake-execution",
+                "file-workspace",
+                "embedded-build",
+                "python-kernel",
+                "circuit-simulation",
+                "architecture-export"
+              ]
+            },
+            "maxDurationMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300000
+            }
+          }
+        }
+      }
+    }
+  ]
+}

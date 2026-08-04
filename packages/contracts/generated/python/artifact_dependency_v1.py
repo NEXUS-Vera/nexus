@@ -17,13 +17,25 @@ class ArtifactDependencyV1(TypedDict, closed=True):
     schemaVersion: Literal['1.0.0']
     sourceArtifactId: NotRequired[str]
     sourceArtifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     targetArtifactId: NotRequired[str]
     targetArtifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
 
 ArtifactType: TypeAlias = Literal[
-    'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+    'project-brief',
+    'requirement-set',
+    'functional-architecture',
+    'next-action',
+    'component-plan',
 ]

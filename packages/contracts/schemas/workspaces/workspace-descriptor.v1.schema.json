@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/workspaces/workspace-descriptor.v1.schema.json",
+  "title": "WorkspaceDescriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workspaceId",
+    "projectId",
+    "artifactId",
+    "artifactType",
+    "workspaceType",
+    "status",
+    "baseArtifactVersion",
+    "baseProjectStateVersion",
+    "createdBy",
+    "createdAt",
+    "updatedAt",
+    "runtimeCapabilityRequirements",
+    "externalWorkspaceReferences"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "artifactType": {
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+    },
+    "workspaceType": {
+      "type": "string",
+      "enum": [
+        "structured-document",
+        "graph-workspace",
+        "comparison-workspace",
+        "code-workspace",
+        "notebook-workspace",
+        "test-workspace",
+        "risk-workspace",
+        "focused-action"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "creating",
+        "ready",
+        "dirty",
+        "validating",
+        "blocked",
+        "archived"
+      ]
+    },
+    "baseArtifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseProjectStateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "currentSnapshotId": {
+      "type": "string",
+      "pattern": "^snap_[A-Za-z0-9]{16,}$"
+    },
+    "createdBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "runtimeCapabilityRequirements": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "structured-validation",
+          "fake-execution",
+          "file-workspace",
+          "embedded-build",
+          "python-kernel",
+          "circuit-simulation",
+          "architecture-export"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "externalWorkspaceReferences": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/providers/external-workspace-reference.v1.schema.json"
+      }
+    }
+  }
+}

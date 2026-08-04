@@ -1,6 +1,11 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
+export type ArtifactType =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType1 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+
 export interface VeraResponse {
   blockerIssueReferences: {
     issueId: string;
@@ -12,20 +17,20 @@ export interface VeraResponse {
   createdArtifactReferences: [
     {
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     },
     ...{
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[]
   ];
   nextActionArtifactReference: {
     artifactId: string;
-    artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+    artifactType: ArtifactType1;
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   };

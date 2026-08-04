@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0.0",
+  "providerId": "fake",
+  "externalReferenceId": "fake-ws-1",
+  "displayLabel": "Fake provider workspace",
+  "syncStatus": "bound",
+  "createdAt": "2026-08-04T12:00:00Z",
+  "updatedAt": "2026-08-04T12:00:00Z"
+}

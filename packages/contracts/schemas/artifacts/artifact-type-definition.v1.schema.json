@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/artifact-type-definition.v1.schema.json",
+  "title": "ArtifactTypeDefinition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactType",
+    "displayName",
+    "phase",
+    "workspaceType",
+    "supportedCommandTypes",
+    "requiredCapabilities",
+    "dependencies",
+    "editable",
+    "executable",
+    "approvalPolicyId",
+    "boardVisibility"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "artifactType": {
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phase": {
+      "type": "string",
+      "enum": [
+        "DEFINE",
+        "DESIGN",
+        "BUILD",
+        "VERIFY"
+      ]
+    },
+    "workspaceType": {
+      "type": "string",
+      "enum": [
+        "structured-document",
+        "graph-workspace",
+        "comparison-workspace",
+        "code-workspace",
+        "notebook-workspace",
+        "test-workspace",
+        "risk-workspace",
+        "focused-action"
+      ]
+    },
+    "supportedCommandTypes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "workspace.create",
+          "workspace.update-draft",
+          "workspace.create-snapshot",
+          "workspace.restore-snapshot",
+          "artifact.validate-draft",
+          "artifact.propose-revision",
+          "artifact.accept-revision",
+          "artifact.reject-revision",
+          "artifact.execute"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "requiredCapabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "structured-validation",
+          "fake-execution",
+          "file-workspace",
+          "embedded-build",
+          "python-kernel",
+          "circuit-simulation",
+          "architecture-export"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifactType",
+          "relationship"
+        ],
+        "properties": {
+          "artifactType": {
+            "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+          },
+          "relationship": {
+            "type": "string",
+            "enum": [
+              "depends-on",
+              "derives-from",
+              "constrains",
+              "covers"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "editable": {
+      "type": "boolean"
+    },
+    "executable": {
+      "type": "boolean"
+    },
+    "approvalPolicyId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "boardVisibility": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "global",
+        "hidden"
+      ]
+    }
+  }
+}

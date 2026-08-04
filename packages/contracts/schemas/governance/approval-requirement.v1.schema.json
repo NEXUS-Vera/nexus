@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/governance/approval-requirement.v1.schema.json",
+  "title": "ApprovalRequirement",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "required",
+    "reason",
+    "consequenceLevel",
+    "allowedApproverKinds"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "required": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "consequenceLevel": {
+      "$ref": "https://nexus.local/schemas/governance/consequence-level.v1.schema.json"
+    },
+    "allowedApproverKinds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": [
+          "user",
+          "agent",
+          "system"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "autoAcceptAllowed": {
+      "type": "boolean"
+    }
+  }
+}

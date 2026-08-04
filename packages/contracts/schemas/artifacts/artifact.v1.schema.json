@@ -6,56 +6,113 @@
   "oneOf": [
     {
       "allOf": [
-        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
         {
           "type": "object",
           "properties": {
-            "artifactType": { "const": "project-brief" },
-            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/project-brief.v1.schema.json" }
+            "artifactType": {
+              "const": "project-brief"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/project-brief.v1.schema.json"
+            }
           },
-          "required": ["artifactType", "content"]
+          "required": [
+            "artifactType",
+            "content"
+          ]
         }
       ]
     },
     {
       "allOf": [
-        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
         {
           "type": "object",
           "properties": {
-            "artifactType": { "const": "requirement-set" },
-            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/requirement-set.v1.schema.json" }
+            "artifactType": {
+              "const": "requirement-set"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/requirement-set.v1.schema.json"
+            }
           },
-          "required": ["artifactType", "content"]
+          "required": [
+            "artifactType",
+            "content"
+          ]
         }
       ]
     },
     {
       "allOf": [
-        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
         {
           "type": "object",
           "properties": {
-            "artifactType": { "const": "functional-architecture" },
-            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/functional-architecture.v1.schema.json" }
+            "artifactType": {
+              "const": "functional-architecture"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/functional-architecture.v1.schema.json"
+            }
           },
-          "required": ["artifactType", "content"]
+          "required": [
+            "artifactType",
+            "content"
+          ]
         }
       ]
     },
     {
       "allOf": [
-        { "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json" },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
         {
           "type": "object",
           "properties": {
-            "artifactType": { "const": "next-action" },
-            "content": { "$ref": "https://nexus.local/schemas/artifacts/content/next-action.v1.schema.json" }
+            "artifactType": {
+              "const": "next-action"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/next-action.v1.schema.json"
+            }
           },
-          "required": ["artifactType", "content"]
+          "required": [
+            "artifactType",
+            "content"
+          ]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": {
+              "const": "component-plan"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/component-plan.v1.schema.json"
+            }
+          },
+          "required": [
+            "artifactType",
+            "content"
+          ]
         }
       ]
     }
   ]
 }
-

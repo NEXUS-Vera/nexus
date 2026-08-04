@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/artifact-command-result.v1.schema.json",
+  "title": "ArtifactCommandResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "commandRunId",
+    "commandId",
+    "status",
+    "projectId",
+    "artifactId",
+    "outputReferences",
+    "evidenceReferences",
+    "issueReferences",
+    "startedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "commandRunId": {
+      "type": "string",
+      "pattern": "^cmdrun_[A-Za-z0-9]{16,}$"
+    },
+    "commandId": {
+      "type": "string",
+      "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "running",
+        "completed",
+        "completed-with-warnings",
+        "rejected",
+        "failed",
+        "conflicted"
+      ]
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9]{16,}$"
+    },
+    "executionRunId": {
+      "type": "string",
+      "pattern": "^exec_[A-Za-z0-9]{16,}$"
+    },
+    "proposalId": {
+      "type": "string",
+      "pattern": "^prop_[A-Za-z0-9]{16,}$"
+    },
+    "snapshotId": {
+      "type": "string",
+      "pattern": "^snap_[A-Za-z0-9]{16,}$"
+    },
+    "producedArtifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "artifactType",
+        "artifactVersion"
+      ],
+      "properties": {
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "artifactType": {
+          "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+        },
+        "artifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "outputReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^out_[A-Za-z0-9]{16,}$"
+      }
+    },
+    "evidenceReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "issueReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^issue_[A-Za-z0-9]{16,}$"
+      }
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

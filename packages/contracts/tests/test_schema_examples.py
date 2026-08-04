@@ -37,6 +37,66 @@ RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
     "artifact-dependency.json": (
         "https://nexus.local/schemas/dependencies/artifact-dependency.v1.schema.json"
     ),
+    "artifact-type-definition.json": (
+        "https://nexus.local/schemas/artifacts/artifact-type-definition.v1.schema.json"
+    ),
+    "artifact-command.json": (
+        "https://nexus.local/schemas/artifacts/artifact-command.v1.schema.json"
+    ),
+    "artifact-command-result.json": (
+        "https://nexus.local/schemas/artifacts/artifact-command-result.v1.schema.json"
+    ),
+    "artifact-proposal.json": (
+        "https://nexus.local/schemas/artifacts/artifact-proposal.v1.schema.json"
+    ),
+    "workspace-descriptor.json": (
+        "https://nexus.local/schemas/workspaces/workspace-descriptor.v1.schema.json"
+    ),
+    "workspace-snapshot.json": (
+        "https://nexus.local/schemas/workspaces/workspace-snapshot.v1.schema.json"
+    ),
+    "workspace-draft-state.json": (
+        "https://nexus.local/schemas/workspaces/workspace-draft-state.v1.schema.json"
+    ),
+    "execution-request.json": (
+        "https://nexus.local/schemas/executions/execution-request.v1.schema.json"
+    ),
+    "execution-run.json": (
+        "https://nexus.local/schemas/executions/execution-run.v1.schema.json"
+    ),
+    "execution-result.json": (
+        "https://nexus.local/schemas/executions/execution-result.v1.schema.json"
+    ),
+    "produced-output.json": (
+        "https://nexus.local/schemas/executions/produced-output.v1.schema.json"
+    ),
+    "runtime-capability.json": (
+        "https://nexus.local/schemas/executions/runtime-capability.v1.schema.json"
+    ),
+    "external-workspace-reference.json": (
+        "https://nexus.local/schemas/providers/external-workspace-reference.v1.schema.json"
+    ),
+    "project-event.json": (
+        "https://nexus.local/schemas/events/project-event.v1.schema.json"
+    ),
+    "project-board-projection.json": (
+        "https://nexus.local/schemas/projections/project-board-projection.v1.schema.json"
+    ),
+    "artifact-authority.json": (
+        "https://nexus.local/schemas/governance/artifact-authority.v1.schema.json"
+    ),
+    "approval-requirement.json": (
+        "https://nexus.local/schemas/governance/approval-requirement.v1.schema.json"
+    ),
+    "project-graph-node.json": (
+        "https://nexus.local/schemas/graph/project-graph-node.v1.schema.json"
+    ),
+    "project-graph-edge.json": (
+        "https://nexus.local/schemas/graph/project-graph-edge.v1.schema.json"
+    ),
+    "graph-traversal-result.json": (
+        "https://nexus.local/schemas/graph/graph-traversal-result.v1.schema.json"
+    ),
 }
 
 # Package wrappers that inline a full project package and are also expanded into the

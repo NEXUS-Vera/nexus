@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_02PHASE11CP00000000000001",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "not-required",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02USERACTOR000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "createdAt": "2026-08-04T12:00:00Z",
+  "updatedAt": "2026-08-04T12:00:00Z",
+  "sourceTurnId": "turn_02PHASE11TURN00000000001",
+  "workflowRunId": "run_02PHASE11RUN0000000000001",
+  "content": {
+    "selectionState": "draft",
+    "candidateCount": 0,
+    "constraintSummary": "No candidates retrieved; retrieval deferred.",
+    "unresolvedCompatibilityChecks": [
+      "provider-retrieval-unavailable"
+    ],
+    "approvalStatus": "not-required"
+  }
+}

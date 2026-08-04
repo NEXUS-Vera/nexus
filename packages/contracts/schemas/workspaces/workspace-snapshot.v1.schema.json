@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/workspaces/workspace-snapshot.v1.schema.json",
+  "title": "WorkspaceSnapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "snapshotId",
+    "workspaceId",
+    "projectId",
+    "artifactId",
+    "snapshotVersion",
+    "baseArtifactVersion",
+    "baseProjectStateVersion",
+    "content",
+    "contentDigest",
+    "createdBy",
+    "createdAt",
+    "reason"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "snapshotId": {
+      "type": "string",
+      "pattern": "^snap_[A-Za-z0-9]{16,}$"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "snapshotVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseArtifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseProjectStateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "content": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "structuredContent"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "structured"
+            },
+            "structuredContent": {
+              "type": "object"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "storageKind",
+            "uri",
+            "contentDigest"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "storage-reference"
+            },
+            "storageKind": {
+              "type": "string",
+              "enum": [
+                "postgres-jsonb",
+                "object-store",
+                "file-store"
+              ]
+            },
+            "uri": {
+              "type": "string",
+              "minLength": 1
+            },
+            "contentDigest": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    },
+    "contentDigest": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

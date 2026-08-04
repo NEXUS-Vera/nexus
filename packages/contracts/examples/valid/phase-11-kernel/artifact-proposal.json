@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0.0",
+  "proposalId": "prop_02PHASE11PROP000000000001",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "artifactId": "art_02PHASE11REQ00000000000001",
+  "artifactType": "requirement-set",
+  "workspaceId": "ws_02PHASE11WORK0000000000001",
+  "snapshotId": "snap_02PHASE11SNAP000000000001",
+  "baseArtifactVersion": 1,
+  "baseProjectStateVersion": 1,
+  "status": "awaiting-approval",
+  "proposedBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02USERACTOR000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "proposedAt": "2026-08-04T12:00:00Z",
+  "consequenceLevel": "medium",
+  "approvalRequirement": {
+    "schemaVersion": "1.0.0",
+    "required": true,
+    "reason": "Consequential revision in collaborate mode",
+    "consequenceLevel": "medium",
+    "allowedApproverKinds": [
+      "user"
+    ],
+    "autoAcceptAllowed": false
+  }
+}

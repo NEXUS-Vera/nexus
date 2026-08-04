@@ -1,17 +1,45 @@
 /* This file is GENERATED from packages/contracts/schemas.
  * Do not edit manually. Re-run: make generate-contract-types
  */
-export type Artifact = ArtifactEnvelope | ArtifactEnvelope1 | ArtifactEnvelope2 | ArtifactEnvelope3;
+export type ArtifactType =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type Artifact = ArtifactEnvelope | ArtifactEnvelope1 | ArtifactEnvelope2 | ArtifactEnvelope3 | ArtifactEnvelope4;
+export type ArtifactType1 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType2 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType3 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType4 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType5 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType6 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType7 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType8 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType9 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType10 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType11 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType12 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+export type ArtifactType13 =
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
 
 /**
  * Canonical response for a project-modification turn: the resulting current state together with the interpreted intent, the propagation analysis, and which artifact types were actually changed or regenerated.
  */
 export interface ProjectTurnResult {
   changeIntent: ProjectChangeIntent;
-  changedArtifactTypes: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  changedArtifactTypes: ArtifactType[];
   currentState: ProjectCurrentState;
   impactAnalysis: ProjectImpactAnalysis;
-  regeneratedArtifactTypes: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  regeneratedArtifactTypes: ArtifactType13[];
   schemaVersion: '1.0.0';
 }
 /**
@@ -41,9 +69,9 @@ export interface ProjectChangeIntent {
 export interface ProjectCurrentState {
   /**
    * @minItems 4
-   * @maxItems 4
+   * @maxItems 5
    */
-  artifacts: [Artifact, Artifact, Artifact, Artifact];
+  artifacts: [Artifact, Artifact, Artifact, Artifact] | [Artifact, Artifact, Artifact, Artifact, Artifact];
   dependencies?: ArtifactDependency[];
   openQuestions: OpenQuestion[];
   previousTurnIds?: string[];
@@ -409,6 +437,38 @@ export interface ActorReference4 {
   displayName?: string;
   schemaVersion: '1.0.0';
 }
+export interface ArtifactEnvelope4 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'component-plan';
+  artifactVersion: number;
+  content: ComponentPlanContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference5;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
+export interface ComponentPlanContent {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  candidateCount: number;
+  constraintSummary: string;
+  selectionState: 'draft' | 'proposed' | 'accepted' | 'blocked';
+  unresolvedCompatibilityChecks: string[];
+}
+export interface ActorReference5 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
 /**
  * Directed dependency between two project artifacts. Dependencies are recorded at artifact-type level so they survive artifact revisions, and may additionally pin the specific revisions involved.
  */
@@ -420,9 +480,9 @@ export interface ArtifactDependency {
   reason: string;
   schemaVersion: '1.0.0';
   sourceArtifactId?: string;
-  sourceArtifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+  sourceArtifactType: ArtifactType1;
   targetArtifactId?: string;
-  targetArtifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+  targetArtifactType: ArtifactType2;
 }
 export interface OpenQuestion {
   blocks: string[];
@@ -431,7 +491,7 @@ export interface OpenQuestion {
   question: string;
   questionId: string;
   reason: string;
-  requestedFrom: ActorReference5;
+  requestedFrom: ActorReference6;
   schemaVersion: '1.0.0';
   /**
    * @minItems 1
@@ -451,7 +511,7 @@ export interface OpenQuestion {
   status: 'open' | 'answered' | 'resolved' | 'dismissed';
   updatedAt: string;
 }
-export interface ActorReference5 {
+export interface ActorReference6 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -465,7 +525,7 @@ export interface Project {
   createdAt: string;
   currentArtifactReferences: {
     artifactId: string;
-    artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+    artifactType: ArtifactType3;
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   }[];
@@ -509,7 +569,7 @@ export interface TurnRoute {
   unsupportedReason?: string;
 }
 export interface UserTurn {
-  actor: ActorReference6;
+  actor: ActorReference7;
   attachmentReferences?: EvidenceReference1[];
   parentTurnId?: string;
   projectId: string;
@@ -518,14 +578,14 @@ export interface UserTurn {
   timestamp: string;
   turnId: string;
 }
-export interface ActorReference6 {
+export interface ActorReference7 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
   schemaVersion: '1.0.0';
 }
 export interface EvidenceReference1 {
-  attribution?: ActorReference7;
+  attribution?: ActorReference8;
   evidenceId: string;
   evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
   schemaVersion: '1.0.0';
@@ -535,7 +595,7 @@ export interface EvidenceReference1 {
     'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
   supportedClaim?: string;
 }
-export interface ActorReference7 {
+export interface ActorReference8 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -568,20 +628,20 @@ export interface VeraResponse {
   createdArtifactReferences: [
     {
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType4;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     },
     ...{
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType4;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[]
   ];
   nextActionArtifactReference: {
     artifactId: string;
-    artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+    artifactType: ArtifactType5;
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   };
@@ -622,7 +682,7 @@ export interface WorkflowRun {
     };
     outputArtifactReferences?: {
       artifactId: string;
-      artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+      artifactType: ArtifactType6;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[];
@@ -642,14 +702,14 @@ export interface WorkflowRun {
  * Deterministic classification of how a project change propagates across artifact types. Every non-unchanged classification must carry an explicit reason so downstream regeneration is auditable.
  */
 export interface ProjectImpactAnalysis {
-  affected: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
-  changed: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  affected: ArtifactType7[];
+  changed: ArtifactType8[];
   reasonByArtifact: {
-    artifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action';
+    artifactType: ArtifactType9;
     reason: string;
   }[];
-  regenerate: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  regenerate: ArtifactType10[];
   schemaVersion: '1.0.0';
-  stale: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
-  unchanged: ('project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action')[];
+  stale: ArtifactType11[];
+  unchanged: ArtifactType12[];
 }

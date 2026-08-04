@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/execution-result.v1.schema.json",
+  "title": "ExecutionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "executionRunId",
+    "status",
+    "outputReferences",
+    "evidenceReferences",
+    "completedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "executionRunId": {
+      "type": "string",
+      "pattern": "^exec_[A-Za-z0-9]{16,}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "completed",
+        "completed-with-warnings",
+        "failed",
+        "cancelled",
+        "timed-out",
+        "stale"
+      ]
+    },
+    "outputReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^out_[A-Za-z0-9]{16,}$"
+      }
+    },
+    "evidenceReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
