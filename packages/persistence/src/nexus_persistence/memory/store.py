@@ -226,6 +226,79 @@ class InMemoryProjectStore:
                 raise ProjectNotFoundError(f"Project not found: {project_id}")
             return copy.deepcopy(self._dependencies.get(project_id, []))
 
+    def get_project(self, project_id: str) -> dict[str, Any]:
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                raise ProjectNotFoundError(f"Project not found: {project_id}")
+            return copy.deepcopy(project)
+
+    def apply_accepted_artifact_revision(
+        self,
+        *,
+        project_id: str,
+        new_artifact: dict[str, Any],
+        next_state_version: int,
+        updated_at: str,
+        expected_artifact_version: int | None = None,
+        expected_project_state_version: int | None = None,
+    ) -> dict[str, Any]:
+        """Insert a new artifact revision and advance project current pointers."""
+        with self._lock:
+            project = self._projects.get(project_id)
+            if project is None:
+                raise ProjectNotFoundError(f"Project not found: {project_id}")
+            if expected_project_state_version is not None and int(
+                project["currentStateVersion"]
+            ) != int(expected_project_state_version):
+                from nexus_persistence.errors import ProjectStateConflictError
+
+                raise ProjectStateConflictError("Project state version conflict during accept.")
+            artifact_type = new_artifact["artifactType"]
+            current_ref = None
+            for ref in project.get("currentArtifactReferences", []):
+                if ref["artifactType"] == artifact_type:
+                    current_ref = ref
+                    break
+            if (
+                current_ref is not None
+                and expected_artifact_version is not None
+                and int(current_ref["artifactVersion"]) != int(expected_artifact_version)
+            ):
+                from nexus_persistence.errors import ArtifactVersionConflictError
+
+                raise ArtifactVersionConflictError("Artifact version conflict during accept.")
+            art = copy.deepcopy(new_artifact)
+            self._store_artifact(art)
+            if current_ref is not None and current_ref.get("artifactId"):
+                previous = self._artifacts.get(current_ref["artifactId"])
+                if previous is not None:
+                    previous = copy.deepcopy(previous)
+                    previous["lifecycleStatus"] = "superseded"
+                    previous["updatedAt"] = updated_at
+                    self._artifacts[previous["artifactId"]] = previous
+            refs = list(project.get("currentArtifactReferences", []))
+            new_ref = {
+                "artifactType": artifact_type,
+                "artifactId": art["artifactId"],
+                "artifactVersion": int(art["artifactVersion"]),
+                "contentSchemaVersion": art.get("contentSchemaVersion", "1.0.0"),
+            }
+            replaced = False
+            for i, ref in enumerate(refs):
+                if ref["artifactType"] == artifact_type:
+                    refs[i] = new_ref
+                    replaced = True
+                    break
+            if not replaced:
+                refs.append(new_ref)
+            project = copy.deepcopy(project)
+            project["currentArtifactReferences"] = refs
+            project["currentStateVersion"] = int(next_state_version)
+            project["updatedAt"] = updated_at
+            self._projects[project_id] = project
+            return copy.deepcopy(project)
+
     def save_workflow_run(self, workflow_run: dict[str, Any]) -> None:
         """Persist a standalone workflow run (e.g. failed initialization)."""
         with self._lock:
