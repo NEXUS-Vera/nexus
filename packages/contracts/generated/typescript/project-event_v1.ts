@@ -31,6 +31,7 @@ export interface ProjectEvent {
     | 'decision.reversed';
   occurredAt: string;
   payload: {
+    artifactId?: string;
     artifactType?: ArtifactType;
     artifactVersion?: number;
     capability?:
@@ -43,14 +44,26 @@ export interface ProjectEvent {
       | 'architecture-export';
     decisionId?: string;
     evidenceId?: string;
+    evidenceStatus?: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
     executionRunId?: string;
     outputId?: string;
+    outputType?:
+      | 'validation-report'
+      | 'log'
+      | 'structured-result'
+      | 'file-reference'
+      | 'plot-reference'
+      | 'binary-reference'
+      | 'test-report';
     proposalId?: string;
     questionId?: string;
     reason?: string;
+    resultingArtifactId?: string;
+    resultingArtifactVersion?: number;
     snapshotId?: string;
     status?: string;
     summary?: string;
+    supersededBy?: string;
     workspaceId?: string;
   };
   projectId: string;
