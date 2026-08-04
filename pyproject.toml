@@ -63,6 +63,8 @@ pythonpath = [
   "apps/api/src",
   "agents/embedded-systems/src",
   "agents/mind-graph/src",
+  "packages/board/src",
+  "packages/board/tests",
   "packages/contracts/src",
   "packages/contracts/generated/python",
   "packages/model-gateway/src",

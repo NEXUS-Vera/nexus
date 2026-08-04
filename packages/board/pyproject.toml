@@ -1,9 +1,14 @@
 [project]
 name = "nexus-board"
 version = "0.0.0"
-description = "Placeholder package for nexus board"
+description = "Artifact workspace and project-state kernel for Nexus"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "nexus-persistence",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -11,3 +16,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "../persistence/src", "../contracts/generated/python"]
+asyncio_mode = "auto"

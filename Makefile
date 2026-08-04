@@ -9,7 +9,7 @@ SHELL := /bin/bash
 
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export PYTHON ?= $(shell if [ -x "$(CURDIR)/.venv/bin/python" ]; then printf '%s\n' "$(CURDIR)/.venv/bin/python"; else command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3; fi)
-PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
+PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/board/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
 
 setup:
 	@./scripts/setup.sh
