@@ -1,32 +1,20 @@
 import type { ReactNode } from 'react';
 import type { Artifact } from '@nexus/contracts';
-import { WorkspaceHeader } from '../../components/layout/WorkspaceHeader';
 import { themeColors } from '../../lib/theme';
 import type { InspectorSelection } from '../../lib/inspector-selection';
 
 type Props = {
   artifact: Extract<Artifact, { artifactType: 'project-brief' }>;
-  changeIndicator?: string;
   isDark: boolean;
   onSelectItem: (selection: InspectorSelection) => void;
 };
 
-export function ProjectBriefWorkspace({ artifact, changeIndicator, isDark, onSelectItem }: Props) {
+export function ProjectBriefWorkspace({ artifact, isDark, onSelectItem }: Props) {
   const t = themeColors(isDark);
   const content = artifact.content;
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} data-testid="workspace-project-brief">
-      <WorkspaceHeader
-        title="Project Brief"
-        subtitle="Read-only live artifact. Request edits through Vera."
-        version={artifact.artifactVersion}
-        lifecycleStatus={artifact.lifecycleStatus}
-        evidenceStatus={artifact.evidenceStatus}
-        approvalStatus={artifact.approvalStatus}
-        changeIndicator={changeIndicator}
-        isDark={isDark}
-      />
       <div style={{ flex: 1, overflow: 'auto', padding: 16, background: t.bg, display: 'grid', gap: 12 }}>
         {[
           { id: 'goal', label: 'Goal', value: content.goal },

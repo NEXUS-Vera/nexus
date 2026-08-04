@@ -1,6 +1,16 @@
 import type { ReactNode } from 'react';
-import type { Artifact, OpenQuestion, ProjectCurrentState, ValidationIssue } from '@nexus/contracts';
+import type {
+  Artifact,
+  ExecutionRun,
+  OpenQuestion,
+  ProjectBoardProjection,
+  ProjectCurrentState,
+  ProjectEvent,
+  ProjectHistory,
+  ValidationIssue,
+} from '@nexus/contracts';
 import { selectArtifactByType } from '../../artifacts';
+import { ARTIFACT_REGISTRY } from '../../artifacts/registry';
 import type { ArtifactRouteKey } from '../../artifacts/types';
 import type { InspectorSelection } from '../../lib/inspector-selection';
 import { themeColors } from '../../lib/theme';
@@ -14,6 +24,10 @@ type ContextInspectorProps = {
   activeArtifact: ArtifactRouteKey;
   selection: InspectorSelection;
   state: ProjectCurrentState;
+  board?: ProjectBoardProjection | null;
+  events?: ProjectEvent[];
+  executions?: ExecutionRun[];
+  history?: ProjectHistory | null;
   changedArtifactTypes: string[];
   regeneratedArtifactTypes: string[];
   onFocusVera: () => void;
@@ -37,6 +51,24 @@ function findIssue(issues: ValidationIssue[] | undefined, id: string) {
   return issues?.find((i) => i.issueId === id);
 }
 
+function InspectorSection({
+  title,
+  children,
+  isDark,
+}: {
+  title: string;
+  children: ReactNode;
+  isDark: boolean;
+}) {
+  const t = themeColors(isDark);
+  return (
+    <section>
+      <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 export function ContextInspector({
   collapsed,
   onCollapsedChange,
@@ -44,6 +76,10 @@ export function ContextInspector({
   activeArtifact,
   selection,
   state,
+  board = null,
+  events = [],
+  executions = [],
+  history = null,
   changedArtifactTypes,
   regeneratedArtifactTypes,
   onFocusVera,
@@ -203,14 +239,41 @@ export function ContextInspector({
     );
   }
 
-  const activeLive = state.artifacts.find((a) => {
-    if (activeArtifact === 'project-brief') return a.artifactType === 'project-brief';
-    if (activeArtifact === 'requirement-set') return a.artifactType === 'requirement-set';
-    if (activeArtifact === 'functional-architecture') {
-      return a.artifactType === 'functional-architecture';
-    }
-    return false;
-  });
+  const def = ARTIFACT_REGISTRY[activeArtifact];
+  const activeLive =
+    def.artifactType == null
+      ? undefined
+      : state.artifacts.find((a) => a.artifactType === def.artifactType);
+  const boardSummary =
+    def.artifactType == null
+      ? undefined
+      : board?.artifactSummaries?.find((s) => s.artifactType === def.artifactType);
+
+  const requirements = selectArtifactByType(state.artifacts, 'requirement-set')?.content.requirements ?? [];
+  const openQuestions = (state.openQuestions ?? []).filter((q) => q.status === 'open');
+  const openIssues = (state.validationIssues ?? []).filter((i) => i.resolutionStatus === 'open');
+  const dependencyLabels = def.dependencyLabels;
+  const recentEvents = (events.length
+    ? events
+    : (board?.recentChanges ?? []).map((change) => ({
+        eventId: change.eventId,
+        eventType: change.eventType,
+        occurredAt: change.occurredAt,
+        summary: change.summary,
+      }))
+  ).slice(0, 6);
+  const recentExecutions = (
+    executions.length
+      ? executions.map((run) => ({
+          id: run.executionRunId,
+          label: `${run.capability} · ${run.status}`,
+        }))
+      : (board?.recentExecutionSummaries ?? []).map((run) => ({
+          id: run.executionRunId,
+          label: `${run.capability} · ${run.status}`,
+        }))
+  ).slice(0, 5);
+  const historyRevisions = [...(history?.artifactRevisions ?? [])].slice(-5).reverse();
 
   return (
     <aside
@@ -251,31 +314,134 @@ export function ContextInspector({
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: 12, display: 'grid', gap: 16, alignContent: 'start' }}>
-        <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>Inspect</h3>
+        <InspectorSection title="Inspect" isDark={isDark}>
           <h4 style={{ margin: '0 0 8px', fontSize: 14, color: t.text }}>{title}</h4>
           {body}
-        </section>
+        </InspectorSection>
 
-        <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>Evidence</h3>
-          {activeLive ? (
+        <InspectorSection title="Requirements" isDark={isDark}>
+          {requirements.length ? (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+              {requirements.slice(0, 6).map((req) => (
+                <li key={req.requirementId}>
+                  {req.displayId}: {req.confirmationStatus}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>No requirements in current state.</p>
+          )}
+        </InspectorSection>
+
+        <InspectorSection title="Dependencies" isDark={isDark}>
+          {dependencyLabels.length ? (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+              {dependencyLabels.map((label) => (
+                <li key={label}>{label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>No declared UI dependencies.</p>
+          )}
+        </InspectorSection>
+
+        <InspectorSection title="Evidence" isDark={isDark}>
+          {activeLive || boardSummary ? (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <EvidenceBadge status={activeLive.evidenceStatus} />
-              <StatusBadge status={activeLive.lifecycleStatus} />
-              <StatusBadge status={activeLive.approvalStatus} />
+              <EvidenceBadge
+                status={boardSummary?.evidenceStatus ?? activeLive!.evidenceStatus}
+              />
+              <StatusBadge
+                status={boardSummary?.lifecycleStatus ?? activeLive!.lifecycleStatus}
+              />
+              <StatusBadge
+                status={boardSummary?.approvalStatus ?? activeLive!.approvalStatus}
+              />
             </div>
           ) : (
             <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>
-              No live evidence for this placeholder artifact.
+              No live evidence for this artifact yet.
             </p>
           )}
-        </section>
+          {board?.evidenceSummary ? (
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: t.textSec }}>
+              Board: {board.evidenceSummary.totalCount} evidence ·{' '}
+              {board.evidenceSummary.unverifiedCount} unverified
+            </p>
+          ) : null}
+        </InspectorSection>
 
-        <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>Changes</h3>
-          {changedArtifactTypes.length || regeneratedArtifactTypes.length ? (
+        <InspectorSection title="Issues" isDark={isDark}>
+          {openIssues.length ? (
             <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+              {openIssues.slice(0, 5).map((issue) => (
+                <li key={issue.issueId}>
+                  {issue.message}
+                  {issue.blocking ? ' (blocking)' : ''}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>
+              {board ? `${board.blockingIssueCount} blocking on board` : 'No open validation issues.'}
+            </p>
+          )}
+        </InspectorSection>
+
+        <InspectorSection title="Open Questions" isDark={isDark}>
+          {openQuestions.length ? (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+              {openQuestions.slice(0, 5).map((q) => (
+                <li key={q.questionId}>{q.question}</li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>
+              {board ? `${board.openQuestionCount} on board` : 'No open questions.'}
+            </p>
+          )}
+        </InspectorSection>
+
+        <InspectorSection title="Executions" isDark={isDark}>
+          {recentExecutions.length ? (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+              {recentExecutions.map((run) => (
+                <li key={run.id}>{run.label}</li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>No executions recorded.</p>
+          )}
+        </InspectorSection>
+
+        <InspectorSection title="History" isDark={isDark}>
+          {recentEvents.length ? (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+              {recentEvents.map((event) => {
+                const summary =
+                  'summary' in event && typeof event.summary === 'string'
+                    ? event.summary
+                    : 'payload' in event &&
+                        event.payload &&
+                        typeof event.payload.summary === 'string'
+                      ? event.payload.summary
+                      : event.eventType;
+                return <li key={event.eventId}>{summary}</li>;
+              })}
+            </ul>
+          ) : historyRevisions.length ? (
+            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+              {historyRevisions.map((rev) => (
+                <li key={`${rev.artifactType}-${rev.artifactVersion}`}>
+                  {rev.artifactType} v{rev.artifactVersion}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>No history events yet.</p>
+          )}
+          {changedArtifactTypes.length || regeneratedArtifactTypes.length ? (
+            <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 12, color: t.text }}>
               {changedArtifactTypes.map((type) => (
                 <li key={`c-${type}`}>Changed: {type}</li>
               ))}
@@ -283,15 +449,10 @@ export function ContextInspector({
                 <li key={`r-${type}`}>Regenerated: {type}</li>
               ))}
             </ul>
-          ) : (
-            <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>
-              No turn impact markers yet. Submit a Vera update to see changed artifacts.
-            </p>
-          )}
-        </section>
+          ) : null}
+        </InspectorSection>
 
-        <section>
-          <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>Actions</h3>
+        <InspectorSection title="Actions" isDark={isDark}>
           <button
             type="button"
             onClick={onFocusVera}
@@ -309,7 +470,7 @@ export function ContextInspector({
           >
             Request change via Vera
           </button>
-        </section>
+        </InspectorSection>
       </div>
     </aside>
   );

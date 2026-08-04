@@ -1,30 +1,18 @@
 import type { Artifact } from '@nexus/contracts';
-import { WorkspaceHeader } from '../../components/layout/WorkspaceHeader';
 import { StatusBadge } from '../../components/statuses/StatusBadge';
 import { themeColors } from '../../lib/theme';
 
 type Props = {
   artifact: Extract<Artifact, { artifactType: 'next-action' }>;
-  changeIndicator?: string;
   isDark: boolean;
 };
 
-export function NextActionWorkspace({ artifact, changeIndicator, isDark }: Props) {
+export function NextActionWorkspace({ artifact, isDark }: Props) {
   const t = themeColors(isDark);
   const content = artifact.content;
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} data-testid="workspace-next-action">
-      <WorkspaceHeader
-        title="Next Action"
-        subtitle="Global recommended action for this project"
-        version={artifact.artifactVersion}
-        lifecycleStatus={artifact.lifecycleStatus}
-        evidenceStatus={artifact.evidenceStatus}
-        approvalStatus={artifact.approvalStatus}
-        changeIndicator={changeIndicator}
-        isDark={isDark}
-      />
       <div style={{ flex: 1, overflow: 'auto', padding: 20, background: t.bg }}>
         <article
           style={{

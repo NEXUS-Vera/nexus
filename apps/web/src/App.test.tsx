@@ -217,8 +217,9 @@ describe('Nexus web routing and project workspace', () => {
     expect(await screen.findByTestId('workspace-architecture')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^Components$/i }));
-    expect(await screen.findByTestId('artifact-placeholder')).toHaveTextContent(
-      /Component and Sensor Plan is not generated yet/i,
+    expect(await screen.findByTestId('workspace-component-plan')).toBeInTheDocument();
+    expect(screen.getByTestId('component-plan-retrieval-notice')).toHaveTextContent(
+      /retrieval is unavailable/i,
     );
 
     await user.click(screen.getByRole('button', { name: /^Firmware$/i }));
