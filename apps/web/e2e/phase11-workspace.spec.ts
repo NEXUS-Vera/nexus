@@ -16,7 +16,7 @@ test.describe('phase 11 artifact workspace shell', () => {
     await expect(page).toHaveURL(/\/projects\/proj_/, { timeout: 60_000 });
     await expect(page.getByTestId('figma-shell')).toBeVisible();
 
-    await page.getByRole('button', { name: /^Overview$/i }).click();
+    await page.getByRole('tab', { name: /^Overview$/i }).click();
     await expect(page.getByTestId('project-overview')).toBeVisible();
 
     await page.getByRole('button', { name: /^Requirements$/i }).click();

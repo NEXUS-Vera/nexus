@@ -61,7 +61,7 @@ test.describe('fixture-mode persistence and modification', () => {
 
     await page.getByRole('button', { name: /Show project history|History/i }).click();
     await expect(page.getByText(/Artifact revisions/i)).toBeVisible();
-    await expect(page.getByText(/requirement-set v2/i)).toBeVisible();
+    await expect(page.getByText(/requirement-set v2 \(ready\)/i)).toBeVisible();
 
     await expect(page.getByText(/BMI270/i)).toHaveCount(0);
     await expect(page.getByText(/T-008/i)).toHaveCount(0);
