@@ -97,8 +97,8 @@ def build_stores(
 ) -> tuple[ProjectPackageStore, ProjectKernelStore]:
     mode = (backend or os.environ.get("NEXUS_STORAGE_BACKEND") or "memory").strip().lower()
     if mode in {"memory", "mem", "inmemory"}:
-        project = InMemoryProjectStore()
-        return project, InMemoryKernelStore(project_store=project)
+        memory_project = InMemoryProjectStore()
+        return memory_project, InMemoryKernelStore(project_store=memory_project)
     if mode in {"postgres", "postgresql", "pg"}:
         url = (
             database_url
@@ -107,6 +107,6 @@ def build_stores(
         )
         engine = create_db_engine(url)
         session_factory = create_session_factory(engine)
-        project = PostgresProjectStore(session_factory)
-        return project, PostgresKernelStore(session_factory, project_store=project)
+        pg_project = PostgresProjectStore(session_factory)
+        return pg_project, PostgresKernelStore(session_factory, project_store=pg_project)
     raise ValueError(f"Unsupported storage backend: {mode}")

@@ -619,6 +619,10 @@ def generate(*, check: bool = False) -> int:
         bundled_dir.mkdir(parents=True, exist_ok=True)
         ts_bundled_dir = Path(tmp) / "bundled-ts"
         ts_bundled_dir.mkdir(parents=True, exist_ok=True)
+        py_out_dir = Path(tmp) / "generated-python"
+        ts_out_dir = Path(tmp) / "generated-typescript"
+        py_out_dir.mkdir(parents=True, exist_ok=True)
+        ts_out_dir.mkdir(parents=True, exist_ok=True)
         for stem in PUBLIC_SCHEMA_STEMS:
             schema = schemas_by_stem[stem]
             bundled = _bundle_schema(schema, store)
@@ -628,9 +632,26 @@ def generate(*, check: bool = False) -> int:
                 _prepare_schema_for_typescript(bundled),
             )
 
+        _generate_python(bundled_dir, py_out_dir)
+        _generate_typescript(ts_bundled_dir, ts_out_dir)
+
+        # Replace destination directories only after both generations succeed;
+        # restore the previous outputs if the swap itself fails.
         with _restore_on_failure(GENERATED_PYTHON, GENERATED_TYPESCRIPT):
-            _generate_python(bundled_dir, GENERATED_PYTHON)
-            _generate_typescript(ts_bundled_dir, GENERATED_TYPESCRIPT)
+            GENERATED_PYTHON.mkdir(parents=True, exist_ok=True)
+            GENERATED_TYPESCRIPT.mkdir(parents=True, exist_ok=True)
+            for path in GENERATED_PYTHON.glob("*.py"):
+                path.unlink()
+            for path in GENERATED_TYPESCRIPT.glob("*.ts"):
+                path.unlink()
+            for path in sorted(py_out_dir.glob("*.py")):
+                (GENERATED_PYTHON / path.name).write_text(
+                    path.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+            for path in sorted(ts_out_dir.glob("*.ts")):
+                (GENERATED_TYPESCRIPT / path.name).write_text(
+                    path.read_text(encoding="utf-8"), encoding="utf-8"
+                )
 
     # Remove legacy placeholders if present.
     for keep in (GENERATED_PYTHON / ".gitkeep", GENERATED_TYPESCRIPT / ".gitkeep"):

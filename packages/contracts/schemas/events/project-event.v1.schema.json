@@ -160,6 +160,37 @@
         "summary": {
           "type": "string",
           "minLength": 1
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "resultingArtifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "resultingArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "supersededBy": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "outputType": {
+          "type": "string",
+          "enum": [
+            "validation-report",
+            "log",
+            "structured-result",
+            "file-reference",
+            "plot-reference",
+            "binary-reference",
+            "test-report"
+          ]
+        },
+        "evidenceStatus": {
+          "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
         }
       }
     }
