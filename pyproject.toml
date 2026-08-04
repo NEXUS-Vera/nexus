@@ -46,6 +46,8 @@ python_files = ["test_*.py"]
 pythonpath = [
   "apps/api/src",
   "agents/embedded-systems/src",
+  "packages/board/src",
+  "packages/board/tests",
   "packages/contracts/src",
   "packages/contracts/generated/python",
   "packages/model-gateway/src",
