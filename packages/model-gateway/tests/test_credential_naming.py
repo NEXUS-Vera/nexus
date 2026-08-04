@@ -22,10 +22,12 @@ def test_secret_pattern_scan_passes_on_tracked_tree() -> None:
 
 
 def test_openai_gateway_accepts_model_credential_field() -> None:
-    from nexus_model_gateway import OpenAICompatibleGateway
+    from nexus_model_gateway import AnthropicGateway, OpenAICompatibleGateway
 
-    gateway = OpenAICompatibleGateway(model_credential="")
-    assert gateway.model_credential == ""
-    # Ensure the old matching field name is not present on the dataclass.
-    assert "model_credential" in gateway.__dataclass_fields__
-    assert all("key" not in name for name in gateway.__dataclass_fields__)
+    for gateway in (
+        OpenAICompatibleGateway(model_credential=""),
+        AnthropicGateway(model_credential=""),
+    ):
+        assert gateway.model_credential == ""
+        assert "model_credential" in gateway.__dataclass_fields__
+        assert all("key" not in name for name in gateway.__dataclass_fields__)

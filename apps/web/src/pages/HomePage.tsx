@@ -61,7 +61,14 @@ export function HomePage() {
         } else if (err.status === 0) {
           setError({ kind: 'network', message: err.message });
         } else {
-          setError({ kind: 'server', message: err.message });
+          const details = err.body?.error.details;
+          setError({
+            kind: 'server',
+            message:
+              details && details.length
+                ? `${err.message} (${details.slice(0, 5).join(', ')})`
+                : err.message,
+          });
         }
       } else {
         setError({

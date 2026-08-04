@@ -35,7 +35,7 @@ each run is a stateless request/response over the supplied prompt.
   before failing with `LLM_INITIALIZATION_VALIDATION_FAILED`.
   `NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`, `NEXUS_MODEL_API_KEY`,
   `NEXUS_MODEL_TIMEOUT_SECONDS`, and `NEXUS_MODEL_BASE_URL` configure the
-  gateway.
+  gateway (`openai` or `anthropic`).
 - `shadow` — runs both `fixture` and `llm`, always returns the `fixture`
   result to the caller, and records the LLM outcome (success or failure)
   through `nexus_observability` without ever propagating an LLM error.

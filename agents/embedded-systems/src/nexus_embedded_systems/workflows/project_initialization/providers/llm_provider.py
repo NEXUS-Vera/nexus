@@ -266,6 +266,11 @@ class LlmInitializationProvider:
             schema_errors = validate_initialization_result_schema(result)
             if schema_errors:
                 ledger.fail_step(step)
+                logger.error(
+                    "llm_package_schema_validation_failed request_id=%s errors=%s",
+                    request_id,
+                    schema_errors[:20],
+                )
                 raise LlmInitializationError(
                     code="LLM_INITIALIZATION_VALIDATION_FAILED",
                     message="Assembled LLM package failed schema validation.",
@@ -278,11 +283,17 @@ class LlmInitializationProvider:
             blocking = [e for e in semantic if getattr(e, "blocking", True)]
             if blocking:
                 ledger.fail_step(step)
+                codes = sorted({e.code for e in blocking})
+                logger.error(
+                    "llm_package_semantic_validation_failed request_id=%s codes=%s",
+                    request_id,
+                    codes,
+                )
                 raise LlmInitializationError(
                     code="LLM_INITIALIZATION_VALIDATION_FAILED",
                     message="Assembled LLM package failed semantic validation.",
                     workflow_run=ledger.to_workflow_run(),
-                    details=sorted({e.code for e in blocking}),
+                    details=codes,
                 )
             ledger.complete_step(step)
 
