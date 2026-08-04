@@ -1,0 +1,102 @@
+:root {
+  /* Surfaces */
+  --nx-bg: #f7f8fa;
+  --nx-surface: #ffffff;
+  --nx-surface-2: #eef1f5;
+  --nx-surface-3: #f3f5f8;
+  --nx-cobalt-tint: #eaf0ff;
+  --nx-cobalt-selected: #f1f5ff;
+
+  /* Text */
+  --nx-text: #151a23;
+  --nx-text-secondary: #667085;
+  --nx-text-muted: #8a94a3;
+
+  /* Borders */
+  --nx-border: #d9dee7;
+  --nx-border-hover: #c6cdd8;
+
+  /* Brand / primary */
+  --nx-cobalt: #3563e9;
+  --nx-cobalt-soft: #6c8dff;
+  --nx-accent-lime: #b8e24a;
+
+  /* Status */
+  --nx-status-ready: #159a7a;
+  --nx-status-active: #3563e9;
+  --nx-status-warning: #dc6b20;
+  --nx-status-danger: #d14343;
+  --nx-status-muted: #8a94a3;
+  --nx-status-stale: #858b98;
+  --nx-status-needs: #d58a12;
+
+  /* Evidence */
+  --nx-evidence-grounded: #159a7a;
+  --nx-evidence-inferred: #64748b;
+  --nx-evidence-partial: #d58a12;
+  --nx-evidence-unverified: #8a94a3;
+  --nx-evidence-tested: #168aad;
+  --nx-evidence-conflicted: #d14343;
+
+  /* Spacing / radii / layout */
+  --nx-header-height: 64px;
+  --nx-radius-sm: 4px;
+  --nx-radius-md: 6px;
+  --nx-radius-lg: 8px;
+  --nx-space-1: 4px;
+  --nx-space-2: 8px;
+  --nx-space-3: 12px;
+  --nx-space-4: 16px;
+
+  /* Typography */
+  --nx-font: 'Inter', system-ui, -apple-system, sans-serif;
+  --nx-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --nx-font-size-xs: 11px;
+  --nx-font-size-sm: 12px;
+  --nx-font-size-md: 13px;
+  --nx-font-size-lg: 14px;
+  --nx-font-size-xl: 16px;
+
+  /* Legacy aliases used by home / cards */
+  --bg: var(--nx-bg);
+  --ink: var(--nx-text);
+  --muted: var(--nx-text-secondary);
+  --panel: var(--nx-surface);
+  --accent: var(--nx-cobalt);
+  --accent-soft: var(--nx-cobalt-tint);
+  --danger: var(--nx-status-danger);
+  --warning: var(--nx-status-needs);
+  --line: var(--nx-border);
+  --focus: var(--nx-cobalt);
+  --font-body: var(--nx-font);
+  --font-display: var(--nx-font);
+}
+
+html.dark {
+  --nx-bg: #0d1117;
+  --nx-surface: #151b24;
+  --nx-surface-2: #1c2430;
+  --nx-surface-3: #222b38;
+  --nx-cobalt-tint: #1b2a52;
+  --nx-cobalt-selected: #1b2a52;
+  --nx-text: #f3f5f7;
+  --nx-text-secondary: #99a3b3;
+  --nx-text-muted: #768194;
+  --nx-border: #2c3543;
+  --nx-border-hover: #3a4657;
+  --nx-cobalt: #6c8dff;
+
+  --bg: var(--nx-bg);
+  --ink: var(--nx-text);
+  --muted: var(--nx-text-secondary);
+  --panel: var(--nx-surface);
+  --accent: var(--nx-cobalt);
+  --accent-soft: var(--nx-cobalt-tint);
+  --line: var(--nx-border);
+  --focus: var(--nx-cobalt);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--nx-cobalt);
+  outline-offset: 2px;
+}

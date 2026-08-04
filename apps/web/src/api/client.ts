@@ -133,3 +133,15 @@ export async function submitProjectTurn(input: {
   }
   return json as unknown as import('@nexus/contracts').ProjectTurnResult;
 }
+
+export async function getArtifactVersion(input: {
+  projectId: string;
+  artifactType: string;
+  version?: number;
+}): Promise<import('@nexus/contracts').Artifact> {
+  const query =
+    input.version != null ? `?version=${encodeURIComponent(String(input.version))}` : '';
+  return (await requestJson(
+    `/v1/projects/${input.projectId}/artifacts/${input.artifactType}${query}`,
+  )) as import('@nexus/contracts').Artifact;
+}

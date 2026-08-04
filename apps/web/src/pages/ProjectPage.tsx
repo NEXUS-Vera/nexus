@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { Toaster } from 'sonner';
 import type { ProjectCurrentState, ProjectHistory } from '@nexus/contracts';
 import {
   ApiClientError,
@@ -8,27 +10,31 @@ import {
   submitProjectTurn,
 } from '../api/client';
 import { selectArtifactByType } from '../artifacts';
-import { FunctionalArchitectureCard } from '../components/FunctionalArchitectureCard';
-import { NextActionCard } from '../components/NextActionCard';
-import { ProjectBriefCard } from '../components/ProjectBriefCard';
-import { RequirementsCard } from '../components/RequirementsCard';
-
-type Indicator = 'Updated' | 'Regenerated' | 'Unchanged' | 'Current';
-
-function indicatorFor(
-  artifactType: string,
-  version: number,
-  regenerated: string[],
-  changed: string[],
-): Indicator {
-  if (regenerated.includes(artifactType)) return 'Regenerated';
-  if (changed.includes(artifactType)) return 'Updated';
-  if (version > 1) return 'Updated';
-  return 'Unchanged';
-}
+import { ArchitectureWorkspace } from '../artifacts/architecture/workspace';
+import { FutureArtifactPlaceholder } from '../artifacts/placeholders';
+import { NextActionWorkspace } from '../artifacts/next-action/workspace';
+import { ProjectBriefWorkspace } from '../artifacts/project-brief/workspace';
+import { RequirementsWorkspace } from '../artifacts/requirements/workspace';
+import type { ArtifactRouteKey } from '../artifacts/types';
+import { changeIndicatorFor } from '../artifacts/types';
+import { AppHeader } from '../components/layout/AppHeader';
+import { ContextInspector } from '../components/layout/ContextInspector';
+import { WorkflowRail } from '../components/layout/WorkflowRail';
+import { HistoryPanel } from '../components/feedback/HistoryPanel';
+import { VeraPanel } from '../components/feedback/VeraPanel';
+import { CommandPalette } from '../components/navigation/CommandPalette';
+import { useTheme } from '../hooks/use-theme';
+import { useWorkspaceUrl } from '../hooks/use-workspace-url';
+import { themeColors } from '../lib/theme';
+import { MindGraphWorkspace } from '../views/MindGraphWorkspace';
+import { ProjectOverview } from '../views/ProjectOverview';
 
 export function ProjectPage() {
   const { projectId = '' } = useParams();
+  const { isDark, toggleDark } = useTheme();
+  const t = themeColors(isDark);
+  const url = useWorkspaceUrl();
+
   const [state, setState] = useState<ProjectCurrentState | null>(null);
   const [history, setHistory] = useState<ProjectHistory | null>(null);
   const [message, setMessage] = useState('');
@@ -37,12 +43,12 @@ export function ProjectPage() {
   const [error, setError] = useState<string | null>(null);
   const [regenerated, setRegenerated] = useState<string[]>([]);
   const [changed, setChanged] = useState<string[]>([]);
-  const [selectedRevision, setSelectedRevision] = useState<{
-    artifactType: string;
-    artifactVersion: number;
-    artifactId: string;
-  } | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
+  const [affected, setAffected] = useState<string[]>([]);
+  const [stale, setStale] = useState<string[]>([]);
+  const [railCollapsed, setRailCollapsed] = useState(false);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [showNextAction, setShowNextAction] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,7 +78,18 @@ export function ProjectPage() {
     };
   }, [projectId]);
 
-  const artifacts = useMemo(() => {
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandPaletteOpen((prev) => !prev);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const live = useMemo(() => {
     if (!state) return null;
     return {
       brief: selectArtifactByType(state.artifacts, 'project-brief'),
@@ -81,6 +98,28 @@ export function ProjectPage() {
       nextAction: selectArtifactByType(state.artifacts, 'next-action'),
     };
   }, [state]);
+
+  const changeByType = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const type of ['project-brief', 'requirement-set', 'functional-architecture', 'next-action']) {
+      const version =
+        live && type in live
+          ? (live[type as keyof typeof live] as { artifactVersion: number } | undefined)?.artifactVersion ?? 1
+          : 1;
+      map[type] = changeIndicatorFor(type, version, regenerated, changed, affected, stale);
+    }
+    return map;
+  }, [affected, changed, live, regenerated, stale]);
+
+  const architectureCoverage = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const node of live?.architecture?.content.nodes ?? []) {
+      for (const reqId of node.satisfiesRequirementIds) {
+        map[reqId] = [...(map[reqId] ?? []), node.name];
+      }
+    }
+    return map;
+  }, [live?.architecture]);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -95,6 +134,8 @@ export function ProjectPage() {
       setState(result.currentState);
       setRegenerated(result.regeneratedArtifactTypes ?? []);
       setChanged(result.changedArtifactTypes ?? []);
+      setAffected(result.impactAnalysis?.affected ?? []);
+      setStale(result.impactAnalysis?.stale ?? []);
       setMessage('');
       setHistory(await getProjectHistory(projectId));
     } catch (err) {
@@ -106,183 +147,264 @@ export function ProjectPage() {
 
   if (loading) {
     return (
-      <main className="page">
+      <main className="page" aria-live="polite">
         <p>Loading project…</p>
       </main>
     );
   }
 
-  if (!state || !artifacts?.brief || !artifacts.requirements || !artifacts.architecture || !artifacts.nextAction) {
+  if (!state || !live?.brief || !live.requirements || !live.architecture || !live.nextAction) {
     return (
       <main className="page">
-        <p>{error ?? 'Project not found.'}</p>
+        <p role="alert">{error ?? 'Project not found.'}</p>
         <Link to="/">Start a new project</Link>
       </main>
     );
   }
 
-  const { brief, requirements, architecture, nextAction } = artifacts;
-
   const openQuestions = (state.openQuestions ?? []).filter((q) => q.status === 'open');
 
+  function renderCenter() {
+    if (url.globalView === 'overview') {
+      return (
+        <ProjectOverview
+          state={state!}
+          history={history}
+          isDark={isDark}
+          onNavigate={(key) => {
+            setShowNextAction(false);
+            url.setSelectedArtifact(key);
+          }}
+          onOpenNextAction={() => {
+            setShowNextAction(true);
+            url.setGlobalView('workspace');
+            url.setInspectorSelection({ kind: 'next-action' });
+          }}
+          onOpenHistory={() => url.setHistoryOpen(true)}
+        />
+      );
+    }
+    if (url.globalView === 'mind-graph') {
+      return (
+        <MindGraphWorkspace
+          state={state!}
+          isDark={isDark}
+          onNavigate={(key) => {
+            setShowNextAction(false);
+            url.setSelectedArtifact(key);
+          }}
+        />
+      );
+    }
+    if (showNextAction) {
+      return (
+        <NextActionWorkspace
+          artifact={live!.nextAction!}
+          changeIndicator={changeByType['next-action']}
+          isDark={isDark}
+        />
+      );
+    }
+
+    const key = url.selectedArtifact;
+    if (key === 'project-brief') {
+      return (
+        <ProjectBriefWorkspace
+          artifact={live!.brief!}
+          changeIndicator={changeByType['project-brief']}
+          isDark={isDark}
+          onSelectItem={url.setInspectorSelection}
+        />
+      );
+    }
+    if (key === 'requirement-set') {
+      return (
+        <RequirementsWorkspace
+          artifact={live!.requirements!}
+          changeIndicator={changeByType['requirement-set']}
+          isDark={isDark}
+          selectedRequirementId={url.selectedRequirement}
+          onSelectRequirement={(id) => {
+            url.setSelectedRequirement(id);
+          }}
+          architectureNodeIdsByRequirement={architectureCoverage}
+        />
+      );
+    }
+    if (key === 'functional-architecture') {
+      return (
+        <ArchitectureWorkspace
+          artifact={live!.architecture!}
+          changeIndicator={changeByType['functional-architecture']}
+          isDark={isDark}
+          selectedNodeId={url.selectedArchNode}
+          onSelectNode={(id) => url.setSelectedArchNode(id)}
+        />
+      );
+    }
+    if (
+      key === 'component-plan' ||
+      key === 'firmware-scaffold' ||
+      key === 'analysis-notebook' ||
+      key === 'test-plan' ||
+      key === 'risk-register'
+    ) {
+      return (
+        <FutureArtifactPlaceholder
+          routeKey={key}
+          isDark={isDark}
+          nextActionTitle={live!.nextAction!.content.title}
+        />
+      );
+    }
+    return null;
+  }
+
+  function selectArtifact(key: ArtifactRouteKey) {
+    setShowNextAction(false);
+    url.setSelectedArtifact(key);
+  }
+
   return (
-    <main className="page project-page">
-      <header className="hero">
-        <p className="eyebrow">
-          <Link to="/">New project</Link> · {state.project.projectId}
-        </p>
-        <h1>{state.project.title}</h1>
-        <p className="lede">
-          State v{state.project.currentStateVersion} · {state.workflowRun.runStatus}
-        </p>
-      </header>
+    <div
+      data-testid="figma-shell"
+      style={{
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: t.bg,
+        fontFamily: 'var(--nx-font)',
+        overflow: 'hidden',
+        color: t.text,
+      }}
+    >
+      <Toaster position="bottom-right" richColors />
+      <AppHeader
+        projectTitle={state.project.title}
+        projectDomain={state.project.domain}
+        projectId={state.project.projectId}
+        stateVersion={state.project.currentStateVersion}
+        globalView={url.globalView}
+        onGlobalViewChange={(view) => {
+          setShowNextAction(false);
+          url.setGlobalView(view);
+        }}
+        isDark={isDark}
+        onToggleDark={toggleDark}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+        onToggleHistory={() => url.setHistoryOpen(!url.historyOpen)}
+        historyOpen={url.historyOpen}
+      />
 
-      <section className="vera-panel">
-        <h2>Vera</h2>
-        <p>{state.veraResponse.userFacingMessage}</p>
-        <form onSubmit={onSubmit} className="prompt-form">
-          <label htmlFor="turn">Continue the conversation</label>
-          <textarea
-            id="turn"
-            rows={3}
-            value={message}
-            disabled={submitting}
-            onChange={(event) => setMessage(event.target.value)}
-            placeholder="It should run for at least six months on battery power."
-          />
-          <button type="submit" disabled={submitting || !message.trim()}>
-            {submitting ? 'Updating…' : 'Send to Vera'}
-          </button>
-        </form>
-        {error ? (
-          <p className="error-panel" role="alert">
-            {error}
-          </p>
-        ) : null}
-      </section>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+        <PanelGroup direction="horizontal" style={{ flex: 1, overflow: 'hidden' }}>
+          <Panel
+            defaultSize={railCollapsed ? 5 : 16}
+            minSize={railCollapsed ? 4 : 13}
+            maxSize={railCollapsed ? 6 : 22}
+          >
+            <WorkflowRail
+              selectedArtifact={url.selectedArtifact}
+              onSelectArtifact={selectArtifact}
+              collapsed={railCollapsed}
+              onCollapsedChange={setRailCollapsed}
+              isDark={isDark}
+              artifacts={state.artifacts}
+              nextAction={live.nextAction}
+              changeByType={changeByType}
+              onOpenNextAction={() => {
+                setShowNextAction(true);
+                url.setGlobalView('workspace');
+                url.setInspectorSelection({ kind: 'next-action' });
+              }}
+              onOpenHistory={() => url.setHistoryOpen(true)}
+            />
+          </Panel>
 
-      {openQuestions.length ? (
-        <section className="open-questions">
-          <h2>Open questions</h2>
-          <ul>
-            {openQuestions.map((question) => (
-              <li key={question.questionId}>
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={() => setMessage(question.question)}
-                >
-                  Use in message
-                </button>{' '}
-                {question.question}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+          <PanelResizeHandle>
+            <div
+              style={{
+                width: 4,
+                height: '100%',
+                background: t.border,
+                cursor: 'col-resize',
+              }}
+            />
+          </PanelResizeHandle>
 
-      <section className="artifact-grid">
-        <div>
-          <p className="revision-badge">
-            Project Brief · v{brief.artifactVersion} ·{' '}
-            {indicatorFor(
-              'project-brief',
-              brief.artifactVersion,
-              regenerated,
-              changed,
-            )}
-          </p>
-          <ProjectBriefCard artifact={brief} />
-        </div>
-        <div>
-          <p className="revision-badge">
-            Requirements · v{requirements.artifactVersion} ·{' '}
-            {indicatorFor(
-              'requirement-set',
-              requirements.artifactVersion,
-              regenerated,
-              changed,
-            )}
-          </p>
-          <RequirementsCard artifact={requirements} />
-        </div>
-        <div>
-          <p className="revision-badge">
-            Architecture · v{architecture.artifactVersion} ·{' '}
-            {indicatorFor(
-              'functional-architecture',
-              architecture.artifactVersion,
-              regenerated,
-              changed,
-            )}
-          </p>
-          <FunctionalArchitectureCard artifact={architecture} />
-        </div>
-        <div>
-          <p className="revision-badge">
-            Next Action · v{nextAction.artifactVersion} ·{' '}
-            {indicatorFor(
-              'next-action',
-              nextAction.artifactVersion,
-              regenerated,
-              changed,
-            )}
-          </p>
-          <NextActionCard artifact={nextAction} />
-        </div>
-      </section>
+          <Panel defaultSize={62} minSize={40}>
+            <div style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                {renderCenter()}
+              </div>
+              {url.historyOpen && history ? (
+                <HistoryPanel
+                  history={history}
+                  isDark={isDark}
+                  onClose={() => url.setHistoryOpen(false)}
+                  onSelectRevision={url.setInspectorSelection}
+                />
+              ) : null}
+              <VeraPanel
+                message={message}
+                onMessageChange={setMessage}
+                onSubmit={onSubmit}
+                submitting={submitting}
+                veraMessage={state.veraResponse.userFacingMessage}
+                error={error}
+                openQuestions={openQuestions}
+                isDark={isDark}
+              />
+            </div>
+          </Panel>
 
-      <section className="history-panel">
-        <button type="button" className="chip" onClick={() => setShowHistory((v) => !v)}>
-          {showHistory ? 'Hide history' : 'Show history'}
-        </button>
-        {showHistory && history ? (
-          <div>
-            <h2>History</h2>
-            <h3>Turns</h3>
-            <ul>
-              {history.turns.map((turn) => (
-                <li key={turn.turnId}>
-                  <time>{turn.timestamp}</time> — {turn.rawUserMessage}
-                </li>
-              ))}
-            </ul>
-            <h3>Artifact revisions</h3>
-            <ul>
-              {history.artifactRevisions.map((rev) => (
-                <li key={`${rev.artifactId}-${rev.artifactVersion}`}>
-                  {rev.artifactType} v{rev.artifactVersion} ({rev.lifecycleStatus}){' '}
-                  <button
-                    type="button"
-                    className="chip"
-                    onClick={() =>
-                      setSelectedRevision({
-                        artifactType: rev.artifactType,
-                        artifactVersion: rev.artifactVersion,
-                        artifactId: rev.artifactId,
-                      })
-                    }
-                  >
-                    Inspect
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {selectedRevision ? (
-              <aside className="error-panel">
-                <h3>Historical revision (read-only)</h3>
-                <p>
-                  {selectedRevision.artifactType} v{selectedRevision.artifactVersion}
-                </p>
-                <p>ID: {selectedRevision.artifactId}</p>
-                <button type="button" onClick={() => setSelectedRevision(null)}>
-                  Close
-                </button>
-              </aside>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-    </main>
+          <PanelResizeHandle>
+            <div
+              style={{
+                width: 4,
+                height: '100%',
+                background: t.border,
+                cursor: 'col-resize',
+              }}
+            />
+          </PanelResizeHandle>
+
+          <Panel
+            defaultSize={inspectorCollapsed ? 4 : 22}
+            minSize={inspectorCollapsed ? 3 : 16}
+            maxSize={inspectorCollapsed ? 5 : 30}
+          >
+            <ContextInspector
+              collapsed={inspectorCollapsed}
+              onCollapsedChange={setInspectorCollapsed}
+              isDark={isDark}
+              activeArtifact={url.selectedArtifact}
+              selection={url.selection}
+              state={state}
+              changedArtifactTypes={changed}
+              regeneratedArtifactTypes={regenerated}
+              onFocusVera={url.focusVera}
+            />
+          </Panel>
+        </PanelGroup>
+      </div>
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        isDark={isDark}
+        state={state}
+        onSetGlobalView={url.setGlobalView}
+        onSelectArtifact={selectArtifact}
+        onSelectRequirement={url.setSelectedRequirement}
+        onOpenNextAction={() => {
+          setShowNextAction(true);
+          url.setGlobalView('workspace');
+          url.setInspectorSelection({ kind: 'next-action' });
+        }}
+        onOpenHistory={() => url.setHistoryOpen(true)}
+        onFocusVera={url.focusVera}
+      />
+    </div>
   );
 }
