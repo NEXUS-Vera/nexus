@@ -284,6 +284,92 @@ class PostgresProjectStore:
                 ).all()
             ]
 
+    def get_project(self, project_id: str) -> dict[str, Any]:
+        with self._session_factory() as session:
+            row = session.get(ProjectRow, project_id)
+            if row is None:
+                raise ProjectNotFoundError(f"Project not found: {project_id}")
+            return dict(row.payload)
+
+    def apply_accepted_artifact_revision(
+        self,
+        *,
+        project_id: str,
+        new_artifact: dict[str, Any],
+        next_state_version: int,
+        updated_at: str,
+        expected_artifact_version: int | None = None,
+        expected_project_state_version: int | None = None,
+        session: Session | None = None,
+    ) -> dict[str, Any]:
+        from nexus_persistence.errors import (
+            ArtifactVersionConflictError,
+            ProjectStateConflictError,
+        )
+
+        owns_session = session is None
+        session = session or self._session_factory()
+        try:
+            row = session.get(ProjectRow, project_id)
+            if row is None:
+                raise ProjectNotFoundError(f"Project not found: {project_id}")
+            project = dict(row.payload)
+            if expected_project_state_version is not None and int(
+                project["currentStateVersion"]
+            ) != int(expected_project_state_version):
+                raise ProjectStateConflictError("Project state version conflict during accept.")
+            artifact_type = new_artifact["artifactType"]
+            current_ref = None
+            for ref in project.get("currentArtifactReferences", []):
+                if ref["artifactType"] == artifact_type:
+                    current_ref = ref
+                    break
+            if (
+                current_ref is not None
+                and expected_artifact_version is not None
+                and int(current_ref["artifactVersion"]) != int(expected_artifact_version)
+            ):
+                raise ArtifactVersionConflictError("Artifact version conflict during accept.")
+            self._upsert_artifact(session, new_artifact)
+            if current_ref is not None and current_ref.get("artifactId"):
+                prev = session.get(ArtifactRevisionRow, current_ref["artifactId"])
+                if prev is not None:
+                    prev_payload = dict(prev.payload)
+                    prev_payload["lifecycleStatus"] = "superseded"
+                    prev_payload["updatedAt"] = updated_at
+                    prev.payload = prev_payload
+            refs = list(project.get("currentArtifactReferences", []))
+            new_ref = {
+                "artifactType": artifact_type,
+                "artifactId": new_artifact["artifactId"],
+                "artifactVersion": int(new_artifact["artifactVersion"]),
+                "contentSchemaVersion": new_artifact.get("contentSchemaVersion", "1.0.0"),
+            }
+            replaced = False
+            for i, ref in enumerate(refs):
+                if ref["artifactType"] == artifact_type:
+                    refs[i] = new_ref
+                    replaced = True
+                    break
+            if not replaced:
+                refs.append(new_ref)
+            project["currentArtifactReferences"] = refs
+            project["currentStateVersion"] = int(next_state_version)
+            project["updatedAt"] = updated_at
+            row.payload = project
+            row.current_state_version = int(next_state_version)
+            row.updated_at = _parse_dt(updated_at)
+            if owns_session:
+                session.commit()
+            return dict(project)
+        except Exception:
+            if owns_session:
+                session.rollback()
+            raise
+        finally:
+            if owns_session:
+                session.close()
+
     def save_workflow_run(self, workflow_run: dict[str, Any]) -> None:
         with self._session_factory() as session:
             try:

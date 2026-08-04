@@ -31,3 +31,35 @@ class ProjectPersistenceError(PersistenceError):
 
 class ProjectRetrievalError(PersistenceError):
     code = "PROJECT_RETRIEVAL_FAILED"
+
+
+class WorkspaceNotFoundError(PersistenceError):
+    code = "WORKSPACE_NOT_FOUND"
+
+
+class SnapshotNotFoundError(PersistenceError):
+    code = "SNAPSHOT_NOT_FOUND"
+
+
+class ProposalNotFoundError(PersistenceError):
+    code = "PROPOSAL_NOT_FOUND"
+
+
+class ExecutionNotFoundError(PersistenceError):
+    code = "EXECUTION_NOT_FOUND"
+
+
+class SnapshotImmutableError(PersistenceError):
+    code = "SNAPSHOT_IMMUTABLE"
+
+
+class LedgerImmutableError(PersistenceError):
+    code = "LEDGER_IMMUTABLE"
+
+
+class ArtifactVersionConflictError(PersistenceError):
+    code = "ARTIFACT_VERSION_CONFLICT"
+
+
+class ProjectStateConflictError(PersistenceError):
+    code = "PROJECT_STATE_CONFLICT"
