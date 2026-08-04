@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import fixture from '../../../packages/contracts/examples/valid/project-initialization-result/project-initialization-result.json';
+import { ARTIFACT_ORDER, ARTIFACT_REGISTRY } from './artifacts/registry';
 
 function renderApp(path = '/') {
   return render(
@@ -11,6 +12,17 @@ function renderApp(path = '/') {
       <App />
     </MemoryRouter>,
   );
+}
+
+function historyPayload(projectId: string) {
+  return {
+    schemaVersion: '1.0.0',
+    projectId,
+    turns: [],
+    workflowRuns: [],
+    artifactRevisions: [],
+    veraResponses: [],
+  };
 }
 
 describe('Nexus web routing and project workspace', () => {
@@ -39,15 +51,7 @@ describe('Nexus web routing and project workspace', () => {
         return {
           ok: true,
           status: 200,
-          text: async () =>
-            JSON.stringify({
-              schemaVersion: '1.0.0',
-              projectId,
-              turns: [],
-              workflowRuns: [],
-              artifactRevisions: [],
-              veraResponses: [],
-            }),
+          text: async () => JSON.stringify(historyPayload(projectId)),
         };
       }
       return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
@@ -59,11 +63,12 @@ describe('Nexus web routing and project workspace', () => {
     await waitFor(() => {
       expect(screen.getByText(new RegExp(projectId))).toBeInTheDocument();
     });
+    expect(screen.getByTestId('figma-shell')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Vera' })).toBeInTheDocument();
-    expect(screen.getByText(/Requirements · v1/i)).toBeInTheDocument();
+    expect(screen.getByText(/Project Brief · v1/i)).toBeInTheDocument();
   });
 
-  it('loads a persisted project from the project route', async () => {
+  it('loads a persisted project from the project route and opens history', async () => {
     const projectId = (fixture as { project: { projectId: string } }).project.projectId;
     vi.stubGlobal(
       'fetch',
@@ -97,7 +102,7 @@ describe('Nexus web routing and project workspace', () => {
     );
     renderApp(`/projects/${projectId}`);
     expect(await screen.findByRole('heading', { name: 'Vera' })).toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole('button', { name: /Show history/i }));
+    await userEvent.setup().click(screen.getByRole('button', { name: /Show project history|History/i }));
     expect(await screen.findByText(/Artifact revisions/i)).toBeInTheDocument();
   });
 
@@ -140,15 +145,7 @@ describe('Nexus web routing and project workspace', () => {
         return {
           ok: true,
           status: 200,
-          text: async () =>
-            JSON.stringify({
-              schemaVersion: '1.0.0',
-              projectId,
-              turns: [],
-              workflowRuns: [],
-              artifactRevisions: [],
-              veraResponses: [],
-            }),
+          text: async () => JSON.stringify(historyPayload(projectId)),
         };
       }
       return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
@@ -156,9 +153,14 @@ describe('Nexus web routing and project workspace', () => {
     vi.stubGlobal('fetch', fetchMock);
     renderApp(`/projects/${projectId}`);
     await screen.findByRole('heading', { name: 'Vera' });
-    await user.type(screen.getByLabelText(/Continue the conversation/i), 'Need six months battery');
-    await user.click(screen.getByRole('button', { name: /Send to Vera/i }));
-    expect(screen.getByRole('button', { name: /Updating/i })).toBeDisabled();
+    const turnInput = screen.getByLabelText(/Continue the conversation/i);
+    await user.clear(turnInput);
+    await user.type(turnInput, 'Need six months battery');
+    expect(turnInput).toHaveValue('Need six months battery');
+    const send = screen.getByRole('button', { name: /Send to Vera/i });
+    expect(send).toBeEnabled();
+    await user.click(send);
+    expect(await screen.findByRole('button', { name: /Updating/i })).toBeDisabled();
     expect(fetchMock.mock.calls.some((call) => String(call[0]).includes('/turns'))).toBe(true);
     resolveTurn?.({
       ok: true,
@@ -190,5 +192,68 @@ describe('Nexus web routing and project workspace', () => {
           regeneratedArtifactTypes: ['requirement-set', 'next-action'],
         }),
     });
+  });
+
+  it('renders figma shell and selects live plus placeholder artifacts', async () => {
+    const user = userEvent.setup();
+    const projectId = (fixture as { project: { projectId: string } }).project.projectId;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes('/history')) {
+          return { ok: true, status: 200, text: async () => JSON.stringify(historyPayload(projectId)) };
+        }
+        return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
+      }),
+    );
+    renderApp(`/projects/${projectId}`);
+    await screen.findByTestId('figma-shell');
+
+    await user.click(screen.getByRole('button', { name: /^Requirements$/i }));
+    expect(await screen.findByTestId('workspace-requirements')).toBeInTheDocument();
+    expect(screen.getByText(/Total:/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Architecture$/i }));
+    expect(await screen.findByTestId('workspace-architecture')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /^Components$/i }));
+    expect(await screen.findByTestId('artifact-placeholder')).toHaveTextContent(
+      /Component and Sensor Plan is not generated yet/i,
+    );
+
+    await user.click(screen.getByRole('button', { name: /^Firmware$/i }));
+    expect(screen.getByTestId('artifact-placeholder')).toHaveTextContent(/Firmware scaffold unavailable/i);
+
+    expect(screen.queryByText(/BMI270/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/T-008/i)).not.toBeInTheDocument();
+  });
+
+  it('opens command palette and navigates to overview', async () => {
+    const user = userEvent.setup();
+    const projectId = (fixture as { project: { projectId: string } }).project.projectId;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes('/history')) {
+          return { ok: true, status: 200, text: async () => JSON.stringify(historyPayload(projectId)) };
+        }
+        return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
+      }),
+    );
+    renderApp(`/projects/${projectId}`);
+    await screen.findByTestId('figma-shell');
+    await user.click(screen.getByRole('button', { name: /Open command palette/i }));
+    const dialog = screen.getByRole('dialog', { name: /Command palette/i });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await user.click(within(dialog).getByRole('button', { name: /Open Overview/i }));
+    expect(await screen.findByTestId('project-overview')).toBeInTheDocument();
+  });
+
+  it('keeps registry order stable for shuffled lookups', () => {
+    const shuffled = [...ARTIFACT_ORDER].reverse();
+    for (const key of shuffled) {
+      expect(ARTIFACT_REGISTRY[key].routeKey).toBe(key);
+    }
+    expect(ARTIFACT_ORDER).toHaveLength(8);
   });
 });
