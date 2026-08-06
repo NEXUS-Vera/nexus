@@ -31,6 +31,8 @@ def test_dependency_rules() -> None:
         == "requirement-set"
     )
     assert registry.get("next-action")["boardVisibility"] == "global"
+    next_deps = {d["artifactType"] for d in registry.get("next-action")["dependencies"]}
+    assert "component-plan" in next_deps
     deps = {d["artifactType"] for d in registry.get("component-plan")["dependencies"]}
     assert deps == {"functional-architecture", "requirement-set"}
 

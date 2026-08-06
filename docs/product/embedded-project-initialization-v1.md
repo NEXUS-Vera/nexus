@@ -77,13 +77,14 @@ When the workflow accepts an input and reaches a successful completion, it produ
 - one **Project Brief** artifact
 - one **Requirement Set** artifact
 - one **Functional Architecture** artifact
+- one **Component Plan** artifact (Phase 12: roles, constraints, provisional candidates, coverage)
 - one **Next Action** artifact
 - zero or more **Validation Issues**
 - zero or more **Open Questions**
 - one **Vera Response**
 
-The workflow does **not** generate the requested four artifacts using an LLM.
-Instead, this slice defines the contract boundary and object meanings. Artifact content is produced by a non-LLM implementation in a later phase.
+The workflow does **not** generate the requested artifacts using an unconstrained free-form LLM dump.
+Artifact content is produced by staged generation + deterministic assembly (fixture or LLM provider), then validated against `packages/contracts`.
 
 ## Artifact maturity boundary
 
@@ -114,7 +115,7 @@ It must not claim validated choices of:
 - physical bus
 - part number
 
-Component-level recommendations belong to a later workflow.
+Detailed procurement-ready BOM generation remains out of scope. Phase 12 introduces a **Component Plan** artifact that may propose provisional, unverified candidates and selection constraints without claiming grounded or tested evidence.
 
 ## Artifact meanings (what each artifact must contain)
 
@@ -174,6 +175,19 @@ It must not claim validated choices of:
 - physical bus
 - part number
 
+### Component Plan
+
+Phase 12 Component Plan content includes:
+
+- component roles derived from architecture nodes (with architecture + requirement refs)
+- selection constraints derived from requirements where possible
+- provisional candidates (fixture or staged proposal; evidenceStatus must not be overstated)
+- selection decisions and compatibility checks when present
+- coverage summary (roles/candidates/architecture coverage)
+- maturity from `roles-defined` through `validated`
+
+Semantic validators reject unknown role references, blocked candidates approved as selections, duplicate approved selections per role, coverage mismatches, and `tested` candidate evidence in Phase 12.
+
 ### Next Action
 
 The Next Action is the highest-value immediate step derived from:
@@ -182,6 +196,7 @@ The Next Action is the highest-value immediate step derived from:
 - unknown requirements
 - validation issues
 - architectural gaps
+- component-plan gaps (missing constraints, awaiting approval, roles without candidates)
 
 It must not be a generic statement such as:
 
@@ -207,9 +222,12 @@ After successful initialization, the complete project package is persisted
 
 Multi-turn updates use `POST /v1/projects/{projectId}/turns`. Fixture mode
 supports deterministic patterns (runtime/battery, accuracy answers, sampling,
-environment, communication, size/weight, budget, reject proposed requirement)
+environment, communication, size/weight, budget, reject proposed requirement,
+and component-plan ops: approve/reject candidates, preferences, budget/interface
+constraints, alternatives, answer component open questions)
 without a model key. Only impacted artifacts receive new immutable revisions
 (`new artifactId`, incremented `artifactVersion`, `supersedes*` links).
+Unaffected component role IDs are preserved across selective updates.
 
 Authentication / tenancy are not implemented.
 
