@@ -10,12 +10,20 @@ export interface ProjectChangeIntent {
     | 'change-requirement'
     | 'remove-proposed-requirement'
     | 'answer-open-question'
-    | 'change-project-scope';
+    | 'change-project-scope'
+    | 'reject-component-candidate'
+    | 'approve-component-selection'
+    | 'change-component-preference'
+    | 'add-component-constraint'
+    | 'change-interface-constraint'
+    | 'request-component-alternatives'
+    | 'answer-component-open-question';
   requestedChange: string;
   requiresUserConfirmation: boolean;
   schemaVersion: '1.0.0';
   sourceTurnId: string;
-  targetArtifactType: 'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | null;
+  targetArtifactType:
+    'project-brief' | 'requirement-set' | 'functional-architecture' | 'component-plan' | 'next-action' | null;
   targetQuestionId?: string;
   targetRequirementId?: string;
 }

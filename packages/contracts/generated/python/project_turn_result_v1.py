@@ -16,6 +16,13 @@ class ChangeIntent(TypedDict, closed=True):
         'remove-proposed-requirement',
         'answer-open-question',
         'change-project-scope',
+        'reject-component-candidate',
+        'approve-component-selection',
+        'change-component-preference',
+        'add-component-constraint',
+        'change-interface-constraint',
+        'request-component-alternatives',
+        'answer-component-open-question',
     ]
     requestedChange: str
     requiresUserConfirmation: bool
@@ -23,7 +30,11 @@ class ChangeIntent(TypedDict, closed=True):
     sourceTurnId: str
     targetArtifactType: (
         Literal[
-            'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+            'project-brief',
+            'requirement-set',
+            'functional-architecture',
+            'component-plan',
+            'next-action',
         ]
         | None
     )
@@ -820,6 +831,13 @@ class TurnRoute(TypedDict, closed=True):
         'remove-proposed-requirement',
         'answer-open-question',
         'change-project-scope',
+        'reject-component-candidate',
+        'approve-component-selection',
+        'change-component-preference',
+        'add-component-constraint',
+        'change-interface-constraint',
+        'request-component-alternatives',
+        'answer-component-open-question',
         'none',
     ]
     reasons: list[str]

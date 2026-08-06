@@ -32,6 +32,13 @@ ID_PREFIXES: tuple[str, ...] = (
     "actor_",
     "event_",
     "act_",
+    "role_",
+    "cand_",
+    "sel_",
+    "cstr_",
+    "cchk_",
+    "cplan_",
+    "q_",
 )
 
 # Longest prefix first so "question_" wins over shorter accidental matches.
@@ -142,6 +149,7 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
     requirement_set_content = None
     functional_architecture_content = None
     next_action_content = None
+    component_plan_content = None
     for art in artifacts:
         if not isinstance(art, dict):
             continue
@@ -153,6 +161,8 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
             functional_architecture_content = content
         elif artifact_type == "next-action" and isinstance(content, dict):
             next_action_content = content
+        elif artifact_type == "component-plan" and isinstance(content, dict):
+            component_plan_content = content
 
     return {
         "artifact_envelopes": artifacts,
@@ -163,6 +173,7 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
         "requirement_set_content": requirement_set_content,
         "functional_architecture_content": functional_architecture_content,
         "next_action_content": next_action_content,
+        "component_plan_content": component_plan_content,
         "validation_issues": list(result.get("validationIssues") or []),
         "open_questions": list(result.get("openQuestions") or []),
         "vera_response": result.get("veraResponse"),
