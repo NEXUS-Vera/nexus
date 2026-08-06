@@ -26,6 +26,7 @@ test.describe('phase 11 artifact workspace shell', () => {
     await page.getByRole('button', { name: /^Components$/i }).click();
     await expect(page.getByTestId('workspace-component-plan')).toBeVisible();
     await expect(page.getByTestId('workspace-component-plan-shell')).toBeVisible();
+    await expect(page.getByTestId('component-plan-summary')).toBeVisible();
     await expect(page).toHaveURL(/artifact=component-plan/);
 
     await page.reload();
