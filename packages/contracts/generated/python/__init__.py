@@ -15,7 +15,12 @@ from .artifact_status_v1 import *  # noqa: F403
 from .artifact_type_definition_v1 import *  # noqa: F403
 from .artifact_type_v1 import *  # noqa: F403
 from .artifact_v1 import *  # noqa: F403
+from .compatibility_check_v1 import *  # noqa: F403
+from .component_candidate_v1 import *  # noqa: F403
+from .component_category_v1 import *  # noqa: F403
+from .component_plan_coverage_summary_v1 import *  # noqa: F403
 from .component_plan_v1 import *  # noqa: F403
+from .component_role_v1 import *  # noqa: F403
 from .consequence_level_v1 import *  # noqa: F403
 from .evidence_reference_v1 import *  # noqa: F403
 from .execution_request_v1 import *  # noqa: F403
@@ -43,6 +48,8 @@ from .project_v1 import *  # noqa: F403
 from .quantity_v1 import *  # noqa: F403
 from .requirement_set_v1 import *  # noqa: F403
 from .runtime_capability_v1 import *  # noqa: F403
+from .selection_constraint_v1 import *  # noqa: F403
+from .selection_decision_v1 import *  # noqa: F403
 from .turn_route_v1 import *  # noqa: F403
 from .user_turn_v1 import *  # noqa: F403
 from .validation_issue_v1 import *  # noqa: F403
@@ -66,7 +73,12 @@ __all__ = [
     "artifact_type_definition_v1",
     "artifact_type_v1",
     "artifact_v1",
+    "compatibility_check_v1",
+    "component_candidate_v1",
+    "component_category_v1",
+    "component_plan_coverage_summary_v1",
     "component_plan_v1",
+    "component_role_v1",
     "consequence_level_v1",
     "evidence_reference_v1",
     "execution_request_v1",
@@ -94,6 +106,8 @@ __all__ = [
     "quantity_v1",
     "requirement_set_v1",
     "runtime_capability_v1",
+    "selection_constraint_v1",
+    "selection_decision_v1",
     "turn_route_v1",
     "user_turn_v1",
     "validation_issue_v1",

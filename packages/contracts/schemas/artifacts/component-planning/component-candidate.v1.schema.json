@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/component-planning/component-candidate.v1.schema.json",
+  "title": "ComponentCandidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidateId",
+    "componentRoleId",
+    "manufacturer",
+    "partNumber",
+    "displayName",
+    "candidateCategory",
+    "candidateState",
+    "evidenceStatus",
+    "specifications",
+    "advantages",
+    "limitations",
+    "compatibilityCheckIds",
+    "evidenceReferences",
+    "source",
+    "confidence"
+  ],
+  "properties": {
+    "candidateId": {
+      "type": "string",
+      "pattern": "^cand_[A-Za-z0-9]{16,}$"
+    },
+    "componentRoleId": {
+      "type": "string",
+      "pattern": "^role_[A-Za-z0-9]{16,}$"
+    },
+    "manufacturer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "partNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "candidateCategory": {
+      "$ref": "https://nexus.local/schemas/artifacts/component-planning/component-category.v1.schema.json"
+    },
+    "candidateState": {
+      "type": "string",
+      "enum": [
+        "discovered",
+        "proposed",
+        "shortlisted",
+        "preferred",
+        "selected",
+        "rejected",
+        "blocked",
+        "superseded"
+      ]
+    },
+    "evidenceStatus": {
+      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
+    },
+    "specifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["specKey", "value"],
+        "properties": {
+          "specKey": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "oneOf": [
+              { "type": "number" },
+              { "type": "string", "minLength": 1 },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["kind"],
+                "properties": {
+                  "kind": { "type": "string", "const": "unknown" }
+                }
+              }
+            ]
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "operator": {
+            "type": "string",
+            "enum": ["eq", "neq", "gte", "lte", "gt", "lt", "in", "contains", "unknown"]
+          }
+        }
+      }
+    },
+    "advantages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "compatibilityCheckIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^cchk_[A-Za-z0-9]{16,}$"
+      }
+    },
+    "evidenceReferences": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json"
+      }
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "fixture",
+        "agent-inference",
+        "user-provided",
+        "future-datasheet",
+        "future-tool-output"
+      ]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

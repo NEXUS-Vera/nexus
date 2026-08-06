@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_FF95082E69DADB46BE1FCP01",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "not-required",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_03VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_03USERMSG0000000000000001",
+  "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+  "content": {
+    "maturity": "roles-defined",
+    "summary": "Initial component roles derived from greenhouse sensing node architecture for provisional sensor/compute planning.",
+    "componentRoles": [
+      {
+        "componentRoleId": "role_FF95082E69DADB46BE1F",
+        "displayId": "CR1",
+        "name": "Environmental Measurement Acquisition role",
+        "category": "sensor",
+        "description": "Measure temperature and humidity for greenhouse monitoring.",
+        "architectureNodeIds": [
+          "node_03GREENHOUSEENVACQ0000000000000001"
+        ],
+        "requirementIds": [
+          "req_03TEMPHUMIDITYMEASURE0000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "identified",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      }
+    ],
+    "selectionConstraints": [],
+    "candidates": [],
+    "selectionDecisions": [],
+    "compatibilityChecks": [],
+    "openQuestions": [],
+    "assumptions": [
+      "Candidate retrieval and datasheet grounding are deferred until constraints are confirmed."
+    ],
+    "evidenceReferences": [],
+    "coverageSummary": {
+      "totalArchitectureNodes": 7,
+      "coveredArchitectureNodes": 1,
+      "uncoveredArchitectureNodeIds": [
+        "node_03GREENHOUSESINIT0000000000000001",
+        "node_03GREENHOUSES0ILACQ0000000000000001",
+        "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
+        "node_03GREENHOUSEANALYSIS0000000000000001",
+        "node_03GREENHOUSECOMM0000000000000001",
+        "node_03GREENHOUSEPOWER0000000000000001"
+      ],
+      "totalRelevantRequirements": 1,
+      "coveredRequirementIds": [
+        "req_03TEMPHUMIDITYMEASURE0000000000000001"
+      ],
+      "uncoveredRequirementIds": [],
+      "rolesWithoutArchitectureMapping": 0,
+      "rolesWithoutRequirementMapping": 0,
+      "rolesWithoutCandidates": 1,
+      "rolesWithBlockedSelection": 0,
+      "rolesAwaitingApproval": 0
+    },
+    "validationSummary": {
+      "issueCount": 0,
+      "blockingIssueCount": 0,
+      "warningCount": 0,
+      "status": "ok"
+    }
+  }
+}

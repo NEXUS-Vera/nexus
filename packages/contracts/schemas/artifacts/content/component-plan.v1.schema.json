@@ -2,42 +2,130 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://nexus.local/schemas/artifacts/content/component-plan.v1.schema.json",
   "title": "ComponentPlanContent",
+  "description": "Structured Component Plan content. Envelope owns artifactId, version, lifecycle, evidence, approval, and timestamps; those fields are omitted here.",
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "selectionState",
-    "candidateCount",
-    "constraintSummary",
-    "unresolvedCompatibilityChecks",
-    "approvalStatus"
+    "maturity",
+    "summary",
+    "componentRoles",
+    "selectionConstraints",
+    "candidates",
+    "selectionDecisions",
+    "compatibilityChecks",
+    "openQuestions",
+    "assumptions",
+    "evidenceReferences",
+    "coverageSummary",
+    "validationSummary"
   ],
   "properties": {
-    "selectionState": {
+    "componentPlanId": {
+      "type": "string",
+      "pattern": "^cplan_[A-Za-z0-9]{16,}$"
+    },
+    "maturity": {
       "type": "string",
       "enum": [
-        "draft",
-        "proposed",
-        "accepted",
-        "blocked"
+        "roles-defined",
+        "candidates-proposed",
+        "candidates-grounded",
+        "compatibility-checked",
+        "selection-proposed",
+        "selection-approved",
+        "validated"
       ]
     },
-    "candidateCount": {
-      "type": "integer",
-      "minimum": 0
-    },
-    "constraintSummary": {
+    "summary": {
       "type": "string",
       "minLength": 1
     },
-    "unresolvedCompatibilityChecks": {
+    "componentRoles": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/artifacts/component-planning/component-role.v1.schema.json"
+      }
+    },
+    "selectionConstraints": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/artifacts/component-planning/selection-constraint.v1.schema.json"
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/artifacts/component-planning/component-candidate.v1.schema.json"
+      }
+    },
+    "selectionDecisions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/artifacts/component-planning/selection-decision.v1.schema.json"
+      }
+    },
+    "compatibilityChecks": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/artifacts/component-planning/compatibility-check.v1.schema.json"
+      }
+    },
+    "openQuestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["questionId"],
+        "properties": {
+          "questionId": {
+            "type": "string",
+            "pattern": "^q_[A-Za-z0-9]{16,}$"
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "assumptions": {
       "type": "array",
       "items": {
         "type": "string",
         "minLength": 1
       }
     },
-    "approvalStatus": {
-      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/approvalStatus"
+    "evidenceReferences": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json"
+      }
+    },
+    "coverageSummary": {
+      "$ref": "https://nexus.local/schemas/artifacts/component-planning/component-plan-coverage-summary.v1.schema.json"
+    },
+    "validationSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["issueCount", "blockingIssueCount", "warningCount", "status"],
+      "properties": {
+        "issueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blockingIssueCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "warningCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": ["ok", "warnings", "blocking"]
+        }
+      }
     }
   }
 }

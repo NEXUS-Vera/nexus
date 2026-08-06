@@ -24,7 +24,10 @@ class ArtifactSummary(TypedDict, closed=True):
         'component-plan',
     ]
     artifactVersion: int
+    awaitingApprovalCount: NotRequired[int]
+    blockedRoleCount: NotRequired[int]
     blockerCount: int
+    candidateCount: NotRequired[int]
     evidenceStatus: Literal[
         'unverified',
         'inferred',
@@ -50,7 +53,21 @@ class ArtifactSummary(TypedDict, closed=True):
     lifecycleStatus: Literal[
         'drafted', 'ready', 'affected', 'stale', 'blocked', 'superseded', 'archived'
     ]
+    maturity: NotRequired[
+        Literal[
+            'roles-defined',
+            'candidates-proposed',
+            'candidates-grounded',
+            'compatibility-checked',
+            'selection-proposed',
+            'selection-approved',
+            'validated',
+        ]
+    ]
     openQuestionCount: int
+    roleCount: NotRequired[int]
+    selectedCount: NotRequired[int]
+    unresolvedCompatibilityCheckCount: NotRequired[int]
     workspaceStatus: Literal[
         'none', 'creating', 'ready', 'dirty', 'validating', 'blocked', 'archived'
     ]
@@ -90,6 +107,16 @@ class RecentChange(TypedDict, closed=True):
         'question.resolved',
         'decision.accepted',
         'decision.reversed',
+        'component-plan.created',
+        'component-role.identified',
+        'component-candidate.proposed',
+        'component-candidate.rejected',
+        'component-selection.proposed',
+        'component-selection.approved',
+        'component-selection.rejected',
+        'compatibility-check.recorded',
+        'component-plan.revised',
+        'component-plan.marked-stale',
     ]
     occurredAt: str
     summary: str

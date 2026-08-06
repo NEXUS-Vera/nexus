@@ -125,6 +125,42 @@
           "lastChangedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "maturity": {
+            "type": "string",
+            "enum": [
+              "roles-defined",
+              "candidates-proposed",
+              "candidates-grounded",
+              "compatibility-checked",
+              "selection-proposed",
+              "selection-approved",
+              "validated"
+            ]
+          },
+          "roleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "candidateCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "selectedCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "awaitingApprovalCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "blockedRoleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unresolvedCompatibilityCheckCount": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       }
@@ -270,7 +306,17 @@
               "question.opened",
               "question.resolved",
               "decision.accepted",
-              "decision.reversed"
+              "decision.reversed",
+              "component-plan.created",
+              "component-role.identified",
+              "component-candidate.proposed",
+              "component-candidate.rejected",
+              "component-selection.proposed",
+              "component-selection.approved",
+              "component-selection.rejected",
+              "compatibility-check.recorded",
+              "component-plan.revised",
+              "component-plan.marked-stale"
             ]
           },
           "occurredAt": {

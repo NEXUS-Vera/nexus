@@ -92,6 +92,24 @@
               "artifactType"
             ]
           }
+        },
+        {
+          "if": {
+            "minItems": 5
+          },
+          "then": {
+            "contains": {
+              "type": "object",
+              "properties": {
+                "artifactType": {
+                  "const": "component-plan"
+                }
+              },
+              "required": [
+                "artifactType"
+              ]
+            }
+          }
         }
       ]
     },

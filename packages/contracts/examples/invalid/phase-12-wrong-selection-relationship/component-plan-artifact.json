@@ -1,0 +1,274 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_02PHASE12CP00000000000001",
+  "projectId": "proj_02PHASE12PROJ000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02VERAACTOR000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-04T12:00:00Z",
+  "updatedAt": "2026-08-04T12:00:00Z",
+  "sourceTurnId": "turn_02PHASE12TURN00000000001",
+  "workflowRunId": "run_02PHASE12RUN0000000000001",
+  "content": {
+    "maturity": "candidates-proposed",
+    "summary": "Provisional temperature-sensor role with one fixture candidate awaiting grounded evidence and user selection approval.",
+    "componentRoles": [
+      {
+        "componentRoleId": "role_02TEMPSENSOR00000001",
+        "displayId": "CR1",
+        "name": "Ambient temperature sensor",
+        "category": "sensor",
+        "description": "Measures ambient temperature for environmental sensing.",
+        "architectureNodeIds": [
+          "node_02NODESENSING000000000001"
+        ],
+        "requirementIds": [
+          "req_02TEMPMEAS000000000000001"
+        ],
+        "requiredCapabilities": [
+          "temperature-measurement"
+        ],
+        "status": "candidate-review",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Architecture sensing node requires a physical temperature transducer.",
+        "openQuestionIds": [
+          "q_02TEMPACCURACY000000001"
+        ]
+      },
+      {
+        "componentRoleId": "role_02HUMIDSENSOR0000001",
+        "displayId": "CR2",
+        "name": "Humidity sensor",
+        "category": "sensor",
+        "description": "Measures ambient temperature for environmental sensing.",
+        "architectureNodeIds": [
+          "node_02NODESENSING000000000001"
+        ],
+        "requirementIds": [
+          "req_02TEMPMEAS000000000000001"
+        ],
+        "requiredCapabilities": [
+          "temperature-measurement"
+        ],
+        "status": "candidate-review",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Architecture sensing node requires a physical temperature transducer.",
+        "openQuestionIds": [
+          "q_02TEMPACCURACY000000001"
+        ]
+      }
+    ],
+    "selectionConstraints": [
+      {
+        "constraintId": "cstr_02TEMPRANGE000000001",
+        "componentRoleId": "role_02TEMPSENSOR00000001",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": "C",
+        "sourceRequirementIds": [
+          "req_02TEMPMEAS000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_02NODESENSING000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Required temperature range is not yet user-confirmed."
+      }
+    ],
+    "candidates": [
+      {
+        "candidateId": "cand_02TMP117CAND00000001",
+        "componentRoleId": "role_02TEMPSENSOR00000001",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-TMP-117",
+        "displayName": "Fixture TMP117-class temperature sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          },
+          {
+            "specKey": "accuracy",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "C",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Low active current for wearables"
+        ],
+        "limitations": [
+          "Exact accuracy not grounded without datasheet"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_02REQFIT000000000001"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_02HUMIDCAND000000001",
+        "componentRoleId": "role_02HUMIDSENSOR0000001",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-HUM-01",
+        "displayName": "Fixture humidity sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          },
+          {
+            "specKey": "accuracy",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "C",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Low active current for wearables"
+        ],
+        "limitations": [
+          "Exact accuracy not grounded without datasheet"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      }
+    ],
+    "selectionDecisions": [
+      {
+        "selectionDecisionId": "sel_02TEMPSELECT000000001",
+        "componentRoleId": "role_02TEMPSENSOR00000001",
+        "selectedCandidateId": "cand_02HUMIDCAND000000001",
+        "selectionState": "proposed",
+        "rationale": "Preferred provisional candidate for temperature sensing pending user approval.",
+        "tradeoffs": [
+          "Accuracy unknown",
+          "Supply chain not verified"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_02VERAACTOR000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-08-04T12:00:00Z"
+      }
+    ],
+    "compatibilityChecks": [
+      {
+        "compatibilityCheckId": "cchk_02REQFIT000000000001",
+        "componentRoleId": "role_02TEMPSENSOR00000001",
+        "candidateId": "cand_02TMP117CAND00000001",
+        "checkType": "requirement-fit",
+        "status": "unknown",
+        "severity": "warning",
+        "reason": "Accuracy requirement remains unresolved; fit cannot be confirmed.",
+        "inputReferences": [
+          "req_02TEMPMEAS000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_02VERAACTOR000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-08-04T12:00:00Z"
+      }
+    ],
+    "openQuestions": [
+      {
+        "questionId": "q_02TEMPACCURACY000000001",
+        "summary": "What ambient temperature accuracy is required?"
+      }
+    ],
+    "assumptions": [
+      "A digital temperature sensor is sufficient for the initial prototype."
+    ],
+    "evidenceReferences": [],
+    "coverageSummary": {
+      "totalArchitectureNodes": 6,
+      "coveredArchitectureNodes": 1,
+      "uncoveredArchitectureNodeIds": [
+        "node_02NODEINPUT000000000001",
+        "node_02NODEPROC000000000001",
+        "node_02NODESTORE00000000001",
+        "node_02NODECOMM000000000001",
+        "node_02NODEPOWER00000000001"
+      ],
+      "totalRelevantRequirements": 1,
+      "coveredRequirementIds": [
+        "req_02TEMPMEAS000000000000001"
+      ],
+      "uncoveredRequirementIds": [],
+      "rolesWithoutArchitectureMapping": 0,
+      "rolesWithoutRequirementMapping": 0,
+      "rolesWithoutCandidates": 0,
+      "rolesWithBlockedSelection": 0,
+      "rolesAwaitingApproval": 1
+    },
+    "validationSummary": {
+      "issueCount": 1,
+      "blockingIssueCount": 0,
+      "warningCount": 1,
+      "status": "warnings"
+    }
+  }
+}
