@@ -50,9 +50,7 @@ def apply_component_plan_operation(
                 code="COMPONENT_CANDIDATE_NOT_FOUND",
                 message="No matching component candidate to reject.",
             )
-        selections = [
-            s for s in selections if s.get("selectedCandidateId") != candidate_id
-        ]
+        selections = [s for s in selections if s.get("selectedCandidateId") != candidate_id]
 
     elif operation == "approve-component-selection":
         candidate_id = target_candidate_id or _single_candidate_id(candidates)
@@ -112,16 +110,20 @@ def apply_component_plan_operation(
             if candidate.get("candidateId") == candidate_id:
                 candidate["candidateState"] = "preferred"
                 candidate["notes"] = f"Preferred per user: {message[:160]}"
-            elif candidate.get("componentRoleId") == (
-                next(
-                    (
-                        c.get("componentRoleId")
-                        for c in candidates
-                        if c.get("candidateId") == candidate_id
-                    ),
-                    None,
+            elif (
+                candidate.get("componentRoleId")
+                == (
+                    next(
+                        (
+                            c.get("componentRoleId")
+                            for c in candidates
+                            if c.get("candidateId") == candidate_id
+                        ),
+                        None,
+                    )
                 )
-            ) and candidate.get("candidateState") == "preferred":
+                and candidate.get("candidateState") == "preferred"
+            ):
                 candidate["candidateState"] = "proposed"
 
     elif operation == "add-component-constraint":
@@ -180,9 +182,7 @@ def apply_component_plan_operation(
                 code="COMPONENT_ROLE_NOT_FOUND",
                 message="No matching component role for alternatives.",
             )
-        existing_for_role = [
-            c for c in candidates if c.get("componentRoleId") == role_id
-        ]
+        existing_for_role = [c for c in candidates if c.get("componentRoleId") == role_id]
         # Add one alternative at a time to keep selective updates unambiguous.
         extras = propose_candidates_for_roles([role], max_per_role=2, source="fixture")
         for candidate in extras:
@@ -262,7 +262,7 @@ def _single_candidate_id(candidates: list[dict[str, Any]]) -> str:
             code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
             message="Multiple component candidates match. Specify which candidate to update.",
         )
-    return candidates[0]["candidateId"]
+    return str(candidates[0]["candidateId"])
 
 
 def _single_role_id(roles: list[dict[str, Any]]) -> str:
@@ -276,7 +276,7 @@ def _single_role_id(roles: list[dict[str, Any]]) -> str:
             code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
             message="Multiple component roles match. Specify which role to update.",
         )
-    return roles[0]["componentRoleId"]
+    return str(roles[0]["componentRoleId"])
 
 
 def _role_arch_ids(roles: list[dict[str, Any]], role_id: str) -> list[str]:
