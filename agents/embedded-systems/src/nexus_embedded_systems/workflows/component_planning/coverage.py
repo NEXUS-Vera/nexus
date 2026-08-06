@@ -18,9 +18,11 @@ def compute_coverage_summary(
     if isinstance(architecture_content, dict):
         nodes = architecture_content.get("nodes") or []
         architecture_node_ids = {
-            node.get("nodeId")
+            node_id
             for node in nodes
-            if isinstance(node, dict) and isinstance(node.get("nodeId"), str)
+            if isinstance(node, dict)
+            for node_id in [node.get("nodeId")]
+            if isinstance(node_id, str)
         }
     summary = compute_component_plan_coverage_summary(
         content,

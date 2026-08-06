@@ -828,9 +828,11 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
         nodes = functional_arch.get("nodes") or []
         if isinstance(nodes, list):
             architecture_node_ids = {
-                node.get("nodeId")
+                node_id
                 for node in nodes
-                if isinstance(node, dict) and isinstance(node.get("nodeId"), str)
+                if isinstance(node, dict)
+                for node_id in [node.get("nodeId")]
+                if isinstance(node_id, str)
             }
 
     requirement_ids: set[str] | None = None
@@ -838,9 +840,11 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
         requirements = requirement_set.get("requirements") or []
         if isinstance(requirements, list):
             requirement_ids = {
-                req.get("requirementId")
+                requirement_id
                 for req in requirements
-                if isinstance(req, dict) and isinstance(req.get("requirementId"), str)
+                if isinstance(req, dict)
+                for requirement_id in [req.get("requirementId")]
+                if isinstance(requirement_id, str)
             }
 
     component_plan_content = bundle.get("component_plan_content")
@@ -933,9 +937,10 @@ def compute_component_plan_coverage_summary(
         candidate_id = selection.get("selectedCandidateId")
         if state == "approved" and isinstance(candidate_id, str):
             for candidate in candidates:
-                if candidate.get("candidateId") == candidate_id and candidate.get(
-                    "candidateState"
-                ) == "blocked":
+                if (
+                    candidate.get("candidateId") == candidate_id
+                    and candidate.get("candidateState") == "blocked"
+                ):
                     blocked_roles.add(role_id)
 
     if architecture_node_ids is not None:
@@ -1108,9 +1113,8 @@ def _validate_component_plan_content(
                         blocking=True,
                     )
                 )
-            elif (
-                evidence_status in _OVERSTATED_EVIDENCE_STATUSES
-                and (not isinstance(evidence_refs, list) or len(evidence_refs) == 0)
+            elif evidence_status in _OVERSTATED_EVIDENCE_STATUSES and (
+                not isinstance(evidence_refs, list) or len(evidence_refs) == 0
             ):
                 errors.append(
                     SemanticValidationError(
@@ -1227,7 +1231,9 @@ def _validate_component_plan_content(
                     )
                 )
 
-            candidate = candidates_by_id.get(candidate_id) if isinstance(candidate_id, str) else None
+            candidate = (
+                candidates_by_id.get(candidate_id) if isinstance(candidate_id, str) else None
+            )
             if isinstance(candidate_id, str) and candidate is None:
                 errors.append(
                     SemanticValidationError(

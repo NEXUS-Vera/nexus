@@ -41,7 +41,9 @@ test.describe('fixture-mode persistence and modification', () => {
 
     await page.getByRole('button', { name: /^Components$/i }).click();
     await expect(page.getByTestId('workspace-component-plan')).toBeVisible();
-    await expect(page.getByTestId('component-plan-retrieval-notice')).toBeVisible();
+    await expect(page.getByTestId('workspace-component-plan-shell')).toBeVisible();
+    await expect(page.getByTestId('component-plan-summary')).toBeVisible();
+    await expect(page.getByTestId('component-plan-role-list')).toBeVisible();
     const componentsUrl = page.url();
     await page.reload();
     await expect(page.getByTestId('workspace-component-plan')).toBeVisible({ timeout: 30_000 });
