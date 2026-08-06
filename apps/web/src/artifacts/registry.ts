@@ -90,7 +90,7 @@ export const ARTIFACT_REGISTRY: Record<ArtifactRouteKey, ArtifactDefinition> = {
     label: 'Components',
     shortLabel: 'Components',
     icon: Cpu,
-    availability: 'proof',
+    availability: 'live',
     dependencyLabels: ['Architecture', 'Requirements'],
     supportedActions: ['select', 'inspect', 'request-change-via-vera', 'view-history'],
     placeholderTitle: '',
