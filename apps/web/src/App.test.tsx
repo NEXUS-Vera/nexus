@@ -218,9 +218,8 @@ describe('Nexus web routing and project workspace', () => {
 
     await user.click(screen.getByRole('button', { name: /^Components$/i }));
     expect(await screen.findByTestId('workspace-component-plan')).toBeInTheDocument();
-    expect(screen.getByTestId('component-plan-retrieval-notice')).toHaveTextContent(
-      /retrieval is unavailable/i,
-    );
+    expect(screen.getByTestId('component-plan-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('component-plan-role-list')).toHaveTextContent(/role/i);
 
     await user.click(screen.getByRole('button', { name: /^Firmware$/i }));
     expect(screen.getByTestId('artifact-placeholder')).toHaveTextContent(/Firmware scaffold unavailable/i);
