@@ -1,0 +1,42 @@
+# Golden component-planning cases. Fake mode scores deterministic composition
+# from architecture+requirements shapes derived from the prompt category.
+- id: golden-cp-greenhouse
+  category: greenhouse-sensing-node
+  prompt: >-
+    I want to build a greenhouse monitoring node that measures temperature,
+    humidity, soil moisture, and light, and reports the readings remotely.
+  expectedOutcome: supported
+  expectedMaturity: roles-defined
+  minRoleCount: 1
+  requireSensorRole: true
+  forbiddenSelections:
+    - ESP32
+    - DHT22
+    - tested
+
+- id: golden-cp-wearable
+  category: wearable-tremor-monitor
+  prompt: >-
+    I want to build a wrist-worn device that measures hand tremors and
+    records the motion data for later analysis.
+  expectedOutcome: supported
+  expectedMaturity: roles-defined
+  minRoleCount: 1
+  requireSensorRole: true
+  forbiddenSelections:
+    - BMI270
+    - ESP32
+    - tested
+
+- id: golden-cp-rover
+  category: indoor-environmental-rover
+  prompt: >-
+    I want to build a small indoor rover that drives around a room and maps
+    temperature, humidity, and air quality.
+  expectedOutcome: supported
+  expectedMaturity: roles-defined
+  minRoleCount: 1
+  requireSensorRole: true
+  forbiddenSelections:
+    - BME280
+    - tested
