@@ -2,6 +2,7 @@ export type InspectorSelection =
   | { kind: 'project-brief-item'; id: string; label?: string }
   | { kind: 'requirement'; id: string }
   | { kind: 'architecture-node'; id: string }
+  | { kind: 'component-role'; id: string }
   | { kind: 'open-question'; id: string }
   | { kind: 'validation-issue'; id: string }
   | { kind: 'artifact-revision'; artifactType: string; version: number }

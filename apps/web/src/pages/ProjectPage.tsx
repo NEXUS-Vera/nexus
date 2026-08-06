@@ -173,23 +173,30 @@ export function ProjectPage() {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (submitting || !message.trim() || !state) return;
+    const ok = await submitTurnMessage(message.trim());
+    if (ok) setMessage('');
+  }
+
+  async function submitTurnMessage(turnMessage: string): Promise<boolean> {
+    if (submitting || !turnMessage.trim() || !state) return false;
     setSubmitting(true);
     setError(null);
     try {
       const result = await submitProjectTurn({
         projectId,
-        message: message.trim(),
+        message: turnMessage.trim(),
       });
       setState(result.currentState);
       setRegenerated(result.regeneratedArtifactTypes ?? []);
       setChanged(result.changedArtifactTypes ?? []);
       setAffected(result.impactAnalysis?.affected ?? []);
       setStale(result.impactAnalysis?.stale ?? []);
-      setMessage('');
       setHistory(await getProjectHistory(projectId));
       await refreshBoardSideChannels();
+      return true;
     } catch (err) {
       setError(err instanceof ApiClientError ? err.message : 'Failed to submit turn');
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -237,13 +244,18 @@ export function ProjectPage() {
           changeIndicator={meta.changeIndicator}
           selectedRequirementId={url.selectedRequirement}
           selectedNodeId={url.selectedArchNode}
+          selectedRoleId={url.selectedComponentRole}
           onSelectRequirement={url.setSelectedRequirement}
           onSelectNode={url.setSelectedArchNode}
+          onSelectRole={url.setSelectedComponentRole}
           onSelectItem={url.setInspectorSelection}
           architectureNodeIdsByRequirement={architectureCoverage}
           nextActionTitle={live!.nextAction!.content.title}
+          turnBusy={submitting}
+          onSubmitTurn={submitTurnMessage}
           onCommandResult={() => {
             void refreshBoardSideChannels();
+            void getProject(projectId).then(setState).catch(() => undefined);
           }}
         />
       </ArtifactWorkspaceShell>

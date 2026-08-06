@@ -41,7 +41,7 @@ Workspace URL query params:
 
 - `view` — `overview` | `workspace` | `mind-graph`
 - `artifact` — registry route key (for example `requirement-set`)
-- `req`, `node`, `test`, `risk` — selection deep-links
+- `req`, `node`, `role`, `test`, `risk` — selection deep-links
 - `sel`, `selId`, `revType`, `revVersion` — inspector selection
 - `history=1` — open history panel
 
@@ -55,7 +55,7 @@ Browser refresh reloads live project state from the API.
 | Requirements | Live (`requirement-set`) |
 | Architecture | Live (`functional-architecture`) |
 | Next Action | Live global (`next-action`) |
-| Components | Proof (`component-plan`) |
+| Components | Live (`component-plan`) |
 | Firmware | Placeholder |
 | Analysis | Placeholder |
 | Test Plan | Placeholder |
@@ -111,7 +111,8 @@ make test-e2e   # Playwright; starts API+web in fixture/memory mode
 
 ## Current limitations
 
-- Component plan is a proof workspace (empty candidates, retrieval notice).
+- Component plan comparison is live for roles, candidates, and selection actions;
+  datasheet retrieval remains deferred until providers are connected.
 - Remaining unfinished artifact workspaces are honest placeholders.
 - Electrical/Physical architecture modes are labeled placeholders.
 - Mind Graph is a preview derived from board slots, not graph memory.
