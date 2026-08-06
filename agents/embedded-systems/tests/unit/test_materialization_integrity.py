@@ -236,6 +236,7 @@ def test_shuffled_artifacts_still_validate() -> None:
     by_type = {a["artifactType"]: a for a in result["artifacts"]}
     result["artifacts"] = [
         by_type["next-action"],
+        by_type["component-plan"],
         by_type["functional-architecture"],
         by_type["requirement-set"],
         by_type["project-brief"],

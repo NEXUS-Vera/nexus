@@ -69,9 +69,10 @@ async def test_initialize_supported_families(family: str) -> None:
         "project-brief",
         "requirement-set",
         "functional-architecture",
+        "component-plan",
         "next-action",
     }
-    assert len(payload["artifacts"]) == 4
+    assert len(payload["artifacts"]) == 5
     next_ref = payload["veraResponse"]["nextActionArtifactReference"]["artifactId"]
     assert any(a["artifactId"] == next_ref for a in payload["artifacts"])
     steps = [s["stepType"] for s in payload["workflowRun"]["stepRecords"]]

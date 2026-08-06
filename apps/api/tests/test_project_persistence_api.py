@@ -35,7 +35,7 @@ async def test_initialize_get_history_and_runtime_turn() -> None:
 
         artifacts = await client.get(f"/v1/projects/{project_id}/artifacts")
         assert artifacts.status_code == 200
-        assert len(artifacts.json()["artifacts"]) == 4
+        assert len(artifacts.json()["artifacts"]) == 5
 
         history = await client.get(f"/v1/projects/{project_id}/history")
         assert history.status_code == 200
@@ -55,6 +55,7 @@ async def test_initialize_get_history_and_runtime_turn() -> None:
         assert by_type["project-brief"] == brief_v1
         assert by_type["requirement-set"] == 2
         assert by_type["functional-architecture"] == 2
+        assert by_type["component-plan"] >= 2
         assert by_type["next-action"] == 2
 
         again = await client.get(f"/v1/projects/{project_id}")

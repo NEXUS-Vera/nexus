@@ -51,3 +51,13 @@ The default `--provider fake` mode never calls a live model: it drives the
 real provider pipeline with a `FakeModelGateway` scripted per case, so it
 needs no credentials and is safe to run in CI. It also runs automatically as
 part of `make eval` (and therefore `make check`) in fake mode only.
+
+## Component planning (`embedded_component_planning/`)
+
+Phase 12 suite focused on Component Plan scoring (roles, maturity, forbidden
+part leakage, no `tested` evidence). Fake mode uses the fixture initialization
+provider and never calls a live model. Not wired into `make eval` yet — run:
+
+```bash
+python -m evals.embedded_component_planning.runners.run_eval
+```
