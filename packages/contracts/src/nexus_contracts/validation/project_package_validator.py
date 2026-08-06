@@ -27,6 +27,7 @@ def load_project_package_bundle(folder: Path) -> dict[str, Any]:
         "requirement_set_content": None,
         "functional_architecture_content": None,
         "next_action_content": None,
+        "component_plan_content": None,
         "validation_issues": [],
         "open_questions": [],
         "vera_response": None,
@@ -62,6 +63,8 @@ def load_project_package_bundle(folder: Path) -> dict[str, Any]:
                 bundle["functional_architecture_content"] = content
             elif artifact_type == "next-action":
                 bundle["next_action_content"] = content
+            elif artifact_type == "component-plan":
+                bundle["component_plan_content"] = content
 
     return bundle
 
@@ -78,7 +81,13 @@ def validate_project_package_bundle(bundle: dict[str, Any]) -> list[SemanticVali
         if isinstance(art, dict) and isinstance(art.get("artifactType"), str):
             artifact_by_type[art["artifactType"]] = art
 
-    required_types = {"project-brief", "requirement-set", "functional-architecture", "next-action"}
+    required_types = {
+        "project-brief",
+        "requirement-set",
+        "functional-architecture",
+        "next-action",
+        "component-plan",
+    }
     missing_types = sorted(required_types.difference(artifact_by_type.keys()))
     if missing_types:
         errors.append(

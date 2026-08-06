@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_22BF8BCC19C6C7A283BBCP01",
+  "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "not-required",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_04VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_04USERMSG0000000000000001",
+  "workflowRunId": "run_04VIBRATIONRUN0000000000000001",
+  "content": {
+    "maturity": "roles-defined",
+    "summary": "Initial component roles derived from vibration monitoring device architecture for provisional sensor/compute planning.",
+    "componentRoles": [
+      {
+        "componentRoleId": "role_22BF8BCC19C6C7A283BB",
+        "displayId": "CR1",
+        "name": "Vibration Measurement Acquisition role",
+        "category": "sensor",
+        "description": "Attach monitoring to the target machine context and record vibration data.",
+        "architectureNodeIds": [
+          "node_04VIBSENSING0000000000000001"
+        ],
+        "requirementIds": [
+          "req_04ATTACHRECORDVIBRATION0000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "identified",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      }
+    ],
+    "selectionConstraints": [],
+    "candidates": [],
+    "selectionDecisions": [],
+    "compatibilityChecks": [],
+    "openQuestions": [],
+    "assumptions": [
+      "Candidate retrieval and datasheet grounding are deferred until constraints are confirmed."
+    ],
+    "evidenceReferences": [],
+    "coverageSummary": {
+      "totalArchitectureNodes": 6,
+      "coveredArchitectureNodes": 1,
+      "uncoveredArchitectureNodeIds": [
+        "node_04VIBINITCONFIG0000000000000001",
+        "node_04VIBPROCESSCOND0000000000000001",
+        "node_04VIBSTORAGE0000000000000001",
+        "node_04VIBANALYSIS0000000000000001",
+        "node_04VIBEXPORT0000000000000001"
+      ],
+      "totalRelevantRequirements": 1,
+      "coveredRequirementIds": [
+        "req_04ATTACHRECORDVIBRATION0000000000000001"
+      ],
+      "uncoveredRequirementIds": [],
+      "rolesWithoutArchitectureMapping": 0,
+      "rolesWithoutRequirementMapping": 0,
+      "rolesWithoutCandidates": 1,
+      "rolesWithBlockedSelection": 0,
+      "rolesAwaitingApproval": 0
+    },
+    "validationSummary": {
+      "issueCount": 0,
+      "blockingIssueCount": 0,
+      "warningCount": 0,
+      "status": "ok"
+    }
+  }
+}

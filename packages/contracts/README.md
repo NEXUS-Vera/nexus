@@ -141,7 +141,7 @@ Do not manually edit generated TypeScript. If a future generator regression rein
 
 ## Project Initialization Result Wrapper
 
-`schemas/responses/project-initialization-result.v1.schema.json` is the canonical package wrapper for a successful embedded initialization response. It `$ref`s existing contracts and requires exactly the four v1 artifact types.
+`schemas/responses/project-initialization-result.v1.schema.json` is the canonical package wrapper for a successful embedded initialization response. It `$ref`s existing contracts and requires exactly the five v1 artifact types (`project-brief`, `requirement-set`, `functional-architecture`, `next-action`, `component-plan`).
 
 ## Project Read and Modification Contracts
 

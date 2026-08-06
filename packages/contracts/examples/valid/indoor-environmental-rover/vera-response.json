@@ -27,6 +27,12 @@
       "artifactId": "art_01ROVNXT000000000000000001",
       "artifactVersion": 1,
       "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "component-plan",
+      "artifactId": "art_853CA32D7BB8792D464CCP01",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
     }
   ],
   "warningIssueReferences": [
@@ -75,4 +81,3 @@
   },
   "completionStatus": "completed-with-warnings"
 }
-

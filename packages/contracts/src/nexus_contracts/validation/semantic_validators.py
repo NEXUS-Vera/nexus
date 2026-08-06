@@ -822,4 +822,200 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
                         )
                     )
 
+    # --- Component Plan semantic rules ---
+    for artifact in artifact_envelopes:
+        if not isinstance(artifact, dict) or artifact.get("artifactType") != "component-plan":
+            continue
+        content = artifact.get("content")
+        if not isinstance(content, dict):
+            continue
+        errors.extend(_validate_component_plan_content(content))
+
+    return errors
+
+
+_OVERSTATED_EVIDENCE_STATUSES = {"grounded", "calculated", "tested"}
+
+
+def _validate_component_plan_content(content: dict[str, Any]) -> list[SemanticValidationError]:
+    errors: list[SemanticValidationError] = []
+
+    roles = content.get("componentRoles") or []
+    candidates = content.get("candidates") or []
+    selections = content.get("selectionDecisions") or []
+    checks = content.get("compatibilityChecks") or []
+    constraints = content.get("selectionConstraints") or []
+
+    role_ids: set[str] = set()
+    if isinstance(roles, list):
+        for idx, role in enumerate(roles):
+            if not isinstance(role, dict):
+                continue
+            role_id = role.get("componentRoleId")
+            if isinstance(role_id, str):
+                role_ids.add(role_id)
+            arch_ids = role.get("architectureNodeIds") or []
+            if not isinstance(arch_ids, list) or len(arch_ids) == 0:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_ROLE_MISSING_ARCHITECTURE_REF",
+                        message="Component role must reference at least one architecture node.",
+                        path=f"componentPlan.componentRoles[{idx}].architectureNodeIds",
+                        blocking=True,
+                    )
+                )
+
+    candidates_by_id: dict[str, dict[str, Any]] = {}
+    if isinstance(candidates, list):
+        for idx, candidate in enumerate(candidates):
+            if not isinstance(candidate, dict):
+                continue
+            candidate_id = candidate.get("candidateId")
+            role_id = candidate.get("componentRoleId")
+            if isinstance(candidate_id, str):
+                candidates_by_id[candidate_id] = candidate
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_CANDIDATE_MISSING_ROLE",
+                        message="Candidate references an unknown componentRoleId.",
+                        path=f"componentPlan.candidates[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+            evidence_status = candidate.get("evidenceStatus")
+            evidence_refs = candidate.get("evidenceReferences") or []
+            if (
+                evidence_status in _OVERSTATED_EVIDENCE_STATUSES
+                and (not isinstance(evidence_refs, list) or len(evidence_refs) == 0)
+            ):
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_CANDIDATE_OVERSTATED_EVIDENCE",
+                        message=(
+                            "Candidate evidenceStatus is stronger than available "
+                            "evidenceReferences support."
+                        ),
+                        path=f"componentPlan.candidates[{idx}].evidenceStatus",
+                        blocking=True,
+                    )
+                )
+
+    if isinstance(constraints, list):
+        for idx, constraint in enumerate(constraints):
+            if not isinstance(constraint, dict):
+                continue
+            role_id = constraint.get("componentRoleId")
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_CONSTRAINT_MISSING_ROLE",
+                        message="Selection constraint references an unknown componentRoleId.",
+                        path=f"componentPlan.selectionConstraints[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+
+    approved_roles: Counter[str] = Counter()
+    if isinstance(selections, list):
+        for idx, selection in enumerate(selections):
+            if not isinstance(selection, dict):
+                continue
+            role_id = selection.get("componentRoleId")
+            candidate_id = selection.get("selectedCandidateId")
+            selection_state = selection.get("selectionState")
+
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_SELECTION_MISSING_ROLE",
+                        message="Selection decision references an unknown componentRoleId.",
+                        path=f"componentPlan.selectionDecisions[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+
+            candidate = candidates_by_id.get(candidate_id) if isinstance(candidate_id, str) else None
+            if isinstance(candidate_id, str) and candidate is None:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_SELECTION_MISSING_CANDIDATE",
+                        message="Selection decision references an unknown selectedCandidateId.",
+                        path=f"componentPlan.selectionDecisions[{idx}].selectedCandidateId",
+                        blocking=True,
+                    )
+                )
+            elif isinstance(candidate, dict):
+                candidate_role = candidate.get("componentRoleId")
+                if (
+                    isinstance(role_id, str)
+                    and isinstance(candidate_role, str)
+                    and candidate_role != role_id
+                ):
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_SELECTION_ROLE_CANDIDATE_MISMATCH",
+                            message="Selected candidate does not belong to the selection role.",
+                            path=f"componentPlan.selectionDecisions[{idx}]",
+                            blocking=True,
+                        )
+                    )
+                if selection_state == "approved" and candidate.get("candidateState") == "blocked":
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_SELECTION_BLOCKED_CANDIDATE_APPROVED",
+                            message="Blocked candidates cannot be approved selections.",
+                            path=f"componentPlan.selectionDecisions[{idx}]",
+                            blocking=True,
+                        )
+                    )
+                if selection_state == "approved" and candidate.get("candidateState") == "rejected":
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_SELECTION_REJECTED_CANDIDATE_APPROVED",
+                            message="Rejected candidates cannot be current approved selections.",
+                            path=f"componentPlan.selectionDecisions[{idx}]",
+                            blocking=True,
+                        )
+                    )
+
+            if selection_state == "approved" and isinstance(role_id, str):
+                approved_roles[role_id] += 1
+
+    for role_id, count in sorted(approved_roles.items()):
+        if count > 1:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_SELECTION_DUPLICATE_APPROVED",
+                    message=f"Role {role_id} has multiple approved selection decisions.",
+                    path="componentPlan.selectionDecisions",
+                    blocking=True,
+                )
+            )
+
+    if isinstance(checks, list):
+        for idx, check in enumerate(checks):
+            if not isinstance(check, dict):
+                continue
+            role_id = check.get("componentRoleId")
+            candidate_id = check.get("candidateId")
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_COMPATIBILITY_MISSING_ROLE",
+                        message="Compatibility check references an unknown componentRoleId.",
+                        path=f"componentPlan.compatibilityChecks[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+            if isinstance(candidate_id, str) and candidate_id not in candidates_by_id:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_COMPATIBILITY_MISSING_CANDIDATE",
+                        message="Compatibility check references an unknown candidateId.",
+                        path=f"componentPlan.compatibilityChecks[{idx}].candidateId",
+                        blocking=True,
+                    )
+                )
+
     return errors

@@ -1,0 +1,83 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_647DBE45BEFE14D00FC4CP01",
+  "projectId": "proj_02TREMORPROJ0000000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "not-required",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_02USERMSG0000000000000001",
+  "workflowRunId": "run_02TREMORRUN0000000000000001",
+  "content": {
+    "maturity": "roles-defined",
+    "summary": "Initial component roles derived from wearable tremor monitor architecture for provisional sensor/compute planning.",
+    "componentRoles": [
+      {
+        "componentRoleId": "role_647DBE45BEFE14D00FC4",
+        "displayId": "CR1",
+        "name": "Hand Tremor Motion Acquisition role",
+        "category": "sensor",
+        "description": "Measure hand tremors while the device is worn.",
+        "architectureNodeIds": [
+          "node_02TREMORNODESENSING0000000000000001"
+        ],
+        "requirementIds": [
+          "req_02HANDTREMORMEASURE0000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "identified",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      }
+    ],
+    "selectionConstraints": [],
+    "candidates": [],
+    "selectionDecisions": [],
+    "compatibilityChecks": [],
+    "openQuestions": [],
+    "assumptions": [
+      "Candidate retrieval and datasheet grounding are deferred until constraints are confirmed."
+    ],
+    "evidenceReferences": [],
+    "coverageSummary": {
+      "totalArchitectureNodes": 6,
+      "coveredArchitectureNodes": 1,
+      "uncoveredArchitectureNodeIds": [
+        "node_02TREMORNODECONFIG0000000000000001",
+        "node_02TREMORNODEASSOC0000000000000001",
+        "node_02TREMORNODESTORAGE0000000000000001",
+        "node_02TREMORNODEANALYSIS0000000000000001",
+        "node_02TREMORNODEEXPORT0000000000000001"
+      ],
+      "totalRelevantRequirements": 1,
+      "coveredRequirementIds": [
+        "req_02HANDTREMORMEASURE0000000000000001"
+      ],
+      "uncoveredRequirementIds": [],
+      "rolesWithoutArchitectureMapping": 0,
+      "rolesWithoutRequirementMapping": 0,
+      "rolesWithoutCandidates": 1,
+      "rolesWithBlockedSelection": 0,
+      "rolesAwaitingApproval": 0
+    },
+    "validationSummary": {
+      "issueCount": 0,
+      "blockingIssueCount": 0,
+      "warningCount": 0,
+      "status": "ok"
+    }
+  }
+}
