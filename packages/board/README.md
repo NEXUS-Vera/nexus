@@ -40,3 +40,17 @@ Commands are dispatched through a single service:
 ```python
 kernel.dispatch(artifact_command_dict)
 ```
+
+## Component Plan (Phase 12)
+
+The default artifact-type registry includes `component-plan` in the DESIGN phase
+with a comparison workspace. Dependencies:
+
+- `functional-architecture` → `component-plan` (required)
+- `requirement-set` → `component-plan` (required)
+- `component-plan` → `next-action` (optional)
+
+Board projections populate optional Component Plan summary fields when the
+artifact exists: `maturity`, `roleCount`, `candidateCount`, `selectedCount`,
+`awaitingApprovalCount`, `blockedRoleCount`, and
+`unresolvedCompatibilityCheckCount`.

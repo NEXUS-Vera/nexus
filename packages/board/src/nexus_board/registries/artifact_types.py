@@ -107,7 +107,13 @@ DEFAULT_ARTIFACT_TYPE_DEFINITIONS: list[dict[str, Any]] = [
         workspace_type="focused-action",
         supported_command_types=_WORKSPACE_COMMANDS,
         required_capabilities=[],
-        dependencies=[],
+        dependencies=[
+            {
+                "artifactType": "component-plan",
+                "relationship": "depends-on",
+                "required": False,
+            }
+        ],
         editable=True,
         executable=False,
         board_visibility="global",

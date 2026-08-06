@@ -10,6 +10,7 @@ ARTIFACT_TYPES = (
     "project-brief",
     "requirement-set",
     "functional-architecture",
+    "component-plan",
     "next-action",
 )
 
@@ -31,6 +32,24 @@ _DEFAULT_EDGES: tuple[tuple[str, str, str, str], ...] = (
         "functional-architecture",
         "constrains",
         "Architecture is constrained by the project brief scope.",
+    ),
+    (
+        "functional-architecture",
+        "component-plan",
+        "derives-from",
+        "Component roles are derived from functional architecture nodes.",
+    ),
+    (
+        "requirement-set",
+        "component-plan",
+        "constrains",
+        "Component selection is constrained by requirements.",
+    ),
+    (
+        "component-plan",
+        "next-action",
+        "derives-from",
+        "Next action follows from component-plan gaps and readiness.",
     ),
     (
         "requirement-set",
