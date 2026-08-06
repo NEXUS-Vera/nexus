@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/component-planning/selection-constraint.v1.schema.json",
+  "title": "SelectionConstraint",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "constraintId",
+    "componentRoleId",
+    "constraintType",
+    "operator",
+    "targetValue",
+    "unit",
+    "sourceRequirementIds",
+    "sourceArchitectureNodeIds",
+    "importance",
+    "confirmationStatus",
+    "rationale"
+  ],
+  "properties": {
+    "constraintId": {
+      "type": "string",
+      "pattern": "^cstr_[A-Za-z0-9]{16,}$"
+    },
+    "componentRoleId": {
+      "type": "string",
+      "pattern": "^role_[A-Za-z0-9]{16,}$"
+    },
+    "constraintType": {
+      "type": "string",
+      "enum": [
+        "measurement-range",
+        "accuracy",
+        "resolution",
+        "sample-rate",
+        "bandwidth",
+        "latency",
+        "supply-voltage",
+        "logic-voltage",
+        "active-current",
+        "sleep-current",
+        "peak-current",
+        "interface",
+        "bus-bandwidth",
+        "operating-temperature",
+        "humidity-rating",
+        "size",
+        "weight",
+        "cost",
+        "availability",
+        "driver-support",
+        "platform-support",
+        "environment",
+        "mechanical-mounting"
+      ]
+    },
+    "operator": {
+      "type": "string",
+      "enum": ["eq", "neq", "gte", "lte", "gt", "lt", "in", "contains", "unknown"]
+    },
+    "targetValue": {
+      "oneOf": [
+        { "type": "number" },
+        { "type": "string", "minLength": 1 },
+        { "type": "boolean" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": { "type": "string", "const": "unknown" }
+          }
+        }
+      ]
+    },
+    "unit": {
+      "type": ["string", "null"],
+      "minLength": 1
+    },
+    "sourceRequirementIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "sourceArchitectureNodeIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "importance": {
+      "type": "string",
+      "enum": ["required", "preferred", "nice-to-have"]
+    },
+    "confirmationStatus": {
+      "type": "string",
+      "enum": ["confirmed", "inferred", "proposed", "unknown"]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

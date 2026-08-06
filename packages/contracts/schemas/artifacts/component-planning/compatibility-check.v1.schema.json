@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/component-planning/compatibility-check.v1.schema.json",
+  "title": "CompatibilityCheck",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "compatibilityCheckId",
+    "componentRoleId",
+    "candidateId",
+    "checkType",
+    "status",
+    "severity",
+    "reason",
+    "inputReferences",
+    "evidenceReferences"
+  ],
+  "properties": {
+    "compatibilityCheckId": {
+      "type": "string",
+      "pattern": "^cchk_[A-Za-z0-9]{16,}$"
+    },
+    "componentRoleId": {
+      "type": "string",
+      "pattern": "^role_[A-Za-z0-9]{16,}$"
+    },
+    "candidateId": {
+      "type": "string",
+      "pattern": "^cand_[A-Za-z0-9]{16,}$"
+    },
+    "checkType": {
+      "type": "string",
+      "enum": [
+        "requirement-fit",
+        "architecture-fit",
+        "electrical-supply",
+        "logic-level",
+        "interface-type",
+        "interface-bandwidth",
+        "bus-address",
+        "pin-availability",
+        "performance",
+        "sample-rate",
+        "bandwidth",
+        "power-budget",
+        "environmental",
+        "mechanical",
+        "firmware-support",
+        "driver-availability",
+        "cost",
+        "availability",
+        "documentation-quality"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not-checked",
+        "unknown",
+        "pass",
+        "conditional",
+        "warning",
+        "fail",
+        "not-applicable"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["info", "warning", "blocking"]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "evidenceReferences": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json"
+      }
+    },
+    "performedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "performedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}
