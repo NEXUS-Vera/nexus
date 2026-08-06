@@ -4,7 +4,7 @@ import type {
   ProjectCurrentState,
   ProjectHistory,
 } from '@nexus/contracts';
-import { ARTIFACT_ORDER, ARTIFACT_REGISTRY } from '../artifacts/registry';
+import { ARTIFACT_REGISTRY, WORKFLOW_GROUPS } from '../artifacts/registry';
 import { selectArtifactByType } from '../artifacts';
 import type { ArtifactRouteKey } from '../artifacts/types';
 import { themeColors } from '../lib/theme';
@@ -20,6 +20,28 @@ type Props = {
   onOpenNextAction: () => void;
   onOpenHistory: () => void;
 };
+
+function componentPlanCounts(
+  state: ProjectCurrentState,
+  board: ProjectBoardProjection | null,
+): { roles: number; candidates: number; selected?: number } | null {
+  const summary = board?.artifactSummaries?.find((s) => s.artifactType === 'component-plan');
+  const live = selectArtifactByType(state.artifacts, 'component-plan');
+  if (summary?.roleCount != null || summary?.candidateCount != null) {
+    return {
+      roles: summary.roleCount ?? live?.content.componentRoles.length ?? 0,
+      candidates: summary.candidateCount ?? live?.content.candidates.length ?? 0,
+      selected: summary.selectedCount,
+    };
+  }
+  if (!live) return null;
+  return {
+    roles: live.content.componentRoles.length,
+    candidates: live.content.candidates.length,
+    selected: live.content.selectionDecisions.filter((d) => d.selectionState === 'approved')
+      .length,
+  };
+}
 
 export function ProjectOverview({
   state,
@@ -56,6 +78,7 @@ export function ProjectOverview({
       artifactType: undefined as string | undefined,
     }));
   const evidence = board?.evidenceSummary;
+  const planCounts = componentPlanCounts(state, board);
 
   return (
     <div style={{ flex: 1, overflow: 'auto', padding: 20, background: t.bg }} data-testid="project-overview">
@@ -80,7 +103,7 @@ export function ProjectOverview({
           <StatBlock label="Blocking issues" value={String(blockingIssueCount)} isDark={isDark} />
           <StatBlock
             label="Board slots"
-            value={`${ARTIFACT_ORDER.filter((k) => ARTIFACT_REGISTRY[k].availability !== 'placeholder').length}/8 active`}
+            value={`${WORKFLOW_GROUPS.flatMap((g) => g.artifacts).filter((k) => ARTIFACT_REGISTRY[k].availability !== 'placeholder').length}/8 active`}
             isDark={isDark}
           />
         </div>
@@ -122,52 +145,67 @@ export function ProjectOverview({
           </button>
         ) : null}
 
-        <section>
-          <h3 style={{ margin: '0 0 10px', fontSize: 13, color: t.textMuted }}>Artifacts</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-            {ARTIFACT_ORDER.map((key) => {
-              const def = ARTIFACT_REGISTRY[key];
-              const summary =
-                def.artifactType == null
-                  ? undefined
-                  : board?.artifactSummaries?.find((s) => s.artifactType === def.artifactType);
-              const live =
-                def.artifactType == null
-                  ? undefined
-                  : state.artifacts.find((a) => a.artifactType === def.artifactType);
-              const lifecycle = summary?.lifecycleStatus ?? live?.lifecycleStatus ?? 'unavailable';
-              const version = summary?.artifactVersion ?? live?.artifactVersion;
-              const evidenceStatus = summary?.evidenceStatus ?? live?.evidenceStatus;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => onNavigate(key)}
-                  style={{
-                    textAlign: 'left',
-                    border: `1px solid ${t.border}`,
-                    borderRadius: 8,
-                    padding: 12,
-                    background: t.surface,
-                    cursor: 'pointer',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                    <strong style={{ fontSize: 13, color: t.text }}>{def.label}</strong>
-                    <StatusBadge status={lifecycle} />
-                  </div>
-                  <p style={{ margin: '8px 0 0', fontSize: 12, color: t.textSec }}>
-                    {version != null
-                      ? `v${version}${evidenceStatus ? ` · ${evidenceStatus}` : ''}`
-                      : def.availability === 'proof'
-                        ? 'Proof workspace'
-                        : 'Placeholder'}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        {WORKFLOW_GROUPS.map((group) => (
+          <section key={group.label} data-testid={`overview-phase-${group.label}`}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 13, color: t.textMuted }}>
+              {group.label}
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+              {group.artifacts.map((key) => {
+                const def = ARTIFACT_REGISTRY[key];
+                const summary =
+                  def.artifactType == null
+                    ? undefined
+                    : board?.artifactSummaries?.find((s) => s.artifactType === def.artifactType);
+                const live =
+                  def.artifactType == null
+                    ? undefined
+                    : state.artifacts.find((a) => a.artifactType === def.artifactType);
+                const lifecycle = summary?.lifecycleStatus ?? live?.lifecycleStatus ?? 'unavailable';
+                const version = summary?.artifactVersion ?? live?.artifactVersion;
+                const evidenceStatus = summary?.evidenceStatus ?? live?.evidenceStatus;
+
+                let detail =
+                  version != null
+                    ? `v${version}${evidenceStatus ? ` · ${evidenceStatus}` : ''}`
+                    : def.availability === 'proof'
+                      ? 'Proof workspace'
+                      : 'Placeholder';
+
+                if (key === 'component-plan' && planCounts) {
+                  const selected =
+                    planCounts.selected != null ? ` · ${planCounts.selected} selected` : '';
+                  detail = `${planCounts.roles} roles · ${planCounts.candidates} candidates${selected}${
+                    version != null ? ` · v${version}` : ''
+                  }`;
+                }
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onNavigate(key)}
+                    data-testid={`overview-artifact-${key}`}
+                    style={{
+                      textAlign: 'left',
+                      border: `1px solid ${t.border}`,
+                      borderRadius: 8,
+                      padding: 12,
+                      background: t.surface,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                      <strong style={{ fontSize: 13, color: t.text }}>{def.label}</strong>
+                      <StatusBadge status={lifecycle} />
+                    </div>
+                    <p style={{ margin: '8px 0 0', fontSize: 12, color: t.textSec }}>{detail}</p>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ))}
 
         {recentChanges.length ? (
           <section>

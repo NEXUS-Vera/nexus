@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   Artifact,
   ArtifactCommand,
   ArtifactCommandResult,
+  CompatibilityCheck,
+  ComponentCandidate,
   ComponentPlanContent,
+  ComponentRole,
+  SelectionConstraint,
+  SelectionDecision,
   WorkspaceDescriptor,
 } from '@nexus/contracts';
 import {
@@ -13,21 +18,18 @@ import {
   submitArtifactCommand,
 } from '../../api/client';
 import { themeColors } from '../../lib/theme';
+import { EvidenceBadge } from '../../components/statuses/EvidenceBadge';
 import { StatusBadge } from '../../components/statuses/StatusBadge';
 
 type Props = {
   projectId: string;
   artifact?: Extract<Artifact, { artifactType: 'component-plan' }>;
   isDark: boolean;
+  selectedRoleId?: string | null;
+  onSelectRole?: (roleId: string) => void;
+  onSubmitTurn?: (message: string) => Promise<boolean>;
+  turnBusy?: boolean;
   onCommandResult?: (result: ArtifactCommandResult) => void;
-};
-
-const EMPTY_CONTENT: ComponentPlanContent = {
-  approvalStatus: 'not-required',
-  candidateCount: 0,
-  constraintSummary: 'No component-plan constraints loaded yet.',
-  selectionState: 'draft',
-  unresolvedCompatibilityChecks: [],
 };
 
 function newCommandId(): string {
@@ -45,13 +47,92 @@ function userActor() {
   };
 }
 
-export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandResult }: Props) {
+function formatSpecValue(
+  value: ComponentCandidate['specifications'][number]['value'],
+): string {
+  if (typeof value === 'object' && value !== null && 'kind' in value) {
+    return 'unknown';
+  }
+  return String(value);
+}
+
+function unresolvedChecks(checks: CompatibilityCheck[]): CompatibilityCheck[] {
+  return checks.filter((check) =>
+    ['not-checked', 'unknown', 'fail', 'warning', 'conditional'].includes(check.status),
+  );
+}
+
+function constraintsForRole(
+  constraints: SelectionConstraint[],
+  roleId: string,
+): SelectionConstraint[] {
+  return constraints.filter((c) => c.componentRoleId === roleId);
+}
+
+function decisionForRole(
+  decisions: SelectionDecision[],
+  roleId: string,
+): SelectionDecision | undefined {
+  return decisions.find((d) => d.componentRoleId === roleId);
+}
+
+export function ComponentPlanWorkspace({
+  projectId,
+  artifact,
+  isDark,
+  selectedRoleId = null,
+  onSelectRole,
+  onSubmitTurn,
+  turnBusy = false,
+  onCommandResult,
+}: Props) {
   const t = themeColors(isDark);
-  const content = artifact?.content ?? EMPTY_CONTENT;
+  const content = artifact?.content;
+  const roles = content?.componentRoles ?? [];
+  const candidates = content?.candidates ?? [];
+  const decisions = content?.selectionDecisions ?? [];
+  const checks = content?.compatibilityChecks ?? [];
+  const constraints = content?.selectionConstraints ?? [];
+  const coverage = content?.coverageSummary;
+
   const [workspace, setWorkspace] = useState<WorkspaceDescriptor | null>(null);
   const [workspaceError, setWorkspaceError] = useState<string | null>(null);
   const [commandBusy, setCommandBusy] = useState(false);
   const [commandMessage, setCommandMessage] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
+  const [lastAction, setLastAction] = useState<string | null>(null);
+
+  const selectedRole: ComponentRole | undefined = useMemo(() => {
+    if (!roles.length) return undefined;
+    return roles.find((r) => r.componentRoleId === selectedRoleId) ?? roles[0];
+  }, [roles, selectedRoleId]);
+
+  const roleCandidates = useMemo(
+    () =>
+      selectedRole
+        ? candidates.filter((c) => c.componentRoleId === selectedRole.componentRoleId)
+        : [],
+    [candidates, selectedRole],
+  );
+
+  const roleDecision = selectedRole
+    ? decisionForRole(decisions, selectedRole.componentRoleId)
+    : undefined;
+  const preferredCandidate = roleDecision
+    ? roleCandidates.find((c) => c.candidateId === roleDecision.selectedCandidateId)
+    : roleCandidates.find((c) => c.candidateState === 'preferred' || c.candidateState === 'selected');
+
+  const roleConstraints = selectedRole
+    ? constraintsForRole(constraints, selectedRole.componentRoleId)
+    : [];
+  const roleChecks = selectedRole
+    ? checks.filter((c) => c.componentRoleId === selectedRole.componentRoleId)
+    : [];
+  const unresolved = unresolvedChecks(checks);
+  const selectedCount = decisions.filter((d) => d.selectionState === 'approved').length;
+  const blockingIssues = content?.validationSummary.blockingIssueCount ?? 0;
+  const busy = commandBusy || actionBusy || turnBusy;
 
   const refreshWorkspace = useCallback(async () => {
     setWorkspaceError(null);
@@ -72,6 +153,12 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
   useEffect(() => {
     void refreshWorkspace();
   }, [refreshWorkspace]);
+
+  useEffect(() => {
+    if (selectedRole && onSelectRole && selectedRole.componentRoleId !== selectedRoleId) {
+      onSelectRole(selectedRole.componentRoleId);
+    }
+  }, [onSelectRole, selectedRole, selectedRoleId]);
 
   async function ensureWorkspace(): Promise<WorkspaceDescriptor | null> {
     if (workspace) return workspace;
@@ -98,6 +185,7 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
       setCommandMessage('No component-plan artifact is available to command yet.');
       return;
     }
+    if (busy) return;
     setCommandBusy(true);
     setCommandMessage(null);
     try {
@@ -120,7 +208,41 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
     }
   }
 
-  const candidates: Array<{ id: string; name: string; notes: string }> = [];
+  async function runSelectionAction(
+    kind: 'approve' | 'reject' | 'alternatives',
+    message: string,
+  ): Promise<void> {
+    if (!onSubmitTurn || busy) return;
+    setActionBusy(true);
+    setActionMessage(null);
+    setLastAction(kind);
+    try {
+      const ok = await onSubmitTurn(message);
+      if (ok) {
+        setActionMessage(`Submitted: ${message}`);
+      } else {
+        // Retain role selection and button context on failure.
+        setActionMessage('Submission failed. Your selection context was kept.');
+      }
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  if (!content) {
+    return (
+      <div
+        style={{ flex: 1, overflow: 'auto', padding: 16, background: t.bg }}
+        data-testid="workspace-component-plan"
+      >
+        <EmptyState
+          isDark={isDark}
+          title="Component plan not available"
+          body="No component-plan artifact is in the current project state yet. Roles and candidates will appear here once Vera produces a plan."
+        />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -133,58 +255,253 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
           borderRadius: 8,
           padding: 14,
           background: t.surface,
+          display: 'grid',
+          gap: 10,
         }}
+        data-testid="component-plan-summary"
       >
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <strong style={{ fontSize: 13, color: t.text }}>Selection</strong>
-          <StatusBadge status={content.selectionState} />
-          <StatusBadge status={content.approvalStatus} />
-          <span style={{ fontSize: 12, color: t.textMuted }}>
-            Candidates: {content.candidateCount}
-          </span>
+          <strong style={{ fontSize: 13, color: t.text }}>Summary</strong>
+          <StatusBadge status={content.maturity} />
+          <StatusBadge status={content.validationSummary.status} />
+          <EvidenceBadge status={artifact?.evidenceStatus ?? 'unverified'} />
         </div>
-        <p style={{ margin: '10px 0 0', fontSize: 13, color: t.textSec }}>
-          {content.constraintSummary}
-        </p>
+        <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>{content.summary}</p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: 8,
+          }}
+        >
+          <Metric label="Roles" value={String(roles.length)} isDark={isDark} />
+          <Metric label="Candidates" value={String(candidates.length)} isDark={isDark} />
+          <Metric label="Selected" value={String(selectedCount)} isDark={isDark} />
+          <Metric label="Blockers" value={String(blockingIssues)} isDark={isDark} />
+          <Metric
+            label="Unresolved checks"
+            value={String(unresolved.length)}
+            isDark={isDark}
+          />
+          <Metric
+            label="Awaiting approval"
+            value={String(coverage?.rolesAwaitingApproval ?? 0)}
+            isDark={isDark}
+          />
+        </div>
       </section>
 
-      <section
+      <div
         style={{
-          border: `1px solid ${t.border}`,
-          borderRadius: 8,
-          padding: 14,
-          background: t.surface,
+          display: 'grid',
+          gridTemplateColumns: 'minmax(220px, 0.7fr) minmax(0, 1.3fr)',
+          gap: 14,
+          alignItems: 'start',
         }}
       >
-        <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>Candidate comparison</h3>
-        {candidates.length === 0 ? (
-          <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>
-            No candidates loaded. Comparison rows will appear when retrieval and plan generation
-            produce component options.
-          </p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, color: t.text }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', padding: '6px 4px' }}>Candidate</th>
-                <th style={{ textAlign: 'left', padding: '6px 4px' }}>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {candidates.map((row) => (
-                <tr key={row.id}>
-                  <td style={{ padding: '6px 4px', borderTop: `1px solid ${t.border}` }}>
-                    {row.name}
-                  </td>
-                  <td style={{ padding: '6px 4px', borderTop: `1px solid ${t.border}` }}>
-                    {row.notes}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
+        <section
+          style={{
+            border: `1px solid ${t.border}`,
+            borderRadius: 8,
+            padding: 14,
+            background: t.surface,
+            display: 'grid',
+            gap: 8,
+          }}
+          data-testid="component-plan-role-list"
+        >
+          <h3 style={{ margin: 0, fontSize: 12, color: t.textMuted }}>Roles</h3>
+          {roles.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>
+              No component roles defined yet.
+            </p>
+          ) : (
+            roles.map((role) => {
+              const active = selectedRole?.componentRoleId === role.componentRoleId;
+              const roleCands = candidates.filter((c) => c.componentRoleId === role.componentRoleId);
+              const roleCons = constraintsForRole(constraints, role.componentRoleId);
+              return (
+                <button
+                  key={role.componentRoleId}
+                  type="button"
+                  data-testid={`component-role-${role.componentRoleId}`}
+                  data-role-category={role.category}
+                  onClick={() => onSelectRole?.(role.componentRoleId)}
+                  style={{
+                    textAlign: 'left',
+                    border: `1px solid ${active ? t.cobalt : t.border}`,
+                    background: active ? t.cobaltSelected : t.bg,
+                    borderRadius: 8,
+                    padding: 10,
+                    cursor: 'pointer',
+                    display: 'grid',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <strong style={{ fontSize: 13, color: t.text }}>{role.name}</strong>
+                    <StatusBadge status={role.status} />
+                  </div>
+                  <div style={{ fontSize: 11, color: t.textMuted }}>
+                    {role.displayId} · {role.category} · {roleCands.length} candidates
+                  </div>
+                  <div style={{ fontSize: 11, color: t.textSec }}>
+                    Arch: {role.architectureNodeIds.length || 'none'} · Reqs:{' '}
+                    {role.requirementIds.length || 'none'} · Constraints: {roleCons.length}
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </section>
+
+        <div style={{ display: 'grid', gap: 14 }}>
+          <section
+            style={{
+              border: `1px solid ${t.border}`,
+              borderRadius: 8,
+              padding: 14,
+              background: t.surface,
+              display: 'grid',
+              gap: 10,
+            }}
+            data-testid="component-plan-candidate-compare"
+          >
+            <h3 style={{ margin: 0, fontSize: 12, color: t.textMuted }}>
+              Candidate comparison
+              {selectedRole ? ` · ${selectedRole.name}` : ''}
+            </h3>
+            {!selectedRole ? (
+              <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>
+                Select a role to compare candidates.
+              </p>
+            ) : roleCandidates.length === 0 ? (
+              <p style={{ margin: 0, fontSize: 13, color: t.textSec }} data-testid="component-plan-candidates-empty">
+                No candidates proposed for this role yet. Request alternatives through Vera when ready.
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {roleCandidates.map((candidate) => (
+                  <CandidateCard
+                    key={candidate.candidateId}
+                    candidate={candidate}
+                    checks={roleChecks.filter((c) => c.candidateId === candidate.candidateId)}
+                    isPreferred={preferredCandidate?.candidateId === candidate.candidateId}
+                    isDark={isDark}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section
+            style={{
+              border: `1px solid ${t.border}`,
+              borderRadius: 8,
+              padding: 14,
+              background: t.surface,
+              display: 'grid',
+              gap: 10,
+            }}
+            data-testid="component-plan-selection-panel"
+          >
+            <h3 style={{ margin: 0, fontSize: 12, color: t.textMuted }}>Selection</h3>
+            {!selectedRole ? (
+              <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>
+                Select a role to review preferred selection and approval actions.
+              </p>
+            ) : (
+              <>
+                {!roleDecision && !preferredCandidate ? (
+                  <p style={{ margin: 0, fontSize: 13, color: t.textSec }} data-testid="component-plan-selection-empty">
+                    No preferred selection yet for {selectedRole.name}.
+                  </p>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <strong style={{ fontSize: 13, color: t.text }}>
+                        Preferred: {preferredCandidate?.displayName ?? roleDecision?.selectedCandidateId}
+                      </strong>
+                      {roleDecision ? <StatusBadge status={roleDecision.selectionState} /> : null}
+                    </div>
+                    {roleDecision?.rationale ? (
+                      <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>{roleDecision.rationale}</p>
+                    ) : null}
+                    {roleDecision?.tradeoffs?.length ? (
+                      <div>
+                        <h4 style={{ margin: '0 0 4px', fontSize: 11, color: t.textMuted }}>Tradeoffs</h4>
+                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+                          {roleDecision.tradeoffs.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                    {roleConstraints.length ? (
+                      <div>
+                        <h4 style={{ margin: '0 0 4px', fontSize: 11, color: t.textMuted }}>
+                          Constraints ({roleConstraints.length})
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: t.text }}>
+                          {roleConstraints.slice(0, 4).map((c) => (
+                            <li key={c.constraintId}>
+                              {c.constraintType} · {c.importance} · {c.confirmationStatus}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <ActionButton
+                    label="Approve preferred"
+                    testId="component-plan-approve"
+                    disabled={busy || !preferredCandidate}
+                    isDark={isDark}
+                    onClick={() =>
+                      void runSelectionAction(
+                        'approve',
+                        `Approve the preferred selection for role ${selectedRole.name}`,
+                      )
+                    }
+                  />
+                  <ActionButton
+                    label="Reject candidate"
+                    testId="component-plan-reject"
+                    disabled={busy || !preferredCandidate}
+                    isDark={isDark}
+                    onClick={() =>
+                      void runSelectionAction(
+                        'reject',
+                        `Reject the preferred candidate for role ${selectedRole.name}`,
+                      )
+                    }
+                  />
+                  <ActionButton
+                    label="Request alternatives"
+                    testId="component-plan-request-alternatives"
+                    disabled={busy}
+                    isDark={isDark}
+                    onClick={() =>
+                      void runSelectionAction(
+                        'alternatives',
+                        `Show me another option for ${selectedRole.name}`,
+                      )
+                    }
+                  />
+                </div>
+                {actionMessage ? (
+                  <p role="status" style={{ margin: 0, fontSize: 12, color: t.text }}>
+                    {actionMessage}
+                    {lastAction ? ` (${lastAction})` : ''}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </section>
+        </div>
+      </div>
 
       <section
         style={{
@@ -193,35 +510,24 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
           padding: 14,
           background: t.surface,
         }}
+        data-testid="component-plan-compatibility"
       >
         <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>
-          Unresolved compatibility checks
+          Compatibility checks
         </h3>
-        {content.unresolvedCompatibilityChecks.length ? (
+        {roleChecks.length === 0 && unresolved.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>
+            No compatibility checks recorded yet.
+          </p>
+        ) : (
           <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: t.text }}>
-            {content.unresolvedCompatibilityChecks.map((check) => (
-              <li key={check}>{check}</li>
+            {(selectedRole ? roleChecks : unresolved).slice(0, 8).map((check) => (
+              <li key={check.compatibilityCheckId}>
+                {check.checkType}: {check.status} ({check.severity}) — {check.reason}
+              </li>
             ))}
           </ul>
-        ) : (
-          <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>No unresolved checks recorded.</p>
         )}
-      </section>
-
-      <section
-        style={{
-          border: `1px dashed ${t.border}`,
-          borderRadius: 8,
-          padding: 14,
-          background: t.surface,
-        }}
-        data-testid="component-plan-retrieval-notice"
-      >
-        <h3 style={{ margin: '0 0 8px', fontSize: 12, color: t.textMuted }}>Retrieval</h3>
-        <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>
-          Datasheet and supplier retrieval is unavailable in this proof workspace. Candidate evidence
-          will attach here when retrieval providers are connected.
-        </p>
       </section>
 
       <section
@@ -233,6 +539,7 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
           display: 'grid',
           gap: 10,
         }}
+        data-testid="component-plan-workspace-commands"
       >
         <h3 style={{ margin: 0, fontSize: 12, color: t.textMuted }}>Workspace commands</h3>
         <p style={{ margin: 0, fontSize: 12, color: t.textSec }}>
@@ -246,15 +553,15 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
           </p>
         ) : null}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <CommandButton
+          <ActionButton
             label="Create / refresh workspace"
-            disabled={commandBusy}
+            disabled={busy}
             isDark={isDark}
             onClick={() => void ensureWorkspace().then(() => refreshWorkspace())}
           />
-          <CommandButton
+          <ActionButton
             label="Create snapshot"
-            disabled={commandBusy || !artifact}
+            disabled={busy || !artifact}
             isDark={isDark}
             onClick={() =>
               void runCommand((ws) => ({
@@ -268,13 +575,13 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
                 baseProjectStateVersion: ws.baseProjectStateVersion,
                 requestedAt: new Date().toISOString(),
                 requestedBy: userActor(),
-                input: { reason: 'Manual snapshot from component-plan proof workspace' },
+                input: { reason: 'Manual snapshot from component-plan workspace' },
               }))
             }
           />
-          <CommandButton
+          <ActionButton
             label="Propose revision"
-            disabled={commandBusy || !artifact || !workspace?.currentSnapshotId}
+            disabled={busy || !artifact || !workspace?.currentSnapshotId}
             isDark={isDark}
             onClick={() =>
               void runCommand((ws) => ({
@@ -291,7 +598,7 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
                 input: {
                   snapshotId: ws.currentSnapshotId!,
                   consequenceLevel: 'medium',
-                  summary: 'Propose component-plan revision from proof workspace',
+                  summary: 'Propose component-plan revision from comparison workspace',
                 },
               }))
             }
@@ -307,22 +614,140 @@ export function ComponentPlanWorkspace({ projectId, artifact, isDark, onCommandR
   );
 }
 
-function CommandButton({
+function CandidateCard({
+  candidate,
+  checks,
+  isPreferred,
+  isDark,
+}: {
+  candidate: ComponentCandidate;
+  checks: CompatibilityCheck[];
+  isPreferred: boolean;
+  isDark: boolean;
+}) {
+  const t = themeColors(isDark);
+  return (
+    <article
+      data-testid={`component-candidate-${candidate.candidateId}`}
+      style={{
+        border: `1px solid ${isPreferred ? t.cobalt : t.border}`,
+        borderRadius: 8,
+        padding: 12,
+        background: isPreferred ? t.cobaltTint : t.bg,
+        display: 'grid',
+        gap: 8,
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <div>
+          <strong style={{ fontSize: 13, color: t.text }}>{candidate.displayName}</strong>
+          <div style={{ fontSize: 11, color: t.textMuted }}>
+            {candidate.manufacturer} · {candidate.partNumber}
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <StatusBadge status={candidate.candidateState} />
+          <EvidenceBadge status={candidate.evidenceStatus} />
+          {isPreferred ? <StatusBadge status="preferred" /> : null}
+        </div>
+      </div>
+      {candidate.specifications.length ? (
+        <div style={{ fontSize: 12, color: t.textSec }}>
+          Specs:{' '}
+          {candidate.specifications
+            .slice(0, 4)
+            .map((spec) => {
+              const unit = spec.unit ? ` ${spec.unit}` : '';
+              return `${spec.specKey}=${formatSpecValue(spec.value)}${unit}`;
+            })
+            .join(' · ')}
+        </div>
+      ) : null}
+      {candidate.advantages.length ? (
+        <div style={{ fontSize: 12, color: t.text }}>
+          Advantages: {candidate.advantages.join('; ')}
+        </div>
+      ) : null}
+      {candidate.limitations.length ? (
+        <div style={{ fontSize: 12, color: t.textSec }}>
+          Limitations: {candidate.limitations.join('; ')}
+        </div>
+      ) : null}
+      <div style={{ fontSize: 11, color: t.textMuted }}>
+        Compatibility: {checks.length ? checks.map((c) => `${c.checkType}:${c.status}`).join(', ') : 'none'}
+        {' · '}
+        Evidence refs: {candidate.evidenceReferences.length}
+        {' · '}
+        Confidence: {candidate.confidence}
+      </div>
+    </article>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  isDark,
+}: {
+  label: string;
+  value: string;
+  isDark: boolean;
+}) {
+  const t = themeColors(isDark);
+  return (
+    <div style={{ border: `1px solid ${t.border}`, borderRadius: 6, padding: 8, background: t.bg }}>
+      <div style={{ fontSize: 11, color: t.textMuted }}>{label}</div>
+      <div style={{ fontSize: 16, fontWeight: 700, color: t.text }}>{value}</div>
+    </div>
+  );
+}
+
+function EmptyState({
+  isDark,
+  title,
+  body,
+}: {
+  isDark: boolean;
+  title: string;
+  body: string;
+}) {
+  const t = themeColors(isDark);
+  return (
+    <div
+      style={{
+        border: `1px dashed ${t.border}`,
+        borderRadius: 8,
+        padding: 24,
+        background: t.surface,
+        maxWidth: 560,
+      }}
+      data-testid="component-plan-empty"
+    >
+      <h3 style={{ margin: 0, fontSize: 15, color: t.text }}>{title}</h3>
+      <p style={{ margin: '8px 0 0', fontSize: 13, color: t.textSec }}>{body}</p>
+    </div>
+  );
+}
+
+function ActionButton({
   label,
   disabled,
   isDark,
   onClick,
+  testId,
 }: {
   label: string;
   disabled?: boolean;
   isDark: boolean;
   onClick: () => void;
+  testId?: string;
 }) {
   const t = themeColors(isDark);
   return (
     <button
       type="button"
       disabled={disabled}
+      data-testid={testId}
       onClick={onClick}
       style={{
         padding: '6px 10px',
@@ -338,4 +763,15 @@ function CommandButton({
       {label}
     </button>
   );
+}
+
+/** Exported for unit tests that need content helpers without mounting API. */
+export function summarizePlanContent(content: ComponentPlanContent) {
+  return {
+    roleCount: content.componentRoles.length,
+    candidateCount: content.candidates.length,
+    selectedCount: content.selectionDecisions.filter((d) => d.selectionState === 'approved')
+      .length,
+    unresolvedCheckCount: unresolvedChecks(content.compatibilityChecks).length,
+  };
 }
