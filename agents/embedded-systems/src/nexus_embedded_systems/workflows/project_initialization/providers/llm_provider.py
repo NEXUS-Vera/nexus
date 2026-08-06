@@ -7,10 +7,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from nexus_contracts.validation.semantic_validators import validate_component_plan_content
 from nexus_model_gateway import ModelGateway, ModelGatewayError, ModelPolicy
 from nexus_observability import GenerationObservation, ObservationRecorder, StructuredLogRecorder
 
-from nexus_contracts.validation.semantic_validators import validate_component_plan_content
 from nexus_embedded_systems.workflows.component_planning import (
     compose_component_plan_content,
     compose_component_plan_envelope,
@@ -514,14 +514,18 @@ class LlmInitializationProvider:
 
         step = ledger.start_step("validate-component-plan")
         arch_ids = {
-            node.get("nodeId")
+            node_id
             for node in (architecture_content.get("nodes") or [])
-            if isinstance(node, dict) and isinstance(node.get("nodeId"), str)
+            if isinstance(node, dict)
+            for node_id in [node.get("nodeId")]
+            if isinstance(node_id, str)
         }
         req_ids = {
-            req.get("requirementId")
+            requirement_id
             for req in (requirement_set_content.get("requirements") or [])
-            if isinstance(req, dict) and isinstance(req.get("requirementId"), str)
+            if isinstance(req, dict)
+            for requirement_id in [req.get("requirementId")]
+            if isinstance(requirement_id, str)
         }
         semantic_errors = validate_component_plan_content(
             content,

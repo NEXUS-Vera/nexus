@@ -23,9 +23,7 @@ def derive_constraints_from_requirements(
 
     constraints: list[dict[str, Any]] = []
     active_reqs = [
-        r
-        for r in requirements
-        if isinstance(r, dict) and r.get("confirmationStatus") != "rejected"
+        r for r in requirements if isinstance(r, dict) and r.get("confirmationStatus") != "rejected"
     ]
     for role in roles:
         role_id = role.get("componentRoleId")
@@ -36,8 +34,7 @@ def derive_constraints_from_requirements(
         matched = [
             r
             for r in active_reqs
-            if r.get("requirementId") in role_req_ids
-            or _requirement_matches_role(r, role)
+            if r.get("requirementId") in role_req_ids or _requirement_matches_role(r, role)
         ]
         for req in matched[:3]:
             constraint_type, operator, unit = _map_constraint(req)
@@ -54,9 +51,7 @@ def derive_constraints_from_requirements(
                     "sourceArchitectureNodeIds": arch_ids,
                     "importance": "required",
                     "confirmationStatus": (
-                        "confirmed"
-                        if req.get("confirmationStatus") == "confirmed"
-                        else "unknown"
+                        "confirmed" if req.get("confirmationStatus") == "confirmed" else "unknown"
                     ),
                     "rationale": f"Derived from requirement: {statement[:160]}",
                 }
@@ -85,9 +80,8 @@ def _requirement_matches_role(req: dict[str, Any], role: dict[str, Any]) -> bool
 def _map_constraint(req: dict[str, Any]) -> tuple[str, str, str | None]:
     statement = str(req.get("statement") or "").casefold()
     category = str(req.get("category") or "").casefold()
-    if any(t in statement for t in _ACCURACY) or category == "performance":
-        if any(t in statement for t in _ACCURACY):
-            return "accuracy", "unknown", None
+    if any(t in statement for t in _ACCURACY):
+        return "accuracy", "unknown", None
     if any(t in statement for t in _SAMPLE):
         return "sample-rate", "unknown", "Hz"
     if any(t in statement for t in _BUDGET) or category == "project-constraint":

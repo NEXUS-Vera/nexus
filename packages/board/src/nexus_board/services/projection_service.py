@@ -198,7 +198,9 @@ class ProjectBoardProjectionService:
         selections = content.get("selectionDecisions") or []
         checks = content.get("compatibilityChecks") or []
         coverage = content.get("coverageSummary") or {}
-        selected = sum(1 for s in selections if isinstance(s, dict) and s.get("selectionState") == "approved")
+        selected = sum(
+            1 for s in selections if isinstance(s, dict) and s.get("selectionState") == "approved"
+        )
         unresolved = sum(
             1
             for c in checks

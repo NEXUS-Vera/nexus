@@ -50,9 +50,7 @@ _ANSWER_RUNTIME_Q = re.compile(
     r"(\d+|eight|six|twelve)\s*(hour|hours|month|months)\b"
     r"|\b(\d+|eight|six|twelve)\s*(hour|hours).{0,20}(runtime|battery|operating)\b"
 )
-_REJECT_CANDIDATE = re.compile(
-    r"(?i)\b(reject|drop|remove)\b.{0,40}\b(candidate|part|component)\b"
-)
+_REJECT_CANDIDATE = re.compile(r"(?i)\b(reject|drop|remove)\b.{0,40}\b(candidate|part|component)\b")
 _APPROVE_SELECTION = re.compile(
     r"(?i)\b(approve|accept|confirm)\b.{0,40}\b(selection|candidate|component|part)\b"
 )
@@ -333,11 +331,7 @@ def _interpret_component_plan_change(
 
 
 def _resolve_single_candidate(candidates: list[dict[str, Any]]) -> str | None:
-    active = [
-        c
-        for c in candidates
-        if c.get("candidateState") not in {"rejected", "superseded"}
-    ]
+    active = [c for c in candidates if c.get("candidateState") not in {"rejected", "superseded"}]
     if len(active) > 1:
         raise FixtureModificationError(
             code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
@@ -427,7 +421,7 @@ def _requirements(state: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _component_plan(state: dict[str, Any]) -> dict[str, Any] | None:
     for art in state.get("artifacts") or []:
-        if art.get("artifactType") == "component-plan":
+        if isinstance(art, dict) and art.get("artifactType") == "component-plan":
             return art
     return None
 
