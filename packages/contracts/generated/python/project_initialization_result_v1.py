@@ -770,6 +770,13 @@ class TurnRoute(TypedDict, closed=True):
         'remove-proposed-requirement',
         'answer-open-question',
         'change-project-scope',
+        'reject-component-candidate',
+        'approve-component-selection',
+        'change-component-preference',
+        'add-component-constraint',
+        'change-interface-constraint',
+        'request-component-alternatives',
+        'answer-component-open-question',
         'none',
     ]
     reasons: list[str]
