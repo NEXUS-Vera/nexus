@@ -8,6 +8,7 @@ ARTIFACT_TYPES = (
     "project-brief",
     "requirement-set",
     "functional-architecture",
+    "component-plan",
     "next-action",
 )
 
@@ -22,6 +23,16 @@ ARCHITECTURE_CATEGORIES = {
     "weight",
     "mechanical",
     "safety",
+}
+
+COMPONENT_PLAN_OPS = {
+    "reject-component-candidate",
+    "approve-component-selection",
+    "change-component-preference",
+    "add-component-constraint",
+    "change-interface-constraint",
+    "request-component-alternatives",
+    "answer-component-open-question",
 }
 
 
@@ -39,6 +50,44 @@ def analyze_impact(
     stale: list[str] = []
     regenerate: list[str] = []
     reasons: list[dict[str, str]] = []
+
+    if operation in COMPONENT_PLAN_OPS:
+        changed.append("component-plan")
+        regenerate.append("component-plan")
+        reasons.append(
+            {
+                "artifactType": "component-plan",
+                "reason": f"Component plan revised due to {operation}.",
+            }
+        )
+        affected.append("next-action")
+        regenerate.append("next-action")
+        reasons.append(
+            {
+                "artifactType": "next-action",
+                "reason": "Next action refreshed after component-plan change.",
+            }
+        )
+        # Downstream planning surfaces that may later depend on selections.
+        for downstream in ("firmware", "test", "risk"):
+            if downstream in ARTIFACT_TYPES:
+                affected.append(downstream)
+        regenerate = list(dict.fromkeys(regenerate))
+        changed = list(dict.fromkeys(changed))
+        affected = list(dict.fromkeys(affected))
+        stale = list(dict.fromkeys(stale))
+        unchanged = [
+            t for t in ARTIFACT_TYPES if t not in set(changed) | set(affected) | set(regenerate)
+        ]
+        return {
+            "schemaVersion": "1.0.0",
+            "changed": changed,
+            "affected": affected,
+            "stale": stale,
+            "regenerate": regenerate,
+            "unchanged": unchanged,
+            "reasonByArtifact": reasons,
+        }
 
     if operation in {
         "clarify-requirement",
@@ -76,6 +125,15 @@ def analyze_impact(
             {
                 "artifactType": "functional-architecture",
                 "reason": "Architecture impacted by requirement/category change.",
+            }
+        )
+        affected.append("component-plan")
+        stale.append("component-plan")
+        regenerate.append("component-plan")
+        reasons.append(
+            {
+                "artifactType": "component-plan",
+                "reason": "Component plan depends on architecture and requirements.",
             }
         )
 

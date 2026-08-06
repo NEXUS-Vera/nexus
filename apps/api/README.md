@@ -33,6 +33,11 @@ Successful turn responses return `ProjectTurnResult` (includes current state and
 impact analysis). Artifact commands return `ArtifactCommandResult` (or a
 structured conflict/governance error envelope).
 
+Phase 12 initialize packages include five artifact types, including
+`component-plan`. Board summaries expose Component Plan maturity/coverage
+counts. Fixture-mode turns support component-plan operations (approve/reject
+candidates, constraints, alternatives) in addition to requirement edits.
+
 ## Configuration
 
 | Variable | Default | Notes |
