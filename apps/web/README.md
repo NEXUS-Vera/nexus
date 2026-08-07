@@ -26,7 +26,7 @@ apps/web/src/
 ```
 
 The project board uses a 64px header, collapsible workflow rail, central
-workspace, and collapsible context inspector.
+workspace, and a collapsible context inspector with Context | Vera modes.
 
 `ARTIFACT_REGISTRY` describes product availability and rail metadata.
 `WORKSPACE_RENDERER_REGISTRY` maps `artifactType` / route keys to React
@@ -47,6 +47,7 @@ Workspace URL query params:
 - `artifact` — registry route key (for example `requirement-set`)
 - `req`, `node`, `role`, `test`, `risk` — selection deep-links
 - `sel`, `selId`, `revType`, `revVersion` — inspector selection
+- `panel` — `context` | `vera` (inspector sidecar mode)
 - `history=1` — open history panel
 
 Browser refresh reloads live project state from the API.
