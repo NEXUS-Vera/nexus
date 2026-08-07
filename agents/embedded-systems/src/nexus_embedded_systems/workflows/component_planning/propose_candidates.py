@@ -25,7 +25,12 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             "displayName": "Fixture IMU-class motion sensor",
             "specifications": [
                 {"specKey": "interface", "value": "I2C", "operator": "eq"},
-                {"specKey": "sample-rate", "value": {"kind": "unknown"}, "unit": "Hz", "operator": "unknown"},
+                {
+                    "specKey": "sample-rate",
+                    "value": {"kind": "unknown"},
+                    "unit": "Hz",
+                    "operator": "unknown",
+                },
             ],
             "advantages": ["Covers tremor/vibration sensing roles"],
             "limitations": ["Noise floor not grounded"],
@@ -83,7 +88,12 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             "displayName": "Fixture LiPo cell class (estimate)",
             "specifications": [
                 {"specKey": "supply-voltage", "value": 3.7, "unit": "V", "operator": "eq"},
-                {"specKey": "capacity", "value": {"kind": "unknown"}, "unit": "mAh", "operator": "unknown"},
+                {
+                    "specKey": "capacity",
+                    "value": {"kind": "unknown"},
+                    "unit": "mAh",
+                    "operator": "unknown",
+                },
             ],
             "advantages": ["Common wearable/portable energy source"],
             "limitations": ["Capacity/runtime estimates unverified"],
