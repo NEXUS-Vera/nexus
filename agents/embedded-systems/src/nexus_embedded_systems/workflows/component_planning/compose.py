@@ -27,7 +27,7 @@ def compose_component_plan_content(
     proposed_by: dict[str, Any] | None = None,
     now: str | None = None,
 ) -> dict[str, Any]:
-    """Deterministically derive a useful provisional Component Plan from architecture + requirements."""
+    """Derive a provisional Component Plan from architecture and requirements."""
 
     stamp = now or utc_now()
     actor = proposed_by or default_actor("vera", display_name="Vera")
@@ -76,7 +76,9 @@ def compose_component_plan_content(
                     "approvalRequirement": {
                         "schemaVersion": "1.0.0",
                         "required": True,
-                        "reason": "Component selection requires user confirmation before procurement.",
+                        "reason": (
+                            "Component selection requires user confirmation before procurement."
+                        ),
                         "consequenceLevel": "high",
                         "allowedApproverKinds": ["user"],
                         "autoAcceptAllowed": False,
@@ -133,7 +135,9 @@ def compose_component_plan_content(
         "validationSummary": {
             "issueCount": len(open_questions) + sum(1 for c in checks if c.get("status") != "pass"),
             "blockingIssueCount": 0,
-            "warningCount": sum(1 for c in checks if c.get("status") in {"unknown", "conditional", "warning"}),
+            "warningCount": sum(
+                1 for c in checks if c.get("status") in {"unknown", "conditional", "warning"}
+            ),
             "status": "warnings" if checks else "ok",
         },
     }
@@ -211,7 +215,9 @@ def _summary(
 ) -> str:
     role_count = len(roles)
     candidate_count = len(candidates)
-    preferred = sum(1 for s in selections if s.get("selectionState") in {"proposed", "awaiting-user"})
+    preferred = sum(
+        1 for s in selections if s.get("selectionState") in {"proposed", "awaiting-user"}
+    )
     if candidate_count:
         return (
             f"Provisional component plan with {role_count} role(s), "

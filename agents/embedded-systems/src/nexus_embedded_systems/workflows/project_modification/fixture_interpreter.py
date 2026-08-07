@@ -353,7 +353,9 @@ def _resolve_single_candidate(
             return named[0].get("candidateId")
         raise FixtureModificationError(
             code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
-            message="Multiple component candidates match. Clarify which role or candidate to update.",
+            message=(
+                "Multiple component candidates match. Clarify which role or candidate to update."
+            ),
         )
 
     scoped = active
@@ -369,7 +371,10 @@ def _resolve_single_candidate(
         if len(preferred) > 1 and not matched_roles:
             raise FixtureModificationError(
                 code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
-                message="Multiple preferred candidates match. Clarify which role or candidate to approve.",
+                message=(
+                    "Multiple preferred candidates match. "
+                    "Clarify which role or candidate to approve."
+                ),
             )
         if len(preferred) > 1:
             raise FixtureModificationError(
@@ -434,7 +439,11 @@ def _roles_matching_text(roles: list[dict[str, Any]], text: str) -> list[dict[st
             matched.append(role)
             continue
         # Match distinctive words from the role name (skip generic tokens).
-        tokens = [t for t in name.replace("-", " ").split() if len(t) > 3 and t not in {"role", "component"}]
+        tokens = [
+            t
+            for t in name.replace("-", " ").split()
+            if len(t) > 3 and t not in {"role", "component"}
+        ]
         if any(token in blob for token in tokens):
             matched.append(role)
     return matched or list(roles)
