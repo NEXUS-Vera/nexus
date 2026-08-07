@@ -181,10 +181,15 @@ Phase 12 Component Plan content includes:
 
 - component roles derived from architecture nodes (with architecture + requirement refs)
 - selection constraints derived from requirements where possible
-- provisional candidates (fixture or staged proposal; evidenceStatus must not be overstated)
+- provisional candidates (fixture or staged proposal at initialization; evidenceStatus must not be overstated)
+- preferred selection proposals (`awaiting-user`) that are not auto-approved
 - selection decisions and compatibility checks when present
 - coverage summary (roles/candidates/architecture coverage)
 - maturity from `roles-defined` through `validated`
+
+Supported fixture initialization normally lands at `candidates-proposed` or
+`selection-proposed` with provisional candidates for major roles. Users should
+not need to click Request alternatives merely to see the first candidates.
 
 Semantic validators reject unknown role references, blocked candidates approved as selections, duplicate approved selections per role, coverage mismatches, and `tested` candidate evidence in Phase 12.
 
