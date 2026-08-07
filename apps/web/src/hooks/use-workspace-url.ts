@@ -6,9 +6,16 @@ import type { InspectorSelection } from '../lib/inspector-selection';
 
 const DEFAULT_ARTIFACT: ArtifactRouteKey = 'project-brief';
 
+export type InspectorPanelMode = 'context' | 'vera';
+
 function parseGlobalView(value: string | null): GlobalView {
   if (value === 'overview' || value === 'mind-graph' || value === 'workspace') return value;
   return 'workspace';
+}
+
+function parseInspectorPanel(value: string | null): InspectorPanelMode {
+  if (value === 'vera') return 'vera';
+  return 'context';
 }
 
 function parseSelection(params: URLSearchParams): InspectorSelection {
@@ -52,6 +59,7 @@ export function useWorkspaceUrl() {
   const selectedTest = searchParams.get('test');
   const selectedRisk = searchParams.get('risk');
   const historyOpen = searchParams.get('history') === '1';
+  const inspectorPanel = parseInspectorPanel(searchParams.get('panel'));
   const selection = useMemo(() => parseSelection(searchParams), [searchParams]);
 
   const patchParams = useCallback(
@@ -172,8 +180,15 @@ export function useWorkspaceUrl() {
     [patchParams],
   );
 
+  const setInspectorPanel = useCallback(
+    (mode: InspectorPanelMode) => {
+      patchParams({ panel: mode === 'context' ? null : mode });
+    },
+    [patchParams],
+  );
+
   const focusVera = useCallback(() => {
-    patchParams({ view: null });
+    patchParams({ view: null, panel: 'vera' });
     requestAnimationFrame(() => {
       document.getElementById('vera-turn')?.focus();
     });
@@ -188,6 +203,7 @@ export function useWorkspaceUrl() {
     selectedTest,
     selectedRisk,
     historyOpen,
+    inspectorPanel,
     selection,
     setGlobalView,
     setSelectedArtifact,
@@ -196,6 +212,7 @@ export function useWorkspaceUrl() {
     setSelectedComponentRole,
     setInspectorSelection,
     setHistoryOpen,
+    setInspectorPanel,
     focusVera,
     patchParams,
   };

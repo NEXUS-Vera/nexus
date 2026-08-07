@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import type {
   Artifact,
   ExecutionRun,
@@ -12,8 +12,10 @@ import type {
 import { selectArtifactByType } from '../../artifacts';
 import { ARTIFACT_REGISTRY } from '../../artifacts/registry';
 import type { ArtifactRouteKey } from '../../artifacts/types';
+import type { InspectorPanelMode } from '../../hooks/use-workspace-url';
 import type { InspectorSelection } from '../../lib/inspector-selection';
 import { themeColors } from '../../lib/theme';
+import { VeraPanel, type VeraContextChip } from '../feedback/VeraPanel';
 import { EvidenceBadge } from '../statuses/EvidenceBadge';
 import { StatusBadge } from '../statuses/StatusBadge';
 
@@ -31,6 +33,14 @@ type ContextInspectorProps = {
   changedArtifactTypes: string[];
   regeneratedArtifactTypes: string[];
   onFocusVera: () => void;
+  inspectorPanel: InspectorPanelMode;
+  onInspectorPanelChange: (mode: InspectorPanelMode) => void;
+  veraMessageDraft: string;
+  onVeraMessageChange: (value: string) => void;
+  onVeraSubmit: (event: FormEvent) => void;
+  veraSubmitting: boolean;
+  veraError: string | null;
+  veraContextChips?: VeraContextChip[];
 };
 
 function findRequirement(artifacts: Artifact[], id: string) {
@@ -88,8 +98,17 @@ export function ContextInspector({
   changedArtifactTypes,
   regeneratedArtifactTypes,
   onFocusVera,
+  inspectorPanel,
+  onInspectorPanelChange,
+  veraMessageDraft,
+  onVeraMessageChange,
+  onVeraSubmit,
+  veraSubmitting,
+  veraError,
+  veraContextChips = [],
 }: ContextInspectorProps) {
   const t = themeColors(isDark);
+  const openQuestions = (state.openQuestions ?? []).filter((q) => q.status === 'open');
 
   if (collapsed) {
     return (
@@ -103,6 +122,7 @@ export function ContextInspector({
           flexDirection: 'column',
           alignItems: 'center',
           paddingTop: 8,
+          gap: 8,
         }}
       >
         <button
@@ -123,6 +143,28 @@ export function ContextInspector({
           }}
         >
           <span aria-hidden>‹</span>
+        </button>
+        <button
+          type="button"
+          aria-label="Open Vera"
+          data-testid="inspector-collapsed-vera"
+          onClick={() => {
+            onCollapsedChange(false);
+            onFocusVera();
+          }}
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            border: `1px solid ${t.border}`,
+            background: t.cobaltTint,
+            cursor: 'pointer',
+            color: t.cobalt,
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          V
         </button>
       </aside>
     );
@@ -299,7 +341,6 @@ export function ContextInspector({
     : [];
 
   const requirements = selectArtifactByType(state.artifacts, 'requirement-set')?.content.requirements ?? [];
-  const openQuestions = (state.openQuestions ?? []).filter((q) => q.status === 'open');
   const openIssues = (state.validationIssues ?? []).filter((i) => i.resolutionStatus === 'open');
   const dependencyLabels = def.dependencyLabels;
   const recentEvents = (events.length
@@ -353,11 +394,55 @@ export function ContextInspector({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 12px',
+          padding: '8px 10px',
           borderBottom: `1px solid ${t.border}`,
+          gap: 8,
         }}
       >
-        <strong style={{ fontSize: 13, color: t.text }}>Context</strong>
+        <div
+          role="tablist"
+          aria-label="Inspector mode"
+          style={{ display: 'flex', gap: 4 }}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={inspectorPanel === 'context'}
+            data-testid="inspector-tab-context"
+            onClick={() => onInspectorPanelChange('context')}
+            style={{
+              border: `1px solid ${inspectorPanel === 'context' ? t.cobalt : t.border}`,
+              background: inspectorPanel === 'context' ? t.cobaltTint : 'transparent',
+              color: inspectorPanel === 'context' ? t.cobalt : t.textSec,
+              borderRadius: 6,
+              padding: '4px 10px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Context
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={inspectorPanel === 'vera'}
+            data-testid="inspector-tab-vera"
+            onClick={() => onInspectorPanelChange('vera')}
+            style={{
+              border: `1px solid ${inspectorPanel === 'vera' ? t.cobalt : t.border}`,
+              background: inspectorPanel === 'vera' ? t.cobaltTint : 'transparent',
+              color: inspectorPanel === 'vera' ? t.cobalt : t.textSec,
+              borderRadius: 6,
+              padding: '4px 10px',
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Vera
+          </button>
+        </div>
         <button
           type="button"
           aria-label="Collapse context inspector"
@@ -373,6 +458,21 @@ export function ContextInspector({
         </button>
       </div>
 
+      {inspectorPanel === 'vera' ? (
+        <VeraPanel
+          compact
+          message={veraMessageDraft}
+          onMessageChange={onVeraMessageChange}
+          onSubmit={onVeraSubmit}
+          submitting={veraSubmitting}
+          veraMessage={state.veraResponse.userFacingMessage}
+          error={veraError}
+          openQuestions={openQuestions}
+          isDark={isDark}
+          history={history}
+          contextChips={veraContextChips}
+        />
+      ) : (
       <div style={{ flex: 1, overflow: 'auto', padding: 12, display: 'grid', gap: 16, alignContent: 'start' }}>
         <InspectorSection title="Inspect" isDark={isDark}>
           <h4 style={{ margin: '0 0 8px', fontSize: 14, color: t.text }}>{title}</h4>
@@ -615,10 +715,11 @@ export function ContextInspector({
               cursor: 'pointer',
             }}
           >
-            Request change via Vera
+            Ask Vera
           </button>
         </InspectorSection>
       </div>
+      )}
     </aside>
   );
 }

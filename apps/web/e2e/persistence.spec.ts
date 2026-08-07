@@ -15,12 +15,12 @@ test.describe('fixture-mode persistence and modification', () => {
     await page.getByRole('button', { name: /Create project/i }).click();
     await expect(page).toHaveURL(/\/projects\/proj_/, { timeout: 60_000 });
     await expect(page.getByTestId('figma-shell')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Vera' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Vera' })).toBeVisible();
     const url = page.url();
 
     await page.reload();
     await expect(page.getByTestId('figma-shell')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('heading', { name: 'Vera' })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('tab', { name: 'Vera' })).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('button', { name: /^Project Brief$/i }).click();
     await expect(page.getByTestId('workspace-project-brief')).toBeVisible();
@@ -49,6 +49,7 @@ test.describe('fixture-mode persistence and modification', () => {
     await expect(page.getByTestId('workspace-component-plan')).toBeVisible({ timeout: 30_000 });
     expect(componentsUrl).toMatch(/artifact=component-plan/);
 
+    await page.getByRole('tab', { name: 'Vera' }).click();
     await page
       .getByLabel(/Continue the conversation/i)
       .fill('It should run for at least six months on battery power.');

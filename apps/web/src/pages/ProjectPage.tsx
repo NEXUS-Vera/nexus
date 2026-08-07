@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Toaster } from 'sonner';
@@ -30,13 +30,14 @@ import { AppHeader } from '../components/layout/AppHeader';
 import { ContextInspector } from '../components/layout/ContextInspector';
 import { WorkflowRail } from '../components/layout/WorkflowRail';
 import { HistoryPanel } from '../components/feedback/HistoryPanel';
-import { VeraPanel } from '../components/feedback/VeraPanel';
+import type { VeraContextChip } from '../components/feedback/VeraPanel';
 import { CommandPalette } from '../components/navigation/CommandPalette';
 import { useTheme } from '../hooks/use-theme';
 import { useWorkspaceUrl } from '../hooks/use-workspace-url';
 import { themeColors } from '../lib/theme';
 import { MindGraphWorkspace } from '../views/MindGraphWorkspace';
 import { ProjectOverview } from '../views/ProjectOverview';
+import { ARTIFACT_REGISTRY } from '../artifacts/registry';
 
 async function loadOptional<T>(loader: () => Promise<T>): Promise<T | null> {
   try {
@@ -202,6 +203,34 @@ export function ProjectPage() {
     }
   }
 
+  const focusVera = useCallback(() => {
+    setInspectorCollapsed(false);
+    url.focusVera();
+  }, [url]);
+
+  const veraContextChips = useMemo((): VeraContextChip[] => {
+    const chips: VeraContextChip[] = [];
+    const def = ARTIFACT_REGISTRY[url.selectedArtifact];
+    chips.push({
+      kind: 'artifact',
+      label: def?.label ?? url.selectedArtifact,
+    });
+    const plan = live?.componentPlan;
+    if (!plan) return chips;
+    const roleId =
+      url.selectedComponentRole ??
+      (url.selection.kind === 'component-role' ? url.selection.id : null);
+    if (roleId) {
+      const role = plan.content.componentRoles.find(
+        (r) => r.componentRoleId === roleId || r.displayId === roleId,
+      );
+      if (role) {
+        chips.push({ kind: 'role', label: role.name });
+      }
+    }
+    return chips;
+  }, [live?.componentPlan, url.selectedArtifact, url.selectedComponentRole, url.selection]);
+
   if (loading) {
     return (
       <main className="page" aria-live="polite">
@@ -219,7 +248,11 @@ export function ProjectPage() {
     );
   }
 
-  const openQuestions = (state.openQuestions ?? []).filter((q) => q.status === 'open');
+  function handleRequestAlternatives(roleId: string, suggestedPrompt: string) {
+    url.setSelectedComponentRole(roleId);
+    setMessage(suggestedPrompt);
+    focusVera();
+  }
 
   function renderRegisteredWorkspace(rendererKey: string) {
     const Renderer = resolveWorkspaceRenderer(rendererKey);
@@ -253,6 +286,8 @@ export function ProjectPage() {
           nextActionTitle={live!.nextAction!.content.title}
           turnBusy={submitting}
           onSubmitTurn={submitTurnMessage}
+          onRequestAlternatives={handleRequestAlternatives}
+          onAskVera={focusVera}
           onCommandResult={() => {
             void refreshBoardSideChannels();
             void getProject(projectId).then(setState).catch(() => undefined);
@@ -387,16 +422,6 @@ export function ProjectPage() {
                   onSelectRevision={url.setInspectorSelection}
                 />
               ) : null}
-              <VeraPanel
-                message={message}
-                onMessageChange={setMessage}
-                onSubmit={onSubmit}
-                submitting={submitting}
-                veraMessage={state.veraResponse.userFacingMessage}
-                error={error}
-                openQuestions={openQuestions}
-                isDark={isDark}
-              />
             </div>
           </Panel>
 
@@ -429,7 +454,15 @@ export function ProjectPage() {
               history={history}
               changedArtifactTypes={changed}
               regeneratedArtifactTypes={regenerated}
-              onFocusVera={url.focusVera}
+              onFocusVera={focusVera}
+              inspectorPanel={url.inspectorPanel}
+              onInspectorPanelChange={url.setInspectorPanel}
+              veraMessageDraft={message}
+              onVeraMessageChange={setMessage}
+              onVeraSubmit={onSubmit}
+              veraSubmitting={submitting}
+              veraError={error}
+              veraContextChips={veraContextChips}
             />
           </Panel>
         </PanelGroup>
@@ -449,7 +482,7 @@ export function ProjectPage() {
           url.setInspectorSelection({ kind: 'next-action' });
         }}
         onOpenHistory={() => url.setHistoryOpen(true)}
-        onFocusVera={url.focusVera}
+        onFocusVera={focusVera}
       />
     </div>
   );
