@@ -251,7 +251,7 @@ def _interpret_component_plan_change(
     open_qs = [q for q in (content.get("openQuestions") or []) if isinstance(q, dict)]
 
     if _REJECT_CANDIDATE.search(text):
-        target = _resolve_single_candidate(candidates)
+        target = _resolve_single_candidate(candidates, text=text, prefer_preferred=False)
         return _intent(
             operation="reject-component-candidate",
             target_artifact_type="component-plan",
@@ -262,7 +262,12 @@ def _interpret_component_plan_change(
             extra={"pattern": "reject-candidate", "targetCandidateId": target},
         )
     if _APPROVE_SELECTION.search(text):
-        target = _resolve_single_candidate(candidates)
+        target = _resolve_single_candidate(
+            candidates,
+            text=text,
+            prefer_preferred=True,
+            roles=roles,
+        )
         return _intent(
             operation="approve-component-selection",
             target_artifact_type="component-plan",
@@ -273,7 +278,7 @@ def _interpret_component_plan_change(
             extra={"pattern": "approve-selection", "targetCandidateId": target},
         )
     if _PREFER_CANDIDATE.search(text):
-        target = _resolve_single_candidate(candidates)
+        target = _resolve_single_candidate(candidates, text=text, prefer_preferred=False)
         return _intent(
             operation="change-component-preference",
             target_artifact_type="component-plan",
@@ -284,7 +289,7 @@ def _interpret_component_plan_change(
             extra={"pattern": "prefer-candidate", "targetCandidateId": target},
         )
     if _ADD_BUDGET_CONSTRAINT.search(text):
-        role_id = _resolve_single_role(roles)
+        role_id = _resolve_single_role(roles, text=text, prefer_default=True)
         return _intent(
             operation="add-component-constraint",
             target_artifact_type="component-plan",
@@ -295,7 +300,7 @@ def _interpret_component_plan_change(
             extra={"pattern": "add-budget-constraint", "targetRoleId": role_id},
         )
     if _INTERFACE_CONSTRAINT.search(text):
-        role_id = _resolve_single_role(roles)
+        role_id = _resolve_single_role(roles, text=text, prefer_default=True)
         return _intent(
             operation="change-interface-constraint",
             target_artifact_type="component-plan",
@@ -306,7 +311,7 @@ def _interpret_component_plan_change(
             extra={"pattern": "change-interface-constraint", "targetRoleId": role_id},
         )
     if _REQUEST_ALTERNATIVES.search(text):
-        role_id = _resolve_single_role(roles)
+        role_id = _resolve_single_role(roles, text=text, prefer_default=True)
         return _intent(
             operation="request-component-alternatives",
             target_artifact_type="component-plan",
@@ -330,19 +335,79 @@ def _interpret_component_plan_change(
     return None
 
 
-def _resolve_single_candidate(candidates: list[dict[str, Any]]) -> str | None:
+def _resolve_single_candidate(
+    candidates: list[dict[str, Any]],
+    *,
+    text: str = "",
+    prefer_preferred: bool = False,
+    roles: list[dict[str, Any]] | None = None,
+) -> str | None:
     active = [c for c in candidates if c.get("candidateState") not in {"rejected", "superseded"}]
-    if len(active) > 1:
+    named = [c for c in active if _candidate_named_in_text(c, text)]
+    if named:
+        if prefer_preferred:
+            preferred_named = [c for c in named if c.get("candidateState") == "preferred"]
+            if preferred_named:
+                return preferred_named[0].get("candidateId")
+        if len(named) == 1:
+            return named[0].get("candidateId")
+        raise FixtureModificationError(
+            code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+            message="Multiple component candidates match. Clarify which role or candidate to update.",
+        )
+
+    scoped = active
+    matched_roles = _roles_matching_text(roles or [], text)
+    if matched_roles and len(matched_roles) < len(roles or []):
+        role_ids = {r.get("componentRoleId") for r in matched_roles}
+        scoped = [c for c in active if c.get("componentRoleId") in role_ids]
+
+    if prefer_preferred:
+        preferred = [c for c in scoped if c.get("candidateState") == "preferred"]
+        if len(preferred) == 1:
+            return preferred[0].get("candidateId")
+        if len(preferred) > 1 and not matched_roles:
+            raise FixtureModificationError(
+                code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+                message="Multiple preferred candidates match. Clarify which role or candidate to approve.",
+            )
+        if len(preferred) > 1:
+            raise FixtureModificationError(
+                code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+                message="Multiple preferred candidates match. Clarify which candidate to update.",
+            )
+        if len(preferred) == 0 and len(scoped) == 1:
+            return scoped[0].get("candidateId")
+
+    if len(scoped) > 1:
         raise FixtureModificationError(
             code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
             message="Multiple component candidates match. Clarify which candidate to update.",
         )
-    if len(active) == 1:
-        return active[0].get("candidateId")
+    if len(scoped) == 1:
+        return scoped[0].get("candidateId")
     return None
 
 
-def _resolve_single_role(roles: list[dict[str, Any]]) -> str | None:
+def _resolve_single_role(
+    roles: list[dict[str, Any]],
+    *,
+    text: str = "",
+    prefer_default: bool = False,
+) -> str | None:
+    matched = _roles_matching_text(roles, text)
+    if len(matched) == 1:
+        return matched[0].get("componentRoleId")
+    if prefer_default and roles:
+        sensors = [r for r in roles if r.get("category") == "sensor"]
+        if len(sensors) == 1:
+            return sensors[0].get("componentRoleId")
+        awaiting = [r for r in roles if r.get("status") == "selection-proposed"]
+        if len(awaiting) == 1:
+            return awaiting[0].get("componentRoleId")
+        if sensors:
+            return sensors[0].get("componentRoleId")
+        return roles[0].get("componentRoleId")
     if len(roles) > 1:
         raise FixtureModificationError(
             code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
@@ -351,6 +416,39 @@ def _resolve_single_role(roles: list[dict[str, Any]]) -> str | None:
     if len(roles) == 1:
         return roles[0].get("componentRoleId")
     return None
+
+
+def _roles_matching_text(roles: list[dict[str, Any]], text: str) -> list[dict[str, Any]]:
+    blob = text.casefold()
+    if not blob or not roles:
+        return list(roles)
+    matched = []
+    for role in roles:
+        category = str(role.get("category") or "").casefold()
+        name = str(role.get("name") or "").casefold()
+        display = str(role.get("displayId") or "").casefold()
+        if category and category in blob:
+            matched.append(role)
+            continue
+        if display and display in blob:
+            matched.append(role)
+            continue
+        # Match distinctive words from the role name (skip generic tokens).
+        tokens = [t for t in name.replace("-", " ").split() if len(t) > 3 and t not in {"role", "component"}]
+        if any(token in blob for token in tokens):
+            matched.append(role)
+    return matched or list(roles)
+
+
+def _candidate_named_in_text(candidate: dict[str, Any], text: str) -> bool:
+    blob = text.casefold()
+    if not blob:
+        return False
+    for key in ("partNumber", "displayName", "manufacturer"):
+        value = str(candidate.get(key) or "").casefold()
+        if value and value in blob:
+            return True
+    return False
 
 
 def impact_for_intent(intent: dict[str, Any]) -> dict[str, Any]:

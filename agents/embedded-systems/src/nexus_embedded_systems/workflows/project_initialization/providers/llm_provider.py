@@ -491,25 +491,24 @@ class LlmInitializationProvider:
         content = compose_component_plan_content(
             architecture_content=architecture_content,
             requirement_set_content=requirement_set_content,
-            include_candidates=False,
+            include_candidates=True,
             source="inferred",
+            proposed_by=vera_actor,
+            now=now,
         )
-        # Stage roles before constraints/candidates for ledger visibility.
-        roles_only = {
-            **content,
-            "selectionConstraints": [],
-            "candidates": [],
-        }
         ledger.complete_step(step)
 
         step = ledger.start_step("derive-selection-constraints")
-        # Recompose with constraints (already included) — record the step.
         ledger.complete_step(step)
 
         step = ledger.start_step("propose-component-candidates")
-        # Phase 12 minimum keeps candidates empty for roles-defined maturity,
-        # matching golden fixture style; modification can propose later.
-        _ = roles_only
+        # Candidates and preferred (unapproved) selections are included at init.
+        ledger.complete_step(step)
+
+        step = ledger.start_step("identify-known-compatibility-checks")
+        ledger.complete_step(step)
+
+        step = ledger.start_step("propose-preferred-selections")
         ledger.complete_step(step)
 
         step = ledger.start_step("validate-component-plan")
