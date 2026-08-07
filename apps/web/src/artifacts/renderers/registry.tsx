@@ -38,6 +38,8 @@ export type WorkspaceRenderProps = {
   onSubmitTurn?: (message: string) => Promise<boolean>;
   turnBusy?: boolean;
   nextActionTitle?: string;
+  onRequestAlternatives?: (roleId: string, suggestedPrompt: string) => void;
+  onAskVera?: () => void;
 };
 
 function ProjectBriefRenderer(props: WorkspaceRenderProps) {
@@ -131,6 +133,8 @@ function ComponentPlanRenderer(props: WorkspaceRenderProps) {
       onSubmitTurn={props.onSubmitTurn}
       turnBusy={props.turnBusy}
       onCommandResult={props.onCommandResult}
+      onRequestAlternatives={props.onRequestAlternatives}
+      onAskVera={props.onAskVera}
     />
   );
 }
