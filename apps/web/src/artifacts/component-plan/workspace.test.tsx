@@ -12,20 +12,23 @@ const greenhouse = greenhouseArtifact as unknown as Extract<
   { artifactType: 'component-plan' }
 >;
 
+function stubFetch404() {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      text: async () => '',
+    }),
+  );
+}
+
 describe('ComponentPlanWorkspace', () => {
-  it('renders roles, candidates, and selection panel from phase-12 content', async () => {
+  it('renders summary table, decision tab, and approve action', async () => {
     const user = userEvent.setup();
     const onSelectRole = vi.fn();
     const onSubmitTurn = vi.fn().mockResolvedValue(true);
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        text: async () => '',
-      }),
-    );
+    stubFetch404();
 
     render(
       <ComponentPlanWorkspace
@@ -39,46 +42,80 @@ describe('ComponentPlanWorkspace', () => {
     );
 
     expect(screen.getByTestId('component-plan-summary')).toHaveTextContent(/candidates-proposed/i);
+    expect(screen.getByTestId('component-plan-summary')).toHaveTextContent(/Preferred/i);
+    expect(screen.getByTestId('component-plan-role-table')).toBeInTheDocument();
     expect(screen.getByTestId('component-plan-role-list')).toHaveTextContent(
       /Ambient temperature sensor/i,
-    );
-    expect(screen.getByTestId('component-plan-candidate-compare')).toHaveTextContent(
-      /Fixture TMP117-class/i,
     );
     expect(screen.getByTestId('component-plan-selection-panel')).toHaveTextContent(
       /Preferred provisional candidate/i,
     );
 
+    await user.click(screen.getByTestId('component-plan-inspector-tab-alternatives'));
+    expect(screen.getByTestId('component-plan-candidate-compare')).toBeInTheDocument();
+    // Phase-12 fixture has a single preferred candidate — alternatives tab stays honest.
+    expect(screen.getByTestId('component-plan-candidate-compare')).toHaveTextContent(
+      /Only the preferred candidate|Fixture TMP117-class/i,
+    );
+
+    await user.click(screen.getByTestId('component-plan-inspector-tab-decision'));
     await user.click(screen.getByTestId('component-plan-approve'));
     expect(onSubmitTurn).toHaveBeenCalledWith(
       expect.stringMatching(/Approve the preferred selection for role Ambient temperature sensor/i),
     );
   });
 
-  it('shows honest empty candidate and selection states', () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        text: async () => '',
-      }),
+  it('calls onRequestAlternatives without submitting a turn', async () => {
+    const user = userEvent.setup();
+    const onRequestAlternatives = vi.fn();
+    const onSubmitTurn = vi.fn().mockResolvedValue(true);
+    stubFetch404();
+
+    const role = phase12.content.componentRoles[0];
+    render(
+      <ComponentPlanWorkspace
+        projectId={phase12.projectId}
+        artifact={phase12}
+        isDark={false}
+        selectedRoleId={role.componentRoleId}
+        onSubmitTurn={onSubmitTurn}
+        onRequestAlternatives={onRequestAlternatives}
+      />,
     );
+
+    await user.click(screen.getByTestId('component-plan-request-alternatives'));
+    expect(onRequestAlternatives).toHaveBeenCalledWith(
+      role.componentRoleId,
+      `Show me alternatives for the ${role.name} role.`,
+    );
+    expect(onSubmitTurn).not.toHaveBeenCalled();
+  });
+
+  it('shows honest empty candidate and selection states for roles without candidates', () => {
+    stubFetch404();
+
+    const emptyArtifact = {
+      ...greenhouse,
+      content: {
+        ...greenhouse.content,
+        candidates: [],
+        selectionDecisions: [],
+        compatibilityChecks: [],
+        maturity: 'roles-defined' as const,
+      },
+    };
 
     render(
       <ComponentPlanWorkspace
-        projectId={greenhouse.projectId}
-        artifact={greenhouse}
+        projectId={emptyArtifact.projectId}
+        artifact={emptyArtifact}
         isDark={false}
-        selectedRoleId={greenhouse.content.componentRoles[0].componentRoleId}
+        selectedRoleId={emptyArtifact.content.componentRoles[0].componentRoleId}
       />,
     );
 
     expect(screen.getByTestId('component-plan-role-list')).toHaveTextContent(
-      /Environmental Measurement Acquisition/i,
-    );
-    expect(screen.getByTestId('component-plan-candidates-empty')).toHaveTextContent(
-      /No candidates proposed/i,
+      /No candidate proposed/i,
     );
     expect(screen.getByTestId('component-plan-selection-empty')).toHaveTextContent(
       /No preferred selection yet/i,
@@ -92,17 +129,10 @@ describe('ComponentPlanWorkspace', () => {
     );
   });
 
-  it('selects a sensor role from the role list', async () => {
+  it('selects a sensor role from the component table', async () => {
     const user = userEvent.setup();
     const onSelectRole = vi.fn();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: false,
-        status: 404,
-        text: async () => '',
-      }),
-    );
+    stubFetch404();
 
     const sensorRole = greenhouse.content.componentRoles[0];
     render(
@@ -115,9 +145,32 @@ describe('ComponentPlanWorkspace', () => {
       />,
     );
 
-    const roleButton = screen.getByTestId(`component-role-${sensorRole.componentRoleId}`);
-    expect(roleButton).toHaveAttribute('data-role-category', 'sensor');
-    await user.click(roleButton);
+    const roleRow = screen.getByTestId(`component-role-${sensorRole.componentRoleId}`);
+    expect(roleRow).toHaveAttribute('data-role-category', 'sensor');
+    await user.click(roleRow);
     expect(onSelectRole).toHaveBeenCalledWith(sensorRole.componentRoleId);
+  });
+
+  it('switches inspector tabs for specs evidence and linked work', async () => {
+    const user = userEvent.setup();
+    stubFetch404();
+
+    render(
+      <ComponentPlanWorkspace
+        projectId={phase12.projectId}
+        artifact={phase12}
+        isDark={false}
+        selectedRoleId={phase12.content.componentRoles[0].componentRoleId}
+      />,
+    );
+
+    await user.click(screen.getByTestId('component-plan-inspector-tab-specifications'));
+    expect(screen.getByTestId('component-plan-specs')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('component-plan-inspector-tab-evidence'));
+    expect(screen.getByTestId('component-plan-evidence')).toBeInTheDocument();
+
+    await user.click(screen.getByTestId('component-plan-inspector-tab-linked-work'));
+    expect(screen.getByTestId('component-plan-linked-work')).toBeInTheDocument();
   });
 });
