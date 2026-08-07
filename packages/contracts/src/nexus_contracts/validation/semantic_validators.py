@@ -1354,12 +1354,15 @@ def _validate_component_plan_content(
             "rolesWithoutCandidates",
             "rolesWithBlockedSelection",
             "rolesAwaitingApproval",
-            "coveredRequirementIds",
         )
         mismatched = []
         for key in comparable_keys:
             if declared.get(key) != expected.get(key):
                 mismatched.append(key)
+        declared_covered_reqs = declared.get("coveredRequirementIds") or []
+        expected_covered_reqs = expected.get("coveredRequirementIds") or []
+        if set(declared_covered_reqs) != set(expected_covered_reqs):
+            mismatched.append("coveredRequirementIds")
         if architecture_node_ids is not None:
             for key in ("totalArchitectureNodes", "coveredArchitectureNodes"):
                 if declared.get(key) != expected.get(key):

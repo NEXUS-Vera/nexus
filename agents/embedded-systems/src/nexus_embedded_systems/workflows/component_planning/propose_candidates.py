@@ -25,10 +25,21 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             "displayName": "Fixture IMU-class motion sensor",
             "specifications": [
                 {"specKey": "interface", "value": "I2C", "operator": "eq"},
-                {"specKey": "axes", "value": 6, "operator": "eq"},
+                {"specKey": "sample-rate", "value": {"kind": "unknown"}, "unit": "Hz", "operator": "unknown"},
             ],
             "advantages": ["Covers tremor/vibration sensing roles"],
             "limitations": ["Noise floor not grounded"],
+        },
+        {
+            "manufacturer": "Fixture Sensing",
+            "partNumber": "FX-SOIL-10",
+            "displayName": "Fixture soil-moisture probe class",
+            "specifications": [
+                {"specKey": "interface", "value": "analog", "operator": "eq"},
+                {"specKey": "supply-voltage", "value": 3.3, "unit": "V", "operator": "eq"},
+            ],
+            "advantages": ["Useful for greenhouse moisture roles"],
+            "limitations": ["Calibration curve not grounded"],
         },
     ],
     "compute": [
@@ -38,10 +49,22 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             "displayName": "Fixture microcontroller class",
             "specifications": [
                 {"specKey": "logic-voltage", "value": 3.3, "unit": "V", "operator": "eq"},
+                {"specKey": "interface", "value": "I2C", "operator": "eq"},
             ],
             "advantages": ["Adequate for early firmware prototypes"],
             "limitations": ["Pinmux and peripheral fit not verified"],
-        }
+        },
+        {
+            "manufacturer": "Fixture Compute",
+            "partNumber": "FX-MCU-WIFI",
+            "displayName": "Fixture Wi-Fi MCU class",
+            "specifications": [
+                {"specKey": "logic-voltage", "value": 3.3, "unit": "V", "operator": "eq"},
+                {"specKey": "interface", "value": "UART", "operator": "eq"},
+            ],
+            "advantages": ["On-module connectivity for connected nodes"],
+            "limitations": ["Power budget impact not grounded"],
+        },
     ],
     "power": [
         {
@@ -53,7 +76,18 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             ],
             "advantages": ["Matches common sensor rails"],
             "limitations": ["Efficiency and dropout not grounded"],
-        }
+        },
+        {
+            "manufacturer": "Fixture Power",
+            "partNumber": "FX-LIPO-1S",
+            "displayName": "Fixture LiPo cell class (estimate)",
+            "specifications": [
+                {"specKey": "supply-voltage", "value": 3.7, "unit": "V", "operator": "eq"},
+                {"specKey": "capacity", "value": {"kind": "unknown"}, "unit": "mAh", "operator": "unknown"},
+            ],
+            "advantages": ["Common wearable/portable energy source"],
+            "limitations": ["Capacity/runtime estimates unverified"],
+        },
     ],
     "communication": [
         {
@@ -65,7 +99,17 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             ],
             "advantages": ["Fits simple connected prototypes"],
             "limitations": ["Link budget not grounded"],
-        }
+        },
+        {
+            "manufacturer": "Fixture Radio",
+            "partNumber": "FX-WIFI-1",
+            "displayName": "Fixture Wi-Fi module class",
+            "specifications": [
+                {"specKey": "interface", "value": "SPI", "operator": "eq"},
+            ],
+            "advantages": ["Higher bandwidth remote reporting"],
+            "limitations": ["Power and antenna constraints unknown"],
+        },
     ],
     "storage": [
         {
@@ -77,7 +121,17 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             ],
             "advantages": ["Supports local logging roles"],
             "limitations": ["Endurance not grounded"],
-        }
+        },
+        {
+            "manufacturer": "Fixture Memory",
+            "partNumber": "FX-FRAM-1",
+            "displayName": "Fixture FRAM class",
+            "specifications": [
+                {"specKey": "interface", "value": "I2C", "operator": "eq"},
+            ],
+            "advantages": ["Lower-power logging for wearables"],
+            "limitations": ["Capacity tradeoffs not grounded"],
+        },
     ],
 }
 
@@ -85,8 +139,9 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
 def propose_candidates_for_roles(
     roles: list[dict[str, Any]],
     *,
-    max_per_role: int = 1,
+    max_per_role: int = 2,
     source: str = "fixture",
+    prefer_first: bool = True,
 ) -> list[dict[str, Any]]:
     """Return provisional unverified candidates from a deterministic fixture table."""
 
@@ -97,7 +152,8 @@ def propose_candidates_for_roles(
         if not isinstance(role_id, str):
             continue
         templates = list(_FIXTURE_CANDIDATES.get(category) or _FIXTURE_CANDIDATES["sensor"])
-        for template in templates[:max_per_role]:
+        for index, template in enumerate(templates[:max_per_role]):
+            state = "preferred" if prefer_first and index == 0 else "proposed"
             candidates.append(
                 {
                     "candidateId": new_id("cand_"),
@@ -106,7 +162,7 @@ def propose_candidates_for_roles(
                     "partNumber": template["partNumber"],
                     "displayName": template["displayName"],
                     "candidateCategory": category if category in _FIXTURE_CANDIDATES else "sensor",
-                    "candidateState": "proposed",
+                    "candidateState": state,
                     "evidenceStatus": "unverified",
                     "specifications": list(template["specifications"]),
                     "advantages": list(template["advantages"]),

@@ -7,7 +7,7 @@
   "contentSchemaVersion": "1.0.0",
   "lifecycleStatus": "drafted",
   "evidenceStatus": "unverified",
-  "approvalStatus": "not-required",
+  "approvalStatus": "proposed",
   "createdBy": {
     "schemaVersion": "1.0.0",
     "actorId": "actor_01VERAACTOR0000000000000001",
@@ -19,15 +19,16 @@
   "sourceTurnId": "turn_01USERMSG0000000000000001",
   "workflowRunId": "run_01ROVERRUN0000000000000001",
   "content": {
-    "maturity": "roles-defined",
-    "summary": "Initial component roles derived from indoor environmental rover architecture for provisional sensor/compute planning.",
+    "componentPlanId": "cplan_INDOOREN0001000000000000",
+    "maturity": "selection-proposed",
+    "summary": "Provisional component plan with 2 role(s), 4 fixture candidate(s), and 2 preferred proposal(s) awaiting user approval. Evidence remains unverified.",
     "componentRoles": [
       {
-        "componentRoleId": "role_853CA32D7BB8792D464C",
+        "componentRoleId": "role_INDOOREN0001000000000000",
         "displayId": "CR1",
         "name": "Environmental Measurement Acquisition role",
         "category": "sensor",
-        "description": "Acquire temperature, humidity, and air-quality measurements as the rover is moving.",
+        "description": "Provide physical sensing for: Environmental Measurement Acquisition.",
         "architectureNodeIds": [
           "node_01NODESENSING0000000000000001"
         ],
@@ -37,48 +38,434 @@
         "requiredCapabilities": [
           "implementation-pending"
         ],
-        "status": "identified",
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      },
+      {
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "displayId": "CR2",
+        "name": "Timestamp + Location Association role",
+        "category": "sensor",
+        "description": "Provide physical sensing for: Timestamp + Location Association.",
+        "architectureNodeIds": [
+          "node_01NODELOCATION00000000000001"
+        ],
+        "requirementIds": [
+          "req_01ASSOCTIMELOC0000000000000001",
+          "req_01SPATIALRESUNKNOWN000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
         "priority": "high",
         "source": "fixture",
         "rationale": "Derived from functional architecture node that requires physical implementation."
       }
     ],
-    "selectionConstraints": [],
-    "candidates": [],
-    "selectionDecisions": [],
-    "compatibilityChecks": [],
+    "selectionConstraints": [
+      {
+        "constraintId": "cstr_INDOOREN0001000000000000",
+        "componentRoleId": "role_INDOOREN0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_01MEASTEMPHUMAIR0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_01NODESENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: Measure temperature, humidity, and air quality while the rover is moving inside an indoor room."
+      },
+      {
+        "constraintId": "cstr_INDOOREN0002000000000000",
+        "componentRoleId": "role_INDOOREN0001000000000000",
+        "constraintType": "interface",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_01ASSOCTIMELOC0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_01NODESENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: Associate each measurement with a timestamp and a relative indoor location context suitable for mapping analysis."
+      },
+      {
+        "constraintId": "cstr_INDOOREN0003000000000000",
+        "componentRoleId": "role_INDOOREN0001000000000000",
+        "constraintType": "cost",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": "USD",
+        "sourceRequirementIds": [
+          "req_01RUNTIMEMINUNKNOWN0000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_01NODESENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The rover must meet a user-required measurement runtime budget for an indoor mapping session (runtime value unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_INDOOREN0004000000000000",
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_01MEASTEMPHUMAIR0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_01NODELOCATION00000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: Measure temperature, humidity, and air quality while the rover is moving inside an indoor room."
+      },
+      {
+        "constraintId": "cstr_INDOOREN0005000000000000",
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "constraintType": "interface",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_01ASSOCTIMELOC0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_01NODELOCATION00000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: Associate each measurement with a timestamp and a relative indoor location context suitable for mapping analysis."
+      },
+      {
+        "constraintId": "cstr_INDOOREN0006000000000000",
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "constraintType": "cost",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": "USD",
+        "sourceRequirementIds": [
+          "req_01RUNTIMEMINUNKNOWN0000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_01NODELOCATION00000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The rover must meet a user-required measurement runtime budget for an indoor mapping session (runtime value unknown in this phase)."
+      }
+    ],
+    "candidates": [
+      {
+        "candidateId": "cand_INDOOREN0001000000000000",
+        "componentRoleId": "role_INDOOREN0001000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_INDOOREN0001000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_INDOOREN0002000000000000",
+        "componentRoleId": "role_INDOOREN0001000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_INDOOREN0003000000000000",
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_INDOOREN0002000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_INDOOREN0004000000000000",
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      }
+    ],
+    "selectionDecisions": [
+      {
+        "selectionDecisionId": "sel_INDOOREN0001000000000000",
+        "componentRoleId": "role_INDOOREN0001000000000000",
+        "selectedCandidateId": "cand_INDOOREN0001000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_01VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_INDOOREN0002000000000000",
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "selectedCandidateId": "cand_INDOOREN0003000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_01VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      }
+    ],
+    "compatibilityChecks": [
+      {
+        "compatibilityCheckId": "cchk_INDOOREN0001000000000000",
+        "componentRoleId": "role_INDOOREN0001000000000000",
+        "candidateId": "cand_INDOOREN0001000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_01NODESENSING0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_01VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "compatibilityCheckId": "cchk_INDOOREN0002000000000000",
+        "componentRoleId": "role_INDOOREN0002000000000000",
+        "candidateId": "cand_INDOOREN0003000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_01NODELOCATION00000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_01VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      }
+    ],
     "openQuestions": [],
     "assumptions": [
-      "Candidate retrieval and datasheet grounding are deferred until constraints are confirmed."
+      "Provisional candidates are fixture-backed placeholders. Pricing, availability, and datasheet claims remain unverified."
     ],
     "evidenceReferences": [],
     "coverageSummary": {
       "totalArchitectureNodes": 7,
-      "coveredArchitectureNodes": 1,
+      "coveredArchitectureNodes": 2,
       "uncoveredArchitectureNodeIds": [
-        "node_01NODEINPUT0000000000000001",
-        "node_01NODELOCATION00000000000001",
-        "node_01NODESTORAGE0000000000000001",
         "node_01NODEANALYSIS00000000000001",
+        "node_01NODECOMM0000000000000001",
         "node_01NODECONTROL000000000000001",
-        "node_01NODECOMM0000000000000001"
+        "node_01NODEINPUT0000000000000001",
+        "node_01NODESTORAGE0000000000000001"
       ],
-      "totalRelevantRequirements": 1,
+      "totalRelevantRequirements": 3,
       "coveredRequirementIds": [
-        "req_01MEASTEMPHUMAIR0000000000000001"
+        "req_01ASSOCTIMELOC0000000000000001",
+        "req_01MEASTEMPHUMAIR0000000000000001",
+        "req_01SPATIALRESUNKNOWN000000000001"
       ],
       "uncoveredRequirementIds": [],
       "rolesWithoutArchitectureMapping": 0,
       "rolesWithoutRequirementMapping": 0,
-      "rolesWithoutCandidates": 1,
+      "rolesWithoutCandidates": 0,
       "rolesWithBlockedSelection": 0,
-      "rolesAwaitingApproval": 0
+      "rolesAwaitingApproval": 2
     },
     "validationSummary": {
-      "issueCount": 0,
+      "issueCount": 2,
       "blockingIssueCount": 0,
-      "warningCount": 0,
-      "status": "ok"
+      "warningCount": 2,
+      "status": "warnings"
     }
   }
 }

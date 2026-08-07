@@ -28,6 +28,9 @@ def compute_coverage_summary(
         content,
         architecture_node_ids=architecture_node_ids,
     )
+    # Keep ID lists sorted for stable fixtures and post-remap comparisons.
+    summary["coveredRequirementIds"] = sorted(summary.get("coveredRequirementIds") or [])
+    summary["uncoveredRequirementIds"] = sorted(summary.get("uncoveredRequirementIds") or [])
     if architecture_node_ids is not None:
         # Prefer sorted uncovered list for stable outputs.
         summary["uncoveredArchitectureNodeIds"] = sorted(

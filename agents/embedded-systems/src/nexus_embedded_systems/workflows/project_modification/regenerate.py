@@ -420,7 +420,7 @@ def _revise_component_plan(
         fresh = compose_component_plan_content(
             architecture_content=architecture_content,
             requirement_set_content=requirements.get("content") or {},
-            include_candidates=False,
+            include_candidates=True,
             source="inferred",
         )
         old_roles = {

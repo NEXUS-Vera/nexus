@@ -33,20 +33,24 @@ _POWER_HINTS = ("power", "battery", "energy")
 _COMM_HINTS = ("comm", "communication", "radio", "transmit", "report", "connectivity")
 _STORAGE_HINTS = ("stor", "log", "record", "memory")
 
+_CATEGORY_PRIORITY = ("sensor", "compute", "power", "communication", "storage")
+_MAX_ROLES = 6
+_MAX_PER_CATEGORY = 2
+
 
 def derive_roles_from_architecture(
     architecture_content: dict[str, Any],
     *,
     source: str = "inferred",
 ) -> list[dict[str, Any]]:
-    """Create one component role per architecture node that needs physical realization.
+    """Create component roles for architecture nodes that need physical realization.
 
-    Prefers sensing/acquisition nodes; if none match, falls back to the first
-    non-boundary node so every architecture yields at least one role.
+    Returns a diversified set across sensor/compute/power/communication/storage so
+    the Component Plan is useful immediately after initialization.
     """
 
     nodes = [n for n in (architecture_content.get("nodes") or []) if isinstance(n, dict)]
-    roles: list[dict[str, Any]] = []
+    by_category: dict[str, list[dict[str, Any]]] = {c: [] for c in _CATEGORY_PRIORITY}
     for index, node in enumerate(nodes, start=1):
         category = _infer_category(node)
         if category is None:
@@ -58,32 +62,36 @@ def derive_roles_from_architecture(
         req_ids = [
             rid for rid in (node.get("satisfiesRequirementIds") or []) if isinstance(rid, str)
         ]
-        roles.append(
-            {
-                "componentRoleId": new_id("role_"),
-                "displayId": f"CR{index}",
-                "name": f"{name} role",
-                "category": category,
-                "description": _role_description(node, category),
-                "architectureNodeIds": [node_id],
-                "requirementIds": req_ids[:8],
-                "requiredCapabilities": ["implementation-pending"],
-                "status": "identified",
-                "priority": "high" if category == "sensor" else "medium",
-                "source": source,
-                "rationale": (
-                    "Derived from functional architecture node that requires "
-                    "physical implementation."
-                ),
-            }
-        )
+        role = {
+            "componentRoleId": new_id("role_"),
+            "displayId": f"CR{index}",
+            "name": f"{name} role",
+            "category": category,
+            "description": _role_description(node, category),
+            "architectureNodeIds": [node_id],
+            "requirementIds": req_ids[:8],
+            "requiredCapabilities": ["implementation-pending"],
+            "status": "ready-for-candidates",
+            "priority": "high" if category == "sensor" else "medium",
+            "source": source,
+            "rationale": (
+                "Derived from functional architecture node that requires "
+                "physical implementation."
+            ),
+        }
+        by_category.setdefault(category, []).append(role)
+
+    roles: list[dict[str, Any]] = []
+    for category in _CATEGORY_PRIORITY:
+        for role in by_category.get(category, [])[:_MAX_PER_CATEGORY]:
+            roles.append(role)
+            if len(roles) >= _MAX_ROLES:
+                break
+        if len(roles) >= _MAX_ROLES:
+            break
 
     if roles:
-        # Prefer sensor roles for Phase 12 minimum plans; keep compute if no sensors.
-        sensor_roles = [r for r in roles if r["category"] == "sensor"]
-        if sensor_roles:
-            return _renumber(sensor_roles[:3])
-        return _renumber(roles[:2])
+        return _renumber(roles)
 
     # Fallback: first node with any requirement coverage.
     for node in nodes:
@@ -103,7 +111,7 @@ def derive_roles_from_architecture(
                 "architectureNodeIds": [node_id],
                 "requirementIds": req_ids[:8],
                 "requiredCapabilities": ["implementation-pending"],
-                "status": "identified",
+                "status": "ready-for-candidates",
                 "priority": "high",
                 "source": source,
                 "rationale": "Fallback role so component planning can begin.",

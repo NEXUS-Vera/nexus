@@ -34,7 +34,19 @@ async def test_phase12_component_plan_init_get_and_approve() -> None:
 
         component = next(a for a in body["artifacts"] if a["artifactType"] == "component-plan")
         assert component["content"]["componentRoles"]
+        assert component["content"]["candidates"], "init should populate provisional candidates"
+        assert any(
+            c.get("candidateState") == "preferred" for c in component["content"]["candidates"]
+        )
+        assert all(
+            c.get("evidenceStatus") != "verified" for c in component["content"]["candidates"]
+        )
         assert "coverageSummary" in component["content"]
+        assert component["content"]["maturity"] in {
+            "candidates-proposed",
+            "compatibility-checked",
+            "selection-proposed",
+        }
 
         fetched = await client.get(f"/v1/projects/{project_id}/artifacts/component-plan")
         assert fetched.status_code == 200, fetched.text
@@ -85,10 +97,22 @@ async def test_phase12_component_plan_init_get_and_approve() -> None:
             if a["artifactType"] == "component-plan"
         )
         if alt_cp["content"].get("candidates"):
+            preferred = next(
+                (
+                    c
+                    for c in alt_cp["content"]["candidates"]
+                    if c.get("candidateState") == "preferred"
+                    and c.get("candidateCategory") == "sensor"
+                ),
+                alt_cp["content"]["candidates"][0],
+            )
             approve = await client.post(
                 f"/v1/projects/{project_id}/turns",
                 json={
-                    "message": "Approve the component selection for the sensor candidate.",
+                    "message": (
+                        f"Approve the component selection for "
+                        f"{preferred['partNumber']}."
+                    ),
                     "autonomyMode": "collaborate",
                 },
             )

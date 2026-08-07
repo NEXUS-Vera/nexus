@@ -51,6 +51,8 @@ FULL_SUCCESS_STEP_TYPES: tuple[str, ...] = (
     "derive-component-roles",
     "derive-selection-constraints",
     "propose-component-candidates",
+    "identify-known-compatibility-checks",
+    "propose-preferred-selections",
     "validate-component-plan",
     "materialize-component-plan",
     "derive-next-action",

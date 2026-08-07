@@ -7,7 +7,7 @@
   "contentSchemaVersion": "1.0.0",
   "lifecycleStatus": "drafted",
   "evidenceStatus": "unverified",
-  "approvalStatus": "not-required",
+  "approvalStatus": "proposed",
   "createdBy": {
     "schemaVersion": "1.0.0",
     "actorId": "actor_03VERAACTOR0000000000000001",
@@ -19,66 +19,818 @@
   "sourceTurnId": "turn_03USERMSG0000000000000001",
   "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
   "content": {
-    "maturity": "roles-defined",
-    "summary": "Initial component roles derived from greenhouse sensing node architecture for provisional sensor/compute planning.",
+    "componentPlanId": "cplan_GREENHOU0001000000000000",
+    "maturity": "selection-proposed",
+    "summary": "Provisional component plan with 4 role(s), 8 fixture candidate(s), and 4 preferred proposal(s) awaiting user approval. Evidence remains unverified.",
     "componentRoles": [
       {
-        "componentRoleId": "role_FF95082E69DADB46BE1F",
+        "componentRoleId": "role_GREENHOU0001000000000000",
         "displayId": "CR1",
-        "name": "Environmental Measurement Acquisition role",
+        "name": "Deployment & Session Configuration Input role",
         "category": "sensor",
-        "description": "Measure temperature and humidity for greenhouse monitoring.",
+        "description": "Provide physical sensing for: Deployment & Session Configuration Input.",
         "architectureNodeIds": [
-          "node_03GREENHOUSEENVACQ0000000000000001"
+          "node_03GREENHOUSESINIT0000000000000001"
         ],
         "requirementIds": [
-          "req_03TEMPHUMIDITYMEASURE0000000000000001"
+          "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001",
+          "req_03ACCURACYBOUNDSUNKNOWN0000000000000001",
+          "req_03COMMUNICATIONRANGEUNKNOWN000000000000001",
+          "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001"
         ],
         "requiredCapabilities": [
           "implementation-pending"
         ],
-        "status": "identified",
+        "status": "selection-proposed",
         "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      },
+      {
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "displayId": "CR2",
+        "name": "Environmental Measurement Acquisition role",
+        "category": "sensor",
+        "description": "Provide physical sensing for: Environmental Measurement Acquisition.",
+        "architectureNodeIds": [
+          "node_03GREENHOUSEENVACQ0000000000000001"
+        ],
+        "requirementIds": [
+          "req_03TEMPHUMIDITYMEASURE0000000000000001",
+          "req_03LIGHTMEASURE0000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      },
+      {
+        "componentRoleId": "role_GREENHOU0007000000000000",
+        "displayId": "CR3",
+        "name": "Power & Long-Duration Operation Management role",
+        "category": "power",
+        "description": "Provide power delivery for: Power & Long-Duration Operation Management.",
+        "architectureNodeIds": [
+          "node_03GREENHOUSEPOWER0000000000000001"
+        ],
+        "requirementIds": [
+          "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001",
+          "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "medium",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      },
+      {
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "displayId": "CR4",
+        "name": "Remote Readings Reporting role",
+        "category": "communication",
+        "description": "Provide communication for: Remote Readings Reporting.",
+        "architectureNodeIds": [
+          "node_03GREENHOUSECOMM0000000000000001"
+        ],
+        "requirementIds": [
+          "req_03REMOTEREPORTREADINGS0000000000000001",
+          "req_03COMMUNICATIONRANGEUNKNOWN000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "medium",
         "source": "fixture",
         "rationale": "Derived from functional architecture node that requires physical implementation."
       }
     ],
-    "selectionConstraints": [],
-    "candidates": [],
-    "selectionDecisions": [],
-    "compatibilityChecks": [],
+    "selectionConstraints": [
+      {
+        "constraintId": "cstr_GREENHOU0001000000000000",
+        "componentRoleId": "role_GREENHOU0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03TEMPHUMIDITYMEASURE0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSESINIT0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The greenhouse node measures temperature and humidity for greenhouse monitoring."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0002000000000000",
+        "componentRoleId": "role_GREENHOU0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03SOILMOISTUREMEASURE0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSESINIT0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The greenhouse node measures soil moisture for greenhouse monitoring."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0003000000000000",
+        "componentRoleId": "role_GREENHOU0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03LIGHTMEASURE0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSESINIT0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The greenhouse node measures light for greenhouse monitoring."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0004000000000000",
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03TEMPHUMIDITYMEASURE0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSEENVACQ0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The greenhouse node measures temperature and humidity for greenhouse monitoring."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0005000000000000",
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03SOILMOISTUREMEASURE0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSEENVACQ0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The greenhouse node measures soil moisture for greenhouse monitoring."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0006000000000000",
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03LIGHTMEASURE0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSEENVACQ0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The greenhouse node measures light for greenhouse monitoring."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0007000000000000",
+        "componentRoleId": "role_GREENHOU0007000000000000",
+        "constraintType": "sample-rate",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": "Hz",
+        "sourceRequirementIds": [
+          "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSEPOWER0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The node must meet targeted sampling and reporting interval needs for greenhouse monitoring (interval values unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0008000000000000",
+        "componentRoleId": "role_GREENHOU0007000000000000",
+        "constraintType": "active-current",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": "mA",
+        "sourceRequirementIds": [
+          "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSEPOWER0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must meet power-source constraints required for long-duration greenhouse operation (power/operation constraints unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0009000000000000",
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "constraintType": "interface",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03REMOTEREPORTREADINGS0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSECOMM0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The node reports the readings remotely for greenhouse monitoring."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0010000000000000",
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03LOCALACQSTORAGEPERIODIC0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSECOMM0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The node must capture periodic timestamped measurement records for temperature, humidity, soil moisture, and light so they can be reported remotely."
+      },
+      {
+        "constraintId": "cstr_GREENHOU0011000000000000",
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "constraintType": "accuracy",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_03ACCURACYBOUNDSUNKNOWN0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_03GREENHOUSECOMM0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must achieve acceptable measurement accuracy/error bounds for temperature, humidity, soil moisture, and light readings for greenhouse monitoring (acc"
+      }
+    ],
+    "candidates": [
+      {
+        "candidateId": "cand_GREENHOU0001000000000000",
+        "componentRoleId": "role_GREENHOU0001000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_GREENHOU0001000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_GREENHOU0002000000000000",
+        "componentRoleId": "role_GREENHOU0001000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_GREENHOU0003000000000000",
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_GREENHOU0002000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_GREENHOU0004000000000000",
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_GREENHOU0005000000000000",
+        "componentRoleId": "role_GREENHOU0007000000000000",
+        "manufacturer": "Fixture Power",
+        "partNumber": "FX-REG-33",
+        "displayName": "Fixture 3.3V regulator class",
+        "candidateCategory": "power",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Matches common sensor rails"
+        ],
+        "limitations": [
+          "Efficiency and dropout not grounded"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_GREENHOU0003000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_GREENHOU0006000000000000",
+        "componentRoleId": "role_GREENHOU0007000000000000",
+        "manufacturer": "Fixture Power",
+        "partNumber": "FX-LIPO-1S",
+        "displayName": "Fixture LiPo cell class (estimate)",
+        "candidateCategory": "power",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "supply-voltage",
+            "value": 3.7,
+            "unit": "V",
+            "operator": "eq"
+          },
+          {
+            "specKey": "capacity",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "mAh",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Common wearable/portable energy source"
+        ],
+        "limitations": [
+          "Capacity/runtime estimates unverified"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_GREENHOU0007000000000000",
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "manufacturer": "Fixture Radio",
+        "partNumber": "FX-BLE-1",
+        "displayName": "Fixture BLE module class",
+        "candidateCategory": "communication",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "UART",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Fits simple connected prototypes"
+        ],
+        "limitations": [
+          "Link budget not grounded"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_GREENHOU0004000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_GREENHOU0008000000000000",
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "manufacturer": "Fixture Radio",
+        "partNumber": "FX-WIFI-1",
+        "displayName": "Fixture Wi-Fi module class",
+        "candidateCategory": "communication",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "SPI",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Higher bandwidth remote reporting"
+        ],
+        "limitations": [
+          "Power and antenna constraints unknown"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      }
+    ],
+    "selectionDecisions": [
+      {
+        "selectionDecisionId": "sel_GREENHOU0001000000000000",
+        "componentRoleId": "role_GREENHOU0001000000000000",
+        "selectedCandidateId": "cand_GREENHOU0001000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_GREENHOU0002000000000000",
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "selectedCandidateId": "cand_GREENHOU0003000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_GREENHOU0003000000000000",
+        "componentRoleId": "role_GREENHOU0007000000000000",
+        "selectedCandidateId": "cand_GREENHOU0005000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture 3.3V regulator class based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Efficiency and dropout not grounded"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_GREENHOU0004000000000000",
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "selectedCandidateId": "cand_GREENHOU0007000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture BLE module class based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Link budget not grounded"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      }
+    ],
+    "compatibilityChecks": [
+      {
+        "compatibilityCheckId": "cchk_GREENHOU0001000000000000",
+        "componentRoleId": "role_GREENHOU0001000000000000",
+        "candidateId": "cand_GREENHOU0001000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_03GREENHOUSESINIT0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "compatibilityCheckId": "cchk_GREENHOU0002000000000000",
+        "componentRoleId": "role_GREENHOU0002000000000000",
+        "candidateId": "cand_GREENHOU0003000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_03GREENHOUSEENVACQ0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "compatibilityCheckId": "cchk_GREENHOU0003000000000000",
+        "componentRoleId": "role_GREENHOU0007000000000000",
+        "candidateId": "cand_GREENHOU0005000000000000",
+        "checkType": "interface-type",
+        "status": "unknown",
+        "severity": "warning",
+        "reason": "Interface requirement or candidate interface value is unknown.",
+        "inputReferences": [
+          "node_03GREENHOUSEPOWER0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "compatibilityCheckId": "cchk_GREENHOU0004000000000000",
+        "componentRoleId": "role_GREENHOU0006000000000000",
+        "candidateId": "cand_GREENHOU0007000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_03GREENHOUSECOMM0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_03VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      }
+    ],
     "openQuestions": [],
     "assumptions": [
-      "Candidate retrieval and datasheet grounding are deferred until constraints are confirmed."
+      "Provisional candidates are fixture-backed placeholders. Pricing, availability, and datasheet claims remain unverified."
     ],
     "evidenceReferences": [],
     "coverageSummary": {
       "totalArchitectureNodes": 7,
-      "coveredArchitectureNodes": 1,
+      "coveredArchitectureNodes": 4,
       "uncoveredArchitectureNodeIds": [
-        "node_03GREENHOUSESINIT0000000000000001",
-        "node_03GREENHOUSES0ILACQ0000000000000001",
-        "node_03GREENHOUSETIMESTAMPSTOR0000000000000001",
         "node_03GREENHOUSEANALYSIS0000000000000001",
-        "node_03GREENHOUSECOMM0000000000000001",
-        "node_03GREENHOUSEPOWER0000000000000001"
+        "node_03GREENHOUSES0ILACQ0000000000000001",
+        "node_03GREENHOUSETIMESTAMPSTOR0000000000000001"
       ],
-      "totalRelevantRequirements": 1,
+      "totalRelevantRequirements": 8,
       "coveredRequirementIds": [
+        "req_03ACCURACYBOUNDSUNKNOWN0000000000000001",
+        "req_03COMMUNICATIONRANGEUNKNOWN000000000000001",
+        "req_03DEPLOYMENTENVIRONMENTUNKNOWN000000000000001",
+        "req_03LIGHTMEASURE0000000000000001",
+        "req_03POWERSOURCECONSTRAINTSUNKNOWN000000000000001",
+        "req_03REMOTEREPORTREADINGS0000000000000001",
+        "req_03SAMPLINGREPORTINTERVALUNKNOWN000000000000001",
         "req_03TEMPHUMIDITYMEASURE0000000000000001"
       ],
       "uncoveredRequirementIds": [],
       "rolesWithoutArchitectureMapping": 0,
       "rolesWithoutRequirementMapping": 0,
-      "rolesWithoutCandidates": 1,
+      "rolesWithoutCandidates": 0,
       "rolesWithBlockedSelection": 0,
-      "rolesAwaitingApproval": 0
+      "rolesAwaitingApproval": 4
     },
     "validationSummary": {
-      "issueCount": 0,
+      "issueCount": 4,
       "blockingIssueCount": 0,
-      "warningCount": 0,
-      "status": "ok"
+      "warningCount": 4,
+      "status": "warnings"
     }
   }
 }
