@@ -75,8 +75,7 @@ def derive_roles_from_architecture(
             "priority": "high" if category == "sensor" else "medium",
             "source": source,
             "rationale": (
-                "Derived from functional architecture node that requires "
-                "physical implementation."
+                "Derived from functional architecture node that requires physical implementation."
             ),
         }
         by_category.setdefault(category, []).append(role)
