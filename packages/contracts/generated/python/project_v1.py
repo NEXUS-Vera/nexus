@@ -17,6 +17,8 @@ class CurrentArtifactReference(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

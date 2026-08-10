@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from nexus_board.registries.artifact_types import (
@@ -17,7 +18,7 @@ from nexus_board.registries.runtime_capabilities import (
     default_runtime_capability_registry,
 )
 from nexus_board.services.command_service import ArtifactCommandService
-from nexus_board.services.execution_service import ExecutionService
+from nexus_board.services.execution_service import CapabilityExecutor, ExecutionService
 from nexus_board.services.graph_service import ProjectGraphService
 from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.projection_service import ProjectBoardProjectionService
@@ -33,6 +34,7 @@ class ProjectKernel:
         artifact_types: ArtifactTypeRegistry | None = None,
         capabilities: RuntimeCapabilityRegistry | None = None,
         providers: ExternalProviderRegistry | None = None,
+        capability_executors: Mapping[str, CapabilityExecutor] | None = None,
     ) -> None:
         self.project_store = project_store
         self.kernel_store = kernel_store
@@ -52,9 +54,11 @@ class ProjectKernel:
         self.executions = ExecutionService(
             kernel_store,
             project_store,
+            self.artifact_types,
             self.capabilities,
             self.ledger,
             self.projection,
+            capability_executors,
         )
         self.commands = ArtifactCommandService(
             kernel_store,

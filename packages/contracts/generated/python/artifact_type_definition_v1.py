@@ -13,6 +13,8 @@ class Dependency(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     relationship: Literal['depends-on', 'derives-from', 'constrains', 'covers']
     required: NotRequired[bool]
@@ -25,6 +27,8 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     boardVisibility: Literal['primary', 'global', 'hidden']
     dependencies: list[Dependency]
@@ -48,6 +52,9 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         Literal[
             'workspace.create',
             'workspace.update-draft',
+            'workspace.acquire-edit-lease',
+            'workspace.release-edit-lease',
+            'workspace.discard-draft',
             'workspace.create-snapshot',
             'workspace.restore-snapshot',
             'artifact.validate-draft',
@@ -55,6 +62,7 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
             'artifact.accept-revision',
             'artifact.reject-revision',
             'artifact.execute',
+            'artifact.inspect-deletion-impact',
         ]
     ]
     workspaceType: Literal[

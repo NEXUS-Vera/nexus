@@ -13,6 +13,8 @@ class Input(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     initialContent: NotRequired[dict[str, Any]]
 
@@ -159,7 +161,20 @@ class Input8(TypedDict, closed=True):
         'circuit-simulation',
         'architecture-export',
     ]
+    executionMode: NotRequired[Literal['validate', 'simulate']]
+    expectedText: NotRequired[str]
     maxDurationMs: NotRequired[int]
+    maxOutputBytes: NotRequired[int]
+    requestedOutputs: NotRequired[
+        list[
+            Literal[
+                'serial-log',
+                'logic-trace',
+                'simulation-screenshot',
+                'provider-workspace',
+            ]
+        ]
+    ]
     snapshotId: str
 
 class ArtifactCommandV19(TypedDict, closed=True):
@@ -175,6 +190,72 @@ class ArtifactCommandV19(TypedDict, closed=True):
     schemaVersion: Literal['1.0.0']
     workspaceId: str
 
+class Input9(TypedDict, closed=True):
+    ttlSeconds: NotRequired[int]
+
+class ArtifactCommandV110(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['workspace.acquire-edit-lease']
+    input: Input9
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: str
+
+class Input10(TypedDict, closed=True):
+    leaseToken: NotRequired[str]
+
+class ArtifactCommandV111(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['workspace.release-edit-lease']
+    input: Input10
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: str
+
+class Input11(TypedDict, closed=True):
+    expectedDraftVersion: int
+    refreshLease: NotRequired[bool]
+
+class ArtifactCommandV112(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['workspace.discard-draft']
+    input: Input11
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: str
+
+class Input12(TypedDict, closed=True):
+    entityId: str
+    entityType: Literal['functional-node']
+
+class ArtifactCommandV113(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['artifact.inspect-deletion-impact']
+    input: Input12
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: NotRequired[str]
+
 ArtifactCommandV1: TypeAlias = (
     ArtifactCommandV11
     | ArtifactCommandV12
@@ -185,4 +266,8 @@ ArtifactCommandV1: TypeAlias = (
     | ArtifactCommandV17
     | ArtifactCommandV18
     | ArtifactCommandV19
+    | ArtifactCommandV110
+    | ArtifactCommandV111
+    | ArtifactCommandV112
+    | ArtifactCommandV113
 )

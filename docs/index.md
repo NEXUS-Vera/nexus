@@ -5,6 +5,7 @@ Durable long-form documentation for Nexus lives under `docs/`. Module-level purp
 ## Architecture
 
 - [Repository overview](./architecture/overview.md)
+- [Golden Electrical Simulation Demo](./architecture/golden-electrical-simulation-demo.md)
 
 ## Decisions
 

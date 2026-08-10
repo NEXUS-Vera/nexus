@@ -7,11 +7,15 @@
   "supportedCommandTypes": [
     "workspace.create",
     "workspace.update-draft",
+    "workspace.acquire-edit-lease",
+    "workspace.release-edit-lease",
+    "workspace.discard-draft",
     "workspace.create-snapshot",
     "artifact.propose-revision",
     "artifact.accept-revision",
     "artifact.reject-revision",
     "artifact.validate-draft",
+    "artifact.inspect-deletion-impact",
     "artifact.execute"
   ],
   "requiredCapabilities": [

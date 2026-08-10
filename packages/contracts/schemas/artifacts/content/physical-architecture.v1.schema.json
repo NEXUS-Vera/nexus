@@ -1,0 +1,315 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/content/physical-architecture.v1.schema.json",
+  "title": "PhysicalArchitectureContent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "architectureId",
+    "maturity",
+    "summary",
+    "nodes",
+    "zones",
+    "relationships",
+    "assumptions",
+    "unresolvedDecisions",
+    "warnings",
+    "coverageSummary",
+    "evidenceStatus"
+  ],
+  "properties": {
+    "architectureId": {
+      "type": "string",
+      "pattern": "^parch_[A-Za-z0-9]{16,}$"
+    },
+    "maturity": {
+      "type": "string",
+      "enum": ["provisional", "drafted", "reviewed", "approved"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "nodeId",
+          "name",
+          "nodeType",
+          "electricalNodeIds",
+          "placementStatus"
+        ],
+        "properties": {
+          "nodeId": {
+            "type": "string",
+            "pattern": "^pnode_[A-Za-z0-9]{16,}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "nodeType": {
+            "type": "string",
+            "enum": [
+              "assembly",
+              "board",
+              "module",
+              "sensor",
+              "actuator",
+              "power-source",
+              "connector",
+              "enclosure",
+              "mount",
+              "external-system",
+              "zone"
+            ]
+          },
+          "electricalNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "placementStatus": {
+            "type": "string",
+            "enum": ["placed", "unresolved", "provisional", "unknown"]
+          },
+          "zoneId": {
+            "type": "string",
+            "pattern": "^pzone_[A-Za-z0-9]{16,}$"
+          },
+          "qualitativePlacement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "constraints": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          },
+          "provenance": {
+            "$ref": "https://nexus.local/schemas/common/derived-fact-provenance.v1.schema.json"
+          }
+        }
+      }
+    },
+    "zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["zoneId", "name", "zoneKind"],
+        "properties": {
+          "zoneId": {
+            "type": "string",
+            "pattern": "^pzone_[A-Za-z0-9]{16,}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "zoneKind": {
+            "type": "string",
+            "enum": [
+              "enclosure",
+              "chassis",
+              "external-sensing",
+              "power",
+              "user-interface",
+              "other",
+              "unknown"
+            ]
+          },
+          "memberNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^pnode_[A-Za-z0-9]{16,}$"
+            }
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "relationshipId",
+          "fromNodeId",
+          "toNodeId",
+          "relationshipType",
+          "status"
+        ],
+        "properties": {
+          "relationshipId": {
+            "type": "string",
+            "pattern": "^prel_[A-Za-z0-9]{16,}$"
+          },
+          "fromNodeId": {
+            "type": "string",
+            "pattern": "^pnode_[A-Za-z0-9]{16,}$"
+          },
+          "toNodeId": {
+            "type": "string",
+            "pattern": "^pnode_[A-Za-z0-9]{16,}$"
+          },
+          "relationshipType": {
+            "type": "string",
+            "enum": [
+              "mounted-on",
+              "inside",
+              "attached-to",
+              "adjacent-to",
+              "connected-to",
+              "exposed-to",
+              "isolated-from"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["resolved", "provisional", "unresolved"]
+          },
+          "provenance": {
+            "$ref": "https://nexus.local/schemas/common/derived-fact-provenance.v1.schema.json"
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "assumptionId",
+          "statement",
+          "sourceType",
+          "confidence",
+          "confirmationStatus"
+        ],
+        "properties": {
+          "assumptionId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "statement": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sourceType": {
+            "type": "string",
+            "enum": [
+              "user-explicit",
+              "user-implied",
+              "system-inferred",
+              "project-policy"
+            ]
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "confirmationStatus": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "proposed",
+              "needs-confirmation",
+              "rejected"
+            ]
+          }
+        }
+      }
+    },
+    "unresolvedDecisions": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/common/open-question-reference.v1.schema.json"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "severity"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["info", "warning", "blocking"]
+          },
+          "relatedNodeIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^pnode_[A-Za-z0-9]{16,}$"
+            }
+          }
+        }
+      }
+    },
+    "coverageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalElectricalNodes",
+        "coveredElectricalNodes",
+        "uncoveredElectricalNodeIds",
+        "unresolvedPlacementCount",
+        "provisionalRelationshipCount"
+      ],
+      "properties": {
+        "totalElectricalNodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coveredElectricalNodes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uncoveredElectricalNodeIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "unresolvedPlacementCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "provisionalRelationshipCount": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "evidenceStatus": {
+      "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
+    }
+  }
+}

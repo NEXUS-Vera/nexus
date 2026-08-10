@@ -4,6 +4,12 @@ import type { InspectorSelection } from '../../lib/inspector-selection';
 import { themeColors } from '../../lib/theme';
 import { PlaceholderWorkspace } from '../../components/layout/PlaceholderWorkspace';
 import { ArchitectureWorkspace } from '../architecture/workspace';
+import { ArchitectureErrorBoundary } from '../architecture/error-boundary';
+import {
+  artifactTypeFromView,
+  viewFromArtifactType,
+  type ArchitectureViewId,
+} from '../architecture/views';
 import { ComponentPlanWorkspace } from '../component-plan/workspace';
 import { NextActionWorkspace } from '../next-action/workspace';
 import { ProjectBriefWorkspace } from '../project-brief/workspace';
@@ -17,6 +23,8 @@ export type WorkspaceRendererKey =
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
+  | 'electrical-architecture'
+  | 'physical-architecture'
   | 'next-action'
   | 'component-plan';
 
@@ -29,12 +37,17 @@ export type WorkspaceRenderProps = {
   selectedRequirementId?: string | null;
   selectedNodeId?: string | null;
   selectedRoleId?: string | null;
+  architectureViewId?: ArchitectureViewId | null;
+  electricalMode?: 'design' | 'simulation';
   onSelectRequirement?: (id: string) => void;
-  onSelectNode?: (id: string) => void;
+  onSelectNode?: (id: string | null) => void;
   onSelectRole?: (id: string) => void;
   onSelectItem?: (selection: InspectorSelection) => void;
+  onChangeArchitectureView?: (viewId: ArchitectureViewId) => void;
+  onChangeElectricalMode?: (mode: 'design' | 'simulation') => void;
   architectureNodeIdsByRequirement?: Record<string, string[]>;
   onCommandResult?: (result: ArtifactCommandResult) => void;
+  onProjectRefresh?: () => void;
   onSubmitTurn?: (message: string) => Promise<boolean>;
   turnBusy?: boolean;
   nextActionTitle?: string;
@@ -84,25 +97,54 @@ function RequirementsRenderer(props: WorkspaceRenderProps) {
   );
 }
 
-function ArchitectureRenderer(props: WorkspaceRenderProps) {
-  const artifact = selectArtifactByType(props.state.artifacts, 'functional-architecture');
-  if (!artifact || !props.onSelectNode) {
-    return (
-      <UnavailableWorkspace
-        rendererKey="functional-architecture"
-        isDark={props.isDark}
-        reason="Functional architecture artifact is missing from current state."
-      />
-    );
-  }
+/**
+ * Shared Architecture shell: loads functional / electrical / physical artifact from state
+ * based on the active architecture view (URL tabs).
+ */
+export function ArchitectureWorkspaceShell(props: WorkspaceRenderProps) {
+  const viewId: ArchitectureViewId =
+    props.architectureViewId ??
+    viewFromArtifactType(props.rendererKey) ??
+    'system';
+  const artifactType = artifactTypeFromView(viewId);
+  const artifact = selectArtifactByType(props.state.artifacts, artifactType) as
+    | Extract<
+        Artifact,
+        {
+          artifactType:
+            | 'functional-architecture'
+            | 'electrical-architecture'
+            | 'physical-architecture';
+        }
+      >
+    | undefined;
+  const componentPlan = selectArtifactByType(props.state.artifacts, 'component-plan') as
+    | Extract<Artifact, { artifactType: 'component-plan' }>
+    | undefined;
+
   return (
-    <ArchitectureWorkspace
-      artifact={artifact}
-      isDark={props.isDark}
-      selectedNodeId={props.selectedNodeId ?? null}
-      onSelectNode={props.onSelectNode}
-    />
+    <ArchitectureErrorBoundary isDark={props.isDark}>
+      <ArchitectureWorkspace
+        projectId={props.projectId}
+        viewId={viewId}
+        artifact={artifact}
+        componentPlan={componentPlan}
+        isDark={props.isDark}
+        selectedNodeId={props.selectedNodeId ?? null}
+        onSelectNode={props.onSelectNode}
+        onChangeView={props.onChangeArchitectureView}
+        electricalMode={props.electricalMode ?? 'design'}
+        onChangeElectricalMode={props.onChangeElectricalMode}
+        onAskVera={props.onAskVera}
+        onCommandResult={props.onCommandResult}
+        onProjectStateRefresh={props.onProjectRefresh}
+      />
+    </ArchitectureErrorBoundary>
   );
+}
+
+function ArchitectureRenderer(props: WorkspaceRenderProps) {
+  return <ArchitectureWorkspaceShell {...props} />;
 }
 
 function NextActionRenderer(props: WorkspaceRenderProps) {
@@ -150,6 +192,8 @@ export const WORKSPACE_RENDERER_REGISTRY: Record<
   'project-brief': ProjectBriefRenderer,
   'requirement-set': RequirementsRenderer,
   'functional-architecture': ArchitectureRenderer,
+  'electrical-architecture': ArchitectureRenderer,
+  'physical-architecture': ArchitectureRenderer,
   'next-action': NextActionRenderer,
   'component-plan': ComponentPlanRenderer,
 };
@@ -280,6 +324,8 @@ export function shellMetaFor(
       'project-brief': 'workspace-project-brief-shell',
       'requirement-set': 'workspace-requirements-shell',
       'functional-architecture': 'workspace-architecture-shell',
+      'electrical-architecture': 'workspace-architecture-shell',
+      'physical-architecture': 'workspace-architecture-shell',
       'component-plan': 'workspace-component-plan-shell',
     };
 
@@ -293,6 +339,22 @@ export function shellMetaFor(
       artifact?.artifactType === 'functional-architecture'
     ) {
       subtitle = `Functional maturity: ${artifact.content.architectureMaturity}`;
+    } else if (
+      key === 'electrical-architecture' &&
+      artifact?.artifactType === 'electrical-architecture'
+    ) {
+      subtitle = `Electrical maturity: ${artifact.content.maturity}`;
+    } else if (
+      key === 'physical-architecture' &&
+      artifact?.artifactType === 'physical-architecture'
+    ) {
+      subtitle = `Physical maturity: ${artifact.content.maturity}`;
+    } else if (
+      key === 'electrical-architecture' ||
+      key === 'physical-architecture' ||
+      key === 'functional-architecture'
+    ) {
+      subtitle = 'Architecture workspace';
     } else if (
       key === 'component-plan' &&
       artifact?.artifactType === 'component-plan'

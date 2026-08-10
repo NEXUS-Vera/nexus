@@ -13,6 +13,8 @@ class ReasonByArtifactItem(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     reason: str
 
@@ -24,6 +26,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     changed: list[
@@ -33,6 +37,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     reasonByArtifact: list[ReasonByArtifactItem]
@@ -43,6 +49,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -53,6 +61,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     unchanged: list[
@@ -62,6 +72,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
 
@@ -71,6 +83,8 @@ ArtifactType: TypeAlias = Literal[
     'functional-architecture',
     'next-action',
     'component-plan',
+    'electrical-architecture',
+    'physical-architecture',
 ]
 
 ArtifactTypeList: TypeAlias = list[
@@ -80,5 +94,7 @@ ArtifactTypeList: TypeAlias = list[
         'functional-architecture',
         'next-action',
         'component-plan',
+        'electrical-architecture',
+        'physical-architecture',
     ]
 ]

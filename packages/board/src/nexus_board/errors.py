@@ -65,5 +65,13 @@ class CommandValidationError(BoardError):
     code = "COMMAND_VALIDATION_FAILED"
 
 
+class DraftEditLeaseHeldError(BoardError):
+    code = "DRAFT_EDIT_LEASE_HELD"
+
+
+class DraftEditLeaseRequiredError(BoardError):
+    code = "DRAFT_EDIT_LEASE_REQUIRED"
+
+
 class GraphBoundExceededError(BoardError):
     code = "GRAPH_BOUND_EXCEEDED"

@@ -5,10 +5,10 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := check
 
-.PHONY: setup format lint typecheck test test-unit test-integration eval eval-embedded-initialization contracts policy check build clean generate-contract-types dev dev-api dev-web dev-db db-migrate db-reset-local test-e2e
+.PHONY: setup format lint typecheck test test-unit test-integration test-wokwi-smoke seed-wokwi-golden-project eval eval-embedded-initialization contracts policy check build clean generate-contract-types dev dev-api dev-web dev-db db-migrate db-reset-local test-e2e
 
 PYTHON ?= $(shell command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3)
-PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/board/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
+PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/board/src:packages/circuit-simulation/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
 
 setup:
 	@./scripts/setup.sh
@@ -31,6 +31,18 @@ test-unit:
 
 test-integration:
 	@./scripts/run-tests.sh integration
+
+test-wokwi-smoke:
+	@PYTHONPATH="$(PYTHON_PATH)" $(PYTHON) -m pytest agents/embedded-systems/tests/integration/test_wokwi_smoke.py -q
+
+# Prints the fixture prompt used to initialize the Phase 13C golden Electrical
+# Design/Simulation project (FX-MCU-32 + FX-IMU-200 → Wokwi ESP32/MPU6050 surrogates).
+# Does not call Wokwi. See docs/architecture/golden-electrical-simulation-demo.md.
+seed-wokwi-golden-project:
+	@echo "Initialize a project with this prompt (fixture provider):"
+	@echo "I want a golden Nexus circuit simulation project with an ESP32-class MCU and an IMU motion sensor for Wokwi surrogate simulation."
+	@echo "Then open Architecture → Electrical (Design), switch to Simulation for the provider-backed view."
+	@echo "Docs: docs/architecture/golden-electrical-simulation-demo.md"
 
 eval:
 	@./scripts/run-evals.sh

@@ -2,7 +2,13 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 
 export interface GraphTraversalResult {
   direction: 'upstream' | 'downstream' | 'neighbors' | 'subgraph';
@@ -51,6 +57,9 @@ export interface ProjectGraphNode {
     | 'artifact-revision'
     | 'requirement'
     | 'architecture-node'
+    | 'electrical-node'
+    | 'physical-node'
+    | 'component-role'
     | 'question'
     | 'validation-issue'
     | 'decision'

@@ -1,0 +1,208 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_05ROBOTREQ000000000000000001",
+  "projectId": "proj_05ROBOTPROJ0000000000000001",
+  "artifactType": "requirement-set",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_05VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_05USERMSG0000000000000001",
+  "workflowRunId": "run_05ROBOTRUN0000000000000001",
+  "content": {
+    "requirements": [
+      {
+        "requirementId": "req_05DETECTOBJECTSINFRONT0000000000000001",
+        "displayId": "R1",
+        "statement": "The project includes an ESP32-class MCU and an IMU motion sensor.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R1DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_05USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Confirm the component plan selects an ESP32-class MCU and an IMU motion sensor suitable for Wokwi surrogate circuit simulation."
+      },
+      {
+        "requirementId": "req_05REACTBEFOREHITS0000000000000001",
+        "displayId": "R2",
+        "statement": "The project must support Wokwi surrogate circuit simulation.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R2DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_05USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Confirm circuit simulation support assessment maps the selected MCU and IMU to Wokwi surrogate parts and can produce serial evidence."
+      },
+      {
+        "requirementId": "req_05SMALLINDOORROBOTCONTEXT000000000000001",
+        "displayId": "R3",
+        "statement": "The project is a golden Nexus circuit simulation fixture.",
+        "category": "physical",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R3DIRECT0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_05USERMSG0000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Confirm the initialized project remains the golden Nexus circuit-simulation fixture used for Electrical Design and Simulation demos."
+      },
+      {
+        "requirementId": "req_05TIMESTAMPEDOBSTACLEDATA0000000000000001",
+        "displayId": "R4",
+        "statement": "The system shall produce timestamped obstacle evidence and status outputs for later analysis.",
+        "category": "interface",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R4INFER0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_05ROBOTPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "reaction behavior benefits from timestamped evidence"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm obstacle evidence records include timestamps and can be exported for later review."
+      },
+      {
+        "requirementId": "req_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+        "displayId": "R5",
+        "statement": "The system must support required detection distance and field of view for indoor obstacle detection (range/FOV unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R5INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_05ROBOTPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "distance and field of view not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm detection range and field of view requirements for the target indoor robot behavior before selecting an implementation approach."
+      },
+      {
+        "requirementId": "req_05REACTIONLATENCYUNKNOWN000000000000001",
+        "displayId": "R6",
+        "statement": "The system must meet a required maximum reaction latency so the robot can respond before it hits obstacles (latency unknown in this phase).",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R6INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_05ROBOTPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "reaction latency not specified"
+        },
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm required reaction latency so later control timing decisions remain grounded in confirmed needs."
+      },
+      {
+        "requirementId": "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+        "displayId": "R7",
+        "statement": "The system must integrate with the existing robot controller interface so it can issue reaction commands with the expected behavior semantics (robot-controller interface unknown in this phase).",
+        "category": "interface",
+        "priority": "must",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R7INFERUNKNOWN0000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "art_05ROBOTPB000000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "reaction behavior implies a controller interface"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm what interface behaviors the module must provide to the robot controller for safe reactions."
+      },
+      {
+        "requirementId": "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001",
+        "displayId": "R8",
+        "statement": "The system must assume appropriate indoor environmental constraints and fail-safe safety behavior for uncertain obstacle detection (environment/safety unknown in this phase).",
+        "category": "safety",
+        "priority": "must",
+        "sourceType": "user-implied",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_05R8INFERUNKNOWN000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_05USERMSG0000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "indoor safety behavior constraints not specified"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "verificationMethod": "Confirm indoor environmental constraints and the fail-safe behavior expected when obstacle detection is uncertain."
+      }
+    ],
+    "requirementSummary": "Golden Nexus circuit-simulation fixture requiring an ESP32-class MCU and IMU motion sensor with Wokwi surrogate simulation support, while retaining provisional open constraints for later embedded refinement.",
+    "missingDimensions": [
+      "detection range and field of view",
+      "maximum allowed reaction latency",
+      "robot-controller interface behavior semantics",
+      "indoor environmental constraints and fail-safe safety expectations",
+      "false-positive/false-negative tolerances for indoor operation"
+    ],
+    "openQuestionIds": [
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+        "displayId": "Q1"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05REACTIONLATENCYUNKNOWN000000000000001",
+        "displayId": "Q2"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+        "displayId": "Q3"
+      },
+      {
+        "schemaVersion": "1.0.0",
+        "questionId": "question_05ENVIRONMENTSAFETYUNKNOWN000000000000001",
+        "displayId": "Q4"
+      }
+    ]
+  }
+}
+

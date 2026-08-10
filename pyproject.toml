@@ -50,6 +50,7 @@ pythonpath = [
   "packages/board/tests",
   "packages/contracts/src",
   "packages/contracts/generated/python",
+  "packages/circuit-simulation/src",
   "packages/model-gateway/src",
   "packages/observability/src",
   "packages/persistence/src",

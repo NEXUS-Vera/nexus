@@ -2,8 +2,21 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
-export type Artifact = ArtifactEnvelope | ArtifactEnvelope1 | ArtifactEnvelope2 | ArtifactEnvelope3 | ArtifactEnvelope4;
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
+export type Artifact =
+  | ArtifactEnvelope
+  | ArtifactEnvelope1
+  | ArtifactEnvelope2
+  | ArtifactEnvelope3
+  | ArtifactEnvelope4
+  | ArtifactEnvelope5
+  | ArtifactEnvelope6;
 export type ComponentCategory =
   | 'sensor'
   | 'compute'
@@ -28,31 +41,109 @@ export type ComponentCategory1 =
   | 'supporting-electronics';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 export type ArtifactType1 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType2 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType3 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType4 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType5 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType6 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType7 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType8 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType9 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType10 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType11 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType12 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType13 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 
 /**
  * Canonical response for a project-modification turn: the resulting current state together with the interpreted intent, the propagation analysis, and which artifact types were actually changed or regenerated.
@@ -100,9 +191,13 @@ export interface ProjectChangeIntent {
 export interface ProjectCurrentState {
   /**
    * @minItems 4
-   * @maxItems 5
+   * @maxItems 7
    */
-  artifacts: [Artifact, Artifact, Artifact, Artifact] | [Artifact, Artifact, Artifact, Artifact, Artifact];
+  artifacts:
+    | [Artifact, Artifact, Artifact, Artifact]
+    | [Artifact, Artifact, Artifact, Artifact, Artifact]
+    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact]
+    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact];
   dependencies?: ArtifactDependency[];
   openQuestions: OpenQuestion[];
   previousTurnIds?: string[];
@@ -760,6 +855,418 @@ export interface ActorReference11 {
   displayName?: string;
   schemaVersion: '1.0.0';
 }
+export interface ArtifactEnvelope5 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'electrical-architecture';
+  artifactVersion: number;
+  content: ElectricalArchitectureContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference15;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
+export interface ElectricalArchitectureContent {
+  architectureId: string;
+  assumptions: {
+    assumptionId: string;
+    confidence: 'high' | 'medium' | 'low';
+    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
+    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
+    statement: string;
+  }[];
+  connections: {
+    connectionId: string;
+    connectionType: 'signal' | 'bus' | 'power' | 'ground' | 'communication' | 'control' | 'other';
+    description?: string;
+    fromInterfaceId?: string;
+    fromNodeId: string;
+    functionalArchitectureEdgeIds?: string[];
+    interfaceType:
+      | 'analog'
+      | 'gpio'
+      | 'i2c'
+      | 'spi'
+      | 'uart'
+      | 'can'
+      | 'usb'
+      | 'ethernet'
+      | 'pwm'
+      | 'power'
+      | 'ground'
+      | 'other'
+      | 'unknown';
+    provenance?: DerivedFactProvenance;
+    provisionalReason?: string;
+    status: 'resolved' | 'provisional' | 'unresolved' | 'needs-resolution';
+    toInterfaceId?: string;
+    toNodeId: string;
+  }[];
+  coverageSummary: {
+    approvedImplementationCount: number;
+    coveredFunctionalNodes: number;
+    preferredImplementationCount: number;
+    totalFunctionalNodes: number;
+    uncoveredFunctionalNodeIds: string[];
+    unresolvedConnectionCount: number;
+    unresolvedImplementationCount: number;
+  };
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  maturity: 'provisional' | 'drafted' | 'reviewed' | 'approved';
+  nodes: {
+    assumptions?: string[];
+    componentCandidateId?: string;
+    componentRoleIds: string[];
+    evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+    functionalArchitectureNodeIds: string[];
+    implementationStatus: 'unresolved' | 'preferred' | 'approved' | 'provisional' | 'unsupported';
+    interfaces?: {
+      direction: 'in' | 'out' | 'bidirectional' | 'unknown';
+      interfaceId: string;
+      interfaceType:
+        | 'analog'
+        | 'gpio'
+        | 'i2c'
+        | 'spi'
+        | 'uart'
+        | 'can'
+        | 'usb'
+        | 'ethernet'
+        | 'pwm'
+        | 'power'
+        | 'ground'
+        | 'other'
+        | 'unknown';
+      label?: string;
+      notes?: string;
+      provenance?: DerivedFactProvenance1;
+      status: 'resolved' | 'unresolved' | 'unknown' | 'needs-resolution';
+      voltage?: Quantity1;
+    }[];
+    name: string;
+    nodeId: string;
+    nodeType:
+      | 'component'
+      | 'power-source'
+      | 'power-regulator'
+      | 'connector'
+      | 'protection'
+      | 'supporting-electronics'
+      | 'external-interface'
+      | 'junction';
+    notes?: string;
+    requirementIds?: string[];
+    selectionState?: 'preferred' | 'approved' | 'unresolved' | 'none';
+  }[];
+  powerDomains: {
+    memberNodeIds?: string[];
+    name: string;
+    nominalVoltage?: Quantity2;
+    notes?: string;
+    powerDomainId: string;
+    provenance?: DerivedFactProvenance2;
+    status: 'known' | 'unknown' | 'needs-resolution';
+  }[];
+  selectionBasisSummary: string;
+  summary: string;
+  unresolvedDecisions: OpenQuestionReference4[];
+  warnings: {
+    code: string;
+    message: string;
+    relatedNodeIds?: string[];
+    severity: 'info' | 'warning' | 'blocking';
+  }[];
+}
+export interface DerivedFactProvenance {
+  derivedFromIds?: string[];
+  notes?: string;
+  schemaVersion: '1.0.0';
+  sourceReference?: EvidenceReference4 | string;
+  sourceType:
+    | 'fixture'
+    | 'component-plan'
+    | 'user'
+    | 'llm-derived'
+    | 'manufacturer-datasheet'
+    | 'external-provider'
+    | 'runtime-output'
+    | 'derived'
+    | 'unknown';
+}
+export interface EvidenceReference4 {
+  attribution?: ActorReference12;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference12 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface DerivedFactProvenance1 {
+  derivedFromIds?: string[];
+  notes?: string;
+  schemaVersion: '1.0.0';
+  sourceReference?: EvidenceReference5 | string;
+  sourceType:
+    | 'fixture'
+    | 'component-plan'
+    | 'user'
+    | 'llm-derived'
+    | 'manufacturer-datasheet'
+    | 'external-provider'
+    | 'runtime-output'
+    | 'derived'
+    | 'unknown';
+}
+export interface EvidenceReference5 {
+  attribution?: ActorReference13;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference13 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface Quantity1 {
+  schemaVersion: '1.0.0';
+  unit: string;
+  value: number;
+}
+export interface Quantity2 {
+  schemaVersion: '1.0.0';
+  unit: string;
+  value: number;
+}
+export interface DerivedFactProvenance2 {
+  derivedFromIds?: string[];
+  notes?: string;
+  schemaVersion: '1.0.0';
+  sourceReference?: EvidenceReference6 | string;
+  sourceType:
+    | 'fixture'
+    | 'component-plan'
+    | 'user'
+    | 'llm-derived'
+    | 'manufacturer-datasheet'
+    | 'external-provider'
+    | 'runtime-output'
+    | 'derived'
+    | 'unknown';
+}
+export interface EvidenceReference6 {
+  attribution?: ActorReference14;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference14 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface OpenQuestionReference4 {
+  displayId?: string;
+  questionId: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference15 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ArtifactEnvelope6 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'physical-architecture';
+  artifactVersion: number;
+  content: PhysicalArchitectureContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference18;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
+export interface PhysicalArchitectureContent {
+  architectureId: string;
+  assumptions: {
+    assumptionId: string;
+    confidence: 'high' | 'medium' | 'low';
+    confirmationStatus: 'confirmed' | 'proposed' | 'needs-confirmation' | 'rejected';
+    sourceType: 'user-explicit' | 'user-implied' | 'system-inferred' | 'project-policy';
+    statement: string;
+  }[];
+  coverageSummary: {
+    coveredElectricalNodes: number;
+    provisionalRelationshipCount: number;
+    totalElectricalNodes: number;
+    uncoveredElectricalNodeIds: string[];
+    unresolvedPlacementCount: number;
+  };
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  maturity: 'provisional' | 'drafted' | 'reviewed' | 'approved';
+  nodes: {
+    constraints?: string[];
+    electricalNodeIds: string[];
+    name: string;
+    nodeId: string;
+    nodeType:
+      | 'assembly'
+      | 'board'
+      | 'module'
+      | 'sensor'
+      | 'actuator'
+      | 'power-source'
+      | 'connector'
+      | 'enclosure'
+      | 'mount'
+      | 'external-system'
+      | 'zone';
+    notes?: string;
+    placementStatus: 'placed' | 'unresolved' | 'provisional' | 'unknown';
+    provenance?: DerivedFactProvenance3;
+    qualitativePlacement?: string;
+    zoneId?: string;
+  }[];
+  relationships: {
+    fromNodeId: string;
+    provenance?: DerivedFactProvenance4;
+    relationshipId: string;
+    relationshipType:
+      'mounted-on' | 'inside' | 'attached-to' | 'adjacent-to' | 'connected-to' | 'exposed-to' | 'isolated-from';
+    status: 'resolved' | 'provisional' | 'unresolved';
+    toNodeId: string;
+  }[];
+  summary: string;
+  unresolvedDecisions: OpenQuestionReference5[];
+  warnings: {
+    code: string;
+    message: string;
+    relatedNodeIds?: string[];
+    severity: 'info' | 'warning' | 'blocking';
+  }[];
+  zones: {
+    memberNodeIds?: string[];
+    name: string;
+    notes?: string;
+    zoneId: string;
+    zoneKind: 'enclosure' | 'chassis' | 'external-sensing' | 'power' | 'user-interface' | 'other' | 'unknown';
+  }[];
+}
+export interface DerivedFactProvenance3 {
+  derivedFromIds?: string[];
+  notes?: string;
+  schemaVersion: '1.0.0';
+  sourceReference?: EvidenceReference7 | string;
+  sourceType:
+    | 'fixture'
+    | 'component-plan'
+    | 'user'
+    | 'llm-derived'
+    | 'manufacturer-datasheet'
+    | 'external-provider'
+    | 'runtime-output'
+    | 'derived'
+    | 'unknown';
+}
+export interface EvidenceReference7 {
+  attribution?: ActorReference16;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference16 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface DerivedFactProvenance4 {
+  derivedFromIds?: string[];
+  notes?: string;
+  schemaVersion: '1.0.0';
+  sourceReference?: EvidenceReference8 | string;
+  sourceType:
+    | 'fixture'
+    | 'component-plan'
+    | 'user'
+    | 'llm-derived'
+    | 'manufacturer-datasheet'
+    | 'external-provider'
+    | 'runtime-output'
+    | 'derived'
+    | 'unknown';
+}
+export interface EvidenceReference8 {
+  attribution?: ActorReference17;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference17 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface OpenQuestionReference5 {
+  displayId?: string;
+  questionId: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference18 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
 /**
  * Directed dependency between two project artifacts. Dependencies are recorded at artifact-type level so they survive artifact revisions, and may additionally pin the specific revisions involved.
  */
@@ -782,7 +1289,7 @@ export interface OpenQuestion {
   question: string;
   questionId: string;
   reason: string;
-  requestedFrom: ActorReference12;
+  requestedFrom: ActorReference19;
   schemaVersion: '1.0.0';
   /**
    * @minItems 1
@@ -802,7 +1309,7 @@ export interface OpenQuestion {
   status: 'open' | 'answered' | 'resolved' | 'dismissed';
   updatedAt: string;
 }
-export interface ActorReference12 {
+export interface ActorReference19 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -822,14 +1329,14 @@ export interface Project {
   }[];
   currentStateVersion: number;
   domain: 'embedded-products';
-  openQuestionReferences: OpenQuestionReference4[];
+  openQuestionReferences: OpenQuestionReference6[];
   projectId: string;
   projectPhase: 'concept' | 'prototype-planning';
   schemaVersion: '1.0.0';
   title: string;
   updatedAt: string;
 }
-export interface OpenQuestionReference4 {
+export interface OpenQuestionReference6 {
   displayId?: string;
   questionId: string;
   schemaVersion: '1.0.0';
@@ -867,8 +1374,8 @@ export interface TurnRoute {
   unsupportedReason?: string;
 }
 export interface UserTurn {
-  actor: ActorReference13;
-  attachmentReferences?: EvidenceReference4[];
+  actor: ActorReference20;
+  attachmentReferences?: EvidenceReference9[];
   parentTurnId?: string;
   projectId: string;
   rawUserMessage: string;
@@ -876,14 +1383,14 @@ export interface UserTurn {
   timestamp: string;
   turnId: string;
 }
-export interface ActorReference13 {
+export interface ActorReference20 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
   schemaVersion: '1.0.0';
 }
-export interface EvidenceReference4 {
-  attribution?: ActorReference14;
+export interface EvidenceReference9 {
+  attribution?: ActorReference21;
   evidenceId: string;
   evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
   schemaVersion: '1.0.0';
@@ -893,7 +1400,7 @@ export interface EvidenceReference4 {
     'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
   supportedClaim?: string;
 }
-export interface ActorReference14 {
+export interface ActorReference21 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -943,7 +1450,7 @@ export interface VeraResponse {
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   };
-  openQuestionReferences: OpenQuestionReference5[];
+  openQuestionReferences: OpenQuestionReference7[];
   projectId: string;
   projectStateSummary: {
     autonomyMode: 'collaborate' | 'delegate';
@@ -958,7 +1465,7 @@ export interface VeraResponse {
     issueId: string;
   }[];
 }
-export interface OpenQuestionReference5 {
+export interface OpenQuestionReference7 {
   displayId?: string;
   questionId: string;
   schemaVersion: '1.0.0';

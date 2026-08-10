@@ -59,13 +59,17 @@
         "enum": [
           "workspace.create",
           "workspace.update-draft",
+          "workspace.acquire-edit-lease",
+          "workspace.release-edit-lease",
+          "workspace.discard-draft",
           "workspace.create-snapshot",
           "workspace.restore-snapshot",
           "artifact.validate-draft",
           "artifact.propose-revision",
           "artifact.accept-revision",
           "artifact.reject-revision",
-          "artifact.execute"
+          "artifact.execute",
+          "artifact.inspect-deletion-impact"
         ]
       },
       "uniqueItems": true

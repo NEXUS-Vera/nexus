@@ -5,11 +5,19 @@ from __future__ import annotations
 import logging
 import re
 import uuid
+from pathlib import Path
 from typing import Any, cast
 
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from nexus_board import build_project_kernel
+from nexus_board.errors import BoardError
+from nexus_board.ids import new_id
+from nexus_board.registries.external_providers import default_external_provider_registry
+from nexus_board.registries.runtime_capabilities import default_runtime_capability_registry
+from nexus_board.services.architecture_graph import materialize_layered_architecture_graph
+from nexus_circuit_simulation import CircuitSimulationError, WokwiProvider
 from nexus_embedded_systems.workflows.project_initialization import (
     InitializationProviderError,
     InitializationRoutingError,
@@ -27,16 +35,22 @@ from nexus_embedded_systems.workflows.project_modification import (
 from nexus_persistence import (
     ArtifactNotFoundError,
     ArtifactVersionNotFoundError,
+    ExecutionNotFoundError,
     ProjectNotFoundError,
     ProjectPersistenceError,
     ProjectRetrievalError,
     build_stores,
 )
-from nexus_board import build_project_kernel
-from nexus_board.errors import BoardError
-from nexus_board.ids import new_id
 from project_initialization_result_v1 import ProjectInitializationResultV1
 
+from .circuit_simulation import (
+    CircuitSimulationExecutionAdapter,
+    materialization_request,
+    serialize_availability,
+    serialize_provider_preview,
+    serialize_support_assessment,
+    serialize_validation,
+)
 from .config import settings
 from .models import InitializeProjectRequest, ProjectTurnRequest
 
@@ -50,6 +64,8 @@ ARTIFACT_TYPES = {
     "functional-architecture",
     "next-action",
     "component-plan",
+    "electrical-architecture",
+    "physical-architecture",
 }
 COMMAND_ID_RE = re.compile(r"^cmd_[A-Za-z0-9]{16,}$")
 
@@ -66,7 +82,50 @@ _store, _kernel_store = build_stores(
     backend=settings.storage_backend,
     database_url=settings.database_url,
 )
-_kernel = build_project_kernel(_kernel_store, project_store=_store)
+_wokwi_provider = WokwiProvider(
+    token=settings.wokwi_cli_token or None,
+    executable=settings.wokwi_cli_executable,
+    firmware_elf_path=settings.wokwi_firmware_elf or None,
+)
+_wokwi_availability = _wokwi_provider.availability()
+_firmware_ready = bool(
+    settings.wokwi_firmware_elf
+    and Path(settings.wokwi_firmware_elf).is_file()
+    and Path(settings.wokwi_firmware_elf).suffix.lower() == ".elf"
+)
+_capabilities = default_runtime_capability_registry()
+_capabilities.register(
+    {
+        "schemaVersion": "1.0.0",
+        "capabilityId": "circuit-simulation",
+        "displayName": "Circuit Simulation",
+        "providerId": "wokwi",
+        "available": _wokwi_availability.ready,
+        "description": "Provider-neutral circuit simulation through Wokwi CLI",
+    }
+)
+_providers = default_external_provider_registry()
+_providers.register(
+    {
+        "providerId": "wokwi",
+        "displayName": "Wokwi",
+        "available": _wokwi_availability.ready,
+        "capabilities": ["circuit-simulation"],
+    }
+)
+_kernel = build_project_kernel(
+    _kernel_store,
+    project_store=_store,
+    capabilities=_capabilities,
+    providers=_providers,
+    capability_executors={
+        "circuit-simulation": CircuitSimulationExecutionAdapter(
+            provider=_wokwi_provider,
+            project_store=_store,
+            firmware_ready=_firmware_ready,
+        )
+    },
+)
 
 
 def _build_init_service() -> InitializationService:
@@ -134,6 +193,20 @@ async def initialize_project(
             autonomy_mode=body.autonomyMode,
             request_id=request_id,
         )
+        try:
+            project_id = result["project"]["projectId"]
+            materialize_layered_architecture_graph(
+                _kernel_store,
+                project_id,
+                list(result.get("artifacts") or []),
+                new_id("evt"),
+            )
+            _kernel.projection.update_after_write(project_id)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "initialization_graph_materialization_failed request_id=%s",
+                request_id,
+            )
         return cast(ProjectInitializationResultV1, result)
     except InitializationRoutingError as exc:
         return _error(
@@ -197,7 +270,7 @@ async def get_project(project_id: str, request: Request) -> dict[str, Any] | JSO
     if invalid:
         return invalid
     try:
-        return _store.get_current_state(project_id)
+        return cast(dict[str, Any], _store.get_current_state(project_id))
     except ProjectNotFoundError as exc:
         return _error(404, code=exc.code, message="Project not found.", request_id=request_id)
     except Exception:  # noqa: BLE001
@@ -210,10 +283,268 @@ async def get_project(project_id: str, request: Request) -> dict[str, Any] | JSO
         )
 
 
-@app.get("/v1/projects/{project_id}/artifacts", response_model=None)
-async def get_project_artifacts(
+@app.post("/v1/projects/{project_id}/ensure-layered-architecture", response_model=None)
+async def ensure_layered_architecture(
     project_id: str, request: Request
 ) -> dict[str, Any] | JSONResponse:
+    """Idempotently materialize Electrical/Physical for pre-Phase-13 projects."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        from nexus_embedded_systems.workflows.layered_architecture import (
+            ensure_layered_architecture_artifacts,
+        )
+
+        project = _store.get_project(project_id)  # type: ignore[attr-defined]
+        artifacts = _store.get_artifacts(project_id)
+        body: dict[str, Any] = {}
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            body = {}
+        actor = body.get("requestedBy") or {
+            "schemaVersion": "1.0.0",
+            "actorId": new_id("actor"),
+            "actorType": "system",
+            "displayName": "System",
+        }
+        ensured = ensure_layered_architecture_artifacts(
+            project_id=project_id,
+            artifacts=list(artifacts),
+            actor=actor,
+        )
+        if ensured.get("skippedReason"):
+            return _error(
+                422,
+                code="LAYERED_ARCHITECTURE_ENSURE_BLOCKED",
+                message=str(ensured["skippedReason"]),
+                request_id=request_id,
+            )
+        created = list(ensured.get("created") or [])
+        now = created[0]["createdAt"] if created else None
+        state_version = int(project["currentStateVersion"])
+        for art in created:
+            state_version += 1
+            stamp = str(art.get("updatedAt") or art.get("createdAt") or now)
+            _store.apply_accepted_artifact_revision(  # type: ignore[attr-defined]
+                project_id=project_id,
+                new_artifact=art,
+                next_state_version=state_version,
+                updated_at=stamp,
+                expected_project_state_version=state_version - 1,
+            )
+        if created:
+            try:
+                materialize_layered_architecture_graph(
+                    _kernel_store,
+                    project_id,
+                    list(ensured.get("artifacts") or artifacts),
+                    new_id("evt"),
+                )
+                _kernel.projection.update_after_write(project_id)
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "ensure_layered_graph_materialization_failed request_id=%s",
+                    request_id,
+                )
+        current = _store.get_current_state(project_id)
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "createdArtifactTypes": [a["artifactType"] for a in created],
+            "currentState": current,
+        }
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ensure_layered_architecture_failed request_id=%s", request_id)
+        return _error(
+            500,
+            code="LAYERED_ARCHITECTURE_ENSURE_FAILED",
+            message="Failed to ensure layered architecture artifacts.",
+            request_id=request_id,
+        )
+
+
+def _circuit_materialization(project_id: str) -> tuple[dict[str, Any], Any]:
+    electrical = _store.get_artifact(project_id, "electrical-architecture")
+    component_plan = _store.get_artifact(project_id, "component-plan")
+    return electrical, materialization_request(
+        electrical_artifact=electrical,
+        component_plan_artifact=component_plan,
+    )
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/support",
+    response_model=None,
+)
+async def get_circuit_simulation_support(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        electrical, materialization = _circuit_materialization(project_id)
+        assessment = _wokwi_provider.assess_support(materialization)
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "artifactId": electrical["artifactId"],
+            "providerAvailability": serialize_availability(
+                _wokwi_provider, firmware_ready=_firmware_ready
+            ),
+            "assessment": serialize_support_assessment(
+                assessment,
+                firmware_ready=_firmware_ready,
+                provider_id="wokwi",
+            ),
+        }
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
+            request_id=request_id,
+        )
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/preview",
+    response_model=None,
+)
+async def get_circuit_simulation_preview(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _, materialization = _circuit_materialization(project_id)
+        assessment = _wokwi_provider.assess_support(materialization)
+        workspace = _wokwi_provider.materialize(materialization)
+        return serialize_provider_preview(
+            assessment=assessment,
+            workspace=workspace,
+            provider_id="wokwi",
+        )
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
+            request_id=request_id,
+        )
+    except CircuitSimulationError as exc:
+        return _error(
+            503,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/validate",
+    response_model=None,
+)
+async def validate_circuit_simulation(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _, materialization = _circuit_materialization(project_id)
+        workspace = _wokwi_provider.materialize(materialization)
+        result = _wokwi_provider.validate(workspace)
+        return serialize_validation(result, workspace)
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
+            request_id=request_id,
+        )
+    except CircuitSimulationError as exc:
+        return _error(
+            503,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/export",
+    response_model=None,
+)
+async def export_circuit_simulation_workspace(
+    project_id: str,
+    request: Request,
+) -> JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        electrical = _store.get_artifact(project_id, "electrical-architecture")
+        persisted = next(
+            (
+                output
+                for output in reversed(_kernel.executions.list_outputs(project_id))
+                if output.get("artifactId") == electrical["artifactId"]
+                and output.get("name") == "provider-workspace-manifest"
+            ),
+            None,
+        )
+        if persisted is None:
+            return _error(
+                404,
+                code="SIMULATION_EXPORT_NOT_FOUND",
+                message="Run a simulation with provider workspace output before exporting.",
+                request_id=request_id,
+            )
+        structured = (persisted.get("content") or {}).get("structuredResult") or {}
+        return JSONResponse(
+            content={
+                "schemaVersion": "1.0.0",
+                "providerId": "wokwi",
+                "workspaceDigest": structured.get("workspaceDigest"),
+                "manifest": structured.get("manifest"),
+                "files": structured.get("files"),
+            },
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="nexus-{project_id}-wokwi-workspace.json"'
+                )
+            },
+        )
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
+            request_id=request_id,
+        )
+
+
+@app.get("/v1/projects/{project_id}/artifacts", response_model=None)
+async def get_project_artifacts(project_id: str, request: Request) -> dict[str, Any] | JSONResponse:
     request_id = _request_id(request)
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
@@ -255,7 +586,10 @@ async def get_project_artifact(
             request_id=request_id,
         )
     try:
-        return _store.get_artifact(project_id, artifact_type, version=version)
+        return cast(
+            dict[str, Any],
+            _store.get_artifact(project_id, artifact_type, version=version),
+        )
     except ProjectNotFoundError:
         return _error(
             404,
@@ -287,7 +621,7 @@ async def get_project_history(
     if invalid:
         return invalid
     try:
-        return _store.get_history(project_id, limit=limit)
+        return cast(dict[str, Any], _store.get_history(project_id, limit=limit))
     except ProjectNotFoundError:
         return _error(
             404,
@@ -315,11 +649,14 @@ async def submit_project_turn(
     if invalid:
         return invalid
     try:
-        return await _mod_service.submit_turn(
-            project_id,
-            body.message.strip(),
-            autonomy_mode=body.autonomyMode,
-            request_id=request_id,
+        return cast(
+            dict[str, Any],
+            await _mod_service.submit_turn(
+                project_id,
+                body.message.strip(),
+                autonomy_mode=body.autonomyMode,
+                request_id=request_id,
+            ),
         )
     except ModificationError as exc:
         status = 422
@@ -391,19 +728,43 @@ async def get_artifact_workspace(
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
         existing = _kernel.workspaces.get_or_none(project_id, artifact_type)
-        if existing is None:
-            return _error(
-                404,
-                code="WORKSPACE_NOT_FOUND",
-                message="Workspace not found.",
-                request_id=request_id,
-            )
-        return existing
+        if existing is not None:
+            return existing
+        # Lazily create workspace state for existing artifacts so editable
+        # surfaces do not leave the UI on a permanent WORKSPACE_NOT_FOUND 404.
+        actor = {
+            "schemaVersion": "1.0.0",
+            "actorId": new_id("actor"),
+            "actorType": "user",
+            "displayName": "User",
+        }
+        return _kernel.workspaces.create_if_missing(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+        )
     except ProjectNotFoundError:
         return _error(
             404,
             code="PROJECT_NOT_FOUND",
             message="Project not found.",
+            request_id=request_id,
+        )
+    except ArtifactNotFoundError:
+        return _error(
+            404,
+            code="ARTIFACT_NOT_FOUND",
+            message="Artifact type not found for this project.",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("workspace_resolve_failed request_id=%s", request_id)
+        return _error(
+            500,
+            code="WORKSPACE_CREATE_FAILED",
+            message="Failed to resolve workspace.",
             request_id=request_id,
         )
 
@@ -507,6 +868,9 @@ async def dispatch_artifact_command(
     if command.get("commandType") not in {
         "workspace.create",
         "workspace.update-draft",
+        "workspace.acquire-edit-lease",
+        "workspace.release-edit-lease",
+        "workspace.discard-draft",
         "workspace.create-snapshot",
         "workspace.restore-snapshot",
         "artifact.validate-draft",
@@ -514,6 +878,7 @@ async def dispatch_artifact_command(
         "artifact.accept-revision",
         "artifact.reject-revision",
         "artifact.execute",
+        "artifact.inspect-deletion-impact",
     }:
         return _error(
             422,
@@ -576,9 +941,7 @@ async def list_project_executions(
         return invalid
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
-        items, next_cursor = _kernel.executions.list_runs(
-            project_id, limit=limit, cursor=cursor
-        )
+        items, next_cursor = _kernel.executions.list_runs(project_id, limit=limit, cursor=cursor)
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,
@@ -590,6 +953,63 @@ async def list_project_executions(
             404,
             code="PROJECT_NOT_FOUND",
             message="Project not found.",
+            request_id=request_id,
+        )
+
+
+@app.get("/v1/projects/{project_id}/outputs", response_model=None)
+async def list_project_outputs(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "items": _kernel.executions.list_outputs(project_id),
+        }
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+
+
+@app.get("/v1/projects/{project_id}/outputs/{output_id}", response_model=None)
+async def get_project_output(
+    project_id: str,
+    output_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        output = _kernel.executions.get_output(output_id)
+        if output.get("projectId") != project_id:
+            raise ExecutionNotFoundError(f"Produced output not found: {output_id}")
+        return output
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+    except ExecutionNotFoundError:
+        return _error(
+            404,
+            code="OUTPUT_NOT_FOUND",
+            message="Produced output not found.",
             request_id=request_id,
         )
 
@@ -607,9 +1027,7 @@ async def list_project_events(
         return invalid
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
-        items, next_cursor = _kernel.ledger.list_events(
-            project_id, limit=limit, cursor=cursor
-        )
+        items, next_cursor = _kernel.ledger.list_events(project_id, limit=limit, cursor=cursor)
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,

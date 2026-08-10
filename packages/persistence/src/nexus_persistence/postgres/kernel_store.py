@@ -292,6 +292,13 @@ class PostgresKernelStore:
             )
             session.commit()
 
+    def get_produced_output(self, output_id: str) -> dict[str, Any]:
+        with self._session_factory() as session:
+            row = session.get(ProducedOutputRow, output_id)
+            if row is None:
+                raise ExecutionNotFoundError(f"Produced output not found: {output_id}")
+            return dict(row.payload)
+
     def list_produced_outputs(self, project_id: str) -> list[dict[str, Any]]:
         with self._session_factory() as session:
             rows = session.scalars(

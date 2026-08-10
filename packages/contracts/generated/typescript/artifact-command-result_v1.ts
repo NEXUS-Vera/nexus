@@ -2,7 +2,13 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 
 export interface ArtifactCommandResult {
   artifactId: string;
@@ -24,6 +30,9 @@ export interface ArtifactCommandResult {
   };
   projectId: string;
   proposalId?: string;
+  resultPayload?: {
+    [k: string]: any;
+  };
   schemaVersion: '1.0.0';
   snapshotId?: string;
   startedAt: string;

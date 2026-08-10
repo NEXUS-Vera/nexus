@@ -40,6 +40,8 @@ async def test_phase11_kernel_api_flow() -> None:
             "functional-architecture",
             "next-action",
             "component-plan",
+            "electrical-architecture",
+            "physical-architecture",
         }
 
         created = await client.post(
@@ -60,7 +62,8 @@ async def test_phase11_kernel_api_flow() -> None:
         missing = await client.get(
             f"/v1/projects/{project_id}/artifacts/requirement-set/workspace"
         )
-        assert missing.status_code == 404
+        assert missing.status_code == 200, missing.text
+        assert missing.json()["workspace"]["artifactType"] == "requirement-set"
 
         ws = await client.post(
             f"/v1/projects/{project_id}/artifacts/requirement-set/workspace",
@@ -68,7 +71,27 @@ async def test_phase11_kernel_api_flow() -> None:
         )
         assert ws.status_code == 200, ws.text
         workspace_id = ws.json()["workspace"]["workspaceId"]
+        assert workspace_id == missing.json()["workspace"]["workspaceId"]
         draft_version = ws.json()["draft"]["draftVersion"]
+        editor = _actor()
+
+        lease = await client.post(
+            f"/v1/projects/{project_id}/artifact-commands",
+            json={
+                "schemaVersion": "1.0.0",
+                "commandId": _cmd_id(),
+                "commandType": "workspace.acquire-edit-lease",
+                "projectId": project_id,
+                "artifactId": req["artifactId"],
+                "workspaceId": workspace_id,
+                "baseArtifactVersion": 1,
+                "baseProjectStateVersion": 1,
+                "requestedBy": editor,
+                "requestedAt": "2026-08-04T12:00:00Z",
+                "input": {},
+            },
+        )
+        assert lease.status_code == 200, lease.text
 
         conflict = await client.post(
             f"/v1/projects/{project_id}/artifact-commands",
@@ -81,7 +104,7 @@ async def test_phase11_kernel_api_flow() -> None:
                 "workspaceId": workspace_id,
                 "baseArtifactVersion": 99,
                 "baseProjectStateVersion": 1,
-                "requestedBy": _actor(),
+                "requestedBy": editor,
                 "requestedAt": "2026-08-04T12:00:00Z",
                 "input": {"content": {"requirements": []}, "expectedDraftVersion": draft_version},
             },
@@ -100,7 +123,7 @@ async def test_phase11_kernel_api_flow() -> None:
                 "workspaceId": workspace_id,
                 "baseArtifactVersion": 1,
                 "baseProjectStateVersion": 1,
-                "requestedBy": _actor(),
+                "requestedBy": editor,
                 "requestedAt": "2026-08-04T12:00:00Z",
                 "input": {
                     "content": {"requirements": [{"statement": "api"}]},
@@ -121,7 +144,7 @@ async def test_phase11_kernel_api_flow() -> None:
                 "workspaceId": workspace_id,
                 "baseArtifactVersion": 1,
                 "baseProjectStateVersion": 1,
-                "requestedBy": _actor(),
+                "requestedBy": editor,
                 "requestedAt": "2026-08-04T12:00:00Z",
                 "input": {"reason": "api-checkpoint"},
             },

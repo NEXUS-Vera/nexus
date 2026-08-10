@@ -2,13 +2,26 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType1 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 
 export interface ProjectBoardProjection {
   artifactSummaries: {
     approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+    approvedImplementationCount?: number;
     artifactId: string;
     artifactType: ArtifactType;
     artifactVersion: number;
@@ -37,10 +50,15 @@ export interface ProjectBoardProjection {
       | 'selection-proposed'
       | 'selection-approved'
       | 'validated';
+    nodeCount?: number;
     openQuestionCount: number;
+    provisionalImplementationCount?: number;
+    provisionalRelationshipCount?: number;
     roleCount?: number;
     selectedCount?: number;
     unresolvedCompatibilityCheckCount?: number;
+    unresolvedConnectionCount?: number;
+    unresolvedPlacementCount?: number;
     workspaceStatus: 'none' | 'creating' | 'ready' | 'dirty' | 'validating' | 'blocked' | 'archived';
   }[];
   blockingIssueCount: number;

@@ -1,7 +1,7 @@
 """Fixture-phase routing for embedded project initialization.
 
 This classifier is intentionally non-intelligent: it matches explicit keyword
-families against the five golden fixture packages. It must not invent confidence
+families against the golden fixture packages. It must not invent confidence
 or silently pick an unrelated fixture.
 """
 
@@ -63,6 +63,13 @@ FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "robot reaction",
         "obstacle-detection",
         "obstacle detection",
+    ),
+    "esp32-imu-circuit-simulation": (
+        "golden nexus circuit simulation",
+        "esp32-class mcu and an imu",
+        "wokwi surrogate simulation",
+        "circuit simulation project with an esp32",
+        "esp32 imu golden",
     ),
 }
 

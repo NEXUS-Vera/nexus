@@ -56,6 +56,8 @@ def select_next_action(
     missing_dimensions: list[str],
     project_stage: ProjectStage,
     component_plan_content: dict[str, Any] | None = None,
+    electrical_content: dict[str, Any] | None = None,
+    physical_content: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Select and construct the single highest-priority Next Action.
 
@@ -67,7 +69,9 @@ def select_next_action(
       4. An interface/environment/resource missing dimension.
       5. An architecture missing dimension.
       6. Component-plan gaps (missing constraints, awaiting approval, no candidates).
-      7. Fallback: the project is ready for later component-selection.
+      7. Electrical gaps (preferred implementations, unresolved connections/interfaces).
+      8. Physical gaps (unresolved placement).
+      9. Fallback: the project is ready for later component-selection.
     """
 
     blocking_issues = [issue for issue in issues if issue.get("blocking") is True]
@@ -126,6 +130,14 @@ def select_next_action(
     component_gap = _component_plan_gap_action(component_plan_content)
     if component_gap is not None:
         return component_gap
+
+    electrical_gap = _electrical_architecture_gap_action(electrical_content)
+    if electrical_gap is not None:
+        return electrical_gap
+
+    physical_gap = _physical_architecture_gap_action(physical_content)
+    if physical_gap is not None:
+        return physical_gap
 
     return _component_selection_ready_action(project_stage)
 
@@ -220,6 +232,110 @@ def _component_plan_gap_action(
         )
 
     return None
+
+
+def _electrical_architecture_gap_action(
+    electrical_content: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not isinstance(electrical_content, dict):
+        return None
+    coverage = electrical_content.get("coverageSummary") or {}
+    preferred = int(coverage.get("preferredImplementationCount") or 0)
+    unresolved_impl = int(coverage.get("unresolvedImplementationCount") or 0)
+    unresolved_conn = int(coverage.get("unresolvedConnectionCount") or 0)
+
+    nodes = electrical_content.get("nodes") or []
+    preferred_nodes = [
+        n
+        for n in nodes
+        if isinstance(n, dict)
+        and n.get("implementationStatus") in {"preferred", "provisional"}
+        and n.get("selectionState") == "preferred"
+    ]
+    if preferred > 0 or preferred_nodes:
+        count = preferred or len(preferred_nodes)
+        return _build_action(
+            title="Approve preferred electrical implementations",
+            description=(
+                f"{count} electrical implementation(s) are preferred/provisional and "
+                "await user approval before treating the Electrical Architecture as settled."
+            ),
+            rationale=(
+                "Preferred implementations gate grounded electrical connectivity and "
+                "downstream physical placement."
+            ),
+            priority="high",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="requirements-confirmed",
+            completion_criteria=("User approves or rejects preferred electrical implementations."),
+            source_issue_ids=[],
+            source_question_ids=[],
+        )
+
+    unknown_ifaces = 0
+    for node in nodes:
+        if not isinstance(node, dict):
+            continue
+        for iface in node.get("interfaces") or []:
+            if not isinstance(iface, dict):
+                continue
+            if iface.get("status") in {"unknown", "unresolved", "needs-resolution"}:
+                unknown_ifaces += 1
+
+    if unresolved_conn > 0 or unknown_ifaces > 0 or unresolved_impl > 0:
+        return _build_action(
+            title="Resolve electrical connections and interfaces",
+            description=(
+                "Electrical Architecture still has unresolved implementations, "
+                "unknown interfaces, or connections that need resolution."
+            ),
+            rationale=(
+                "Unresolved electrical links block trustworthy Physical Architecture "
+                "placement and later netlist work."
+            ),
+            priority="medium",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="unknowns-resolved",
+            completion_criteria=(
+                "Unresolved electrical implementations, interfaces, and connections "
+                "are clarified or accepted as provisional."
+            ),
+            source_issue_ids=[],
+            source_question_ids=[],
+        )
+
+    return None
+
+
+def _physical_architecture_gap_action(
+    physical_content: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not isinstance(physical_content, dict):
+        return None
+    coverage = physical_content.get("coverageSummary") or {}
+    unresolved_placement = int(coverage.get("unresolvedPlacementCount") or 0)
+    if unresolved_placement <= 0:
+        return None
+    return _build_action(
+        title="Resolve unresolved physical placements",
+        description=(
+            f"{unresolved_placement} physical entit(y/ies) still lack a resolved "
+            "qualitative placement."
+        ),
+        rationale=(
+            "Unresolved placement prevents treating Physical Architecture as ready "
+            "for enclosure and assembly planning."
+        ),
+        priority="medium",
+        prerequisites=[],
+        blocks=[],
+        completion_condition_type="unknowns-resolved",
+        completion_criteria="User clarifies or accepts provisional physical placements.",
+        source_issue_ids=[],
+        source_question_ids=[],
+    )
 
 
 def _blocking_defect_action(blocking_issues: list[dict[str, Any]]) -> dict[str, Any]:

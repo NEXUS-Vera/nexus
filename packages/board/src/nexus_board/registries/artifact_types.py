@@ -10,12 +10,16 @@ from nexus_board.errors import DuplicateRegistrationError, RegistryError
 _WORKSPACE_COMMANDS = [
     "workspace.create",
     "workspace.update-draft",
+    "workspace.acquire-edit-lease",
+    "workspace.release-edit-lease",
+    "workspace.discard-draft",
     "workspace.create-snapshot",
     "workspace.restore-snapshot",
     "artifact.validate-draft",
     "artifact.propose-revision",
     "artifact.accept-revision",
     "artifact.reject-revision",
+    "artifact.inspect-deletion-impact",
 ]
 
 _EXECUTABLE_COMMANDS = [*_WORKSPACE_COMMANDS, "artifact.execute"]
@@ -136,6 +140,47 @@ DEFAULT_ARTIFACT_TYPE_DEFINITIONS: list[dict[str, Any]] = [
                 "relationship": "depends-on",
                 "required": True,
             },
+        ],
+        editable=True,
+        executable=True,
+        board_visibility="primary",
+    ),
+    _definition(
+        artifact_type="electrical-architecture",
+        display_name="Electrical Architecture",
+        phase="DESIGN",
+        workspace_type="graph-workspace",
+        supported_command_types=_EXECUTABLE_COMMANDS,
+        required_capabilities=["circuit-simulation"],
+        dependencies=[
+            {
+                "artifactType": "functional-architecture",
+                "relationship": "depends-on",
+                "required": True,
+            },
+            {
+                "artifactType": "component-plan",
+                "relationship": "depends-on",
+                "required": True,
+            },
+        ],
+        editable=True,
+        executable=True,
+        board_visibility="primary",
+    ),
+    _definition(
+        artifact_type="physical-architecture",
+        display_name="Physical Architecture",
+        phase="DESIGN",
+        workspace_type="graph-workspace",
+        supported_command_types=_EXECUTABLE_COMMANDS,
+        required_capabilities=["fake-execution"],
+        dependencies=[
+            {
+                "artifactType": "electrical-architecture",
+                "relationship": "depends-on",
+                "required": True,
+            }
         ],
         editable=True,
         executable=True,

@@ -39,6 +39,16 @@ ID_PREFIXES: tuple[str, ...] = (
     "cchk_",
     "cplan_",
     "q_",
+    # Optional Phase 13 layered-architecture IDs (when present in fixtures).
+    "enode_",
+    "econn_",
+    "eiface_",
+    "epwr_",
+    "earch_",
+    "pnode_",
+    "pzone_",
+    "prel_",
+    "parch_",
 )
 
 # Longest prefix first so "question_" wins over shorter accidental matches.
@@ -150,6 +160,8 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
     functional_architecture_content = None
     next_action_content = None
     component_plan_content = None
+    electrical_architecture_content = None
+    physical_architecture_content = None
     for art in artifacts:
         if not isinstance(art, dict):
             continue
@@ -163,6 +175,10 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
             next_action_content = content
         elif artifact_type == "component-plan" and isinstance(content, dict):
             component_plan_content = content
+        elif artifact_type == "electrical-architecture" and isinstance(content, dict):
+            electrical_architecture_content = content
+        elif artifact_type == "physical-architecture" and isinstance(content, dict):
+            physical_architecture_content = content
 
     return {
         "artifact_envelopes": artifacts,
@@ -174,6 +190,8 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
         "functional_architecture_content": functional_architecture_content,
         "next_action_content": next_action_content,
         "component_plan_content": component_plan_content,
+        "electrical_architecture_content": electrical_architecture_content,
+        "physical_architecture_content": physical_architecture_content,
         "validation_issues": list(result.get("validationIssues") or []),
         "open_questions": list(result.get("openQuestions") or []),
         "vera_response": result.get("veraResponse"),

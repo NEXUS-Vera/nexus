@@ -13,6 +13,7 @@ import {
   WORKFLOW_GROUPS,
   type ArtifactDefinition,
 } from '../../artifacts/registry';
+import { isArchitectureNavSelected } from '../../artifacts/architecture/views';
 import type { ArtifactRouteKey } from '../../artifacts/types';
 import { LIFECYCLE_DOT, themeColors } from '../../lib/theme';
 import { selectArtifactByType } from '../../artifacts';
@@ -124,7 +125,9 @@ export function WorkflowRail({
           group.artifacts.map((key) => {
             const item = ARTIFACT_REGISTRY[key];
             const Icon = item.icon;
-            const selected = selectedArtifact === key;
+            const selected =
+              selectedArtifact === key ||
+              (key === 'functional-architecture' && isArchitectureNavSelected(selectedArtifact));
             const { status } = railStatusFor(item, artifacts, changeByType);
             return (
               <button
@@ -250,7 +253,9 @@ export function WorkflowRail({
             {group.artifacts.map((key) => {
               const item = ARTIFACT_REGISTRY[key];
               const Icon = item.icon;
-              const selected = selectedArtifact === key;
+              const selected =
+                selectedArtifact === key ||
+                (key === 'functional-architecture' && isArchitectureNavSelected(selectedArtifact));
               const { status, version } = railStatusFor(item, artifacts, changeByType);
               return (
                 <button

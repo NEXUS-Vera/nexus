@@ -203,6 +203,13 @@ class InMemoryKernelStore:
             self._outputs[oid] = copy.deepcopy(output)
             self._outputs_by_project.setdefault(output["projectId"], []).append(oid)
 
+    def get_produced_output(self, output_id: str) -> dict[str, Any]:
+        with self._lock:
+            output = self._outputs.get(output_id)
+            if output is None:
+                raise ExecutionNotFoundError(f"Produced output not found: {output_id}")
+            return copy.deepcopy(output)
+
     def list_produced_outputs(self, project_id: str) -> list[dict[str, Any]]:
         with self._lock:
             ids = self._outputs_by_project.get(project_id, [])

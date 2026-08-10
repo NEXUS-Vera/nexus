@@ -120,6 +120,8 @@ def test_fixture_interpreter_approve_selection() -> None:
     assert intent["operation"] == "approve-component-selection"
     impact = analyze_impact(operation=intent["operation"])
     assert "component-plan" in impact["regenerate"]
+    assert "electrical-architecture" in impact["regenerate"]
+    assert "physical-architecture" in impact["regenerate"]
     assert "next-action" in impact["regenerate"]
 
 
@@ -142,3 +144,118 @@ def test_fixture_interpreter_ambiguous_candidates() -> None:
             current_state=state,
         )
     assert exc.value.code == "AMBIGUOUS_PROJECT_CHANGE_TARGET"
+
+
+def test_functional_type_is_primary_category_signal() -> None:
+    from nexus_embedded_systems.workflows.component_planning.derive_roles import (
+        derive_roles_with_coverage,
+    )
+
+    architecture = {
+        "nodes": [
+            {
+                "nodeId": "node_SENSINGNODE0000000001",
+                "name": "Deployment configuration",
+                "functionalType": "sensing",
+                "responsibilities": ["Configure deployment session placeholders"],
+                "satisfiesRequirementIds": ["req_TEMPREQUIREMENT00001"],
+            },
+            {
+                "nodeId": "node_UINODE00000000000001",
+                "name": "User session input",
+                "functionalType": "user-interface",
+                "responsibilities": ["Measure ambient temperature for display"],
+                "satisfiesRequirementIds": [],
+            },
+            {
+                "nodeId": "node_EXTERNALNODE00000001",
+                "name": "Remote cloud",
+                "functionalType": "external-system",
+                "responsibilities": ["Receive remote reports"],
+                "satisfiesRequirementIds": [],
+            },
+            {
+                "nodeId": "node_STORAGENODE000000001",
+                "name": "Local log storage",
+                "functionalType": "storage",
+                "responsibilities": ["Persist records"],
+                "satisfiesRequirementIds": [],
+            },
+        ]
+    }
+    roles, skipped = derive_roles_with_coverage(architecture, source="inferred")
+    by_node = {r["architectureNodeIds"][0]: r for r in roles}
+    assert by_node["node_SENSINGNODE0000000001"]["category"] == "sensor"
+    # functionalType wins over "Measure" text that would otherwise imply sensor
+    assert by_node["node_UINODE00000000000001"]["category"] == "interface"
+    assert by_node["node_STORAGENODE000000001"]["category"] == "storage"
+    assert "node_EXTERNALNODE00000001" not in by_node
+    assert any(s["nodeId"] == "node_EXTERNALNODE00000001" for s in skipped)
+
+
+def test_role_derivation_does_not_silently_truncate() -> None:
+    nodes = []
+    for i in range(8):
+        nodes.append(
+            {
+                "nodeId": f"node_SENSINGNODE{i:016d}",
+                "name": f"Sensor bank {i}",
+                "functionalType": "sensing",
+                "responsibilities": [f"Sense channel {i}"],
+                "satisfiesRequirementIds": ["req_TEMPREQUIREMENT00001"],
+            }
+        )
+    content = compose_component_plan_content(
+        architecture_content={"nodes": nodes},
+        requirement_set_content=_requirements(),
+        include_candidates=False,
+    )
+    assert len(content["componentRoles"]) == 8
+
+
+def test_approved_selection_survives_unrelated_architecture_refresh() -> None:
+    from nexus_embedded_systems.workflows.component_planning.reconcile import (
+        reconcile_component_plan_after_architecture_change,
+    )
+
+    architecture = _architecture()
+    content = compose_component_plan_content(
+        architecture_content=architecture,
+        requirement_set_content=_requirements(),
+        include_candidates=True,
+    )
+    candidate_id = content["candidates"][0]["candidateId"]
+    role_id = content["candidates"][0]["componentRoleId"]
+    approved = apply_component_plan_operation(
+        content,
+        operation="approve-component-selection",
+        message="Approve the fixture candidate",
+        architecture_content=architecture,
+        target_candidate_id=candidate_id,
+    )
+    # Unrelated FA change: add an analysis node that does not disturb sensing binding.
+    expanded = {
+        "nodes": [
+            *architecture["nodes"],
+            {
+                "nodeId": "node_ANALYSISNODE000000001",
+                "name": "Analysis summaries",
+                "functionalType": "analysis",
+                "responsibilities": ["Aggregate stored measurements"],
+                "satisfiesRequirementIds": [],
+            },
+        ]
+    }
+    reconciled = reconcile_component_plan_after_architecture_change(
+        approved,
+        architecture_content=expanded,
+        requirement_set_content=_requirements(),
+    )
+    surviving = [
+        s
+        for s in reconciled["selectionDecisions"]
+        if s.get("componentRoleId") == role_id and s.get("selectionState") == "approved"
+    ]
+    assert surviving
+    assert surviving[0]["selectedCandidateId"] == candidate_id
+    assert any(r["componentRoleId"] == role_id for r in reconciled["componentRoles"])

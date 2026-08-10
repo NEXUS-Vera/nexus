@@ -28,6 +28,9 @@ class Settings:
     model_base_url: str = "https://api.openai.com/v1"
     model_timeout_seconds: float = 60.0
     model_max_repair_attempts: int = 1
+    wokwi_cli_executable: str = "wokwi-cli"
+    wokwi_cli_token: str = ""
+    wokwi_firmware_elf: str = ""
 
 
 def load_settings() -> Settings:
@@ -49,6 +52,9 @@ def load_settings() -> Settings:
         model_base_url=os.environ.get("NEXUS_MODEL_BASE_URL", "https://api.openai.com/v1"),
         model_timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
         model_max_repair_attempts=int(os.environ.get("NEXUS_MODEL_MAX_REPAIR_ATTEMPTS", "1")),
+        wokwi_cli_executable=os.environ.get("NEXUS_WOKWI_CLI", "wokwi-cli"),
+        wokwi_cli_token=os.environ.get("WOKWI_CLI_TOKEN", ""),
+        wokwi_firmware_elf=os.environ.get("NEXUS_WOKWI_FIRMWARE_ELF", ""),
     )
 
 

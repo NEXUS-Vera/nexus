@@ -3,6 +3,8 @@ export type ArtifactRouteKey =
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
+  | 'electrical-architecture'
+  | 'physical-architecture'
   | 'component-plan'
   | 'firmware-scaffold'
   | 'analysis-notebook'
@@ -20,6 +22,8 @@ export type LiveArtifactType =
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
+  | 'electrical-architecture'
+  | 'physical-architecture'
   | 'next-action'
   | 'component-plan';
 

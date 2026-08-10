@@ -10,4 +10,6 @@ ArtifactTypeV1: TypeAlias = Literal[
     'functional-architecture',
     'next-action',
     'component-plan',
+    'electrical-architecture',
+    'physical-architecture',
 ]

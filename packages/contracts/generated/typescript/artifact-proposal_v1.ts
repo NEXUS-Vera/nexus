@@ -3,7 +3,13 @@
  */
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ConsequenceLevel1 = 'low' | 'medium' | 'high' | 'safety-critical';
 
 export interface ArtifactProposal {

@@ -137,6 +137,8 @@ export function ProjectPage() {
       'project-brief',
       'requirement-set',
       'functional-architecture',
+      'electrical-architecture',
+      'physical-architecture',
       'next-action',
       'component-plan',
     ]) {
@@ -215,21 +217,70 @@ export function ProjectPage() {
       kind: 'artifact',
       label: def?.label ?? url.selectedArtifact,
     });
+
+    if (url.selectedArchitectureView) {
+      const viewLabel =
+        url.selectedArchitectureView === 'system'
+          ? 'System'
+          : url.selectedArchitectureView === 'electrical'
+            ? 'Electrical'
+            : 'Physical';
+      chips.push({ kind: 'architecture-view', label: viewLabel });
+    }
+
+    const archNodeId =
+      url.selectedArchNode ??
+      (url.selection.kind === 'architecture-node' ||
+      url.selection.kind === 'electrical-node' ||
+      url.selection.kind === 'physical-node'
+        ? url.selection.id
+        : null);
+    if (archNodeId && live?.architecture) {
+      const functionalNode = live.architecture.content.nodes.find((n) => n.nodeId === archNodeId);
+      if (functionalNode) {
+        chips.push({ kind: 'architecture-node', label: functionalNode.name });
+      } else {
+        const electrical = selectArtifactByType(state?.artifacts ?? [], 'electrical-architecture');
+        const electricalNode = electrical?.content.nodes.find((n) => n.nodeId === archNodeId);
+        if (electricalNode) {
+          chips.push({ kind: 'electrical-node', label: electricalNode.name });
+        } else {
+          const physical = selectArtifactByType(state?.artifacts ?? [], 'physical-architecture');
+          const physicalNode = physical?.content.nodes.find((n) => n.nodeId === archNodeId);
+          if (physicalNode) {
+            chips.push({ kind: 'physical-node', label: physicalNode.name });
+          } else {
+            chips.push({ kind: 'architecture-node', label: archNodeId });
+          }
+        }
+      }
+    }
+
     const plan = live?.componentPlan;
-    if (!plan) return chips;
-    const roleId =
-      url.selectedComponentRole ??
-      (url.selection.kind === 'component-role' ? url.selection.id : null);
-    if (roleId) {
-      const role = plan.content.componentRoles.find(
-        (r) => r.componentRoleId === roleId || r.displayId === roleId,
-      );
-      if (role) {
-        chips.push({ kind: 'role', label: role.name });
+    if (plan) {
+      const roleId =
+        url.selectedComponentRole ??
+        (url.selection.kind === 'component-role' ? url.selection.id : null);
+      if (roleId) {
+        const role = plan.content.componentRoles.find(
+          (r) => r.componentRoleId === roleId || r.displayId === roleId,
+        );
+        if (role) {
+          chips.push({ kind: 'role', label: role.name });
+        }
       }
     }
     return chips;
-  }, [live?.componentPlan, url.selectedArtifact, url.selectedComponentRole, url.selection]);
+  }, [
+    live?.architecture,
+    live?.componentPlan,
+    state?.artifacts,
+    url.selectedArchNode,
+    url.selectedArchitectureView,
+    url.selectedArtifact,
+    url.selectedComponentRole,
+    url.selection,
+  ]);
 
   if (loading) {
     return (
@@ -278,10 +329,14 @@ export function ProjectPage() {
           selectedRequirementId={url.selectedRequirement}
           selectedNodeId={url.selectedArchNode}
           selectedRoleId={url.selectedComponentRole}
+          architectureViewId={url.selectedArchitectureView}
+          electricalMode={url.electricalMode}
           onSelectRequirement={url.setSelectedRequirement}
           onSelectNode={url.setSelectedArchNode}
           onSelectRole={url.setSelectedComponentRole}
           onSelectItem={url.setInspectorSelection}
+          onChangeArchitectureView={url.setArchitectureView}
+          onChangeElectricalMode={url.setElectricalMode}
           architectureNodeIdsByRequirement={architectureCoverage}
           nextActionTitle={live!.nextAction!.content.title}
           turnBusy={submitting}
@@ -289,6 +344,10 @@ export function ProjectPage() {
           onRequestAlternatives={handleRequestAlternatives}
           onAskVera={focusVera}
           onCommandResult={() => {
+            void refreshBoardSideChannels();
+            void getProject(projectId).then(setState).catch(() => undefined);
+          }}
+          onProjectRefresh={() => {
             void refreshBoardSideChannels();
             void getProject(projectId).then(setState).catch(() => undefined);
           }}

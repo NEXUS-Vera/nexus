@@ -21,6 +21,8 @@ class Payload(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     artifactVersion: NotRequired[int]
