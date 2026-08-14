@@ -1,0 +1,56 @@
+/* Ask — the turn protocol made visible. */
+.ans { display: flex; flex-direction: column; gap: 12px; }
+
+.ans-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ans-go {
+  padding: 8px 14px; border: 1px solid var(--accent); border-radius: 8px;
+  background: var(--accent); color: #150a03; font-size: 13px; font-weight: 600;
+  cursor: pointer;
+}
+.ans-go:disabled { opacity: .45; cursor: default; }
+.ans-bar small { color: var(--text-dim); font-size: 11.5px; }
+
+.ans-prose { margin: 0; font-size: 14.5px; line-height: 1.65; color: var(--text); }
+
+.ans-meta {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font: 400 11px/1.5 ui-monospace, monospace; color: var(--text-dim);
+}
+.ans-meta .esc { color: var(--accent); }
+.ans-cost { display: flex; gap: 8px; flex-wrap: wrap; }
+.ans-cost .tier { color: var(--text-muted); }
+
+.ans-sec { border-top: 1px solid var(--border); padding-top: 10px; }
+.ans-sec h4 {
+  margin: 0 0 8px;
+  font: 600 10.5px/1 ui-monospace, monospace; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.ans-sec ul { list-style: none; margin: 0; padding: 0; }
+.ans-sec li {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  padding: 5px 0; font-size: 12.5px; color: var(--text);
+}
+.ans-sec code { font-family: ui-monospace, monospace; font-size: 11.5px; color: var(--text-muted); }
+.ans-sec .rel { color: var(--support); font-size: 11.5px; }
+.ans-sec .conf { color: var(--text-dim); font: 400 10.5px/1 ui-monospace, monospace; }
+.ans-sec small { display: block; margin-top: 6px; color: var(--text-dim); font-size: 11.5px; }
+
+/* ⚠️ Rejections are muted but never hidden. Making them invisible would undo
+   the reason they are in the payload at all. */
+.ans-sec.rejected .why { color: var(--text-muted); font-size: 12px; }
+.ans-sec.rejected h4 { color: var(--contradict); }
+
+.ans-flag {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); font-size: 13px;
+}
+.ans-flag b { color: var(--text); }
+.ans-flag span { color: var(--text-muted); }
+.ans-flag small { color: var(--text-dim); font-size: 11.5px; line-height: 1.5; }
+.ans-flag.warn { border-color: var(--stale); }
+.ans-flag.refused { border-color: var(--contradict); }
+/* not an error colour: an unconfigured endpoint is a setup state, and
+   painting it red teaches the student the product is broken when it is not */
+.ans-flag.unconfigured { border-color: var(--accent-dim); }

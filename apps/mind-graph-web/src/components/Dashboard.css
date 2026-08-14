@@ -1,0 +1,32 @@
+/* F2 — the state dashboard. Four rows, and the discipline is subtraction. */
+.db { display: flex; flex-direction: column; gap: 2px; }
+.db-skel { min-height: 150px; border-radius: 10px; background: var(--surface); }
+
+.db-row {
+  display: grid; grid-template-columns: 96px 1fr; gap: 4px 12px;
+  align-items: baseline; padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.db-row:last-child { border-bottom: 0; }
+.db-k {
+  font: 600 10px/1.6 ui-monospace, monospace; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.db-v { font-size: 13px; color: var(--text-muted); }
+.db-v b { color: var(--text); font-size: 15px; font-weight: 650; }
+.db-link { background: none; border: 0; padding: 0; color: inherit; cursor: pointer; font: inherit; }
+.db-link:hover b { color: var(--accent); }
+
+.db-bar { grid-column: 2; height: 5px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.db-bar i { display: block; height: 100%; border-radius: 3px; }
+
+/* ⭐ a sequence, not a score — the shape is the message */
+.db-strip { grid-column: 2; display: flex; gap: 4px; align-items: center; }
+.db-strip span { width: 9px; height: 9px; border-radius: 50%; }
+.db-strip .hit { background: var(--support); }
+.db-strip .miss { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--border); }
+.db-strip em { font-size: 11.5px; color: var(--text-dim); font-style: normal; }
+
+/* the row nothing else in the world can render */
+.db-bias { background: color-mix(in oklab, var(--accent) 6%, transparent); border-radius: 8px; padding: 10px 12px; }
+.db-advice { grid-column: 2; margin: 4px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-muted); }

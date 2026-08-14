@@ -1,0 +1,194 @@
+/* Share — read-only, for other people. `Frontend/01 §4.6` */
+.share { max-width: 900px; padding: 4px 2px 40px; }
+.sh-skel { height: 240px; }
+
+.sh-sec + .sh-sec { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--border); }
+.sh-h {
+  margin: 0 0 12px;
+  font: 600 11px/1 ui-monospace, monospace; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.sh-q { margin: 0 0 12px; font-size: 20px; font-weight: 600; color: var(--text); }
+.sh-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  padding: 4px 9px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface); font-size: 12px; color: var(--text-muted);
+}
+.sh-none { margin: 0; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+
+/* ⭐ MOBILE-FIRST, and that inverts the original assumption on purpose.
+   Share is the page most likely to be opened by an investor, a professor or a
+   teammate — on a phone, from a link, once. Designing it desktop-first and
+   letting it degrade means the one context it will actually be read in is the
+   one nobody designed. `F6`. */
+.sh-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sh-table th {
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  font: 600 10.5px/1 ui-monospace, monospace; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.sh-table td { padding: 10px; border-bottom: 1px solid var(--border); color: var(--text); }
+.sh-label { font-weight: 500; }
+.sh-num { font-family: ui-monospace, monospace; font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+
+/* ⭐ The agreement bar. Predicted interval as a band, measured value as a
+   line through it — the one glance that says whether the judgement held.
+   Deliberately per-row scale: comparing kOhm against ms on a shared axis
+   would be a chart that looks rigorous and means nothing. */
+.sh-bar { width: 34%; min-width: 120px; }
+.sh-track { position: relative; display: block; height: 8px; border-radius: 4px; background: var(--surface-2); }
+.sh-range { position: absolute; top: 0; height: 8px; border-radius: 4px; background: var(--accent-dim); }
+.sh-mark { position: absolute; top: -3px; width: 2px; height: 14px; border-radius: 1px; background: var(--text); }
+
+.sh-verdict { white-space: nowrap; font-size: 12.5px; }
+.sh-verdict.matched { color: var(--support); }
+.sh-verdict.diverged { color: var(--contradict); }
+.sh-verdict.inconclusive, .sh-verdict.not_run { color: var(--text-dim); }
+/* ⚠️ A diverged row is tinted, never hidden or sorted to the bottom. Failures
+   staying visible is the entire argument for publishing this page. */
+.sh-table tr.diverged td { background: color-mix(in oklab, var(--contradict) 7%, transparent); }
+
+.sh-cal { margin: 14px 0 0; font-size: 13.5px; color: var(--text-muted); }
+.sh-cal b { color: var(--text); }
+
+.sh-time { list-style: none; margin: 0; padding: 0; }
+.sh-time li {
+  display: flex; align-items: baseline; gap: 10px;
+  padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13.5px;
+}
+.sh-t { flex: 0 0 auto; font: 400 11px/1.6 ui-monospace, monospace; color: var(--text-dim); }
+.sh-e { flex: 1 1 auto; min-width: 0; color: var(--text); }
+.sh-time li.gone .sh-e { text-decoration: line-through; color: var(--text-muted); }
+.sh-tag {
+  flex: 0 0 auto; padding: 2px 7px; border-radius: 4px;
+  background: var(--surface-2); color: var(--text-dim);
+  font: 600 10px/1.5 ui-monospace, monospace; text-transform: uppercase;
+}
+
+.sh-foot {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--border);
+  font-size: 12px; color: var(--text-muted);
+}
+.sh-foot .ok { color: var(--support); }
+.sh-foot .bad { color: var(--contradict); }
+.sh-hash { font-family: ui-monospace, monospace; font-size: 11px; color: var(--text-dim); word-break: break-all; }
+.sh-seq { font: 400 11px/1 ui-monospace, monospace; color: var(--text-dim); }
+
+
+/* ── phone: the table becomes cards ─────────────────────────────────────────
+   ⚠️ A five-column table does not shrink, it shreds. Below 640px each row is
+   restacked as a labelled card — the verdict stays on the same line as the
+   artifact, because "did the prediction hold?" is the whole question and it
+   must survive the smallest screen. */
+@media (max-width: 640px) {
+  .share { padding: 2px 0 32px; }
+  .sh-q { font-size: 18px; }
+
+  .sh-table, .sh-table tbody, .sh-table tr, .sh-table td { display: block; width: 100%; }
+  .sh-table thead { display: none; }
+  .sh-table tr {
+    margin-bottom: 10px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  }
+  .sh-table td { border: 0; padding: 3px 0; }
+
+  /* ⚠️ Absolute positioning was the wrong tool — the verdict drifted to the
+     left edge because the cells are display:block with no positioning context
+     worth anchoring to. It reads better in flow anyway: the verdict is the
+     CONCLUSION of the row, so it belongs last, not floated over the title. */
+  .sh-table td.sh-label { font-size: 14px; font-weight: 600; }
+  /* ⚠️ `td.` is required: `.sh-table td { border: 0 }` above is specificity
+     0,1,1 and beats a bare `.sh-verdict` (0,1,0) no matter the order, so the
+     rule silently did nothing. */
+  .sh-table td.sh-verdict {
+    margin-top: 6px; padding-top: 7px;
+    border-top: 1px dashed var(--border);
+    font-weight: 600;
+  }
+
+  /* predicted and measured get their names back, since the header is gone */
+  .sh-num::before {
+    content: attr(data-label); display: inline-block; min-width: 74px;
+    font: 600 10px/1.6 ui-monospace, monospace; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-dim);
+  }
+  .sh-bar { width: 100%; min-width: 0; padding-top: 6px !important; }
+
+  .sh-time li { flex-wrap: wrap; gap: 4px 8px; }
+  .sh-t { flex: 0 0 100%; }
+  .sh-hash { font-size: 10px; }
+}
+
+/* ⚠️ Tapping needs a bigger target than pointing. */
+@media (hover: none) {
+  .sh-table tr { min-height: 44px; }
+}
+
+/* ── F9: one page, three depths ─────────────────────────────────────────────
+   ⭐ The control belongs to the READER — everyone is handed the same record
+   and expands what they care about. The author gets emphasis (title, opening
+   depth) and never content. */
+.sh-controls {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 14px; padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.sh-depth { display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--surface-2); }
+.sh-depth button {
+  padding: 6px 12px; border: 0; border-radius: 7px; background: none;
+  color: var(--text-muted); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.sh-depth button.on { background: var(--surface); color: var(--text); }
+.sh-edit {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: none; color: var(--text-muted); font-size: 12.5px; cursor: pointer;
+}
+.sh-edit:hover { color: var(--text); border-color: var(--accent); }
+
+.sh-editor {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 16px; padding: 12px 14px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+}
+.sh-editor label { display: flex; flex-direction: column; gap: 4px; }
+.sh-editor label > span {
+  font: 600 10.5px/1 ui-monospace, monospace; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.sh-editor input, .sh-editor select {
+  padding: 8px 10px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font: 400 13px/1.4 inherit;
+}
+.sh-editor input:focus, .sh-editor select:focus { outline: none; border-color: var(--accent); }
+.sh-editor-note { margin: 0; font-size: 12px; line-height: 1.55; color: var(--text-muted); }
+.sh-editor-note em { color: var(--text); font-style: normal; font-weight: 600; }
+.sh-depth-note { margin: 0 0 10px; font-size: 12px; color: var(--text-dim); }
+
+@media (max-width: 640px) {
+  .sh-controls { flex-wrap: wrap; }
+  .sh-depth { width: 100%; }
+  .sh-depth button { flex: 1; }
+}
+
+.sh-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ⭐ Print IS the PDF path — the browser's engine gives selectable text,
+   real links and correct pagination for zero bundle cost. */
+@media print {
+  .rail, .side, .sh-controls, .sh-editor, .capture, .health { display: none !important; }
+  .shell { display: block !important; }
+  main, .card { padding: 0 !important; border: 0 !important; background: none !important; }
+  .share { max-width: none; color: #000; }
+  .sh-h, .sh-q, .sh-table td, .sh-e { color: #000 !important; }
+  .sh-table tr.diverged td { background: none !important; }
+  /* ⚠️ the verdict must survive monochrome — colour alone is not a channel on
+     paper, and "diverged" is the word a reader must not miss */
+  .sh-verdict.diverged::after { content: " ✗"; }
+  .sh-verdict.matched::after { content: " ✓"; }
+  .sh-time li.gone .sh-e { text-decoration: line-through; }
+  .sh-hash { font-size: 9px; color: #444 !important; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 9px; }
+}

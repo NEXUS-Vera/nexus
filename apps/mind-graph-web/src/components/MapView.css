@@ -1,0 +1,38 @@
+/* Map — the secondary view, opened deliberately. */
+.map { position: relative; display: flex; flex-direction: column; gap: 8px; }
+.map-skel { height: 420px; }
+
+.map-bar {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-muted);
+}
+.map-bar b { color: var(--text); }
+.map-note { color: var(--text-dim); font-size: 11px; }
+
+/* ⚠️ must read as visibly different from the live bar above it — this is the
+   whole reason for the fix, so it cannot be allowed to look like the normal
+   state. */
+.map-offline {
+  font-size: 11.5px; color: #d9a441; background: rgba(217, 164, 65, 0.1);
+  border: 1px solid rgba(217, 164, 65, 0.3); border-radius: 6px;
+  padding: 6px 10px;
+}
+
+.map-canvas {
+  width: 100%; height: min(62vh, 560px);
+  border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); overflow: hidden;
+}
+
+/* ⚠️ Anchored, not following the cursor. A tooltip that chases the pointer
+   over a force layout is unreadable while the graph settles. */
+.map-tip {
+  position: absolute; left: 12px; bottom: 12px; z-index: 5;
+  display: flex; flex-direction: column; gap: 2px;
+  max-width: 60%; padding: 8px 11px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface-2); box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+.map-tip b { font-size: 13px; color: var(--text); }
+.map-tip span { font: 400 11px/1.4 ui-monospace, monospace; color: var(--text-dim); }

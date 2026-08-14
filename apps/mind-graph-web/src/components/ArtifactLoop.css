@@ -1,0 +1,54 @@
+.artifact { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.artifact-err { padding: 10px 12px; border-radius: 8px; background: color-mix(in oklab, var(--contradict) 12%, transparent); color: var(--contradict); font-size: 12.5px; line-height: 1.5; }
+
+.artifact-locked { display: flex; flex-direction: column; gap: 8px; }
+.artifact-locked .row { display: grid; grid-template-columns: 78px 1fr; gap: 12px; align-items: baseline; }
+.artifact-locked .k { font: 600 10.5px/1.6 inherit; letter-spacing: .11em; text-transform: uppercase; color: var(--text-dim); }
+.artifact-locked .v { font: 600 14px/1.6 monospace; color: var(--text); }
+.artifact-locked .v.sm { font: 500 13px/1.6 inherit; color: var(--text-muted); }
+.artifact-locked em { font-style: normal; font-size: 11.5px; color: var(--accent); margin-left: 6px; }
+
+.artifact-measure { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.artifact-measure label { display: flex; align-items: center; gap: 8px; font: 600 10.5px/1 inherit; letter-spacing: .11em; text-transform: uppercase; color: var(--text-dim); }
+.artifact-measure input { width: 110px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; color: var(--text); font: 600 14px/1 monospace; }
+.artifact-measure input:focus { outline: none; border-color: var(--accent); }
+.artifact-measure .unit { font: 500 12.5px/1 monospace; color: var(--text-muted); }
+.artifact-measure .pri { background: var(--accent); border: none; color: #150c05; font: 700 13px/1 inherit; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+.artifact-measure .ghost { background: none; border: none; color: var(--text-dim); font: 500 12px/1 inherit; cursor: pointer; margin-left: auto; }
+
+.artifact-verdict { display: flex; align-items: center; gap: 10px; padding: 13px 15px; border-radius: 10px; font-size: 13px; }
+.artifact-verdict strong { font: 700 14px/1 inherit; }
+.v-matched { background: color-mix(in oklab, var(--type-artifact) 15%, transparent); color: var(--type-artifact); }
+.v-diverged { background: color-mix(in oklab, var(--contradict) 14%, transparent); color: var(--contradict); }
+.v-inconclusive { background: var(--surface-2); color: var(--text-muted); }
+
+/* F8's payout — deliberately the brightest thing after the number itself */
+.artifact-streak {
+  margin: 10px 0 0; padding: 8px 11px; border-radius: 8px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  border: 1px solid var(--accent-dim);
+  font-size: 13px; color: var(--text-muted);
+}
+.artifact-streak b { color: var(--text); }
+
+.artifact-detail { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.artifact-detail label { display: flex; flex-direction: column; gap: 4px; }
+.artifact-detail span {
+  font: 600 10.5px/1 ui-monospace, monospace; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+/* "optional" is stated, not implied — implied-optional reads as required */
+.artifact-detail em { font-style: normal; letter-spacing: 0; opacity: .8; }
+.artifact-detail textarea {
+  padding: 8px 10px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font: 400 13px/1.5 inherit; resize: vertical;
+}
+.artifact-detail-a { display: flex; gap: 8px; justify-content: flex-end; }
+.artifact-detail-a button {
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font-size: 12.5px; cursor: pointer;
+}
+/* ⚠️ Skip is not styled as the lesser choice. The lock already happened. */
+.artifact-detail-a .ghost { background: none; color: var(--text-muted); }
+.artifact-detail-a button:disabled { opacity: .4; cursor: default; }

@@ -1,0 +1,79 @@
+/* The prediction lock. One line to commit; everything else comes after. */
+.plock { display: flex; flex-direction: column; gap: 8px; }
+
+.plock-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.plock-key {
+  font: 600 10.5px/1 ui-monospace, monospace; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.plock .num {
+  width: 74px; padding: 8px 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font: 500 14px/1 ui-monospace, monospace; text-align: right;
+}
+.plock .num:focus { outline: none; border-color: var(--accent); }
+.plock .dash { color: var(--text-dim); }
+.plock select {
+  padding: 8px 8px; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-size: 13px;
+}
+
+/* ⭐ The heaviest affordance on the surface. It is a commitment, and the
+   button should look like one — everything else here is quiet by comparison. */
+.plock-go {
+  margin-left: auto; padding: 9px 16px;
+  background: var(--accent); border: 1px solid var(--accent); border-radius: 8px;
+  color: #150a03; font-size: 13.5px; font-weight: 650; cursor: pointer;
+}
+.plock-go:disabled { opacity: .4; cursor: default; }
+
+.plock-hint { margin: 0; font-size: 11.5px; line-height: 1.55; color: var(--text-dim); }
+.plock-hint em { color: var(--text-muted); font-style: normal; font-weight: 600; }
+.plock-warn { margin: 0; font-size: 12px; color: var(--contradict); }
+
+/* ── after the lock ─────────────────────────────────────────────────────────
+   ⚠️ TEXT, not disabled inputs. A greyed-out field invites the reader to hunt
+   for an edit button; plain text says the decision is made. */
+.plock.done { display: flex; flex-direction: column; gap: 10px; }
+.plock-sealed { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.plock-sealed b { font-size: 16px; color: var(--text); }
+.plock-at { font: 400 11px/1 ui-monospace, monospace; color: var(--text-dim); }
+
+/* the payout — deliberately the brightest thing after the number itself */
+.plock-streak {
+  margin: 0; padding: 8px 11px; border-radius: 8px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  border: 1px solid var(--accent-dim);
+  font-size: 13px; color: var(--text-muted);
+}
+.plock-streak b { color: var(--text); }
+
+.plock-more { display: flex; flex-direction: column; gap: 8px; }
+.plock-more label { display: flex; flex-direction: column; gap: 4px; }
+.plock-more span {
+  font: 600 10.5px/1 ui-monospace, monospace; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+/* "optional" is stated, not implied. Implied-optional reads as required. */
+.plock-more em { font-style: normal; color: var(--text-dim); opacity: .8; letter-spacing: 0; }
+.plock-more textarea, .plock-more input {
+  padding: 8px 10px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font: 400 13px/1.5 inherit; resize: vertical;
+}
+.plock-more-a { display: flex; gap: 8px; justify-content: flex-end; }
+.plock-more-a button {
+  padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font-size: 12.5px; cursor: pointer;
+}
+/* ⚠️ "Add later" is not styled as a lesser choice. Skipping detail is a
+   first-class outcome — the lock already happened, which was the point. */
+.plock-more-a .ghost { background: none; color: var(--text-muted); }
+.plock-more-a button:disabled { opacity: .4; cursor: default; }
+
+.plock-detail { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; margin: 0; }
+.plock-detail dt {
+  font: 600 10.5px/1.6 ui-monospace, monospace; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+.plock-detail dd { margin: 0; font-size: 13px; color: var(--text-muted); }

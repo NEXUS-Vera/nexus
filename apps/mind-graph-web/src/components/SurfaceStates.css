@@ -1,0 +1,87 @@
+.surface-state {
+  padding: 1rem;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  position: relative;
+  font-family: var(--font-sans);
+}
+
+.state-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.state-empty button, .state-error button, .state-stale button {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.5rem 1rem;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-family: var(--font-sans);
+}
+
+.state-empty button:hover, .state-error button:hover, .state-stale button:hover {
+  background: var(--border);
+}
+
+.state-loading .skeleton-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite linear;
+  pointer-events: none;
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.state-partial {
+  border-style: dashed;
+}
+
+.partial-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--accent-dim);
+  color: var(--text);
+  padding: 2px 8px;
+  font-size: var(--fs-xs);
+  border-bottom-left-radius: var(--r-sm);
+}
+
+.state-error .error-message {
+  color: var(--contradict);
+}
+
+.state-stale {
+  opacity: 0.8;
+}
+
+.stale-banner {
+  position: absolute;
+  top: -12px;
+  left: 1rem;
+  background: var(--stale);
+  color: var(--bg);
+  padding: 2px 8px;
+  font-size: var(--fs-xs);
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stale-banner button {
+  padding: 0 4px;
+  font-size: var(--fs-xs);
+  background: rgba(0,0,0,0.2);
+  border: none;
+}

@@ -1,6 +1,5 @@
 # Normalize text files
 * text=auto eol=lf
-
 # Explicit text types
 *.md text eol=lf
 *.mdc text eol=lf
@@ -16,10 +15,8 @@
 *.sh text eol=lf
 *.tf text eol=lf
 Makefile text eol=lf
-
 # Preserve shell scripts as LF
 *.sh text eol=lf
-
 # Binary files
 *.png binary
 *.jpg binary
@@ -30,3 +27,4 @@ Makefile text eol=lf
 *.zip binary
 *.gz binary
 *.whl binary
+apps/demo/index.html filter=lfs diff=lfs merge=lfs -text

@@ -1,0 +1,41 @@
+/* Log — a document that grows. Measure is capped for reading, not for layout. */
+.log { max-width: 68ch; padding: 4px 2px 32px; }
+.log-skel { height: 180px; }
+
+.log-day + .log-day { margin-top: 22px; }
+.log-date {
+  position: sticky; top: 0; z-index: 1;
+  margin: 0 0 8px; padding: 6px 0;
+  background: var(--bg);
+  font: 600 11px/1 ui-monospace, monospace; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-dim);
+}
+
+.log-entry {
+  display: flex; align-items: baseline; gap: 10px;
+  margin: 0; padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px; color: var(--text);
+}
+.log-verb {
+  flex: 0 0 auto; min-width: 72px;
+  font: 600 11px/1.6 ui-monospace, monospace; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.log-what { flex: 1 1 auto; min-width: 0; }
+.log-opaque { flex: 1 1 auto; color: var(--text-dim); font-style: italic; }
+.log-seq { flex: 0 0 auto; font: 400 11px/1 ui-monospace, monospace; color: var(--text-dim); }
+
+/* ⚠️ Struck, not hidden, and not faded to invisibility either — a withdrawn
+   measurement is still evidence about how the work went, so it must remain
+   legible enough to read on purpose. */
+.log-entry.gone .log-what { text-decoration: line-through; color: var(--text-muted); }
+.log-entry.gone .log-verb { color: var(--contradict); }
+
+.log-foot {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-top: 24px; padding-top: 12px; border-top: 1px solid var(--border);
+  font: 400 11px/1.5 ui-monospace, monospace; color: var(--text-dim);
+}
+.log-foot .ok { color: var(--support); }
+.log-foot .bad { color: var(--contradict); }
