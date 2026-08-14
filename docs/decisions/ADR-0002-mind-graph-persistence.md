@@ -1,6 +1,7 @@
 # ADR-0002 — Mind Graph keeps its own persistence layer
 
 **Status:** Accepted
+**Reviewed:** Aryav, 2026-08-15 — agreed with the decision as written; `packages/contracts` alignment stays tracked as future work, not blocking.
 **Context:** integrating the Mind Graph domain agent into the monorepo.
 
 ## Decision
