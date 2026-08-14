@@ -4,6 +4,8 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+packageExtensionsChecksum: b482c4b865c330a980ce4af0fe9878bd
+
 importers:
 
   .: {}
@@ -64,7 +66,7 @@ importers:
         version: link:../../packages/contracts
       lucide-react:
         specifier: ^0.487.0
-        version: 0.487.0(react@18.3.1)
+        version: 0.487.0(@types/react@18.3.31)(react@18.3.1)
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -73,13 +75,13 @@ importers:
         version: 18.3.1(react@18.3.1)
       react-resizable-panels:
         specifier: ^2.1.7
-        version: 2.1.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 2.1.7(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react-router-dom:
         specifier: ^6.28.0
-        version: 6.30.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 6.30.4(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       sonner:
         specifier: ^2.0.7
-        version: 2.0.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        version: 2.0.7(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
     devDependencies:
       '@playwright/test':
         specifier: ^1.50.0
@@ -1193,6 +1195,7 @@ packages:
   lucide-react@0.487.0:
     resolution: {integrity: sha512-aKqhOQ+YmFnwq8dWgGjOuLc8V1R9/c/yOd+zDY4+ohsR2Jo05lSGc3WsstYPIzcTpeosN7LoCkLReUUITvaIvw==}
     peerDependencies:
+      '@types/react': ^18.3.18
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   lucide-react@1.31.0:
@@ -1307,6 +1310,7 @@ packages:
   react-resizable-panels@2.1.7:
     resolution: {integrity: sha512-JtT6gI+nURzhMYQYsx8DKkx6bSoOGFp7A3CwMrOb8y5jFHFyqwo9m68UhmXRw57fRVJksFn1TSlm3ywEQ9vMgA==}
     peerDependencies:
+      '@types/react': ^18.3.18
       react: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
@@ -1314,6 +1318,7 @@ packages:
     resolution: {integrity: sha512-q4HvNl+mmDdkS0g+MqiBZNteQJCuimWoOyHMy4T/RQLAn9Z29+E91QXRaxOujeMl2HTzRSS0KFPd7lxX3PjV0Q==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
+      '@types/react': ^18.3.18
       react: '>=16.8'
       react-dom: '>=16.8'
 
@@ -1321,6 +1326,7 @@ packages:
     resolution: {integrity: sha512-SVUsDe+DybHM/WmYKIVYhZh1o5Dcuf16yM6WjG02Q9XVFMZIJyHYhwrr6bFBXZkVP6z69kNkMyBCujt8FaFLJA==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
+      '@types/react': ^18.3.18
       react: '>=16.8'
 
   react@18.3.1:
@@ -1374,6 +1380,7 @@ packages:
   sonner@2.0.7:
     resolution: {integrity: sha512-W6ZN4p58k8aDKA4XPcx2hpIQXBRAgyiWVkYhT7CvK6D3iAu7xjvVyhQHg2/iaKJZ1XVJ4r7XuwGL+WGEK37i9w==}
     peerDependencies:
+      '@types/react': ^18.3.18
       react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
@@ -2492,8 +2499,9 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.487.0(react@18.3.1):
+  lucide-react@0.487.0(@types/react@18.3.31)(react@18.3.1):
     dependencies:
+      '@types/react': 18.3.31
       react: 18.3.1
 
   lucide-react@1.31.0(react@19.2.8):
@@ -2595,21 +2603,24 @@ snapshots:
 
   react-refresh@0.17.0: {}
 
-  react-resizable-panels@2.1.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-resizable-panels@2.1.7(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
+      '@types/react': 18.3.31
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
-  react-router-dom@6.30.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  react-router-dom@6.30.4(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
       '@remix-run/router': 1.23.3
+      '@types/react': 18.3.31
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
-      react-router: 6.30.4(react@18.3.1)
+      react-router: 6.30.4(@types/react@18.3.31)(react@18.3.1)
 
-  react-router@6.30.4(react@18.3.1):
+  react-router@6.30.4(@types/react@18.3.31)(react@18.3.1):
     dependencies:
       '@remix-run/router': 1.23.3
+      '@types/react': 18.3.31
       react: 18.3.1
 
   react@18.3.1:
@@ -2699,8 +2710,9 @@ snapshots:
     transitivePeerDependencies:
       - graphology-types
 
-  sonner@2.0.7(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
+  sonner@2.0.7(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
+      '@types/react': 18.3.31
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 

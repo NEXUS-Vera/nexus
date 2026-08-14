@@ -14,5 +14,14 @@
     "test": "pnpm --filter @nexus/web test",
     "build": "pnpm --filter @nexus/web build",
     "dev:web": "pnpm --filter @nexus/web dev"
+  },
+  "pnpm": {
+    "packageExtensions": {
+      "lucide-react@0.487.0": { "peerDependencies": { "@types/react": "^18.3.18" } },
+      "sonner@2.0.7": { "peerDependencies": { "@types/react": "^18.3.18" } },
+      "react-resizable-panels@2.1.7": { "peerDependencies": { "@types/react": "^18.3.18" } },
+      "react-router-dom@6.30.4": { "peerDependencies": { "@types/react": "^18.3.18" } },
+      "react-router@6.30.4": { "peerDependencies": { "@types/react": "^18.3.18" } }
+    }
   }
 }
