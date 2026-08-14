@@ -1,0 +1,44 @@
+
+F4 — hue separation under CVD.  floor dE = 0.080 (0.02 JND x4, for a 16px mark)
+
+── EXTRACTED 1.0  (chroma x1.00) ──────────────────────────────────
+pair                     normal   deuter   protan   tritan
+lattice/thinking      0.241    0.164    0.236    0.341 
+lattice/yours         0.219    0.215    0.218    0.999 
+lattice/outside       0.300    0.296    0.329    0.901 
+thinking/yours         0.281    0.283    0.284    0.715 
+thinking/outside       0.280    0.282    0.286    0.586 
+yours/outside       0.142    0.142    0.142    0.194 
+
+── INFERRED 0.85  (chroma x0.74) ──────────────────────────────────
+pair                     normal   deuter   protan   tritan
+lattice/thinking      0.205    0.157    0.209    0.293 
+lattice/yours         0.171    0.167    0.175    0.776 
+lattice/outside       0.267    0.264    0.294    0.859 
+thinking/yours         0.213    0.214    0.214    0.543 
+thinking/outside       0.213    0.214    0.216    0.598 
+yours/outside       0.142    0.142    0.142    0.152 
+
+── INFERRED 0.65  (chroma x0.46) ──────────────────────────────────
+pair                     normal   deuter   protan   tritan
+lattice/thinking      0.173    0.152    0.184    0.234 
+lattice/yours         0.123    0.121    0.131    0.361 
+lattice/outside       0.240    0.238    0.260    0.437 
+thinking/yours         0.143    0.144    0.144    0.196 
+thinking/outside       0.144    0.145    0.145    0.216 
+yours/outside       0.142    0.142    0.142    0.143 
+
+── AMBIGUOUS 0.3  (chroma x0.20) ──────────────────────────────────
+pair                     normal   deuter   protan   tritan
+lattice/thinking      0.154    0.149    0.163    0.177 
+lattice/yours         0.089    0.088    0.097    0.171 
+lattice/outside       0.225    0.224    0.236    0.273 
+thinking/yours         0.089    0.089    0.088    0.095 
+thinking/outside       0.090    0.090    0.090    0.098 
+yours/outside       0.142    0.142    0.142    0.142 
+
+────────────────────────────────────────────────────────────
+
+  PASS — all 15 pairs clear 0.080 in every condition, at every confidence rung.
+  Sizes checked by construction: 12, 16, 20, 28, 40px (the floor is set for the smallest).
+

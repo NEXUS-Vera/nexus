@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phase 0: CVD Test (F4 Gate)</title>
+  <style>
+    :root {
+      --bg: #0B0D10;
+      
+      /* Base node type hues */
+      --type-concept: #7EC8C0;
+      --type-question: #E0B978;
+      --type-claim: #B49BD8;
+      --type-artifact: #8FD18A;
+      --type-source: #8FA9C9;
+      --type-note: #A8A29A;
+      
+      /* VSUP confidence ramps */
+      --vsup-1: 1.00;
+      --vsup-2: 0.72;
+      --vsup-3: 0.44;
+      --vsup-4: 0.12;
+      
+      background: var(--bg);
+      color: #E8E6E3;
+      font-family: "Inter", system-ui, sans-serif;
+    }
+    
+    body {
+      margin: 2rem;
+      padding-top: 60px;
+    }
+
+    h1, h2, h3 { margin-top: 0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 120px repeat(6, 100px);
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 3rem;
+      text-align: center;
+    }
+
+    .node {
+      border-radius: 50%;
+      /* CSS relative color syntax allows modifying Oklch chroma using a multiplier */
+      background-color: oklch(from var(--hue) l calc(c * var(--vsup)) h);
+      border: 1.5px solid oklch(from var(--hue) calc(l + 0.18) calc(c * var(--vsup)) h);
+      display: inline-block;
+      box-sizing: border-box;
+    }
+    
+    .size-12 { width: 12px; height: 12px; }
+    .size-16 { width: 16px; height: 16px; }
+    .size-20 { width: 20px; height: 20px; }
+    .size-28 { width: 28px; height: 28px; }
+    .size-40 { width: 40px; height: 40px; }
+    
+    .controls {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #14171C;
+      padding: 1rem 2rem;
+      border-bottom: 1px solid #262B33;
+      z-index: 100;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    
+    button {
+      background: #262B33;
+      color: white;
+      border: 1px solid #4A5058;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      border-radius: 4px;
+      font-family: monospace;
+    }
+    button:hover { background: #3a414d; }
+    button.active { background: #E8E6E3; color: black; border-color: #E8E6E3; }
+    
+    /* Apply SVG filters to content */
+    .filter-deuteranopia #content { filter: url('#deuteranopia'); }
+    .filter-protanopia #content { filter: url('#protanopia'); }
+    .filter-tritanopia #content { filter: url('#tritanopia'); }
+    
+    table.gate-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 2rem;
+    }
+    table.gate-table th, table.gate-table td {
+      border: 1px solid #4A5058;
+      padding: 0.5rem;
+      text-align: center;
+    }
+    table.gate-table th { background: #1B1F26; }
+    select { background: #262B33; color: white; border: none; padding: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- SVG Filters for CVD simulation -->
+  <svg style="display: none;">
+    <defs>
+      <!-- Matrix approximations for CVD -->
+      <filter id="deuteranopia">
+        <feColorMatrix type="matrix" values="0.625 0.375 0 0 0  0.7 0.3 0 0 0  0 0.3 0.7 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="protanopia">
+        <feColorMatrix type="matrix" values="0.567 0.433 0 0 0  0.558 0.442 0 0 0  0 0.242 0.758 0 0  0 0 0 1 0" />
+      </filter>
+      <filter id="tritanopia">
+        <feColorMatrix type="matrix" values="0.95 0.05 0 0 0  0 0.433 0.567 0 0  0 0.475 0.525 0 0  0 0 0 1 0" />
+      </filter>
+    </defs>
+  </svg>
+
+  <div class="controls">
+    <strong>Simulate CVD:</strong>
+    <button onclick="setFilter('none')" class="active" id="btn-none">None</button>
+    <button onclick="setFilter('deuteranopia')" id="btn-deuteranopia">Deuteranopia</button>
+    <button onclick="setFilter('protanopia')" id="btn-protanopia">Protanopia</button>
+    <button onclick="setFilter('tritanopia')" id="btn-tritanopia">Tritanopia</button>
+  </div>
+
+  <div id="content">
+    <h1>Phase 0: Palette CVD Test</h1>
+    <p>Failure condition: if type accuracy at 16px is below ~80%, or if any two hues are confused under deuteranopia. Look at 16px row specifically.</p>
+  </div>
+  
+  <h2>Gate Record</h2>
+  <table class="gate-table" id="gate-table">
+    <thead>
+      <tr>
+        <th>Size</th>
+        <th>CVD</th>
+        <th>Concept</th>
+        <th>Question</th>
+        <th>Claim</th>
+        <th>Artifact</th>
+        <th>Source</th>
+        <th>Note</th>
+      </tr>
+    </thead>
+    <tbody id="gate-tbody"></tbody>
+  </table>
+
+  <script>
+    function setFilter(filter) {
+      document.body.className = filter === 'none' ? '' : 'filter-' + filter;
+      document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + filter).classList.add('active');
+    }
+
+    const hues = [
+      { name: 'concept', val: 'var(--type-concept)' },
+      { name: 'question', val: 'var(--type-question)' },
+      { name: 'claim', val: 'var(--type-claim)' },
+      { name: 'artifact', val: 'var(--type-artifact)' },
+      { name: 'source', val: 'var(--type-source)' },
+      { name: 'note', val: 'var(--type-note)' },
+    ];
+    
+    const sizes = [12, 16, 20, 28, 40];
+    const vsups = [
+      { name: '1.00', val: 'var(--vsup-1)' },
+      { name: '0.72', val: 'var(--vsup-2)' },
+      { name: '0.44', val: 'var(--vsup-3)' },
+      { name: '0.12', val: 'var(--vsup-4)' }
+    ];
+    
+    const content = document.getElementById('content');
+    const tbody = document.getElementById('gate-tbody');
+    
+    // Build visual grid
+    sizes.forEach(size => {
+      const section = document.createElement('div');
+      section.innerHTML = `<h3>Size: ${size}px</h3>`;
+      
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      
+      // Header row
+      grid.innerHTML += `<div style="text-align:left; color:#9BA1AA;">VSUP (conf)</div>`;
+      hues.forEach(hue => {
+        grid.innerHTML += `<div><strong>${hue.name}</strong></div>`;
+      });
+      
+      vsups.forEach(vsup => {
+        grid.innerHTML += `<div style="text-align:left; color:#9BA1AA;">${vsup.name}</div>`;
+        hues.forEach(hue => {
+          grid.innerHTML += `
+            <div style="display: flex; justify-content: center; align-items: center; height: 50px;">
+              <div class="node size-${size}" style="--hue: ${hue.val}; --vsup: ${vsup.val}"></div>
+            </div>
+          `;
+        });
+      });
+      
+      section.appendChild(grid);
+      content.appendChild(section);
+      
+      // Build gate table rows for this size
+      const cvds = ['None', 'Deuteranopia', 'Protanopia', 'Tritanopia'];
+      cvds.forEach(cvd => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${size}px</td>
+          <td>${cvd}</td>
+          ${hues.map(() => `<td><select><option>Pass</option><option>Fail</option></select></td>`).join('')}
+        `;
+        tbody.appendChild(tr);
+      });
+    });
+  </script>
+</body>
+</html>

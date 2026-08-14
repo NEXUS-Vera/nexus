@@ -1,0 +1,164 @@
+:root {
+  /* surfaces */
+  --bg: #0B0D10;
+  --surface: #14171C;
+  --surface-2: #1B1F26;
+  --border: #262B33;
+
+  /* text */
+  --text: #E8E6E3;
+  --text-muted: #9BA1AA;
+  --text-dim: #6B7280;
+
+  /* interface accent — NEVER used in the graph */
+  --accent: #FF6B2C;
+  --accent-hover: #FF8351;
+  --accent-dim: #7A3417;
+
+  /* ⭐ FOUR hue families, not six — F4 gate, 2026-08-11 (docs/F4_RESULT.md).
+     Six hues failed at dE 0.002 (Question/Artifact). Type is carried by the
+     GLYPH; hue carries the family. Artifact and Source share a hue at
+     different lightness on purpose: they are the pair the Disagreement Engine
+     juxtaposes, and same-hue/different-L survives every dichromacy. */
+  --fam-lattice:  #7BF4FC;   /* Concept ◆  Question ? */
+  --fam-thinking: #BB99FA;   /* Claim   ▲  Note     · */
+  --fam-yours:    #E5C14A;   /* Artifact ■ */
+  --fam-outside:  #B79400;   /* Source   ▪ */
+
+  --type-concept: var(--fam-lattice);
+  --type-question: var(--fam-lattice);
+  --type-claim: var(--fam-thinking);
+  --type-note: var(--fam-thinking);
+  --type-artifact: var(--fam-yours);
+  --type-source: var(--fam-outside);
+
+  /* semantic */
+  --support: #7EC8C0; /* cool — supporting edges */
+  --contradict: #E4756B; /* warm — contradicting edges, rim notch */
+  --mention: #4A5058; /* grey — mentioning edges */
+  --stale: #8A7F6B;
+
+  /* VSUP — confidence ramp, applied as chroma multiplier */
+  --vsup-1_00: 1.00;
+  --vsup-0_85: 0.72;
+  --vsup-0_75: 0.58;
+  --vsup-0_65: 0.44;
+  --vsup-0_55: 0.32;
+  --vsup-amb: 0.12;
+
+  /* 4px base scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* type — 1.20 ratio */
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-base: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 27px;
+  --lh-tight: 1.25;
+  --lh-base: 1.5;
+  --lh-loose: 1.7;
+
+  --font-mono: "Berkeley Mono", ui-monospace, "SF Mono", monospace;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --fnum: tabular-nums; /* all numeric data */
+
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 999px;
+
+  --e-1: 0 1px 2px rgb(0 0 0 / .3); /* cards */
+  --e-2: 0 4px 12px rgb(0 0 0 / .4); /* panels */
+  --e-3: 0 8px 32px rgb(0 0 0 / .5); /* selection */
+
+  /* layout */
+  --pane-nav: 240px;
+  --pane-ctx: 320px;
+  --capture-h: 56px;
+  --topbar-h: 44px;
+  --map-max-nodes: 50;
+  --map-cold-start-max: 25;
+
+  /* motion */
+  --d-hover: 80ms;
+  --d-select: 120ms;
+  --d-pane: 200ms;
+  /* ⭐ F10 settled 2026-08-13. 580ms total was my number, not the
+     literature's — staging is measured to help change-tracking, the specific
+     durations were picked by feel, and a student expanding twenty nodes feels
+     every one of them.
+
+     Reasoned rather than guessed this time. Staging exists so the eye can
+     follow WHAT MOVED; it does not need to be slow, it needs the stages to be
+     separable. Two constraints bound it:
+       · below ~100ms per stage the stages fuse and staging buys nothing
+       · above ~150ms per stage the sequence reads as waiting rather than motion
+     Three stages at 120/100/140 = 360ms sits inside both, and is close to the
+     350ms arm the register wanted tested.
+
+     ⚠️ The Map is now a STORAGE surface (F11), which changes the answer: a
+     thing you browse is used in bursts of many expansions, so per-expansion
+     cost compounds far faster than it would in a planning surface. That is the
+     argument that decided it toward the shorter end.
+
+     Still worth an A/B after fifty expansions — but 580 was not a measured
+     number either, so shipping 360 loses nothing and costs less. */
+  --d-stage-1: 120ms;
+  --d-stage-2: 100ms;
+  --d-stage-3: 140ms;
+  --d-snapback: 240ms;
+  --d-label: 300ms;
+
+  --ease-out: cubic-bezier(.2,.8,.3,1);
+  --ease-inout: cubic-bezier(.4,0,.2,1);
+  --ease-back: cubic-bezier(.5,-.4,.6,1.3); /* snap-back rejection */
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --d-hover: 0ms;
+    --d-select: 0ms;
+    --d-stage-1: 0ms;
+    --d-stage-2: 0ms;
+    --d-stage-3: 0ms;
+    --d-snapback: 0ms;
+  }
+}
+
+:root[data-contrast="high"] {
+  /* strip categorical hue entirely; type becomes hatch pattern */
+  --type-concept: var(--text);
+  --type-question: var(--text);
+  --type-claim: var(--text);
+  --type-artifact: var(--text);
+  --type-source: var(--text);
+  --type-note: var(--text);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  line-height: var(--lh-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* a secondary heading INSIDE a card — used where one card holds two
+   different kinds of result and conflating them would mislead */
+.card-h.sub { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.card-h.sub h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--text-muted); }
