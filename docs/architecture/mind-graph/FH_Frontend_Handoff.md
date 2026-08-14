@@ -337,3 +337,87 @@ Full detail in `Frontend_design/04`. Three matter:
 ⭐ **Closed tasks, never open ones.** *"Implement `<NodeChip>` per `06 §2` and
 `07 §2.1`, with the gallery states from `07 §1`"* — not *"build the design
 system."*
+
+---
+
+# 10. Implementation Log
+
+## Phase 0 (F4) — Blocking Gate
+- Built `phase0_cvd_test.html` test harness to render 6 node hues × 5 sizes × 4 confidence levels.
+- Applied deuteranopia, protanopia, and tritanopia SVG filters.
+- **Next Action:** Run the F4 gate (test legibility at 16px under deuteranopia). Awaiting user verification of the F4 gate before committing the pass/fail table.
+
+## Phases 1-9 — End-to-End Scaffolding
+- Initialized React + TypeScript + Vite project in `Frontend_build`.
+- Implemented design tokens in `index.css` (Phase 1).
+- Built core primitives: `NodeChip`, `SurfaceStates` (Phase 1).
+- Built `PredictionLock` and `CalibrationCounter` (Phase 2).
+- Built `Onboarding` flow with confidence nudge (Phase 3).
+- Built `ActionRow` and `TensionCard` (Phase 4).
+- Built `CaptureBar` and `ExplainPane` (Phase 5).
+- Built `ReviewQueue` (Phase 6).
+- Built `SigmaGraphComponent` using `sigma.js`, `graphology`, and `forceatlas2` (Phase 8).
+- Built `SettingsPanel` (Phase 9).
+- **Next Action:** Review the UI sandbox via `npm run dev`.
+
+## Rebuild — 2026-08-11 (Claude)
+
+⚠️ **The Phase 1–9 log above was scaffolding, not phases.** Components existed
+but nothing composed them, nothing had data, no gate was run, and **the project
+did not typecheck**. Two real bugs in `SigmaGraphComponent`: a `frametoViewport`
+typo, and a listener on `'moveCamera'`, which is not a Sigma event — the tooltip
+would have floated away from its node on every pan.
+
+**What was kept:** the design tokens in `index.css` (a correct transcription of
+`06 §2`), `NodeChip`, `SurfaceStates`, `ActionRow`, `PredictionLock`,
+`ReviewQueue`, `CaptureBar`, `Onboarding`, `SettingsPanel`, and the dependency
+set.
+
+**What was rebuilt:**
+
+- `lib/api.ts` — typed Graph API client. ⭐ `ApiError.isRefusal` exists because a
+  403 is the design working, and swallowing it makes the capability boundary
+  invisible. `probe()` has four states and never falls back silently.
+- `lib/hooks.ts` — TanStack Query bindings with the cache policy from `06 §4.2`.
+- `lib/store.ts` — Zustand UI state, serialisable into a saved View.
+- `App.tsx` — the real three-pane shell. Ask → hits → explain, frontier,
+  tensions, prediction lock, health badge with token entry.
+- `TensionCard`, `ExplainPane` — rewritten to take real data. ⭐ `ExplainPane`
+  renders `retracted_support` as its own block; `TensionCard` picks its actions
+  from the disagreement kind and never renders a verdict.
+
+**Status:** typechecks, builds, runs, and reads live from `scripts/serve_demo.py`.
+
+## Phase 0 — RUN, and it failed the first palette · 2026-08-11
+
+`scripts/f4_gate.py` measures the palette rather than screenshotting it —
+sRGB → linear → LMS → dichromacy simulation → Oklab, pairwise distance at
+every confidence rung. Full result in `docs/F4_RESULT.md`.
+
+⚠️ **The original six-hue palette FAILED**: Question/Artifact came out at
+dE 0.002 under deuteranopia — the same colour — and 103 of 240 pair/condition
+combinations sat below the floor. Six hues cannot separate inside the
+dark-mode lightness band once protanopia and deuteranopia collapse the
+red-green axis.
+
+**Resolution:** four hue FAMILIES carry hue; the glyph was promoted from
+redundant to load-bearing and carries type. That is why `NodeChip`'s
+`TYPE_GLYPH` map is not decoration — removing a glyph makes two node types
+indistinguishable for ~8% of men.
+
+## Phases 5, 7, 8 — built · 2026-08-12
+
+- **5 · Ask** — `AnswerPane` on the new `turn` route: prose, gated proposals,
+  the Critic's disagreements, **and the gate's rejections with reasons**. The
+  turn is opt-in beneath the free retrieval, because it costs money and most
+  questions are answered by the traversal. Renders a first-class 503 until an
+  endpoint is configured.
+- **7 · Log + Share** — on the new `log` route. Retractions are entries, not
+  deletions; the head hash ships with the page.
+- **8 · Map** — `MapView` replaced `SigmaGraphComponent`, which was 50 random
+  nodes on a pre-F4 palette with a leaked Sigma instance. Real export data,
+  DOI-ranked, capped at 50, post-F4 encoding.
+
+**Next action:** the Tier 1a endpoint + key. `python3 scripts/serve_demo.py
+--fake-agent` exercises the Ask surface until then — and says out loud, in the
+answer text, that no model was called.

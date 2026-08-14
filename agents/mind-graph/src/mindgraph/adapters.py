@@ -68,7 +68,7 @@ class HTTPAgent:
     look at one.
     """
     base_url: str
-    api_key: str = ""
+    api_credential: str = ""
     models: dict = field(default_factory=lambda: dict(TIER_MODELS))
     timeout: int = 120
     max_retries: int = 2
@@ -84,7 +84,7 @@ class HTTPAgent:
         req = urllib.request.Request(
             f"{self.base_url.rstrip('/')}/chat/completions", data=body,
             headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_key}"})
+                     "Authorization": f"Bearer {self.api_credential}"})
         last: Exception | None = None
         for _ in range(self.max_retries + 1):
             try:
@@ -121,7 +121,7 @@ class HTTPEmbedder:
     """Tier 1a embeddings — the other half of the hybrid seed."""
     base_url: str
     model: str = os.environ.get("MG_MODEL_EMBED", "BAAI/bge-large-en-v1.5")
-    api_key: str = ""
+    api_credential: str = ""
     timeout: int = 60
 
     def embed(self, text: str) -> list[float]:
@@ -129,18 +129,18 @@ class HTTPEmbedder:
         req = urllib.request.Request(
             f"{self.base_url.rstrip('/')}/embeddings", data=body,
             headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_key}"})
+                     "Authorization": f"Bearer {self.api_credential}"})
         with urllib.request.urlopen(req, timeout=self.timeout) as r:
             return json.loads(r.read())["data"][0]["embedding"]
 
 
-def from_env(endpoint: str | None = None, api_key: str | None = None):
+def from_env(endpoint: str | None = None, api_credential: str | None = None):
     """Build the adapters from flags or the environment. Returns (agent,
     embedder, llm) — any of which may be None, and every caller must cope."""
     url = endpoint or os.environ.get("MG_ENDPOINT")
-    key = api_key or os.environ.get("MG_API_KEY", "")
+    key = api_credential or os.environ.get("MG_API_KEY", "")
     if not url:
         return None, None, None
     from .extract import HTTPLLM
-    return (HTTPAgent(url, key), HTTPEmbedder(url, api_key=key),
+    return (HTTPAgent(url, key), HTTPEmbedder(url, api_credential=key),
             HTTPLLM(url, TIER_MODELS[Tier.T1A], key))

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from mindgraph import snapshot                                    # noqa: E402
 from mindgraph.ledger import Ledger                               # noqa: E402

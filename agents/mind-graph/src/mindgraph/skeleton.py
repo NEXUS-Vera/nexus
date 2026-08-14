@@ -28,8 +28,10 @@ _AMBIGUOUS_SHORT = frozenset({
 ROW = re.compile(r"^- \{(.+)\}\s*$", re.M)
 FIELD = re.compile(r'(\w+):\s*(\[[^\]]*\]|"[^"]*"|[^,\]]+)')
 
-DEFAULT_PATH = (Path(__file__).resolve().parent.parent.parent
-                / "_src" / "11_Concept_Skeleton.md")
+# Lives under docs/ (not agents/) because repo policy only allows markdown
+# there; this file is both the design doc and the only copy of the seed data.
+DEFAULT_PATH = (Path(__file__).resolve().parents[4]
+                / "docs" / "architecture" / "mind-graph" / "11_Concept_Skeleton.md")
 
 
 @dataclass(frozen=True)

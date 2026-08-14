@@ -42,9 +42,9 @@ jobs:
       - name: Install Python test dependencies
         run: |
           python -m pip install --upgrade pip
-          # Runtime + test deps required by apps/api, embedded-systems, and
-          # packages/contracts generation tests. Fixture/fake-model paths must
-          # not need live credentials.
+          # Runtime + test deps required by apps/api, embedded-systems,
+          # mind-graph, and packages/contracts generation tests.
+          # Fixture/fake-model paths must not need live credentials.
           python -m pip install \
             pytest \
             pytest-asyncio \
@@ -57,7 +57,10 @@ jobs:
             sqlalchemy \
             "psycopg[binary]" \
             alembic \
-            "datamodel-code-generator>=0.26.0"
+            "datamodel-code-generator>=0.26.0" \
+            "networkx>=3" \
+            "scipy>=1.11" \
+            "cryptography>=42"
 
       - name: Migrate Postgres for store contract tests
         env:

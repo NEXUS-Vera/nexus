@@ -277,11 +277,11 @@ class HTTPLLM:
     so self-hosting later is a config change (Backend/05 §3.2).
     """
 
-    def __init__(self, base_url: str, model: str, api_key: str = "",
+    def __init__(self, base_url: str, model: str, api_credential: str = "",
                  prompt_path: str | Path | None = None) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.api_key = api_key
+        self.api_credential = api_credential
         self.prompt = (Path(prompt_path).read_text() if prompt_path
                        else DEFAULT_PROMPT)
 
@@ -298,7 +298,7 @@ class HTTPLLM:
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions", data=body,
             headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_key}"})
+                     "Authorization": f"Bearer {self.api_credential}"})
         with urllib.request.urlopen(req, timeout=120) as r:
             out = json.loads(r.read())
         return json.loads(out["choices"][0]["message"]["content"])

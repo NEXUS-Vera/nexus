@@ -119,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     ing.add_argument("paths", nargs="+")
     ing.add_argument("--endpoint", help="OpenAI-compatible base URL (Tier 1a)")
     ing.add_argument("--model", default="")
-    ing.add_argument("--api-key", default="")
+    ing.add_argument("--api-credential", default="")
 
     rv = sub.add_parser("review", help="the AMBIGUOUS queue — a thinking prompt")
     rv.add_argument("--accept", nargs="*", metavar="ID")
@@ -153,7 +153,7 @@ def main(argv: list[str] | None = None) -> int:
 
     ak = sub.add_parser("ask", help="ask the graph — the full turn protocol")
     ak.add_argument("question")
-    ak.add_argument("--endpoint"); ak.add_argument("--api-key")
+    ak.add_argument("--endpoint"); ak.add_argument("--api-credential")
     ak.add_argument("--budget", type=float)
     ak.add_argument("-k", type=int, default=25)
 
@@ -163,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
     ex2.add_argument("-o", "--out")
     sub.add_parser("cost", help="what this has actually cost")
     eb = sub.add_parser("embed", help="backfill embeddings (needs an endpoint)")
-    eb.add_argument("--endpoint"); eb.add_argument("--api-key")
+    eb.add_argument("--endpoint"); eb.add_argument("--api-credential")
 
     sub.add_parser("status", help="graph + calibration summary")
 
@@ -191,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
         elif a.cmd == "claim":
             print(_claim(s, a.text, a.id))
         elif a.cmd == "ingest":
-            llm = (HTTPLLM(a.endpoint, a.model, a.api_key) if a.endpoint
+            llm = (HTTPLLM(a.endpoint, a.model, a.api_credential) if a.endpoint
                    else FakeLLM())
             if not a.endpoint:
                 print("⚠️  no --endpoint: text falls back to the stub extractor."
@@ -314,10 +314,10 @@ def main(argv: list[str] | None = None) -> int:
             print("\n  nothing is validated yet. That is correct.")
             print("  next:  mg next")
         elif a.cmd == "ask":
-            agent, embedder, _ = from_env(a.endpoint, a.api_key)
+            agent, embedder, _ = from_env(a.endpoint, a.api_credential)
             if agent is None:
                 print("✗ no endpoint. Set MG_ENDPOINT and MG_API_KEY, or pass"
-                      " --endpoint/--api-key.\n"
+                      " --endpoint/--api-credential.\n"
                       "  Everything else works without one; the turn protocol"
                       " does not.", file=sys.stderr)
                 return 1
@@ -367,7 +367,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  {op:<12} {d['n']:>4} calls  {d['wall_ms']:>6} ms"
                       f"  ({d['wall_ms'] / max(1, d['n']):.1f} ms avg)")
         elif a.cmd == "embed":
-            _, embedder, _ = from_env(a.endpoint, a.api_key)
+            _, embedder, _ = from_env(a.endpoint, a.api_credential)
             if embedder is None:
                 print("✗ no endpoint configured", file=sys.stderr); return 1
             vs = s.vectors()

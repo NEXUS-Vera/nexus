@@ -23,7 +23,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "src"))
 
 from mindgraph.artifact import Session, measure, predict          # noqa: E402
 from mindgraph.coldstart import seed_project                       # noqa: E402
