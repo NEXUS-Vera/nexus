@@ -25,4 +25,8 @@ def build_project_store(
         )
         engine = create_db_engine(url)
         return PostgresProjectStore(create_session_factory(engine))
+    if mode in {"sqlite", "sqlite3"}:
+        url = database_url or os.environ.get("NEXUS_DATABASE_URL") or "sqlite:///nexus.db"
+        engine = create_db_engine(url)
+        return PostgresProjectStore(create_session_factory(engine))
     raise ValueError(f"Unsupported storage backend: {mode}")
