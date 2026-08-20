@@ -31,6 +31,7 @@ impact analysis).
 | `NEXUS_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
 | `NEXUS_DATABASE_URL` | local postgres URL | Used when backend is `postgres` |
 | `NEXUS_INITIALIZATION_PROVIDER` | `fixture` | `fixture`, `llm`, or `shadow` |
+| `NEXUS_API_CORS_ORIGINS` | unrestricted | Development-only narrowing of allowed browser origins |
 | `NEXUS_API_SESSION_TOKEN` | `nexus-dev-session-token` | Per-session bearer token; the desktop shell mints a fresh one per launch |
 
 ## Session-token authentication
@@ -51,6 +52,15 @@ the token is never written to disk. When the variable is unset the API falls
 back to the well-known development token `nexus-dev-session-token`, which keeps
 `make dev-api` and `make dev-web` working. Never run a packaged build without
 setting a real token.
+
+CORS is **not** a security boundary here and is unrestricted by default. A
+cross-origin page cannot obtain the session token, and an origin allowlist stops
+no local process that is not a browser. A packaged renderer loads over `file://`
+and sends `Origin: null`, which no useful allowlist contains. Setting
+`NEXUS_API_CORS_ORIGINS` narrows the allowed origins as a development-only
+convenience. CORS preflights (`OPTIONS` with `Access-Control-Request-Method`)
+are exempt from the token check, since browsers never attach credentials to
+them and the preflight response carries no application data.
 
 Multi-user tenancy is **not** implemented.
 

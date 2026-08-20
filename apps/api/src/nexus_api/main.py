@@ -114,6 +114,11 @@ async def require_session_token(request: Request, call_next: Any) -> Any:
     the user visits can reach. The per-session bearer token, not the network
     boundary, is what makes the API safe to expose.
     """
+    if request.method == "OPTIONS" and "access-control-request-method" in request.headers:
+        # A browser never attaches credentials to a CORS preflight, and the
+        # preflight response carries no application data.
+        return await call_next(request)
+
     presented = _presented_session_token(request)
     if not secrets.compare_digest(presented, settings.session_token):
         return _error(

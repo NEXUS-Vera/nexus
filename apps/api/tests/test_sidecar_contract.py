@@ -17,6 +17,7 @@ import time
 import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api.config import settings
 from nexus_api.main import app
 
 SIDECAR_TOKEN = "test-session-token"
@@ -30,6 +31,37 @@ async def test_request_without_session_token_is_401() -> None:
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "SESSION_TOKEN_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_no_cors_allowlist_required_for_file_origin() -> None:
+    """A packaged Electron renderer loads over ``file://`` and sends ``Origin: null``."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        preflight = await client.options(
+            "/v1/projects/initialize",
+            headers={
+                "Origin": "null",
+                "Access-Control-Request-Method": "POST",
+                # A browser never attaches credentials to a preflight.
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+        )
+        response = await client.get(
+            "/v1/projects/proj_abcdefghijklmnop",
+            headers={
+                "Origin": "null",
+                "Authorization": f"Bearer {settings.session_token}",
+            },
+        )
+
+    assert preflight.status_code == 200
+    assert preflight.headers.get("access-control-allow-origin") in {"*", "null"}
+
+    # The token, not the origin allowlist, decides: the request reaches the app.
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
+    assert response.headers.get("access-control-allow-origin") in {"*", "null"}
 
 
 def _sidecar_env(**overrides: str) -> dict[str, str]:

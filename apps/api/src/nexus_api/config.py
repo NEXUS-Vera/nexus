@@ -20,10 +20,19 @@ def _session_token() -> str:
 
 
 def _cors_origins() -> list[str]:
-    raw = os.environ.get(
-        "NEXUS_API_CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    )
+    """Origins the browser is told it may read responses from.
+
+    The session token, not the origin, is the security boundary: a cross-origin
+    page cannot obtain the token, and an origin allowlist cannot stop a local
+    process that is not a browser at all. A packaged Electron renderer loads
+    over ``file://`` and therefore sends ``Origin: null``, which no useful
+    allowlist contains, so the default is unrestricted. Setting
+    ``NEXUS_API_CORS_ORIGINS`` narrows it, which is a development-only
+    convenience.
+    """
+    raw = os.environ.get("NEXUS_API_CORS_ORIGINS", "").strip()
+    if not raw:
+        return ["*"]
     return [part.strip() for part in raw.split(",") if part.strip()]
 
 
