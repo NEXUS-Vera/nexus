@@ -66,12 +66,11 @@ export function parseInitializationResult(
 }
 
 async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
+  const headers = new Headers(init?.headers);
+  headers.set('Authorization', `Bearer ${sessionToken()}`);
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl()}${path}`, {
-      ...init,
-      headers: { ...init?.headers, Authorization: `Bearer ${sessionToken()}` },
-    });
+    response = await fetch(`${apiBaseUrl()}${path}`, { ...init, headers });
   } catch {
     throw new ApiClientError('Network failure while contacting the API.', 0, null);
   }
