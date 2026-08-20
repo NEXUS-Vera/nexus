@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcessByStdio } from 'node:child_process';
-import type { Readable } from 'node:stream';
+import type { Readable, Writable } from 'node:stream';
 
 /**
  * Supervision of the local `nexus_api` sidecar process.
@@ -30,7 +30,7 @@ const SUPPORTED_SCHEMA_MAJOR = 1;
  * The spawned sidecar, typed to the exact stdio shape the supervisor requests:
  * no stdin, a piped stdout carrying the handshake, an inherited stderr.
  */
-type SidecarProcess = ChildProcessByStdio<null, Readable, null>;
+type SidecarProcess = ChildProcessByStdio<Writable, Readable, null>;
 
 /**
  * How long to wait for the handshake before giving up.
@@ -57,7 +57,11 @@ const MAX_RESTART_ATTEMPTS = 1;
 const DEFAULT_TERMINATION_GRACE_MS = 5_000;
 
 /** Why the sidecar failed to reach a usable listening state. */
-export type SidecarStartFailureReason = 'handshake-timeout' | 'unsupported-schema-version';
+export type SidecarStartFailureReason =
+  | 'handshake-timeout'
+  | 'handshake-stream-closed'
+  | 'malformed-handshake'
+  | 'unsupported-schema-version';
 
 /** Typed failure surfaced by {@link SidecarSupervisor.start}. */
 export class SidecarStartError extends Error {
@@ -111,6 +115,15 @@ export interface SidecarSupervisorOptions {
   readonly terminationGraceMs?: number;
   /** Called once when the sidecar has failed in a way a restart cannot fix. */
   readonly onTerminalFailure?: (error: SidecarTerminalError) => void;
+  /**
+   * Called when a replacement sidecar has announced itself after a crash.
+   *
+   * The replacement is spawned with `NEXUS_API_PORT=0` like the original, so it
+   * binds a *different* port. Everything holding the port `start()` returned is
+   * now pointed at nothing. A recovery nobody is told about is worse than no
+   * recovery: the supervisor reads as healthy while every request fails.
+   */
+  readonly onRestart?: (handshake: SidecarHandshake) => void;
 }
 
 export class SidecarSupervisor {
@@ -181,7 +194,14 @@ export class SidecarSupervisor {
       },
       // stdout is the contract channel. stderr is inherited so sidecar logging
       // reaches the shell's own diagnostics instead of filling an unread pipe.
-      stdio: ['ignore', 'pipe', 'inherit'],
+      //
+      // stdin is a pipe that is never written to. It exists so the sidecar can
+      // tell that this process died: the operating system closes a dead
+      // process's pipe ends on every platform, whereas the sidecar's other
+      // watchdog polls os.getppid() and so only works where orphans are
+      // reparented - not on Windows. Without this pipe, force-quitting the shell
+      // there leaves a sidecar holding the database file.
+      stdio: ['pipe', 'pipe', 'inherit'],
     });
 
     this.#current = child;
@@ -235,10 +255,17 @@ export class SidecarSupervisor {
     }
 
     this.#restarts += 1;
-    void this.#launch().catch(() => {
-      // A restart that cannot even hand shake is itself an exit-shaped failure;
-      // the replacement child's own `exit` carries it to the terminal branch.
-    });
+    void this.#launch()
+      .then((handshake) => {
+        // The replacement bound its own port. Hand it on, or the shell keeps
+        // addressing the dead one.
+        this.#options.onRestart?.(handshake);
+      })
+      .catch(() => {
+        // A restart that cannot even hand shake is itself an exit-shaped
+        // failure; the replacement child's own `exit` carries it to the
+        // terminal branch.
+      });
   }
 }
 
@@ -277,11 +304,10 @@ async function withHandshakeTimeout<T>(pending: Promise<T>, timeoutMs: number): 
  * would only be a way to keep the read alive past the point of interest.
  */
 function readFirstLine(stream: Readable): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let buffered = '';
 
-    stream.setEncoding('utf8');
-    stream.on('data', function onData(chunk: string) {
+    const onData = (chunk: string): void => {
       buffered += chunk;
       const newline = buffered.indexOf('\n');
       if (newline === -1) {
@@ -289,27 +315,96 @@ function readFirstLine(stream: Readable): Promise<string> {
       }
 
       stream.off('data', onData);
+      stream.off('close', onClose);
       resolve(buffered.slice(0, newline));
-    });
+    };
+
+    // A sidecar that exits before announcing - a missing interpreter, a failed
+    // import, the likeliest broken install - closes stdout without ever writing
+    // a line. Waiting for the handshake timeout here would turn an immediate,
+    // knowable failure into a blank window for the full timeout, and then
+    // report it as slowness rather than as the crash it was.
+    const onClose = (): void => {
+      stream.off('data', onData);
+      reject(
+        new SidecarStartError(
+          'handshake-stream-closed',
+          buffered === ''
+            ? 'Sidecar closed stdout without announcing a listening port'
+            : `Sidecar closed stdout mid-handshake after ${JSON.stringify(buffered)}`,
+        ),
+      );
+    };
+
+    stream.setEncoding('utf8');
+    stream.on('data', onData);
+    stream.once('close', onClose);
   });
 }
 
+/**
+ * Validate the announcement before trusting any of it.
+ *
+ * The line arrives from a separate process over a pipe. Reading fields off an
+ * unchecked `JSON.parse` result would let a truncated or unexpected line throw a
+ * raw SyntaxError or TypeError out of `start()`, past every caller that handles
+ * the documented SidecarStartError.
+ */
 function parseHandshake(line: string): SidecarHandshake {
-  const announcement = JSON.parse(line) as SidecarHandshake;
-  const major = Number.parseInt(announcement.schemaVersion.split('.')[0] ?? '', 10);
+  let announcement: unknown;
+  try {
+    announcement = JSON.parse(line);
+  } catch {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement is not valid JSON: ${JSON.stringify(line)}`,
+    );
+  }
+
+  if (typeof announcement !== 'object' || announcement === null) {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement is not an object: ${JSON.stringify(line)}`,
+    );
+  }
+
+  const fields = announcement as Record<string, unknown>;
+  const { schemaVersion, host, port, pid } = fields;
+
+  if (typeof schemaVersion !== 'string') {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement has no schemaVersion: ${JSON.stringify(line)}`,
+    );
+  }
+  if (typeof host !== 'string') {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement has no host: ${JSON.stringify(line)}`,
+    );
+  }
+  if (!Number.isInteger(port)) {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announced a non-integer port: ${JSON.stringify(line)}`,
+    );
+  }
+  if (!Number.isInteger(pid)) {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announced a non-integer pid: ${JSON.stringify(line)}`,
+    );
+  }
+
+  const major = Number.parseInt(schemaVersion.split('.')[0] ?? '', 10);
 
   if (major !== SUPPORTED_SCHEMA_MAJOR) {
     throw new SidecarStartError(
       'unsupported-schema-version',
-      `Sidecar announced handshake schema version ${announcement.schemaVersion}; ` +
+      `Sidecar announced handshake schema version ${schemaVersion}; ` +
         `this shell supports major version ${SUPPORTED_SCHEMA_MAJOR}`,
     );
   }
 
-  return {
-    schemaVersion: announcement.schemaVersion,
-    host: announcement.host,
-    port: announcement.port,
-    pid: announcement.pid,
-  };
+  return { schemaVersion, host, port: port as number, pid: pid as number };
 }

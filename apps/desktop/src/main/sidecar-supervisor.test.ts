@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   SidecarStartError,
@@ -222,3 +222,167 @@ function isRunning(pid: number): boolean {
     return false;
   }
 }
+
+describe('SidecarSupervisor restart reporting', () => {
+  it('reports the new port when a restarted sidecar announces a different one', async () => {
+    // Each launch reads a counter off disk, so the replacement announces a
+    // different port - which is what really happens, since the sidecar is
+    // spawned with NEXUS_API_PORT=0 and the operating system picks again.
+    const dir = await mkdtemp(join(tmpdir(), 'nexus-sidecar-'));
+    scratchDirs.push(dir);
+    const counter = join(dir, 'launches');
+    const executable = join(dir, 'fake-sidecar.mjs');
+    await writeFile(
+      executable,
+      [
+        "import { appendFileSync, existsSync, readFileSync } from 'node:fs';",
+        `const counter = ${JSON.stringify(counter)};`,
+        "const launches = existsSync(counter) ? readFileSync(counter, 'utf8').length : 0;",
+        "appendFileSync(counter, 'x');",
+        "process.stdout.write(JSON.stringify({",
+        "  event: 'nexus.api.listening',",
+        "  schemaVersion: '1.0.0',",
+        "  host: '127.0.0.1',",
+        '  port: 41000 + launches,',
+        '  pid: process.pid,',
+        "}) + '\\n');",
+        // The first sidecar crashes; the replacement stays up.
+        'if (launches === 0) { setTimeout(() => process.exit(1), 100); }',
+        'setTimeout(() => process.exit(0), 5000);',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const restarts: number[] = [];
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      onRestart: (handshake) => {
+        restarts.push(handshake.port);
+      },
+    });
+
+    const first = await supervisor.start();
+    expect(first.port).toBe(41_000);
+
+    // A restart that nobody is told about leaves the renderer pointed at a port
+    // nothing is listening on, while the supervisor believes it is healthy.
+    await vi.waitFor(() => {
+      expect(restarts).toEqual([41_001]);
+    }, 5_000);
+
+    await supervisor.stop();
+  }, 15_000);
+});
+
+describe('SidecarSupervisor.start when the sidecar dies without announcing', () => {
+  it('rejects as soon as stdout closes rather than waiting out the timeout', async () => {
+    // The most likely broken install: a missing interpreter, a failed import,
+    // an exit before any output. stdout closes with no line ever written.
+    const executable = await writeFakeSidecar('process.exit(1);', 0);
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      // Generous, so the assertion below can only pass by noticing the closed
+      // stream. Waiting for this timeout is the bug.
+      handshakeTimeoutMs: 30_000,
+    });
+
+    const started = Date.now();
+    await expect(supervisor.start()).rejects.toBeInstanceOf(SidecarStartError);
+    expect(Date.now() - started).toBeLessThan(5_000);
+  }, 15_000);
+
+  it('names the closed stream rather than blaming a timeout that did not happen', async () => {
+    const executable = await writeFakeSidecar('process.exit(1);', 0);
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      handshakeTimeoutMs: 30_000,
+    });
+
+    // 'Sidecar did not announce within 30000ms' would be a lie about a process
+    // that exited in milliseconds, and would send whoever reads the log looking
+    // for a slow start instead of a crash.
+    await expect(supervisor.start()).rejects.toMatchObject({
+      reason: 'handshake-stream-closed',
+    });
+  }, 15_000);
+});
+
+describe('SidecarSupervisor.start with a malformed handshake', () => {
+  const cases: ReadonlyArray<readonly [string, string]> = [
+    ['a line that is not JSON', "process.stdout.write('not json at all\\n');"],
+    ['JSON that is not an object', "process.stdout.write('42\\n');"],
+    ['an object with no schemaVersion', "process.stdout.write('{\"port\":1}\\n');"],
+    [
+      'a non-numeric port',
+      'process.stdout.write(JSON.stringify({' +
+        " event: 'nexus.api.listening', schemaVersion: '1.0.0'," +
+        " host: '127.0.0.1', port: 'nope', pid: 1 }) + '\\n');",
+    ],
+  ];
+
+  // Every other failure in this class is a SidecarStartError carrying a reason.
+  // A raw SyntaxError or TypeError escaping from JSON.parse or a missing field
+  // would slip past a caller that handles the documented type, which is exactly
+  // the caller that was written carefully.
+  it.each(cases)('rejects %s as a typed start error', async (_label, body) => {
+    const executable = await writeFakeSidecar(body);
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      handshakeTimeoutMs: 5_000,
+    });
+
+    await expect(supervisor.start()).rejects.toMatchObject({
+      name: 'SidecarStartError',
+      reason: 'malformed-handshake',
+    });
+  }, 15_000);
+});
+
+describe('SidecarSupervisor parent-death signalling', () => {
+  it('gives the sidecar a stdin pipe to detect the shell dying', async () => {
+    // The sidecar's other watchdog polls os.getppid(), which notices a dead
+    // parent only because POSIX reparents orphans to init. Windows does not
+    // reparent, so that watchdog never fires there. A pipe closes when its
+    // holder dies on every platform, which is why the sidecar watches stdin -
+    // and it can only do that if the supervisor hands it a pipe.
+    const executable = await writeFakeSidecar(
+      [
+        "import { fstatSync } from 'node:fs';",
+        // Node implements a 'pipe' stdio slot with a socketpair on unix, not a
+        // FIFO, so the sidecar's own check has to accept either. Asserting only
+        // isFIFO() here would pass a test the real sidecar then fails.
+        'const stat = fstatSync(0);',
+        'const piped = stat.isFIFO() || stat.isSocket();',
+        "process.stdout.write(JSON.stringify({",
+        "  event: 'nexus.api.listening',",
+        "  schemaVersion: '1.0.0',",
+        "  host: '127.0.0.1',",
+        '  port: piped ? 45_001 : 45_002,',
+        '  pid: process.pid,',
+        "}) + '\\n');",
+      ].join('\n'),
+    );
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+    });
+
+    const handshake = await supervisor.start();
+    expect(handshake.port).toBe(45_001);
+
+    await supervisor.stop();
+  }, 15_000);
+});
