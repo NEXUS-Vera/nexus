@@ -1,6 +1,8 @@
+import { execFile } from 'node:child_process';
 import { mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -15,6 +17,8 @@ import { Workspace } from './workspace.js';
  * byte-identical, that an edit made in another editor survived. Stubbing `fs`
  * here would assert that the author remembers which function they called.
  */
+
+const execFileAsync = promisify(execFile);
 
 const scratchDirs: string[] = [];
 
@@ -55,3 +59,37 @@ describe('Workspace.proposeEdit', () => {
     expect(after.mtimeMs).toBe(before.mtimeMs);
   });
 });
+
+describe('Workspace.applyEdit', () => {
+  it('writes the new content and leaves the previous version recoverable from git', async () => {
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    const file = join(root, 'main.c');
+    await writeFile(file, 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('main.c', 'int main(void) { return 1; }\n');
+    const applied = await workspace.applyEdit(proposal);
+
+    expect(await readFile(file, 'utf8')).toBe('int main(void) { return 1; }\n');
+    // The point of the checkpoint: the student gets the previous bytes back out
+    // of git without having had to commit them themselves first.
+    expect(await git(root, ['show', `${applied.checkpointRef}:main.c`])).toBe(
+      'int main(void) { return 0; }\n',
+    );
+  });
+});
+
+/** Run git in `cwd` and return its stdout, so the suites exercise real objects. */
+async function git(cwd: string, args: readonly string[]): Promise<string> {
+  const { stdout } = await execFileAsync('git', [...args], { cwd });
+  return stdout;
+}
+
+async function initGitRepo(root: string): Promise<void> {
+  await git(root, ['init', '--initial-branch', 'main']);
+  await git(root, ['config', 'user.email', 'student@example.test']);
+  await git(root, ['config', 'user.name', 'Student']);
+}

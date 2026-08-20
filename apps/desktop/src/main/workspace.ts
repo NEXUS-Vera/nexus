@@ -1,6 +1,10 @@
-import { createHash } from 'node:crypto';
-import { readFile, realpath } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 /**
  * The file layer through which Vera edits a student's project.
@@ -28,6 +32,19 @@ export interface EditProposal {
   readonly newContent: string;
   /** Unified-style rendering of the change, for the student to review. */
   readonly diff: string;
+}
+
+/** The record of an edit that was accepted and written. */
+export interface AppliedEdit {
+  /** Workspace-relative path of the file that was written. */
+  readonly path: string;
+  /**
+   * Ref naming the checkpoint commit taken immediately before the write.
+   *
+   * `git show <ref>:<path>` yields the bytes the file had beforehand, so an
+   * edit the student regrets is undoable even if they had never committed.
+   */
+  readonly checkpointRef: string;
 }
 
 export class Workspace {
@@ -69,7 +86,94 @@ export class Workspace {
       diff: renderDiff(current, newContent),
     };
   }
+
+  /**
+   * Accept a proposal: checkpoint the workspace, then write the new content.
+   *
+   * The checkpoint is taken first and unconditionally. An edit that turns out
+   * to be wrong is then a recoverable mistake rather than a lost afternoon.
+   */
+  async applyEdit(proposal: EditProposal): Promise<AppliedEdit> {
+    const absolutePath = join(this.#root, proposal.path);
+    const checkpointRef = await this.#checkpoint();
+
+    await writeFile(absolutePath, proposal.newContent, 'utf8');
+
+    return { path: proposal.path, checkpointRef };
+  }
+
+  /**
+   * Snapshot the whole working tree into a commit reachable from a private ref.
+   *
+   * Deliberately built through a throwaway index rather than `git commit`: the
+   * student's own index, HEAD, and branch are theirs, and a file layer that
+   * stages or commits on their behalf would corrupt the history they are in the
+   * middle of writing. Nothing here mutates any state the student can see.
+   */
+  async #checkpoint(): Promise<string> {
+    const indexFile = join(await this.#gitDir(), `nexus-checkpoint-index-${randomUUID()}`);
+    const env = { ...process.env, GIT_INDEX_FILE: indexFile };
+    const head = await this.#headCommit();
+
+    try {
+      // Untracked files count: a file Vera is about to overwrite may never have
+      // been added, and that is exactly the case where losing it hurts most.
+      await this.#git(['add', '--all'], env);
+      const tree = await this.#git(['write-tree'], env);
+
+      const commit = await this.#git(
+        [
+          'commit-tree',
+          tree,
+          ...(head === undefined ? [] : ['-p', head]),
+          '-m',
+          'nexus: checkpoint before applying an agent edit',
+        ],
+        {
+          ...env,
+          // The checkpoint is Nexus's own act, and it must succeed even in a
+          // repository where the student has not configured an identity.
+          GIT_AUTHOR_NAME: CHECKPOINT_IDENTITY_NAME,
+          GIT_AUTHOR_EMAIL: CHECKPOINT_IDENTITY_EMAIL,
+          GIT_COMMITTER_NAME: CHECKPOINT_IDENTITY_NAME,
+          GIT_COMMITTER_EMAIL: CHECKPOINT_IDENTITY_EMAIL,
+        },
+      );
+
+      const ref = `${CHECKPOINT_REF_PREFIX}${new Date().toISOString().replaceAll(':', '-')}-${randomUUID()}`;
+      await this.#git(['update-ref', ref, commit], env);
+
+      return ref;
+    } finally {
+      await rm(indexFile, { force: true });
+    }
+  }
+
+  /** Absolute path of the `.git` directory backing this workspace. */
+  async #gitDir(): Promise<string> {
+    return this.#git(['rev-parse', '--absolute-git-dir']);
+  }
+
+  /** The current commit, or `undefined` in a repository with no commits yet. */
+  async #headCommit(): Promise<string | undefined> {
+    try {
+      return await this.#git(['rev-parse', '--verify', 'HEAD']);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /** Run git inside the workspace root and return its trimmed stdout. */
+  async #git(args: readonly string[], env: NodeJS.ProcessEnv = process.env): Promise<string> {
+    const { stdout } = await execFileAsync('git', [...args], { cwd: this.#root, env });
+    return stdout.trim();
+  }
 }
+
+/** Namespace for checkpoint refs: private to Nexus, invisible to `git branch`. */
+const CHECKPOINT_REF_PREFIX = 'refs/nexus/checkpoints/';
+const CHECKPOINT_IDENTITY_NAME = 'Nexus';
+const CHECKPOINT_IDENTITY_EMAIL = 'nexus@localhost';
 
 /** Content hash used to detect that a file moved underneath a proposal. */
 function hashContent(content: string): string {
