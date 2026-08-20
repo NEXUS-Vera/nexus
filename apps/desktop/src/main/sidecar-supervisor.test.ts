@@ -275,3 +275,42 @@ describe('SidecarSupervisor restart reporting', () => {
     await supervisor.stop();
   }, 15_000);
 });
+
+describe('SidecarSupervisor.start when the sidecar dies without announcing', () => {
+  it('rejects as soon as stdout closes rather than waiting out the timeout', async () => {
+    // The most likely broken install: a missing interpreter, a failed import,
+    // an exit before any output. stdout closes with no line ever written.
+    const executable = await writeFakeSidecar('process.exit(1);', 0);
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      // Generous, so the assertion below can only pass by noticing the closed
+      // stream. Waiting for this timeout is the bug.
+      handshakeTimeoutMs: 30_000,
+    });
+
+    const started = Date.now();
+    await expect(supervisor.start()).rejects.toBeInstanceOf(SidecarStartError);
+    expect(Date.now() - started).toBeLessThan(5_000);
+  }, 15_000);
+
+  it('names the closed stream rather than blaming a timeout that did not happen', async () => {
+    const executable = await writeFakeSidecar('process.exit(1);', 0);
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      handshakeTimeoutMs: 30_000,
+    });
+
+    // 'Sidecar did not announce within 30000ms' would be a lie about a process
+    // that exited in milliseconds, and would send whoever reads the log looking
+    // for a slow start instead of a crash.
+    await expect(supervisor.start()).rejects.toMatchObject({
+      reason: 'handshake-stream-closed',
+    });
+  }, 15_000);
+});

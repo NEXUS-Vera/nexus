@@ -57,7 +57,10 @@ const MAX_RESTART_ATTEMPTS = 1;
 const DEFAULT_TERMINATION_GRACE_MS = 5_000;
 
 /** Why the sidecar failed to reach a usable listening state. */
-export type SidecarStartFailureReason = 'handshake-timeout' | 'unsupported-schema-version';
+export type SidecarStartFailureReason =
+  | 'handshake-timeout'
+  | 'handshake-stream-closed'
+  | 'unsupported-schema-version';
 
 /** Typed failure surfaced by {@link SidecarSupervisor.start}. */
 export class SidecarStartError extends Error {
@@ -293,11 +296,10 @@ async function withHandshakeTimeout<T>(pending: Promise<T>, timeoutMs: number): 
  * would only be a way to keep the read alive past the point of interest.
  */
 function readFirstLine(stream: Readable): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let buffered = '';
 
-    stream.setEncoding('utf8');
-    stream.on('data', function onData(chunk: string) {
+    const onData = (chunk: string): void => {
       buffered += chunk;
       const newline = buffered.indexOf('\n');
       if (newline === -1) {
@@ -305,8 +307,30 @@ function readFirstLine(stream: Readable): Promise<string> {
       }
 
       stream.off('data', onData);
+      stream.off('close', onClose);
       resolve(buffered.slice(0, newline));
-    });
+    };
+
+    // A sidecar that exits before announcing - a missing interpreter, a failed
+    // import, the likeliest broken install - closes stdout without ever writing
+    // a line. Waiting for the handshake timeout here would turn an immediate,
+    // knowable failure into a blank window for the full timeout, and then
+    // report it as slowness rather than as the crash it was.
+    const onClose = (): void => {
+      stream.off('data', onData);
+      reject(
+        new SidecarStartError(
+          'handshake-stream-closed',
+          buffered === ''
+            ? 'Sidecar closed stdout without announcing a listening port'
+            : `Sidecar closed stdout mid-handshake after ${JSON.stringify(buffered)}`,
+        ),
+      );
+    };
+
+    stream.setEncoding('utf8');
+    stream.on('data', onData);
+    stream.once('close', onClose);
   });
 }
 
