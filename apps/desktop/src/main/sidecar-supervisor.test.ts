@@ -77,4 +77,23 @@ describe('SidecarSupervisor.start', () => {
         error instanceof SidecarStartError && error.reason === 'unsupported-schema-version',
     );
   });
+
+  it('rejects rather than hanging when a live sidecar never announces a port', async () => {
+    // Prints nothing and stays up: a broken install, a missing dependency, an
+    // interpreter stuck on an import. Waiting forever turns that into a
+    // permanently blank window with no explanation.
+    const executable = await writeFakeSidecar('// never announces anything');
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      handshakeTimeoutMs: 150,
+    });
+
+    await expect(supervisor.start()).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof SidecarStartError && error.reason === 'handshake-timeout',
+    );
+  }, 2_000);
 });

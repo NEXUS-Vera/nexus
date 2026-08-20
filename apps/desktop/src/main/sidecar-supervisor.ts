@@ -25,8 +25,16 @@ import type { Readable } from 'node:stream';
  */
 const SUPPORTED_SCHEMA_MAJOR = 1;
 
+/**
+ * How long to wait for the handshake before giving up.
+ *
+ * Generous enough for a cold interpreter start on a slow disk, short enough
+ * that a broken install produces a message instead of a blank window.
+ */
+const DEFAULT_HANDSHAKE_TIMEOUT_MS = 15_000;
+
 /** Why the sidecar failed to reach a usable listening state. */
-export type SidecarStartFailureReason = 'unsupported-schema-version';
+export type SidecarStartFailureReason = 'handshake-timeout' | 'unsupported-schema-version';
 
 /** Typed failure surfaced by {@link SidecarSupervisor.start}. */
 export class SidecarStartError extends Error {
@@ -54,6 +62,8 @@ export interface SidecarSupervisorOptions {
   readonly args: readonly string[];
   /** Shared secret the sidecar requires on every loopback request. */
   readonly sessionToken: string;
+  /** Defaults to {@link DEFAULT_HANDSHAKE_TIMEOUT_MS}. */
+  readonly handshakeTimeoutMs?: number;
 }
 
 export class SidecarSupervisor {
@@ -78,7 +88,40 @@ export class SidecarSupervisor {
       stdio: ['ignore', 'pipe', 'inherit'],
     });
 
-    return parseHandshake(await readFirstLine(child.stdout));
+    const line = await withHandshakeTimeout(
+      readFirstLine(child.stdout),
+      this.#options.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
+    );
+
+    return parseHandshake(line);
+  }
+}
+
+/**
+ * Bound the wait for the handshake.
+ *
+ * A sidecar can be alive and useless: a broken install, a missing dependency,
+ * an interpreter wedged on an import. Without a bound, that state is
+ * indistinguishable from a slow start and the shell waits forever.
+ */
+async function withHandshakeTimeout<T>(pending: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+
+  const expiry = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      reject(
+        new SidecarStartError(
+          'handshake-timeout',
+          `Sidecar did not announce a listening port within ${timeoutMs}ms`,
+        ),
+      );
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([pending, expiry]);
+  } finally {
+    clearTimeout(timer);
   }
 }
 
