@@ -2,8 +2,6 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.e2e.tsbuildinfo",
     "target": "ES2022",
-    // These suites drive a real renderer: `page.evaluate` callbacks are browser
-    // code and are typechecked as such, even though the suite itself runs in Node.
     "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
