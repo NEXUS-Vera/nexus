@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile, realpath, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, join, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
 import { watch as watchPaths } from 'chokidar';
@@ -198,6 +198,11 @@ export class Workspace {
       // The initial scan is inventory, not news; reporting it would fire a
       // change for every file in the project at startup.
       ignoreInitial: true,
+      // The repository's internals are not the student's project, and applying
+      // an edit writes objects and a ref into them - so an unfiltered watcher
+      // answers Nexus's own checkpoint back as "the project changed". A
+      // consumer cannot tell that from the student typing.
+      ignored: (candidate: string) => this.#isRepositoryInternal(candidate),
     });
 
     const pending = new Set<string>();
@@ -232,6 +237,11 @@ export class Workspace {
         await watcher.close();
       },
     };
+  }
+
+  /** Whether a path lies inside the repository's own bookkeeping. */
+  #isRepositoryInternal(candidate: string): boolean {
+    return relative(this.#root, candidate).split(sep).includes('.git');
   }
 
   /**

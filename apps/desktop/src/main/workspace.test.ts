@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
@@ -254,7 +254,46 @@ describe('Workspace.watch', () => {
       await watcher.close();
     }
   }, 10_000);
+
+  it('reports the edited file and not the repository internals it churns', async () => {
+    // Applying an edit writes objects and a ref inside `.git`, so an unfiltered
+    // watcher answers Nexus's own checkpoint back as a burst of "the project
+    // changed" - including the name of its temporary index. A consumer cannot
+    // tell that from the student typing, so the accept gate would end up
+    // invalidating proposals in response to its own bookkeeping.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    const file = join(root, 'main.c');
+    await writeFile(file, 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const seen: string[] = [];
+    const watcher = await workspace.watch(
+      (change) => {
+        seen.push(...change.paths);
+      },
+      { debounceMs: 50 },
+    );
+
+    try {
+      const proposal = await workspace.proposeEdit('main.c', 'int main(void) { return 1; }\n');
+      await workspace.applyEdit(proposal);
+      await settle(500);
+
+      expect(seen).toContain('main.c');
+      expect(seen.filter((path) => path.split(sep).includes('.git'))).toEqual([]);
+    } finally {
+      await watcher.close();
+    }
+  }, 10_000);
 });
+
+/** Give the watcher time to report anything it was going to report. */
+async function settle(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function hashFile(path: string): Promise<string> {
   return createHash('sha256').update(await readFile(path)).digest('hex');
