@@ -8,10 +8,10 @@
     "node": ">=20"
   },
   "scripts": {
-    "lint": "pnpm --filter @nexus/web lint",
+    "lint": "pnpm --filter @nexus/web --filter @nexus/desktop lint",
     "format": "echo \"TypeScript format deferred to package tooling\"",
-    "typecheck": "pnpm --filter @nexus/web typecheck",
-    "test": "pnpm --filter @nexus/web test",
+    "typecheck": "pnpm --filter @nexus/web --filter @nexus/desktop typecheck",
+    "test": "pnpm --filter @nexus/web --filter @nexus/desktop test",
     "build": "pnpm --filter @nexus/web build",
     "dev:web": "pnpm --filter @nexus/web dev"
   },
