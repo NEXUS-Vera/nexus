@@ -161,6 +161,29 @@ describe('SidecarSupervisor.stop', () => {
 
     expect(isRunning(pid)).toBe(false);
   }, 5_000);
+
+  it('escalates to a kill when the sidecar ignores the polite signal', async () => {
+    // A sidecar wedged in a native call or holding SIGTERM handles the signal
+    // and never leaves. Waiting on it forever hangs application quit.
+    const executable = await writeFakeSidecar(
+      ["process.on('SIGTERM', () => {});", announce(54_321)].join('\n'),
+      30_000,
+    );
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      handshakeTimeoutMs: 1_000,
+      terminationGraceMs: 200,
+    });
+
+    const { pid } = await supervisor.start();
+
+    await supervisor.stop();
+
+    expect(isRunning(pid)).toBe(false);
+  }, 5_000);
 });
 
 /** Signal 0 performs the permission and existence checks without delivering. */

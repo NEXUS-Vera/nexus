@@ -49,6 +49,13 @@ const DEFAULT_HANDSHAKE_TIMEOUT_MS = 15_000;
  */
 const MAX_RESTART_ATTEMPTS = 1;
 
+/**
+ * How long a sidecar gets to exit on its own after the polite signal, before
+ * the supervisor stops asking. Long enough to close the database cleanly, short
+ * enough that a wedged sidecar does not hold application quit open.
+ */
+const DEFAULT_TERMINATION_GRACE_MS = 5_000;
+
 /** Why the sidecar failed to reach a usable listening state. */
 export type SidecarStartFailureReason = 'handshake-timeout' | 'unsupported-schema-version';
 
@@ -100,6 +107,8 @@ export interface SidecarSupervisorOptions {
   readonly sessionToken: string;
   /** Defaults to {@link DEFAULT_HANDSHAKE_TIMEOUT_MS}. */
   readonly handshakeTimeoutMs?: number;
+  /** Defaults to {@link DEFAULT_TERMINATION_GRACE_MS}. */
+  readonly terminationGraceMs?: number;
   /** Called once when the sidecar has failed in a way a restart cannot fix. */
   readonly onTerminalFailure?: (error: SidecarTerminalError) => void;
 }
@@ -142,7 +151,19 @@ export class SidecarSupervisor {
     });
 
     child.kill('SIGTERM');
-    await exited;
+
+    // A sidecar can be alive and unable to respond: wedged in a native call, or
+    // holding SIGTERM itself. Asking politely forever would hang application
+    // quit, so the request becomes an order once the grace period is spent.
+    const grace = setTimeout(() => {
+      child.kill('SIGKILL');
+    }, this.#options.terminationGraceMs ?? DEFAULT_TERMINATION_GRACE_MS);
+
+    try {
+      await exited;
+    } finally {
+      clearTimeout(grace);
+    }
   }
 
   async #launch(): Promise<SidecarHandshake> {
