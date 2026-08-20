@@ -99,3 +99,24 @@ describe('TerminalSession.write', () => {
     await expect(output.waitForText('nexus-42')).resolves.toContain('nexus-42');
   }, 10_000);
 });
+
+describe('TerminalSession.resize', () => {
+  it('changes the window size the child process itself reports', async () => {
+    // Terminal width is not cosmetic here. A compiler wraps its diagnostics to
+    // the terminal width, and that wrapped text is exactly what Vera has to
+    // parse to tell a student which line failed. If the child never learns the
+    // real width, Nexus renders one width and the toolchain wraps to another.
+    //
+    // Observed through `stty`, which asks the kernel for the window size of its
+    // own controlling terminal. Reading back a field the session just stored
+    // would prove only that the setter ran.
+    const session = openShell();
+    const output = record(session);
+
+    session.resize(100, 30);
+    session.write('stty size\n');
+
+    // `stty size` reports rows first, then columns.
+    await expect(output.waitForText('30 100')).resolves.toContain('30 100');
+  }, 10_000);
+});

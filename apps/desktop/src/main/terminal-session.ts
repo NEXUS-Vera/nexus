@@ -60,6 +60,18 @@ export class TerminalSession {
     this.#pty.write(data);
   }
 
+  /**
+   * Tell the terminal, and through it the child, its new size in cells.
+   *
+   * This is not bookkeeping for the view. The kernel stores the window size on
+   * the terminal itself, so a running program reads it with `TIOCGWINSZ` and
+   * wraps its output to that width. A resize the child never learns about
+   * means the toolchain wraps to one width while Nexus renders another.
+   */
+  resize(columns: number, rows: number): void {
+    this.#pty.resize(columns, rows);
+  }
+
   /** Subscribe to everything the terminal emits, in arrival order. */
   onData(listener: (chunk: string) => void): TerminalUnsubscribe {
     const subscription = this.#pty.onData(listener);
