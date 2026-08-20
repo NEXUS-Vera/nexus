@@ -61,6 +61,24 @@ export interface TerminalSessionOptions {
 /** Unsubscribes a listener registered on this session. */
 export type TerminalUnsubscribe = () => void;
 
+/**
+ * How the process on the terminal ended.
+ *
+ * The distinction between the two fields carries meaning a student needs. An
+ * `exitCode` of 3 is the toolchain reporting its own verdict: the build failed
+ * and the compiler said so. A `signal` means something ended the process from
+ * outside - the terminal was closed, the machine ran out of memory, a watchdog
+ * fired - and in that case the exit code says nothing about the build at all.
+ * Collapsing them into one number would let Vera tell a student their code is
+ * broken when what actually happened is that their terminal was closed.
+ */
+export interface TerminalExit {
+  /** Status the process returned. Zero means success by POSIX convention. */
+  readonly exitCode: number;
+  /** Signal number that ended the process, or undefined for a normal exit. */
+  readonly signal?: number;
+}
+
 export class TerminalSession {
   readonly #pty: IPty;
   readonly #options: TerminalSessionOptions;
@@ -100,6 +118,30 @@ export class TerminalSession {
   /** Subscribe to everything the terminal emits, in arrival order. */
   onData(listener: (chunk: string) => void): TerminalUnsubscribe {
     const subscription = this.#pty.onData(listener);
+    return () => {
+      subscription.dispose();
+    };
+  }
+
+  /**
+   * Subscribe to the terminal ending, with the status it ended on.
+   *
+   * Fires once. A terminal that has already exited by the time a listener
+   * subscribes will not call it, so callers that care about the status should
+   * subscribe before writing the command whose result they want.
+   */
+  onExit(listener: (result: TerminalExit) => void): TerminalUnsubscribe {
+    const subscription = this.#pty.onExit(({ exitCode, signal }) => {
+      // node-pty reports a normal exit as `signal: undefined` on POSIX but has
+      // been observed to use 0 as well. Both mean "nothing signalled this", and
+      // the type says a signal is absent rather than zero, so it is normalised
+      // here instead of leaving every caller to remember the difference.
+      listener({
+        exitCode,
+        ...(signal === undefined || signal === 0 ? {} : { signal }),
+      });
+    });
+
     return () => {
       subscription.dispose();
     };

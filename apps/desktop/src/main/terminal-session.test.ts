@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { TerminalSession } from './terminal-session.js';
+import type { TerminalExit } from './terminal-session.js';
 
 /**
  * These suites drive a REAL pseudoterminal, not a mocked `node-pty`.
@@ -160,6 +161,40 @@ describe('TerminalSession.dispose', () => {
     expect(isRunning(childPid)).toBe(false);
   }, 15_000);
 });
+
+describe('TerminalSession.onExit', () => {
+  it('reports the status the command exited with', async () => {
+    // This is how Vera tells a build that failed from a build that succeeded.
+    // Compilers say so in their exit status, and a wall of stderr text is not a
+    // reliable substitute: plenty of successful builds print warnings, and
+    // plenty of failures print something that reads like progress.
+    const session = openShell();
+    const exited = nextExit(session);
+
+    session.write('exit 3\n');
+
+    const result = await exited;
+    expect(result.exitCode).toBe(3);
+    // A clean exit, not a death by signal. The two mean different things to a
+    // student - "your code returned 3" against "something killed the build" -
+    // so they must not arrive looking the same.
+    expect(result.signal).toBeUndefined();
+  }, 10_000);
+});
+
+/** Resolve with the terminal's exit status, or reject if it never exits. */
+async function nextExit(session: TerminalSession, timeoutMs = 5_000): Promise<TerminalExit> {
+  return new Promise<TerminalExit>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Terminal never exited within ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    session.onExit((result) => {
+      clearTimeout(timer);
+      resolve(result);
+    });
+  });
+}
 
 /**
  * Pull the pid out of the marker the shell printed.
