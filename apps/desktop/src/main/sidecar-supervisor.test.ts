@@ -1,10 +1,14 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SidecarStartError, SidecarSupervisor } from './sidecar-supervisor.js';
+import {
+  SidecarStartError,
+  SidecarSupervisor,
+  SidecarTerminalError,
+} from './sidecar-supervisor.js';
 
 /**
  * These suites drive a REAL child process, not a mocked `child_process`.
@@ -96,4 +100,42 @@ describe('SidecarSupervisor.start', () => {
         error instanceof SidecarStartError && error.reason === 'handshake-timeout',
     );
   }, 2_000);
+});
+
+describe('SidecarSupervisor restart policy', () => {
+  it('restarts a crashed sidecar exactly once, then surfaces a terminal failure', async () => {
+    // Announces, then dies. An unbounded supervisor would respawn this forever,
+    // burning battery while hiding the fault that is actually killing it.
+    const executable = await writeFakeSidecar(
+      [
+        "import { appendFileSync } from 'node:fs';",
+        "appendFileSync(new URL('runs.log', import.meta.url), 'run\\n');",
+        announce(54_321),
+        'setTimeout(() => process.exit(1), 100);',
+      ].join('\n'),
+    );
+    const runLog = join(dirname(executable), 'runs.log');
+
+    let surfaceTerminalFailure: (error: unknown) => void = () => {};
+    const terminalFailure = new Promise<unknown>((resolve) => {
+      surfaceTerminalFailure = resolve;
+    });
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      handshakeTimeoutMs: 1_000,
+      onTerminalFailure: (error) => surfaceTerminalFailure(error),
+    });
+
+    await supervisor.start();
+    const failure = await terminalFailure;
+
+    expect(failure).toBeInstanceOf(SidecarTerminalError);
+    expect((failure as SidecarTerminalError).reason).toBe('restart-limit-exceeded');
+    // One original launch plus exactly one restart.
+    const runs = (await readFile(runLog, 'utf8')).trim().split('\n');
+    expect(runs).toHaveLength(2);
+  }, 5_000);
 });

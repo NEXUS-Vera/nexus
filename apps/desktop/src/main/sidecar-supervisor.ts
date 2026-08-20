@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { ChildProcessByStdio } from 'node:child_process';
 import type { Readable } from 'node:stream';
 
 /**
@@ -26,12 +27,27 @@ import type { Readable } from 'node:stream';
 const SUPPORTED_SCHEMA_MAJOR = 1;
 
 /**
+ * The spawned sidecar, typed to the exact stdio shape the supervisor requests:
+ * no stdin, a piped stdout carrying the handshake, an inherited stderr.
+ */
+type SidecarProcess = ChildProcessByStdio<null, Readable, null>;
+
+/**
  * How long to wait for the handshake before giving up.
  *
  * Generous enough for a cold interpreter start on a slow disk, short enough
  * that a broken install produces a message instead of a blank window.
  */
 const DEFAULT_HANDSHAKE_TIMEOUT_MS = 15_000;
+
+/**
+ * Restarts allowed before the failure is treated as terminal.
+ *
+ * One retry covers the genuinely transient case - a port raced away, a
+ * half-released resource. Beyond that the sidecar is failing for a reason a
+ * respawn cannot fix, and looping would spin the CPU while hiding the fault.
+ */
+const MAX_RESTART_ATTEMPTS = 1;
 
 /** Why the sidecar failed to reach a usable listening state. */
 export type SidecarStartFailureReason = 'handshake-timeout' | 'unsupported-schema-version';
@@ -43,6 +59,26 @@ export class SidecarStartError extends Error {
   constructor(reason: SidecarStartFailureReason, message: string) {
     super(message);
     this.name = 'SidecarStartError';
+    this.reason = reason;
+  }
+}
+
+/** Why the sidecar is considered unrecoverable and will not be respawned. */
+export type SidecarTerminalFailureReason = 'restart-limit-exceeded';
+
+/**
+ * Typed failure surfaced after a successful start, through `onTerminalFailure`.
+ *
+ * A crash after startup cannot be reported by rejecting `start()`; that promise
+ * has already settled. This is the channel the shell listens on to tell the
+ * user the local API is gone for good.
+ */
+export class SidecarTerminalError extends Error {
+  readonly reason: SidecarTerminalFailureReason;
+
+  constructor(reason: SidecarTerminalFailureReason, message: string) {
+    super(message);
+    this.name = 'SidecarTerminalError';
     this.reason = reason;
   }
 }
@@ -64,10 +100,14 @@ export interface SidecarSupervisorOptions {
   readonly sessionToken: string;
   /** Defaults to {@link DEFAULT_HANDSHAKE_TIMEOUT_MS}. */
   readonly handshakeTimeoutMs?: number;
+  /** Called once when the sidecar has failed in a way a restart cannot fix. */
+  readonly onTerminalFailure?: (error: SidecarTerminalError) => void;
 }
 
 export class SidecarSupervisor {
   readonly #options: SidecarSupervisorOptions;
+  #current: SidecarProcess | undefined;
+  #restarts = 0;
 
   constructor(options: SidecarSupervisorOptions) {
     this.#options = options;
@@ -75,6 +115,10 @@ export class SidecarSupervisor {
 
   /** Spawn the sidecar and resolve once it has announced a listening socket. */
   async start(): Promise<SidecarHandshake> {
+    return this.#launch();
+  }
+
+  async #launch(): Promise<SidecarHandshake> {
     const child = spawn(this.#options.command, [...this.#options.args], {
       // Port 0 asks the operating system for a free port; a fixed port would
       // collide with the user's own tooling and with a second Nexus instance.
@@ -88,12 +132,49 @@ export class SidecarSupervisor {
       stdio: ['ignore', 'pipe', 'inherit'],
     });
 
+    this.#current = child;
+    // Subscribed before the handshake is awaited: a sidecar that announces and
+    // then dies immediately would otherwise emit `exit` before anyone listened.
+    child.once('exit', (code, signal) => {
+      this.#onChildExit(child, code, signal);
+    });
+
     const line = await withHandshakeTimeout(
       readFirstLine(child.stdout),
       this.#options.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
     );
 
     return parseHandshake(line);
+  }
+
+  #onChildExit(
+    child: SidecarProcess,
+    code: number | null,
+    signal: NodeJS.Signals | null,
+  ): void {
+    if (child !== this.#current) {
+      // A superseded child; the supervisor has already moved on.
+      return;
+    }
+
+    this.#current = undefined;
+
+    if (this.#restarts >= MAX_RESTART_ATTEMPTS) {
+      this.#options.onTerminalFailure?.(
+        new SidecarTerminalError(
+          'restart-limit-exceeded',
+          `Sidecar exited (code ${String(code)}, signal ${String(signal)}) after ` +
+            `${this.#restarts} restart attempt(s); not restarting again`,
+        ),
+      );
+      return;
+    }
+
+    this.#restarts += 1;
+    void this.#launch().catch(() => {
+      // A restart that cannot even hand shake is itself an exit-shaped failure;
+      // the replacement child's own `exit` carries it to the terminal branch.
+    });
   }
 }
 
