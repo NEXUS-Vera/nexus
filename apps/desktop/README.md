@@ -32,6 +32,8 @@ renderer's context; `tsconfig.node.json` covers repository tooling files.
 - Electron main-process lifecycle and window composition
 - The preload `contextBridge` surface, typed and explicit
 - Supervision of local sidecar processes owned by the desktop shell
+- Machine-local filesystem access to the student's project, behind the shell's
+  accept/reject gate
 - Native-module integration that only makes sense in a desktop host
 
 ## What must not be placed here
@@ -68,8 +70,53 @@ restarts a crashed sidecar once before surfacing a terminal failure, and stops
 it without leaving an orphan. It is a plain Node module and takes no Electron
 dependency, so it is unit tested against the runner configured here.
 
+`src/main/workspace.ts` is the file layer through which Vera edits a student's
+project, behind an accept/reject gate. It is the only module in the shell that
+can destroy a student's work, so its guarantees are stated as behaviour:
+
+- `proposeEdit` computes a diff and touches nothing - not the bytes, not the
+  mtime. Writing is only reachable through `applyEdit`.
+- `applyEdit` re-hashes the file and refuses with a typed `stale-proposal` error
+  if it changed since the proposal was made, because the student is expected to
+  be editing the same files by hand in their own editor at the same time. It
+  does not attempt a merge; only the student can say which version they meant.
+- `applyEdit` snapshots the working tree into a commit under
+  `refs/nexus/checkpoints/` before writing, built through a throwaway index so
+  the student's own index, HEAD, and branch are untouched. The file being
+  overwritten is force-added, so a `.gitignore`d file is recoverable too.
+- Paths are model-influenced, so they are treated as untrusted input under
+  `AGENTS.md` section 13: they are resolved against the root and refused unless
+  contained by it, lexically first and then again after resolving symlinks.
+- `watch` reports external changes, coalesced per quiet window and scoped to the
+  root, excluding `.git`.
+
 Everything else is still scaffold: no window creation, no application
-lifecycle, and no packaging configuration.
+lifecycle, and no packaging configuration. There is no diff-review UI yet; the
+renderer half of the accept/reject gate is a later phase in `@nexus/web`.
+
+### Known limits of the checkpoint
+
+`applyEdit` refuses with a typed `not-a-git-repository` error when the
+workspace has no repository behind it, rather than writing an edit that could
+not be undone. Opening such a project and offering to initialise a repository
+is a shell-level decision that is not implemented yet.
+
+A checkpoint captures the working tree as it stands on disk at that moment, so
+it cannot capture an editor buffer the student has not saved. Anything they had
+staged is unaffected either way, because the checkpoint is built in a throwaway
+index and their own is never written.
+
+Ignored files other than the one being edited stay out of the checkpoint, which
+is deliberate - forcing the whole ignored tree in would snapshot build output
+and dependencies on every accepted edit.
+
+The staleness check re-reads the file immediately before writing, which closes
+the window between proposing and accepting but not the microseconds between the
+check and the write. Closing that fully needs an atomic
+compare-and-swap-on-content, which the filesystem does not offer directly.
+
+Checkpoint refs are never pruned, so they accumulate; expiring them is future
+work.
 
 ### Platform assumption
 
