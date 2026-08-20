@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { readFile, realpath, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -18,7 +18,7 @@ const execFileAsync = promisify(execFile);
  */
 
 /** Why a workspace operation was refused. */
-export type WorkspaceFailureReason = 'stale-proposal';
+export type WorkspaceFailureReason = 'path-escapes-workspace' | 'stale-proposal';
 
 /** Typed refusal raised by {@link Workspace} operations. */
 export class WorkspaceError extends Error {
@@ -90,7 +90,7 @@ export class Workspace {
    * Nothing here writes, creates, or so much as opens the file for writing.
    */
   async proposeEdit(relativePath: string, newContent: string): Promise<EditProposal> {
-    const absolutePath = join(this.#root, relativePath);
+    const absolutePath = await this.#resolveInside(relativePath);
     const current = await readFile(absolutePath, 'utf8');
 
     return {
@@ -115,7 +115,7 @@ export class Workspace {
    * The checkpoint follows the check, so a refused apply leaves no trace at all.
    */
   async applyEdit(proposal: EditProposal): Promise<AppliedEdit> {
-    const absolutePath = join(this.#root, proposal.path);
+    const absolutePath = await this.#resolveInside(proposal.path);
 
     const currentHash = hashContent(await readFile(absolutePath, 'utf8'));
     if (currentHash !== proposal.baseHash) {
@@ -144,6 +144,43 @@ export class Workspace {
    */
   rejectEdit(_proposal: EditProposal): void {
     // Intentionally empty. See above.
+  }
+
+  /**
+   * Turn a caller-supplied path into an absolute path proven to be inside the
+   * workspace, or refuse.
+   *
+   * The path originates with a model, so it is untrusted input: a project file,
+   * a pasted compiler error, or a datasheet can all steer it. Unchecked, this
+   * module is an arbitrary-file-write primitive running as the student.
+   */
+  async #resolveInside(candidate: string): Promise<string> {
+    // `resolve` collapses `..` segments and lets an absolute candidate replace
+    // the root outright, so both traversal and an absolute path outside the
+    // workspace end up outside. Checked first, and lexically, so the obvious
+    // escapes are refused before the filesystem is touched at all.
+    const lexicalPath = resolve(this.#root, candidate);
+    this.#assertContained(lexicalPath, candidate);
+
+    // A path can start with the root and still land outside it: `notes.txt`
+    // may be a symlink to somewhere else entirely, and projects contain
+    // symlinks for innocent reasons. A string comparison cannot see that, so
+    // the links are resolved and the containment question asked again of the
+    // path the write would actually reach.
+    const realPath = await realpathOfNearestExisting(lexicalPath);
+    this.#assertContained(realPath, candidate);
+
+    return realPath;
+  }
+
+  /** Refuse a path that is not the root itself or something beneath it. */
+  #assertContained(absolutePath: string, candidate: string): void {
+    if (absolutePath !== this.#root && !absolutePath.startsWith(this.#root + sep)) {
+      throw new WorkspaceError(
+        'path-escapes-workspace',
+        `Refusing to touch ${candidate}: it resolves outside the workspace root`,
+      );
+    }
   }
 
   /**
@@ -218,6 +255,36 @@ export class Workspace {
 const CHECKPOINT_REF_PREFIX = 'refs/nexus/checkpoints/';
 const CHECKPOINT_IDENTITY_NAME = 'Nexus';
 const CHECKPOINT_IDENTITY_EMAIL = 'nexus@localhost';
+
+
+/**
+ * Resolve every symlink in a path, tolerating a file that does not exist yet.
+ *
+ * `realpath` fails outright on a missing leaf, but an edit may legitimately
+ * create a new file. Resolving the deepest ancestor that does exist and
+ * re-attaching the missing tail answers the only question that matters - where
+ * would a write to this path actually land - without requiring the target to
+ * already be there.
+ */
+async function realpathOfNearestExisting(absolutePath: string): Promise<string> {
+  let existing = absolutePath;
+  const missing: string[] = [];
+
+  for (;;) {
+    try {
+      return join(await realpath(existing), ...missing.reverse());
+    } catch {
+      const parent = dirname(existing);
+      if (parent === existing) {
+        // Walked to the filesystem root without finding anything that exists.
+        return absolutePath;
+      }
+
+      missing.push(basename(existing));
+      existing = parent;
+    }
+  }
+}
 
 /** Content hash used to detect that a file moved underneath a proposal. */
 function hashContent(content: string): string {

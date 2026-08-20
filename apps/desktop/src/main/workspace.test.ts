@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -128,6 +128,54 @@ describe('Workspace.rejectEdit', () => {
     expect(await hashFile(file)).toBe(hashBefore);
     // A rejected proposal is not an event in the repository's life either.
     expect(await git(root, ['status', '--porcelain'])).toBe('');
+  });
+});
+
+describe('Workspace path containment', () => {
+  /**
+   * The path in an edit comes from a model, so it is untrusted input in the
+   * sense of AGENTS.md section 13: it is attacker-influenceable through the
+   * project's own files, a pasted error message, or a datasheet. A workspace
+   * that follows it out of the project is an arbitrary-file-write primitive
+   * running with the student's own credentials.
+   */
+  it('refuses a traversal path and an absolute path outside the root', async () => {
+    const root = await makeScratchRoot();
+    const outside = await makeScratchRoot();
+    const outsideFile = join(outside, 'id_rsa');
+    await writeFile(outsideFile, 'PRIVATE KEY\n', 'utf8');
+
+    const workspace = await Workspace.open(root);
+
+    await expect(workspace.proposeEdit('../../.ssh/id_rsa', 'pwned\n')).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof WorkspaceError && error.reason === 'path-escapes-workspace',
+    );
+    await expect(workspace.proposeEdit(outsideFile, 'pwned\n')).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof WorkspaceError && error.reason === 'path-escapes-workspace',
+    );
+    expect(await readFile(outsideFile, 'utf8')).toBe('PRIVATE KEY\n');
+  });
+
+  it('refuses a path inside the root whose symlink target is outside it', async () => {
+    // A string prefix check passes this: the path really does start with the
+    // root. Only resolving the link tells you where the write would land, and
+    // a project can contain symlinks for entirely innocent reasons, so this is
+    // not a hypothetical attack - it is Tuesday.
+    const root = await makeScratchRoot();
+    const outside = await makeScratchRoot();
+    const outsideFile = join(outside, 'id_rsa');
+    await writeFile(outsideFile, 'PRIVATE KEY\n', 'utf8');
+    await symlink(outsideFile, join(root, 'notes.txt'));
+
+    const workspace = await Workspace.open(root);
+
+    await expect(workspace.proposeEdit('notes.txt', 'pwned\n')).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof WorkspaceError && error.reason === 'path-escapes-workspace',
+    );
+    expect(await readFile(outsideFile, 'utf8')).toBe('PRIVATE KEY\n');
   });
 });
 
