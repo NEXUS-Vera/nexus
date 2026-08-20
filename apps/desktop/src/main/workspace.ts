@@ -103,6 +103,19 @@ export class Workspace {
   }
 
   /**
+   * Decline a proposal.
+   *
+   * Deliberately does nothing, and deliberately still exists: rejection is a
+   * real step in the accept/reject gate, and naming it keeps the caller from
+   * inventing its own cleanup - unstaging, restoring, rewriting the file - to
+   * undo a proposal that never changed anything in the first place. Proposals
+   * are immutable values held by the caller, so dropping one is the whole act.
+   */
+  rejectEdit(_proposal: EditProposal): void {
+    // Intentionally empty. See above.
+  }
+
+  /**
    * Snapshot the whole working tree into a commit reachable from a private ref.
    *
    * Deliberately built through a throwaway index rather than `git commit`: the

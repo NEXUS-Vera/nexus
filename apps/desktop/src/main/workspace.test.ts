@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -81,6 +82,33 @@ describe('Workspace.applyEdit', () => {
     );
   });
 });
+
+describe('Workspace.rejectEdit', () => {
+  it('leaves the file byte-identical to what it was before the proposal', async () => {
+    // Not trivially true once applying takes a checkpoint: a reject path that
+    // shared any of that machinery would stage, snapshot, or rewrite the file.
+    // "No" has to mean the workspace is indistinguishable from never asking.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    const file = join(root, 'main.c');
+    await writeFile(file, 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+    const hashBefore = await hashFile(file);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('main.c', 'int main(void) { return 1; }\n');
+    workspace.rejectEdit(proposal);
+
+    expect(await hashFile(file)).toBe(hashBefore);
+    // A rejected proposal is not an event in the repository's life either.
+    expect(await git(root, ['status', '--porcelain'])).toBe('');
+  });
+});
+
+async function hashFile(path: string): Promise<string> {
+  return createHash('sha256').update(await readFile(path)).digest('hex');
+}
 
 /** Run git in `cwd` and return its stdout, so the suites exercise real objects. */
 async function git(cwd: string, args: readonly string[]): Promise<string> {
