@@ -8,6 +8,7 @@ from logging.config import fileConfig
 from alembic import context
 from nexus_persistence.postgres.models import Base
 from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import Connection
 
 config = context.config
 if config.config_file_name is not None:
@@ -36,20 +37,31 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _run_migrations(connection: Connection) -> None:
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        render_as_batch=connection.dialect.name == "sqlite",
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 def run_migrations_online() -> None:
+    # A caller that already owns a connection (for example the store factory
+    # migrating an embedded SQLite database) passes it in rather than having a
+    # second engine built from configuration.
+    supplied = config.attributes.get("connection")
+    if supplied is not None:
+        _run_migrations(supplied)
+        return
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            render_as_batch=connection.dialect.name == "sqlite",
-        )
-        with context.begin_transaction():
-            context.run_migrations()
+        _run_migrations(connection)
 
 
 if context.is_offline_mode():

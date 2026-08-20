@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from alembic import command
 from alembic.config import Config
+from nexus_persistence.factory import build_project_store
 from nexus_persistence.postgres.models import Base
 from sqlalchemy import create_engine, inspect, text
 
@@ -59,3 +60,24 @@ def test_migrated_sqlite_schema_applies_dependency_created_at_default(
         engine.dispose()
 
     assert created_at is not None
+
+
+def test_store_created_sqlite_database_is_upgradable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database_url = f"sqlite:///{tmp_path / 'desktop.db'}"
+    monkeypatch.setenv("NEXUS_DATABASE_URL", database_url)
+
+    # A shipped desktop app creates the database by opening a store...
+    build_project_store(backend="sqlite", database_url=database_url)
+
+    # ...and a later release upgrades that same file.
+    command.upgrade(_alembic_config(), "head")
+
+    engine = create_engine(database_url)
+    try:
+        tables = set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
+
+    assert set(Base.metadata.tables) <= tables
