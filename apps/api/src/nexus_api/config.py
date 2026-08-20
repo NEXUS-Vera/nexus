@@ -6,6 +6,19 @@ import os
 from dataclasses import dataclass
 
 
+DEV_SESSION_TOKEN = "nexus-dev-session-token"
+
+
+def _session_token() -> str:
+    """Per-session bearer token supplied by the process that spawned the sidecar.
+
+    The Electron shell generates a fresh token per launch and passes it through
+    the environment, so it is never written to disk. When unset we fall back to
+    a well-known development token so `make dev-api` keeps working.
+    """
+    return os.environ.get("NEXUS_API_SESSION_TOKEN", "").strip() or DEV_SESSION_TOKEN
+
+
 def _cors_origins() -> list[str]:
     raw = os.environ.get(
         "NEXUS_API_CORS_ORIGINS",
@@ -17,6 +30,7 @@ def _cors_origins() -> list[str]:
 @dataclass(frozen=True)
 class Settings:
     cors_origins: list[str]
+    session_token: str = DEV_SESSION_TOKEN
     host: str = "127.0.0.1"
     port: int = 8000
     initialization_provider: str = "fixture"
@@ -33,6 +47,7 @@ class Settings:
 def load_settings() -> Settings:
     return Settings(
         cors_origins=_cors_origins(),
+        session_token=_session_token(),
         host=os.environ.get("NEXUS_API_HOST", "127.0.0.1"),
         port=int(os.environ.get("NEXUS_API_PORT", "8000")),
         initialization_provider=os.environ.get("NEXUS_INITIALIZATION_PROVIDER", "fixture")

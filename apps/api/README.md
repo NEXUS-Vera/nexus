@@ -31,8 +31,28 @@ impact analysis).
 | `NEXUS_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
 | `NEXUS_DATABASE_URL` | local postgres URL | Used when backend is `postgres` |
 | `NEXUS_INITIALIZATION_PROVIDER` | `fixture` | `fixture`, `llm`, or `shadow` |
+| `NEXUS_API_SESSION_TOKEN` | `nexus-dev-session-token` | Per-session bearer token; the desktop shell mints a fresh one per launch |
 
-Authentication and multi-user tenancy are **not** implemented.
+## Session-token authentication
+
+The API is designed to run as a loopback sidecar of the desktop shell. Loopback
+is not a security boundary: any local process, and any web page the user
+visits, can reach it. Every request must therefore carry the session token:
+
+```text
+Authorization: Bearer <NEXUS_API_SESSION_TOKEN>
+```
+
+No route is exempt, including `GET /healthz`. Requests without a valid token
+receive `401` with error code `SESSION_TOKEN_REQUIRED`.
+
+The spawning process supplies `NEXUS_API_SESSION_TOKEN` in the environment so
+the token is never written to disk. When the variable is unset the API falls
+back to the well-known development token `nexus-dev-session-token`, which keeps
+`make dev-api` and `make dev-web` working. Never run a packaged build without
+setting a real token.
+
+Multi-user tenancy is **not** implemented.
 
 ## Local development
 

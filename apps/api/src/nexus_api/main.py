@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 import uuid
 from typing import Any, cast
 
@@ -54,7 +55,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Request-Id"],
+    allow_headers=["Content-Type", "X-Request-Id", "Authorization"],
 )
 
 _store = build_project_store(
@@ -95,6 +96,33 @@ def _error(
 
 def _request_id(request: Request) -> str:
     return request.headers.get("x-request-id") or str(uuid.uuid4())
+
+
+def _presented_session_token(request: Request) -> str:
+    header = request.headers.get("authorization", "")
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() != "bearer":
+        return ""
+    return value.strip()
+
+
+@app.middleware("http")
+async def require_session_token(request: Request, call_next: Any) -> Any:
+    """Reject every loopback request that does not carry the session token.
+
+    The sidecar listens on loopback, which any local process and any web page
+    the user visits can reach. The per-session bearer token, not the network
+    boundary, is what makes the API safe to expose.
+    """
+    presented = _presented_session_token(request)
+    if not secrets.compare_digest(presented, settings.session_token):
+        return _error(
+            401,
+            code="SESSION_TOKEN_REQUIRED",
+            message="A valid session token is required.",
+            request_id=_request_id(request),
+        )
+    return await call_next(request)
 
 
 def _validate_project_id(project_id: str, request_id: str) -> JSONResponse | None:

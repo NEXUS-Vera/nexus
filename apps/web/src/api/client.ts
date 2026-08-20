@@ -27,6 +27,18 @@ function apiBaseUrl(): string {
   return (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:8000';
 }
 
+/**
+ * Every API request carries the sidecar session token. The API listens on
+ * loopback, so this token - not the network boundary - is the security
+ * boundary. The desktop shell injects a per-session value; local development
+ * falls back to the API's well-known development token.
+ */
+function sessionToken(): string {
+  return (
+    (import.meta.env.VITE_API_SESSION_TOKEN as string | undefined) ?? 'nexus-dev-session-token'
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -56,7 +68,10 @@ export function parseInitializationResult(
 async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl()}${path}`, init);
+    response = await fetch(`${apiBaseUrl()}${path}`, {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${sessionToken()}` },
+    });
   } catch {
     throw new ApiClientError('Network failure while contacting the API.', 0, null);
   }
