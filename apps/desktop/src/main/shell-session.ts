@@ -1,0 +1,166 @@
+import type { RendererRuntimeConfig } from '../shared/runtime-config.js';
+import { RendererBundleError } from './renderer-entry.js';
+import { SidecarStartError } from './sidecar-supervisor.js';
+import type { SidecarHandshake } from './sidecar-supervisor.js';
+
+/**
+ * Bringing the shell up, expressed without Electron.
+ *
+ * The order matters and is the whole point of this module: the local API has to
+ * be listening before the window exists, because the address it listens on is
+ * assigned by the operating system at spawn time and is one of the two things
+ * the renderer needs to talk to it. A window opened first would have nothing to
+ * connect to and no way to learn the answer later.
+ */
+
+/** The part of {@link SidecarSupervisor} this module drives. */
+export interface SidecarLifecycle {
+  start(): Promise<SidecarHandshake>;
+  stop(): Promise<void>;
+}
+
+/** The Electron-shaped effects, injected so this module stays plain Node. */
+export interface ShellHost {
+  /**
+   * Arrange for this sidecar to be stopped whenever the application quits.
+   *
+   * Called before any window exists, because a quit can arrive while the window
+   * is still loading and a shutdown arranged after that point would miss it.
+   */
+  registerShutdown(sidecar: SidecarLifecycle): void;
+  openWindow(config: RendererRuntimeConfig): Promise<void>;
+  reportFatalError(message: string): void;
+  quit(): void;
+}
+
+export interface StartShellOptions {
+  readonly sessionToken: string;
+  /**
+   * Build the sidecar, wiring the supervisor's terminal-failure callback to the
+   * handler passed in. That callback is the only way a crash after startup can
+   * be reported: by then the start promise has long since settled.
+   */
+  readonly createSidecar: (onTerminalFailure: (error: Error) => void) => SidecarLifecycle;
+  readonly host: ShellHost;
+}
+
+/**
+ * Start the local API and, once it answers, the window that talks to it.
+ *
+ * Resolves once the shell is up, or once the user has been told why it is not.
+ */
+export async function startShell(options: StartShellOptions): Promise<void> {
+  let sidecar: SidecarLifecycle;
+  let handshake: SidecarHandshake;
+
+  try {
+    // Constructing the sidecar can fail on its own - an unconfigured command,
+    // a path that is not there - and to the user that is indistinguishable from
+    // a sidecar that failed to start. Both belong on the same path out.
+    sidecar = options.createSidecar((error) => {
+      options.host.reportFatalError(describeTerminalFailure(error));
+      options.host.quit();
+    });
+    handshake = await sidecar.start();
+  } catch (error) {
+    // A window is worse than no window here. Without the local API the shell
+    // can render nothing but an empty frame, and an empty frame tells the user
+    // neither what went wrong nor what to do about it.
+    options.host.reportFatalError(describeStartupFailure(error));
+    options.host.quit();
+    return;
+  }
+
+  options.host.registerShutdown(sidecar);
+
+  try {
+    await options.host.openWindow({
+      baseUrl: `http://${handshake.host}:${String(handshake.port)}`,
+      sessionToken: options.sessionToken,
+    });
+  } catch (error) {
+    // The sidecar is running by now, so this is the one failure that can leave
+    // a process behind: no window will ever close to trigger the shutdown.
+    options.host.reportFatalError(describeStartupFailure(error));
+    await sidecar.stop();
+    options.host.quit();
+  }
+}
+
+/**
+ * Turn a startup failure into something a user can act on.
+ *
+ * The supervisor distinguishes its failures by reason precisely so this can
+ * say different things about them: a runtime that never came up and a runtime
+ * that came up speaking the wrong protocol call for different remedies. The
+ * underlying message is always appended, because the person who eventually
+ * reads a bug report needs the detail the person reading the dialog does not.
+ */
+function describeStartupFailure(error: unknown): string {
+  // A missing interface already explains itself, including what to run. Wrapping
+  // it in the local-service preamble would send the reader after the wrong fault.
+  if (error instanceof RendererBundleError) {
+    return error.message;
+  }
+
+  const detail = error instanceof Error ? error.message : String(error);
+
+  if (error instanceof SidecarStartError) {
+    switch (error.reason) {
+      case 'handshake-timeout':
+        return (
+          'Nexus could not start its local service.\n\n' +
+          'The service was launched but never reported that it was ready. That ' +
+          'usually means its runtime is missing from the installation, or ' +
+          'security software on this machine blocked it from starting.\n\n' +
+          `Details: ${detail}`
+        );
+      case 'unsupported-schema-version':
+        return (
+          'Nexus could not start its local service.\n\n' +
+          'The service announced a startup protocol this version of Nexus does ' +
+          'not understand, which means the two halves of the installation do ' +
+          'not match. Reinstalling Nexus should resolve it.\n\n' +
+          `Details: ${detail}`
+        );
+    }
+  }
+
+  return `Nexus could not start its local service.\n\nDetails: ${detail}`;
+}
+
+/**
+ * Explain a sidecar that died after the window was already open.
+ *
+ * The supervisor has already retried and given up by the time this is reached,
+ * so there is nothing left to offer but an accurate account: the window is
+ * still on screen, but everything in it would now fail.
+ */
+function describeTerminalFailure(error: Error): string {
+  return (
+    'The local service Nexus depends on stopped running and could not be ' +
+    'restarted, so Nexus has to close.\n\n' +
+    `Details: ${error.message}`
+  );
+}
+
+/** Build the `before-quit` listener that shuts the sidecar down first. */
+export function createShutdownHandler(
+  sidecar: Pick<SidecarLifecycle, 'stop'>,
+  quit: () => void,
+): (event: { preventDefault: () => void }) => void {
+  let shuttingDown = false;
+
+  return (event) => {
+    // The quit this handler asks for arrives back here as another `before-quit`.
+    // Deferring that one as well would leave the shell asking itself to close
+    // forever, so the second pass is let through untouched.
+    if (shuttingDown) {
+      return;
+    }
+
+    shuttingDown = true;
+    event.preventDefault();
+    void sidecar.stop().finally(quit);
+  };
+}

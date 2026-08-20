@@ -16,16 +16,25 @@ or shared contracts.
 
 ```text
 apps/desktop/
-  src/main/         Electron main process (plain Node, no DOM)
-  src/preload/      contextBridge surface exposed to the renderer
-  vitest.config.ts  main-process test runner (Node environment)
-  tsconfig.*.json   one project per boundary: main, preload, tooling
+  src/main/            Electron main process (plain Node, no DOM)
+  src/preload/         contextBridge surface exposed to the renderer
+  src/shared/          the few declarations main and preload must agree on
+  e2e/                 Playwright suites that launch the built application
+  vitest.config.ts     main-process test runner (Node environment)
+  playwright.config.ts Electron smoke-suite runner
+  tsconfig.*.json      one project per boundary: main, preload, e2e, tooling
 ```
 
-The three tsconfig projects exist to keep the boundaries honest at type level:
+The tsconfig projects exist to keep the boundaries honest at type level:
 `tsconfig.main.json` has no `DOM` lib, so main-process code cannot reach for
 browser globals; `tsconfig.preload.json` has `DOM` because preload runs in the
-renderer's context; `tsconfig.node.json` covers repository tooling files.
+renderer's context; `tsconfig.e2e.json` has `DOM` because `page.evaluate`
+callbacks are renderer code; `tsconfig.node.json` covers repository tooling.
+
+`src/shared/` holds only what the main process and the preload script must
+agree on, and takes no Electron or Node imports: a sandboxed preload can
+require nothing but a small allowlist, so anything it reads has to be portable
+into that context.
 
 ## What belongs here
 
@@ -78,7 +87,45 @@ The supervisor spawns the sidecar with `['pipe', 'pipe', 'inherit']`:
 Note that Node implements a `'pipe'` slot with a socketpair on unix rather than
 a FIFO, so the sidecar accepts either.
 
+A second suite launches the real thing:
+
+```bash
+pnpm --filter @nexus/desktop test:e2e
+```
+
+It builds the shell and the renderer, then drives a real Electron process with
+Playwright. Some properties only exist at runtime and cannot be asserted any
+other way: how the renderer routes over `file://`, and what the preload bridge
+actually reaches. It needs a display, so it is kept out of `test` rather than
+making the unit runner conditional on one.
+
+These suites spawn `e2e/fixtures/fake-sidecar.mjs` instead of the Python API.
+The fixture binds a real loopback socket and speaks the real handshake, so the
+shell does the work it does in production while the suite stays runnable on a
+machine with no Python runtime.
+
+## Building
+
+```bash
+pnpm --filter @nexus/desktop build
+```
+
+Electron cannot execute TypeScript, so both entry points are bundled to
+CommonJS with esbuild, alongside the renderer built from `@nexus/web` with a
+relative asset base (absolute `/assets/...` URLs do not resolve over `file://`).
+The preload is bundled rather than merely compiled because a sandboxed preload
+can require nothing but a small allowlist, so it has to be one self-contained
+file.
+
 ## Current status
+
+`src/main/index.ts` composes the shell: it mints a session token with
+`crypto.randomBytes`, starts the sidecar, waits for its handshake, and opens a
+window that reaches the local API through the preload bridge and nothing else.
+Startup failures - a sidecar that will not start, a renderer bundle that is not
+there - are reported as messages naming a cause and a remedy. The sidecar's
+shutdown is hung on `before-quit`, which every exit passes through, and is
+arranged before the window exists so a quit during startup cannot outrun it.
 
 `src/main/sidecar-supervisor.ts` supervises the local `nexus_api` sidecar: it
 spawns the process, reads the one-line loopback handshake from stdout, rejects
@@ -147,6 +194,37 @@ compare-and-swap-on-content, which the filesystem does not offer directly.
 
 Checkpoint refs are never pruned, so they accumulate; expiring them is future
 work.
+
+There is no packaging configuration yet, and no application menu.
+
+### What the shell spawns
+
+The sidecar executable is configuration, not a constant: a source checkout runs
+the repository's interpreter and a packaged application runs the runtime inside
+the bundle, and neither can be hard-coded without excluding the other.
+
+```bash
+NEXUS_SIDECAR_COMMAND=/path/to/python
+NEXUS_SIDECAR_ARGS='["-m","nexus_api"]'
+```
+
+`NEXUS_SIDECAR_ARGS` is JSON rather than a whitespace-separated string because
+the paths that end up in it routinely contain spaces. With no command
+configured the shell says so, rather than spawning nothing and reporting a
+handshake that never arrived.
+
+### The renderer boundary
+
+The window states `contextIsolation`, `nodeIntegration`, `sandbox` and
+`webSecurity` explicitly even though they match Electron's current defaults.
+They are the shell's security posture, and a default is a decision someone else
+gets to change. Vera writes files and spawns shells on the user's machine, so a
+renderer holding any Node handle turns a cross-site script or a hostile model
+output into arbitrary local code execution.
+
+The bridge exposes named values, never a callable taking a channel the page
+chooses. `e2e/shell.e2e.test.ts` pins the whole surface, so widening it means
+saying so in a test.
 
 ### Platform assumption
 
@@ -219,3 +297,10 @@ exercises. Recorded here so they are not discovered during a release:
 - **Code signing on macOS.** Both `pty.node` and `spawn-helper` are Mach-O
   binaries and each needs its own signature; notarization rejects an unsigned
   nested executable.
+
+- A packaging pipeline. The entry points are bundled but not yet packaged into
+  a distributable application, and the renderer bundle is rebuilt in place,
+  which means a launch during a rebuild finds no interface. That is reported
+  rather than crashed on, but packaging is what removes the window entirely.
+- Terminal and serial-device integration, each added as its own phase with the
+  native dependency introduced at that point, not ahead of it.

@@ -16,6 +16,7 @@
     "dev:web": "pnpm --filter @nexus/web dev"
   },
   "pnpm": {
+    "onlyBuiltDependencies": ["electron", "esbuild"],
     "packageExtensions": {
       "lucide-react@0.487.0": { "peerDependencies": { "@types/react": "^18.3.18" } },
       "sonner@2.0.7": { "peerDependencies": { "@types/react": "^18.3.18" } },
