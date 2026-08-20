@@ -17,6 +17,20 @@ const execFileAsync = promisify(execFile);
  * the student never saw.
  */
 
+/** Why a workspace operation was refused. */
+export type WorkspaceFailureReason = 'stale-proposal';
+
+/** Typed refusal raised by {@link Workspace} operations. */
+export class WorkspaceError extends Error {
+  readonly reason: WorkspaceFailureReason;
+
+  constructor(reason: WorkspaceFailureReason, message: string) {
+    super(message);
+    this.name = 'WorkspaceError';
+    this.reason = reason;
+  }
+}
+
 /**
  * A pending, inert edit to one file.
  *
@@ -88,13 +102,30 @@ export class Workspace {
   }
 
   /**
-   * Accept a proposal: checkpoint the workspace, then write the new content.
+   * Accept a proposal: verify it is still current, checkpoint, then write.
    *
-   * The checkpoint is taken first and unconditionally. An edit that turns out
-   * to be wrong is then a recoverable mistake rather than a lost afternoon.
+   * The student is expected to be editing these same files by hand, in their
+   * own editor, while Vera works. So the bytes a proposal was computed against
+   * are not guaranteed to still be the bytes on disk when the student presses
+   * accept, and writing regardless would silently destroy whatever they typed
+   * in between. The proposal is therefore re-validated against the file rather
+   * than trusted, and a mismatch is refused instead of merged: only the student
+   * can say which of the two versions they meant to keep.
+   *
+   * The checkpoint follows the check, so a refused apply leaves no trace at all.
    */
   async applyEdit(proposal: EditProposal): Promise<AppliedEdit> {
     const absolutePath = join(this.#root, proposal.path);
+
+    const currentHash = hashContent(await readFile(absolutePath, 'utf8'));
+    if (currentHash !== proposal.baseHash) {
+      throw new WorkspaceError(
+        'stale-proposal',
+        `${proposal.path} changed after this edit was proposed; ` +
+          're-read the file and propose again rather than overwriting the change',
+      );
+    }
+
     const checkpointRef = await this.#checkpoint();
 
     await writeFile(absolutePath, proposal.newContent, 'utf8');

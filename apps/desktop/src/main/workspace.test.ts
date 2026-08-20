@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { Workspace } from './workspace.js';
+import { Workspace, WorkspaceError } from './workspace.js';
 
 /**
  * These suites drive REAL files in a REAL temporary directory.
@@ -80,6 +80,31 @@ describe('Workspace.applyEdit', () => {
     expect(await git(root, ['show', `${applied.checkpointRef}:main.c`])).toBe(
       'int main(void) { return 0; }\n',
     );
+  });
+
+  it('refuses a proposal whose file changed underneath it, and keeps the change', async () => {
+    // The student hand-edits in their own editor while Vera edits the same
+    // files. Between proposing and accepting, the bytes the proposal was
+    // computed against can stop being the bytes on disk. Applying anyway would
+    // silently overwrite work the student just did by hand, which is the one
+    // failure this whole module exists to make impossible.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    const file = join(root, 'main.c');
+    await writeFile(file, 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('main.c', 'int main(void) { return 1; }\n');
+
+    const handEdited = 'int main(void) { return 42; } // the student typed this\n';
+    await writeFile(file, handEdited, 'utf8');
+
+    await expect(workspace.applyEdit(proposal)).rejects.toSatisfy(
+      (error: unknown) => error instanceof WorkspaceError && error.reason === 'stale-proposal',
+    );
+    expect(await readFile(file, 'utf8')).toBe(handEdited);
   });
 });
 
