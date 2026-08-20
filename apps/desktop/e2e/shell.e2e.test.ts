@@ -26,10 +26,10 @@ test('opens the renderer on the home route without rewriting its file URL', asyn
   const app = await electron.launch({ args: [packageRoot], env: launchEnvironment() });
 
   try {
-    const window = await app.firstWindow();
+    const page = await app.firstWindow();
 
     await expect(
-      window.getByRole('heading', { name: 'Start a new embedded project' }),
+      page.getByRole('heading', { name: 'Start a new embedded project' }),
     ).toBeVisible();
 
     // Landing on home is not enough: over `file://` there is no server to map a
@@ -37,7 +37,42 @@ test('opens the renderer on the home route without rewriting its file URL', asyn
     // pathname replaces the document's own URL with something that no longer
     // exists on disk. The window then cannot be reloaded or restored, and every
     // relative asset resolves against the wrong directory.
-    expect(window.url()).toContain('dist/renderer/index.html');
+    expect(page.url()).toContain('dist/renderer/index.html');
+  } finally {
+    await app.close();
+  }
+});
+
+test('exposes nothing to the renderer beyond the allowlisted bridge', async () => {
+  const app = await electron.launch({ args: [packageRoot], env: launchEnvironment() });
+
+  try {
+    const page = await app.firstWindow();
+
+    const exposure = await page.evaluate(() => {
+      const scope = window as unknown as Record<string, unknown>;
+      const bridge = scope.nexus as Record<string, unknown> | undefined;
+
+      return {
+        require: typeof scope.require,
+        process: typeof scope.process,
+        ipcRenderer: typeof scope.ipcRenderer,
+        bridgeKeys: bridge === undefined ? null : Object.keys(bridge).sort(),
+        nonAllowlistedChannel: typeof bridge?.['nexus:write-file'],
+      };
+    });
+
+    // Vera writes files and spawns shells on the user's machine. Any Node handle
+    // reachable from the page turns a cross-site script or a malicious model
+    // output into arbitrary local code execution, so the renderer must see
+    // exactly the surface the shell chose to hand it and nothing else.
+    expect(exposure).toEqual({
+      require: 'undefined',
+      process: 'undefined',
+      ipcRenderer: 'undefined',
+      bridgeKeys: ['api'],
+      nonAllowlistedChannel: 'undefined',
+    });
   } finally {
     await app.close();
   }
