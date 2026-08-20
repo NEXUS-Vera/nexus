@@ -20,7 +20,10 @@ const execFileAsync = promisify(execFile);
  */
 
 /** Why a workspace operation was refused. */
-export type WorkspaceFailureReason = 'path-escapes-workspace' | 'stale-proposal';
+export type WorkspaceFailureReason =
+  | 'not-a-git-repository'
+  | 'path-escapes-workspace'
+  | 'stale-proposal';
 
 /** Typed refusal raised by {@link Workspace} operations. */
 export class WorkspaceError extends Error {
@@ -315,9 +318,26 @@ export class Workspace {
     }
   }
 
-  /** Absolute path of the `.git` directory backing this workspace. */
+  /**
+   * Absolute path of the `.git` directory backing this workspace.
+   *
+   * A workspace with no repository behind it cannot be checkpointed, and an
+   * edit that cannot be checkpointed has no undo. That is refused rather than
+   * written unprotected, and refused under a reason the shell can act on -
+   * offering to initialise a repository is a sensible response to
+   * `not-a-git-repository`, and no response at all is possible to whatever
+   * `git` printed on stderr.
+   */
   async #gitDir(): Promise<string> {
-    return this.#git(['rev-parse', '--absolute-git-dir']);
+    try {
+      return await this.#git(['rev-parse', '--absolute-git-dir']);
+    } catch {
+      throw new WorkspaceError(
+        'not-a-git-repository',
+        `${this.#root} is not inside a git repository, so an edit applied here ` +
+          'could not be undone; refusing to write',
+      );
+    }
   }
 
   /** The current commit, or `undefined` in a repository with no commits yet. */

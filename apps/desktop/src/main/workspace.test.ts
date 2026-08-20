@@ -107,6 +107,27 @@ describe('Workspace.applyEdit', () => {
     );
     expect(await readFile(file, 'utf8')).toBe(handEdited);
   });
+
+  it('refuses to write into a directory that is not a git repository', async () => {
+    // Recoverability is not a nicety here, it is the reason applying is allowed
+    // at all: without a checkpoint there is no undo for an edit that overwrites
+    // work the student never committed. A directory with no repository cannot
+    // provide one, so this refuses rather than writing unprotected - and it
+    // says so in a reason the shell can act on, instead of leaking whatever
+    // `git` happened to print.
+    const root = await makeScratchRoot();
+    const file = join(root, 'main.c');
+    await writeFile(file, 'int main(void) { return 0; }\n', 'utf8');
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('main.c', 'int main(void) { return 1; }\n');
+
+    await expect(workspace.applyEdit(proposal)).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof WorkspaceError && error.reason === 'not-a-git-repository',
+    );
+    expect(await readFile(file, 'utf8')).toBe('int main(void) { return 0; }\n');
+  });
 });
 
 describe('Workspace.rejectEdit', () => {
