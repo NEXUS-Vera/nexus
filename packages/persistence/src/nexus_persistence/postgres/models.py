@@ -5,9 +5,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+# Portable JSON payload column: JSONB on PostgreSQL, plain JSON elsewhere (e.g. SQLite).
+JSON_PAYLOAD = JSON().with_variant(JSONB(), "postgresql")
 
 
 class Base(DeclarativeBase):
@@ -23,7 +26,7 @@ class ProjectRow(Base):
     project_phase: Mapped[str] = mapped_column(String(64), nullable=False)
     autonomy_mode: Mapped[str] = mapped_column(String(32), nullable=False)
     current_state_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
@@ -37,7 +40,7 @@ class UserTurnRow(Base):
     )
     parent_turn_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class TurnRouteRow(Base):
@@ -48,7 +51,7 @@ class TurnRouteRow(Base):
     turn_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("user_turns.turn_id"), nullable=False, index=True
     )
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class WorkflowRunRow(Base):
@@ -59,7 +62,7 @@ class WorkflowRunRow(Base):
     turn_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("user_turns.turn_id"), nullable=False, index=True
     )
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class ArtifactRevisionRow(Base):
@@ -81,7 +84,7 @@ class ArtifactRevisionRow(Base):
     workflow_run_id: Mapped[str] = mapped_column(String(64), nullable=False)
     supersedes_artifact_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class ValidationIssueRow(Base):
@@ -89,7 +92,7 @@ class ValidationIssueRow(Base):
 
     issue_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class OpenQuestionRow(Base):
@@ -98,7 +101,7 @@ class OpenQuestionRow(Base):
     question_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class VeraResponseRow(Base):
@@ -107,7 +110,7 @@ class VeraResponseRow(Base):
     response_key: Mapped[str] = mapped_column(String(64), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     turn_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class ArtifactDependencyRow(Base):
@@ -115,7 +118,7 @@ class ArtifactDependencyRow(Base):
 
     dependency_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
