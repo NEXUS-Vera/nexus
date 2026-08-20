@@ -1,29 +1,52 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron, expect, test } from '@playwright/test';
+import type { ElectronApplication } from '@playwright/test';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const fakeSidecar = path.join(packageRoot, 'e2e', 'fixtures', 'fake-sidecar.mjs');
 
 /**
- * Inherit the caller's environment minus `ELECTRON_RUN_AS_NODE`.
+ * Launch the built shell against a sidecar these suites control.
  *
- * That variable turns the Electron binary into a plain Node interpreter, so an
- * environment that exports it (some agent and CI harnesses do) would start the
- * shell with no `app` and no window at all. Stripping it keeps the suite
- * measuring the product rather than the harness it happens to run in.
+ * The fixture speaks the real handshake over a real loopback socket, so the
+ * shell does the same work it does in production - spawn, wait for the
+ * announcement, resolve the address - without the suite needing a Python
+ * runtime installed on the machine that runs it.
+ *
+ * `ELECTRON_RUN_AS_NODE` is stripped from the inherited environment because it
+ * turns the Electron binary into a plain Node interpreter, and an environment
+ * that exports it (some agent and CI harnesses do) would start the shell with
+ * no `app` and no window at all.
  */
-function launchEnvironment(): Record<string, string> {
+async function launchShell(): Promise<ElectronApplication> {
   const environment: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (key !== 'ELECTRON_RUN_AS_NODE' && value !== undefined) {
       environment[key] = value;
     }
   }
-  return environment;
+
+  environment.NEXUS_SIDECAR_COMMAND = process.execPath;
+  environment.NEXUS_SIDECAR_ARGS = JSON.stringify([fakeSidecar]);
+
+  return electron.launch({ args: [packageRoot], env: environment });
+}
+
+/** Close the shell and wait until its process is really gone. */
+async function closeShell(app: ElectronApplication): Promise<void> {
+  const exited = new Promise<void>((resolve) => {
+    app.process().once('exit', () => {
+      resolve();
+    });
+  });
+
+  await app.close();
+  await exited;
 }
 
 test('opens the renderer on the home route without rewriting its file URL', async () => {
-  const app = await electron.launch({ args: [packageRoot], env: launchEnvironment() });
+  const app = await launchShell();
 
   try {
     const page = await app.firstWindow();
@@ -39,12 +62,12 @@ test('opens the renderer on the home route without rewriting its file URL', asyn
     // relative asset resolves against the wrong directory.
     expect(page.url()).toContain('dist/renderer/index.html');
   } finally {
-    await app.close();
+    await closeShell(app);
   }
 });
 
 test('exposes nothing to the renderer beyond the allowlisted bridge', async () => {
-  const app = await electron.launch({ args: [packageRoot], env: launchEnvironment() });
+  const app = await launchShell();
 
   try {
     const page = await app.firstWindow();
@@ -52,18 +75,20 @@ test('exposes nothing to the renderer beyond the allowlisted bridge', async () =
     const exposure = await page.evaluate(() => {
       const scope = window as unknown as Record<string, unknown>;
       const bridge = scope.nexus as Record<string, unknown> | undefined;
+      const api = bridge?.api as Record<string, unknown> | undefined;
 
       return {
         require: typeof scope.require,
         process: typeof scope.process,
         ipcRenderer: typeof scope.ipcRenderer,
         bridgeKeys: bridge === undefined ? null : Object.keys(bridge).sort(),
+        apiKeys: api === undefined ? null : Object.keys(api).sort(),
         nonAllowlistedChannel: typeof bridge?.['nexus:write-file'],
       };
     });
 
     // Vera writes files and spawns shells on the user's machine. Any Node handle
-    // reachable from the page turns a cross-site script or a malicious model
+    // reachable from the page turns a cross-site script or a hostile model
     // output into arbitrary local code execution, so the renderer must see
     // exactly the surface the shell chose to hand it and nothing else.
     expect(exposure).toEqual({
@@ -71,9 +96,65 @@ test('exposes nothing to the renderer beyond the allowlisted bridge', async () =
       process: 'undefined',
       ipcRenderer: 'undefined',
       bridgeKeys: ['api'],
+      apiKeys: ['baseUrl', 'sessionToken'],
       nonAllowlistedChannel: 'undefined',
     });
   } finally {
-    await app.close();
+    await closeShell(app);
   }
+});
+
+test('hands the renderer a live address and the sidecar’s own credential', async () => {
+  const app = await launchShell();
+
+  try {
+    const page = await app.firstWindow();
+
+    const probe = await page.evaluate<{
+      baseUrl: string;
+      authorization: string | null;
+      expectedToken: string;
+    }>(async () => {
+      const api = (window as unknown as { nexus: { api: Record<string, string> } }).nexus.api;
+      const response = await fetch(`${api.baseUrl}/healthz`, {
+        headers: { Authorization: `Bearer ${api.sessionToken}` },
+      });
+      const body = (await response.json()) as {
+        authorization: string | null;
+        expectedToken: string;
+      };
+
+      return { baseUrl: api.baseUrl, ...body };
+    });
+
+    // The port is whatever the operating system handed the sidecar, so the only
+    // way the renderer can hold a working address is if the shell read it from
+    // the handshake; and the only way the header matches is if the token the
+    // renderer was given is the token the service was started with.
+    expect(probe.baseUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(probe.expectedToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(probe.authorization).toBe(`Bearer ${probe.expectedToken}`);
+  } finally {
+    await closeShell(app);
+  }
+});
+
+test('takes the sidecar with it when the shell closes', async () => {
+  const app = await launchShell();
+  const page = await app.firstWindow();
+
+  const sidecarPid = await page.evaluate(async () => {
+    const api = (window as unknown as { nexus: { api: Record<string, string> } }).nexus.api;
+    const body = (await (await fetch(`${api.baseUrl}/healthz`)).json()) as Record<string, number>;
+    return body.pid;
+  });
+
+  await closeShell(app);
+
+  // A sidecar that survives the shell keeps holding the user's local database
+  // and its loopback port, and nothing on screen says it is there. Closing the
+  // application has to end it.
+  expect(() => {
+    process.kill(sidecarPid, 0);
+  }).toThrow();
 });

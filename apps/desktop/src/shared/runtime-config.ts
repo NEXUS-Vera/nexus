@@ -16,6 +16,8 @@ export const RUNTIME_CONFIG_CHANNEL = 'nexus:runtime-config';
  * the shape is the allowlist: nothing reaches the page unless it is named here.
  */
 export interface RendererRuntimeConfig {
+  /** Where the local API is listening, resolved from the sidecar handshake. */
+  readonly baseUrl: string;
   /** Shared secret the local API requires on every request. */
   readonly sessionToken: string;
 }

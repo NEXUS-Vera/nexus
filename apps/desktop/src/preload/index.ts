@@ -18,6 +18,7 @@ const runtimeConfig = ipcRenderer.sendSync(RUNTIME_CONFIG_CHANNEL) as RendererRu
 
 contextBridge.exposeInMainWorld('nexus', {
   api: {
+    baseUrl: runtimeConfig.baseUrl,
     sessionToken: runtimeConfig.sessionToken,
   },
 });
