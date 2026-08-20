@@ -4,6 +4,8 @@ import { readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
+import { watch as watchPaths } from 'chokidar';
+
 const execFileAsync = promisify(execFile);
 
 /**
@@ -30,6 +32,28 @@ export class WorkspaceError extends Error {
     this.reason = reason;
   }
 }
+
+/** A batch of files that changed on disk since the last report. */
+export interface WorkspaceChange {
+  /** Workspace-relative paths, coalesced over one debounce window. */
+  readonly paths: readonly string[];
+}
+
+/** A running watcher; closing it releases the underlying file-system handles. */
+export interface WorkspaceWatcher {
+  close(): Promise<void>;
+}
+
+/**
+ * How long to wait for the disk to settle before reporting a change.
+ *
+ * One save in an editor is several file-system events - a temporary file, a
+ * rename, a permission change - and a build touches hundreds of files at once.
+ * Reporting each one separately would re-run whatever listens for every
+ * keystroke of a save, so events are coalesced into one report per quiet
+ * window.
+ */
+const DEFAULT_DEBOUNCE_MS = 100;
 
 /**
  * A pending, inert edit to one file.
@@ -144,6 +168,67 @@ export class Workspace {
    */
   rejectEdit(_proposal: EditProposal): void {
     // Intentionally empty. See above.
+  }
+
+  /**
+   * Watch the workspace for changes made by anything other than this process.
+   *
+   * The student keeps working in their own editor while Vera works, and builds
+   * and formatters rewrite files too. Without this the application holds a copy
+   * of the project that quietly diverges from the disk, and every proposal
+   * computed against that copy is stale before it is offered - the same failure
+   * the apply-time hash check refuses, arriving as a surprise rather than as
+   * information.
+   *
+   * Resolves once the watcher is actually established, so a caller that writes
+   * immediately afterwards cannot race the initial scan.
+   */
+  async watch(
+    onChange: (change: WorkspaceChange) => void,
+    options: { readonly debounceMs?: number } = {},
+  ): Promise<WorkspaceWatcher> {
+    const debounceMs = options.debounceMs ?? DEFAULT_DEBOUNCE_MS;
+    // Scoped to the root and to the root alone: this watcher exists to observe
+    // the student's project and has no business reporting anything else.
+    const watcher = watchPaths(this.#root, {
+      cwd: this.#root,
+      // The initial scan is inventory, not news; reporting it would fire a
+      // change for every file in the project at startup.
+      ignoreInitial: true,
+    });
+
+    const pending = new Set<string>();
+    let timer: NodeJS.Timeout | undefined;
+
+    watcher.on('all', (_event, changedPath) => {
+      if (changedPath === undefined) {
+        return;
+      }
+
+      pending.add(changedPath);
+      // Restarted on every event, so the report lands once the disk has been
+      // quiet for a full window rather than once per event in a burst.
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        onChange({ paths: [...pending] });
+        pending.clear();
+      }, debounceMs);
+    });
+
+    await new Promise<void>((settle) => {
+      watcher.once('ready', () => {
+        settle();
+      });
+    });
+
+    return {
+      close: async () => {
+        // Timer first: a report delivered after close would reach a listener
+        // that has already been torn down.
+        clearTimeout(timer);
+        await watcher.close();
+      },
+    };
   }
 
   /**

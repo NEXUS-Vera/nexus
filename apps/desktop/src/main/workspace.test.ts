@@ -7,6 +7,7 @@ import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { WorkspaceChange } from './workspace.js';
 import { Workspace, WorkspaceError } from './workspace.js';
 
 /**
@@ -177,6 +178,36 @@ describe('Workspace path containment', () => {
     );
     expect(await readFile(outsideFile, 'utf8')).toBe('PRIVATE KEY\n');
   });
+});
+
+describe('Workspace.watch', () => {
+  it('reports a change made to a watched file from outside the application', async () => {
+    // The student edits these files in VS Code, and a build or a formatter
+    // rewrites them too. An application that only knows about its own writes
+    // shows the student a stale copy of their own project, and every proposal
+    // it computes from that copy is stale before it is offered.
+    const root = await makeScratchRoot();
+    const file = join(root, 'main.c');
+    await writeFile(file, 'int main(void) { return 0; }\n', 'utf8');
+
+    const workspace = await Workspace.open(root);
+    let reportChange: (change: WorkspaceChange) => void = () => {};
+    const changed = new Promise<WorkspaceChange>((settle) => {
+      reportChange = settle;
+    });
+
+    const watcher = await workspace.watch(reportChange, { debounceMs: 50 });
+
+    try {
+      // Written straight to disk, as another editor would: the workspace is
+      // not told, it has to notice.
+      await writeFile(file, 'int main(void) { return 1; }\n', 'utf8');
+
+      expect((await changed).paths).toContain('main.c');
+    } finally {
+      await watcher.close();
+    }
+  }, 10_000);
 });
 
 async function hashFile(path: string): Promise<string> {
