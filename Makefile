@@ -27,7 +27,7 @@ test: test-unit test-integration
 
 test-unit:
 	@./scripts/run-tests.sh unit
-	@pnpm --filter @nexus/web test
+	@pnpm run test
 
 test-integration:
 	@./scripts/run-tests.sh integration
