@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   SidecarStartError,
@@ -222,3 +222,56 @@ function isRunning(pid: number): boolean {
     return false;
   }
 }
+
+describe('SidecarSupervisor restart reporting', () => {
+  it('reports the new port when a restarted sidecar announces a different one', async () => {
+    // Each launch reads a counter off disk, so the replacement announces a
+    // different port - which is what really happens, since the sidecar is
+    // spawned with NEXUS_API_PORT=0 and the operating system picks again.
+    const dir = await mkdtemp(join(tmpdir(), 'nexus-sidecar-'));
+    scratchDirs.push(dir);
+    const counter = join(dir, 'launches');
+    const executable = join(dir, 'fake-sidecar.mjs');
+    await writeFile(
+      executable,
+      [
+        "import { appendFileSync, existsSync, readFileSync } from 'node:fs';",
+        `const counter = ${JSON.stringify(counter)};`,
+        "const launches = existsSync(counter) ? readFileSync(counter, 'utf8').length : 0;",
+        "appendFileSync(counter, 'x');",
+        "process.stdout.write(JSON.stringify({",
+        "  event: 'nexus.api.listening',",
+        "  schemaVersion: '1.0.0',",
+        "  host: '127.0.0.1',",
+        '  port: 41000 + launches,',
+        '  pid: process.pid,',
+        "}) + '\\n');",
+        // The first sidecar crashes; the replacement stays up.
+        'if (launches === 0) { setTimeout(() => process.exit(1), 100); }',
+        'setTimeout(() => process.exit(0), 5000);',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const restarts: number[] = [];
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      onRestart: (handshake) => {
+        restarts.push(handshake.port);
+      },
+    });
+
+    const first = await supervisor.start();
+    expect(first.port).toBe(41_000);
+
+    // A restart that nobody is told about leaves the renderer pointed at a port
+    // nothing is listening on, while the supervisor believes it is healthy.
+    await vi.waitFor(() => {
+      expect(restarts).toEqual([41_001]);
+    }, 5_000);
+
+    await supervisor.stop();
+  }, 15_000);
+});

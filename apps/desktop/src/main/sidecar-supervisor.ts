@@ -111,6 +111,15 @@ export interface SidecarSupervisorOptions {
   readonly terminationGraceMs?: number;
   /** Called once when the sidecar has failed in a way a restart cannot fix. */
   readonly onTerminalFailure?: (error: SidecarTerminalError) => void;
+  /**
+   * Called when a replacement sidecar has announced itself after a crash.
+   *
+   * The replacement is spawned with `NEXUS_API_PORT=0` like the original, so it
+   * binds a *different* port. Everything holding the port `start()` returned is
+   * now pointed at nothing. A recovery nobody is told about is worse than no
+   * recovery: the supervisor reads as healthy while every request fails.
+   */
+  readonly onRestart?: (handshake: SidecarHandshake) => void;
 }
 
 export class SidecarSupervisor {
@@ -235,10 +244,17 @@ export class SidecarSupervisor {
     }
 
     this.#restarts += 1;
-    void this.#launch().catch(() => {
-      // A restart that cannot even hand shake is itself an exit-shaped failure;
-      // the replacement child's own `exit` carries it to the terminal branch.
-    });
+    void this.#launch()
+      .then((handshake) => {
+        // The replacement bound its own port. Hand it on, or the shell keeps
+        // addressing the dead one.
+        this.#options.onRestart?.(handshake);
+      })
+      .catch(() => {
+        // A restart that cannot even hand shake is itself an exit-shaped
+        // failure; the replacement child's own `exit` carries it to the
+        // terminal branch.
+      });
   }
 }
 
