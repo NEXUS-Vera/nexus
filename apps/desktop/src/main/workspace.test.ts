@@ -108,6 +108,31 @@ describe('Workspace.applyEdit', () => {
     expect(await readFile(file, 'utf8')).toBe(handEdited);
   });
 
+  it('keeps a gitignored file recoverable even though git would not track it', async () => {
+    // The checkpoint is built with `git add`, which honours `.gitignore` - so
+    // the files git was told to ignore are exactly the files the checkpoint
+    // would silently omit. Embedded projects ignore generated headers, board
+    // configs, and local overrides routinely, and those are real work: an edit
+    // to one of them must be as undoable as an edit to anything else.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    await writeFile(join(root, '.gitignore'), 'config.h\n', 'utf8');
+    await git(root, ['add', '.gitignore']);
+    await git(root, ['commit', '--message', 'ignore generated config']);
+
+    const file = join(root, 'config.h');
+    await writeFile(file, '#define BAUD 115200\n', 'utf8');
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('config.h', '#define BAUD 9600\n');
+    const applied = await workspace.applyEdit(proposal);
+
+    expect(await readFile(file, 'utf8')).toBe('#define BAUD 9600\n');
+    expect(await git(root, ['show', `${applied.checkpointRef}:config.h`])).toBe(
+      '#define BAUD 115200\n',
+    );
+  });
+
   it('refuses to write into a directory that is not a git repository', async () => {
     // Recoverability is not a nicety here, it is the reason applying is allowed
     // at all: without a checkpoint there is no undo for an edit that overwrites

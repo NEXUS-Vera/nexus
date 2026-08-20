@@ -153,7 +153,7 @@ export class Workspace {
       );
     }
 
-    const checkpointRef = await this.#checkpoint();
+    const checkpointRef = await this.#checkpoint(absolutePath);
 
     await writeFile(absolutePath, proposal.newContent, 'utf8');
 
@@ -279,7 +279,7 @@ export class Workspace {
    * stages or commits on their behalf would corrupt the history they are in the
    * middle of writing. Nothing here mutates any state the student can see.
    */
-  async #checkpoint(): Promise<string> {
+  async #checkpoint(targetPath: string): Promise<string> {
     const indexFile = join(await this.#gitDir(), `nexus-checkpoint-index-${randomUUID()}`);
     const env = { ...process.env, GIT_INDEX_FILE: indexFile };
     const head = await this.#headCommit();
@@ -288,6 +288,13 @@ export class Workspace {
       // Untracked files count: a file Vera is about to overwrite may never have
       // been added, and that is exactly the case where losing it hurts most.
       await this.#git(['add', '--all'], env);
+      // `add --all` honours `.gitignore`, so the files git was told to ignore
+      // are precisely the files the checkpoint would omit - generated headers,
+      // board configs, local overrides, all of which are real work. The file
+      // about to be overwritten is forced in regardless, so recoverability does
+      // not depend on the student's ignore rules. Only this one file is forced:
+      // the whole ignored tree would drag in build output and dependencies.
+      await this.#git(['add', '--force', '--', targetPath], env);
       const tree = await this.#git(['write-tree'], env);
 
       const commit = await this.#git(
