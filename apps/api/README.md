@@ -75,6 +75,11 @@ carries nothing else; all logging goes to stderr. The socket is already
 listening when the line is written, so a connection made immediately on reading
 it is accepted rather than refused.
 
+The sidecar also watches the process that spawned it and shuts itself down when
+that process disappears. Without this, force-quitting the shell leaves an
+orphaned Python process holding the database file and the next launch fails
+with no visible cause.
+
 ## Local development
 
 ```bash

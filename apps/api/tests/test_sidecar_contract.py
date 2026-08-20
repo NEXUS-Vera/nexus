@@ -12,6 +12,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 
 import httpx
 import pytest
@@ -87,3 +88,51 @@ def test_startup_announces_bound_port_as_json() -> None:
     finally:
         process.terminate()
         process.wait(timeout=10)
+
+
+# Stands in for the desktop shell: spawns the sidecar and then is killed.
+PARENT_SOURCE = """
+import subprocess
+import sys
+
+child = subprocess.Popen([sys.executable, "-m", "nexus_api"])
+child.wait()
+"""
+
+
+def _pid_is_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def test_sidecar_exits_when_parent_dies() -> None:
+    parent = subprocess.Popen(
+        [sys.executable, "-c", PARENT_SOURCE],
+        env=_sidecar_env(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    sidecar_pid = 0
+    try:
+        handshake = _read_handshake(parent)
+        sidecar_pid = int(str(handshake["pid"]))
+        assert sidecar_pid != parent.pid
+        assert _pid_is_alive(sidecar_pid)
+
+        parent.kill()
+        parent.wait(timeout=10)
+
+        deadline = time.monotonic() + 15.0
+        while time.monotonic() < deadline and _pid_is_alive(sidecar_pid):
+            time.sleep(0.1)
+
+        assert not _pid_is_alive(sidecar_pid), "sidecar outlived the parent that spawned it"
+    finally:
+        if sidecar_pid and _pid_is_alive(sidecar_pid):
+            os.kill(sidecar_pid, 9)
+        if parent.poll() is None:
+            parent.kill()
