@@ -68,16 +68,48 @@ restarts a crashed sidecar once before surfacing a terminal failure, and stops
 it without leaving an orphan. It is a plain Node module and takes no Electron
 dependency, so it is unit tested against the runner configured here.
 
+`src/main/terminal-session.ts` runs a command on a real pseudoterminal: input
+written to the session reaches the child, a resize is visible to the child
+through `TIOCGWINSZ`, disposal reaps the whole process tree, and the exit status
+is reported as a typed result that keeps exit code and signal apart. It is also
+a plain Node module with no Electron dependency, and its suite drives a real
+`/bin/sh` on a real PTY rather than a mocked `node-pty`.
+
+A PTY rather than a pipe, because toolchains branch on `isatty()`: they emit
+colour, progress bars, and width-wrapped diagnostics to a terminal and something
+different to a pipe. Reading a pipe would mean reading output the student never
+sees.
+
 Everything else is still scaffold: no window creation, no application
-lifecycle, and no packaging configuration.
+lifecycle, no renderer surface for the terminal, and no packaging configuration.
 
 ### Platform assumption
 
-`stop()` assumes POSIX process semantics: `SIGTERM` asks the sidecar to exit and
+Process termination in this package is **POSIX-only**, in both modules, and
+neither is verified on Windows.
+
+`SidecarSupervisor.stop()` assumes `SIGTERM` asks the sidecar to exit and
 `SIGKILL` ends it if the grace period lapses. On Windows neither signal is real;
 `ChildProcess.kill` terminates the process abruptly and the sidecar's own
-parent-death watchdog (which polls `os.getppid()`) does not apply. Windows
-support is a later phase and is not covered by these tests.
+parent-death watchdog (which polls `os.getppid()`) does not apply.
+
+`TerminalSession.dispose()` has the same defect and fails the same way. It reads
+the process tree with `ps`, signals each process group through a negative pid,
+and escalates to `SIGKILL` — none of which exists on Windows. The code branches
+on `process.platform` and degrades to terminating the shell alone, so a
+descendant holding a device leaks. Both need a Win32 job object with
+`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` rather than a port of the POSIX path.
+
+### What node-pty verification does and does not cover
+
+`node-pty` is the reference cross-platform PTY and is the implementation that
+solved Windows ConPTY, which is a stated reason ADR-0003 chose Electron over
+Tauri. That is a reason to expect Windows to be reachable; it is not evidence
+that it works here. The suite has only been run on macOS (arm64). ConPTY differs
+from a POSIX PTY in ways these tests specifically depend on — there is no
+`stty`, no process group, and no kernel hangup of a foreground group — so the
+resize and disposal cases prove nothing about Windows until they run on a
+Windows runner. All current CI workflows are `ubuntu-latest` only.
 
 ## Future development expectations
 
@@ -86,5 +118,39 @@ support is a later phase and is not covered by these tests.
 - A bundler and packaging pipeline; until then the entry points are typechecked
   but not emitted, and `package.json` deliberately declares no `main` field
   rather than pointing at a build output that does not exist.
-- Terminal and serial-device integration, each added as its own phase with the
-  native dependency introduced at that point, not ahead of it.
+- Serial-device integration, added as its own phase with the native dependency
+  introduced at that point, not ahead of it.
+- A renderer surface for `TerminalSession`, over the preload bridge. The session
+  is deliberately headless: it owns the process, not the view.
+
+### Packaging `node-pty`
+
+`node-pty` is a native addon, so packaging has requirements the test suite never
+exercises. Recorded here so they are not discovered during a release:
+
+- **Rebuild against Electron's ABI.** The prebuilds installed here are built for
+  Node's ABI. Electron embeds a different one, and loading the wrong build fails
+  at runtime on the user's machine with `NODE_MODULE_VERSION` mismatch, not at
+  build time. `electron-rebuild` (or `@electron/rebuild`) has to run against the
+  exact Electron version being shipped, which couples Electron upgrades to this
+  dependency.
+- **Rebuild per platform and architecture.** Native addons do not
+  cross-compile, so each target needs its own build: `darwin-arm64`,
+  `darwin-x64`, `win32-x64`. This is the same matrix ADR-0003 already requires
+  for the PyInstaller freeze.
+- **Keep the binaries unpacked from the asar.** `node-pty` resolves its POSIX
+  `spawn-helper` relative to its own directory and execs it. An executable
+  inside an `app.asar` cannot be exec'd, so `pty.node` and `spawn-helper` must
+  be listed in `asarUnpack`. The library already rewrites `app.asar` to
+  `app.asar.unpacked` in that path, which only works if the files are actually
+  unpacked there.
+- **Preserve the executable bit on `spawn-helper`.** This is not hypothetical.
+  The current stable release, 1.1.0, publishes that file mode `0644`, so
+  `node-pty` cannot exec its own helper and every spawn fails with
+  `posix_spawnp failed`. The dependency is pinned to the exact prerelease
+  `1.2.0-beta.15`, which restores the bit. Any signing, notarization, or
+  archiving step in the pipeline must preserve it too, and the pin should not be
+  moved to a 1.1.x line without re-checking.
+- **Code signing on macOS.** Both `pty.node` and `spawn-helper` are Mach-O
+  binaries and each needs its own signature; notarization rejects an unsigned
+  nested executable.
