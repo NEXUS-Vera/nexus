@@ -11,6 +11,7 @@ Do not edit generated files by hand.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import re
@@ -18,6 +19,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -517,6 +519,34 @@ def _content_fingerprint(directory: Path) -> str:
     return digest.hexdigest()
 
 
+@contextlib.contextmanager
+def _restore_on_failure(*dirs: Path) -> Iterator[None]:
+    """Roll back generated output if generation does not complete.
+
+    Generation clears its output directory before writing. Those directories are
+    tracked in git, so without this a missing codegen tool or a bad schema left
+    the working tree with the generated contracts deleted and no way back.
+    """
+    snapshot: dict[Path, bytes] = {}
+    for directory in dirs:
+        if directory.exists():
+            for path in directory.rglob("*"):
+                if path.is_file():
+                    snapshot[path] = path.read_bytes()
+    try:
+        yield
+    except BaseException:
+        for directory in dirs:
+            if directory.exists():
+                for path in directory.rglob("*"):
+                    if path.is_file():
+                        path.unlink()
+        for path, data in snapshot.items():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+        raise
+
+
 def generate(*, check: bool = False) -> int:
     store = _load_schemas_by_id()
     schemas_by_stem = {_schema_stem(p): _load_json(p) for p in _iter_schema_files()}
@@ -542,8 +572,9 @@ def generate(*, check: bool = False) -> int:
                 _prepare_schema_for_typescript(bundled),
             )
 
-        _generate_python(bundled_dir, GENERATED_PYTHON)
-        _generate_typescript(ts_bundled_dir, GENERATED_TYPESCRIPT)
+        with _restore_on_failure(GENERATED_PYTHON, GENERATED_TYPESCRIPT):
+            _generate_python(bundled_dir, GENERATED_PYTHON)
+            _generate_typescript(ts_bundled_dir, GENERATED_TYPESCRIPT)
 
     # Remove legacy placeholders if present.
     for keep in (GENERATED_PYTHON / ".gitkeep", GENERATED_TYPESCRIPT / ".gitkeep"):
