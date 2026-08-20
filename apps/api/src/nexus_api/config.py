@@ -6,17 +6,40 @@ import os
 from dataclasses import dataclass
 
 
+DEV_SESSION_TOKEN = "nexus-dev-session-token"
+
+
+def _session_token() -> str:
+    """Per-session bearer token supplied by the process that spawned the sidecar.
+
+    The Electron shell generates a fresh token per launch and passes it through
+    the environment, so it is never written to disk. When unset we fall back to
+    a well-known development token so `make dev-api` keeps working.
+    """
+    return os.environ.get("NEXUS_API_SESSION_TOKEN", "").strip() or DEV_SESSION_TOKEN
+
+
 def _cors_origins() -> list[str]:
-    raw = os.environ.get(
-        "NEXUS_API_CORS_ORIGINS",
-        "http://localhost:5173,http://127.0.0.1:5173",
-    )
+    """Origins the browser is told it may read responses from.
+
+    The session token, not the origin, is the security boundary: a cross-origin
+    page cannot obtain the token, and an origin allowlist cannot stop a local
+    process that is not a browser at all. A packaged Electron renderer loads
+    over ``file://`` and therefore sends ``Origin: null``, which no useful
+    allowlist contains, so the default is unrestricted. Setting
+    ``NEXUS_API_CORS_ORIGINS`` narrows it, which is a development-only
+    convenience.
+    """
+    raw = os.environ.get("NEXUS_API_CORS_ORIGINS", "").strip()
+    if not raw:
+        return ["*"]
     return [part.strip() for part in raw.split(",") if part.strip()]
 
 
 @dataclass(frozen=True)
 class Settings:
     cors_origins: list[str]
+    session_token: str = DEV_SESSION_TOKEN
     host: str = "127.0.0.1"
     port: int = 8000
     initialization_provider: str = "fixture"
@@ -33,6 +56,7 @@ class Settings:
 def load_settings() -> Settings:
     return Settings(
         cors_origins=_cors_origins(),
+        session_token=_session_token(),
         host=os.environ.get("NEXUS_API_HOST", "127.0.0.1"),
         port=int(os.environ.get("NEXUS_API_PORT", "8000")),
         initialization_provider=os.environ.get("NEXUS_INITIALIZATION_PROVIDER", "fixture")

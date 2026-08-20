@@ -1,0 +1,170 @@
+"""Loopback sidecar hardening tests (issue #43).
+
+These exercise the public HTTP/process surface the Electron shell will drive:
+session-token auth, the stdout port handshake, and parent-death lifecycle.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import queue
+import subprocess
+import sys
+import threading
+import time
+
+import httpx
+import pytest
+from httpx import ASGITransport, AsyncClient
+from nexus_api.config import settings
+from nexus_api.main import app
+
+SIDECAR_TOKEN = "test-session-token"
+
+
+@pytest.mark.asyncio
+async def test_request_without_session_token_is_401() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/v1/projects/proj_abcdefghijklmnop")
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "SESSION_TOKEN_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_no_cors_allowlist_required_for_file_origin() -> None:
+    """A packaged Electron renderer loads over ``file://`` and sends ``Origin: null``."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        preflight = await client.options(
+            "/v1/projects/initialize",
+            headers={
+                "Origin": "null",
+                "Access-Control-Request-Method": "POST",
+                # A browser never attaches credentials to a preflight.
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+        )
+        response = await client.get(
+            "/v1/projects/proj_abcdefghijklmnop",
+            headers={
+                "Origin": "null",
+                "Authorization": f"Bearer {settings.session_token}",
+            },
+        )
+
+    assert preflight.status_code == 200
+    assert preflight.headers.get("access-control-allow-origin") in {"*", "null"}
+
+    # The token, not the origin allowlist, decides: the request reaches the app.
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
+    assert response.headers.get("access-control-allow-origin") in {"*", "null"}
+
+
+def _sidecar_env(**overrides: str) -> dict[str, str]:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(entry for entry in sys.path if entry)
+    env["NEXUS_API_SESSION_TOKEN"] = SIDECAR_TOKEN
+    env["NEXUS_API_PORT"] = "0"
+    env.update(overrides)
+    return env
+
+
+def _read_handshake(process: subprocess.Popen[str], timeout: float = 30.0) -> dict[str, object]:
+    """Read the single handshake line the sidecar emits on stdout."""
+    result: queue.Queue[str] = queue.Queue(maxsize=1)
+
+    def reader() -> None:
+        assert process.stdout is not None
+        result.put(process.stdout.readline())
+
+    threading.Thread(target=reader, daemon=True).start()
+    try:
+        line = result.get(timeout=timeout)
+    except queue.Empty:  # pragma: no cover - only reached on regression
+        raise AssertionError("sidecar emitted no handshake line on stdout") from None
+    assert line, "sidecar closed stdout without emitting a handshake line"
+    return dict(json.loads(line))
+
+
+def test_startup_announces_bound_port_as_json() -> None:
+    process = subprocess.Popen(
+        [sys.executable, "-m", "nexus_api"],
+        env=_sidecar_env(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    try:
+        handshake = _read_handshake(process)
+
+        assert handshake["event"] == "nexus.api.listening"
+        assert handshake["schemaVersion"] == "1.0.0"
+        assert handshake["host"] == "127.0.0.1"
+        assert handshake["pid"] == process.pid
+        port = handshake["port"]
+        assert isinstance(port, int)
+        assert port > 0
+        assert port != 8000
+
+        # The announced port must be the port actually bound.
+        response = httpx.get(
+            f"http://127.0.0.1:{port}/healthz",
+            headers={"Authorization": f"Bearer {SIDECAR_TOKEN}"},
+            timeout=10.0,
+        )
+        assert response.status_code == 200
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+
+
+# Stands in for the desktop shell: spawns the sidecar and then is killed.
+PARENT_SOURCE = """
+import subprocess
+import sys
+
+child = subprocess.Popen([sys.executable, "-m", "nexus_api"])
+child.wait()
+"""
+
+
+def _pid_is_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def test_sidecar_exits_when_parent_dies() -> None:
+    parent = subprocess.Popen(
+        [sys.executable, "-c", PARENT_SOURCE],
+        env=_sidecar_env(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    sidecar_pid = 0
+    try:
+        handshake = _read_handshake(parent)
+        sidecar_pid = int(str(handshake["pid"]))
+        assert sidecar_pid != parent.pid
+        assert _pid_is_alive(sidecar_pid)
+
+        parent.kill()
+        parent.wait(timeout=10)
+
+        deadline = time.monotonic() + 15.0
+        while time.monotonic() < deadline and _pid_is_alive(sidecar_pid):
+            time.sleep(0.1)
+
+        assert not _pid_is_alive(sidecar_pid), "sidecar outlived the parent that spawned it"
+    finally:
+        if sidecar_pid and _pid_is_alive(sidecar_pid):
+            os.kill(sidecar_pid, 9)
+        if parent.poll() is None:
+            parent.kill()

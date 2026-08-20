@@ -4,7 +4,10 @@ from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api.config import settings
 from nexus_api.main import app
+
+AUTH_HEADERS = {"Authorization": f"Bearer {settings.session_token}"}
 
 PROMPTS = {
     "indoor-environmental-rover": (
@@ -56,7 +59,7 @@ def _collect_ids(payload: dict, prefix: str) -> set[str]:
 @pytest.mark.parametrize("family", list(PROMPTS))
 async def test_initialize_supported_families(family: str) -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         response = await client.post(
             "/v1/projects/initialize",
             json={"message": PROMPTS[family], "autonomyMode": "collaborate"},
@@ -91,7 +94,7 @@ async def test_initialize_supported_families(family: str) -> None:
 @pytest.mark.asyncio
 async def test_initialize_unsupported() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         response = await client.post(
             "/v1/projects/initialize",
             json={"message": "I want a recipe recommendation chatbot."},
@@ -105,7 +108,7 @@ async def test_initialize_unsupported() -> None:
 @pytest.mark.asyncio
 async def test_initialize_ambiguous() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         response = await client.post(
             "/v1/projects/initialize",
             json={"message": ("greenhouse vibration tremor rover obstacle detection machine")},
@@ -117,7 +120,7 @@ async def test_initialize_ambiguous() -> None:
 @pytest.mark.asyncio
 async def test_initialize_empty_message_rejected() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         response = await client.post(
             "/v1/projects/initialize",
             json={"message": ""},
@@ -128,7 +131,7 @@ async def test_initialize_empty_message_rejected() -> None:
 @pytest.mark.asyncio
 async def test_initialize_invalid_autonomy_mode() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         response = await client.post(
             "/v1/projects/initialize",
             json={"message": PROMPTS["wearable-tremor-monitor"], "autonomyMode": "chaos"},
@@ -140,7 +143,7 @@ async def test_initialize_invalid_autonomy_mode() -> None:
 async def test_repeated_initialize_produces_fresh_runtime_ids() -> None:
     transport = ASGITransport(app=app)
     prompt = PROMPTS["greenhouse-sensing-node"]
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         first = await client.post(
             "/v1/projects/initialize",
             json={"message": prompt, "autonomyMode": "collaborate"},
@@ -196,7 +199,7 @@ async def test_corrupted_package_returns_structured_500(
     )
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         response = await client.post(
             "/v1/projects/initialize",
             json={

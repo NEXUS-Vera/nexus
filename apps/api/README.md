@@ -31,8 +31,64 @@ impact analysis).
 | `NEXUS_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
 | `NEXUS_DATABASE_URL` | local postgres URL | Used when backend is `postgres` |
 | `NEXUS_INITIALIZATION_PROVIDER` | `fixture` | `fixture`, `llm`, or `shadow` |
+| `NEXUS_API_CORS_ORIGINS` | unrestricted | Development-only narrowing of allowed browser origins |
+| `NEXUS_API_SESSION_TOKEN` | `nexus-dev-session-token` | Per-session bearer token; the desktop shell mints a fresh one per launch |
 
-Authentication and multi-user tenancy are **not** implemented.
+## Session-token authentication
+
+The API is designed to run as a loopback sidecar of the desktop shell. Loopback
+is not a security boundary: any local process, and any web page the user
+visits, can reach it. Every request must therefore carry the session token:
+
+```text
+Authorization: Bearer <NEXUS_API_SESSION_TOKEN>
+```
+
+No route is exempt, including `GET /healthz`. Requests without a valid token
+receive `401` with error code `SESSION_TOKEN_REQUIRED`.
+
+The spawning process supplies `NEXUS_API_SESSION_TOKEN` in the environment so
+the token is never written to disk. When the variable is unset the API falls
+back to the well-known development token `nexus-dev-session-token`, which keeps
+`make dev-api` and `make dev-web` working. Never run a packaged build without
+setting a real token.
+
+CORS is **not** a security boundary here and is unrestricted by default. A
+cross-origin page cannot obtain the session token, and an origin allowlist stops
+no local process that is not a browser. A packaged renderer loads over `file://`
+and sends `Origin: null`, which no useful allowlist contains. Setting
+`NEXUS_API_CORS_ORIGINS` narrows the allowed origins as a development-only
+convenience. CORS preflights (`OPTIONS` with `Access-Control-Request-Method`)
+are exempt from the token check, since browsers never attach credentials to
+them and the preflight response carries no application data.
+
+Multi-user tenancy is **not** implemented.
+
+## Sidecar mode and the stdout handshake
+
+The API is spawned as a loopback child process by the desktop shell:
+
+```bash
+NEXUS_API_PORT=0 NEXUS_API_SESSION_TOKEN=<token> python -m nexus_api
+```
+
+`NEXUS_API_PORT=0` asks the operating system for a free port, which avoids
+colliding with the user's own tooling and with other users on a shared machine.
+The sidecar binds and listens first, then writes **exactly one line** to stdout:
+
+```json
+{"event":"nexus.api.listening","schemaVersion":"1.0.0","host":"127.0.0.1","port":54321,"pid":4242}
+```
+
+This line is a contract consumed by the shell's sidecar supervisor. stdout
+carries nothing else; all logging goes to stderr. The socket is already
+listening when the line is written, so a connection made immediately on reading
+it is accepted rather than refused.
+
+The sidecar also watches the process that spawned it and shuts itself down when
+that process disappears. Without this, force-quitting the shell leaves an
+orphaned Python process holding the database file and the next launch fails
+with no visible cause.
 
 ## Local development
 

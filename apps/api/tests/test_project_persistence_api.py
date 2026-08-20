@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api.config import settings
 from nexus_api.main import app
+
+AUTH_HEADERS = {"Authorization": f"Bearer {settings.session_token}"}
 
 GREENHOUSE = (
     "I want to build a greenhouse monitoring node that measures temperature, "
@@ -15,7 +18,7 @@ GREENHOUSE = (
 @pytest.mark.asyncio
 async def test_initialize_get_history_and_runtime_turn() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         created = await client.post(
             "/v1/projects/initialize",
             json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
@@ -68,7 +71,7 @@ async def test_initialize_get_history_and_runtime_turn() -> None:
 @pytest.mark.asyncio
 async def test_project_not_found() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         response = await client.get("/v1/projects/proj_DOESNOTEXIST00001")
         assert response.status_code == 404
         assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
@@ -77,7 +80,7 @@ async def test_project_not_found() -> None:
 @pytest.mark.asyncio
 async def test_unsupported_fixture_modification() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
         created = await client.post(
             "/v1/projects/initialize",
             json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
