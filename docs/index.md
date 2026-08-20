@@ -37,6 +37,7 @@ Durable long-form documentation for Nexus lives under `docs/`. Module-level purp
 
 - [ADR-0001: Use a modular monorepo](./decisions/ADR-0001-use-modular-monorepo.md)
 - [ADR-0002: Mind Graph persistence](./decisions/ADR-0002-mind-graph-persistence.md)
+- [ADR-0003: Ship Nexus as a desktop application](./decisions/ADR-0003-desktop-application.md)
 
 ## Operations
 
