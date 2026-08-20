@@ -314,3 +314,37 @@ describe('SidecarSupervisor.start when the sidecar dies without announcing', () 
     });
   }, 15_000);
 });
+
+describe('SidecarSupervisor.start with a malformed handshake', () => {
+  const cases: ReadonlyArray<readonly [string, string]> = [
+    ['a line that is not JSON', "process.stdout.write('not json at all\\n');"],
+    ['JSON that is not an object', "process.stdout.write('42\\n');"],
+    ['an object with no schemaVersion', "process.stdout.write('{\"port\":1}\\n');"],
+    [
+      'a non-numeric port',
+      'process.stdout.write(JSON.stringify({' +
+        " event: 'nexus.api.listening', schemaVersion: '1.0.0'," +
+        " host: '127.0.0.1', port: 'nope', pid: 1 }) + '\\n');",
+    ],
+  ];
+
+  // Every other failure in this class is a SidecarStartError carrying a reason.
+  // A raw SyntaxError or TypeError escaping from JSON.parse or a missing field
+  // would slip past a caller that handles the documented type, which is exactly
+  // the caller that was written carefully.
+  it.each(cases)('rejects %s as a typed start error', async (_label, body) => {
+    const executable = await writeFakeSidecar(body);
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+      handshakeTimeoutMs: 5_000,
+    });
+
+    await expect(supervisor.start()).rejects.toMatchObject({
+      name: 'SidecarStartError',
+      reason: 'malformed-handshake',
+    });
+  }, 15_000);
+});

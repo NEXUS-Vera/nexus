@@ -60,6 +60,7 @@ const DEFAULT_TERMINATION_GRACE_MS = 5_000;
 export type SidecarStartFailureReason =
   | 'handshake-timeout'
   | 'handshake-stream-closed'
+  | 'malformed-handshake'
   | 'unsupported-schema-version';
 
 /** Typed failure surfaced by {@link SidecarSupervisor.start}. */
@@ -334,22 +335,69 @@ function readFirstLine(stream: Readable): Promise<string> {
   });
 }
 
+/**
+ * Validate the announcement before trusting any of it.
+ *
+ * The line arrives from a separate process over a pipe. Reading fields off an
+ * unchecked `JSON.parse` result would let a truncated or unexpected line throw a
+ * raw SyntaxError or TypeError out of `start()`, past every caller that handles
+ * the documented SidecarStartError.
+ */
 function parseHandshake(line: string): SidecarHandshake {
-  const announcement = JSON.parse(line) as SidecarHandshake;
-  const major = Number.parseInt(announcement.schemaVersion.split('.')[0] ?? '', 10);
+  let announcement: unknown;
+  try {
+    announcement = JSON.parse(line);
+  } catch {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement is not valid JSON: ${JSON.stringify(line)}`,
+    );
+  }
+
+  if (typeof announcement !== 'object' || announcement === null) {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement is not an object: ${JSON.stringify(line)}`,
+    );
+  }
+
+  const fields = announcement as Record<string, unknown>;
+  const { schemaVersion, host, port, pid } = fields;
+
+  if (typeof schemaVersion !== 'string') {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement has no schemaVersion: ${JSON.stringify(line)}`,
+    );
+  }
+  if (typeof host !== 'string') {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announcement has no host: ${JSON.stringify(line)}`,
+    );
+  }
+  if (!Number.isInteger(port)) {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announced a non-integer port: ${JSON.stringify(line)}`,
+    );
+  }
+  if (!Number.isInteger(pid)) {
+    throw new SidecarStartError(
+      'malformed-handshake',
+      `Sidecar announced a non-integer pid: ${JSON.stringify(line)}`,
+    );
+  }
+
+  const major = Number.parseInt(schemaVersion.split('.')[0] ?? '', 10);
 
   if (major !== SUPPORTED_SCHEMA_MAJOR) {
     throw new SidecarStartError(
       'unsupported-schema-version',
-      `Sidecar announced handshake schema version ${announcement.schemaVersion}; ` +
+      `Sidecar announced handshake schema version ${schemaVersion}; ` +
         `this shell supports major version ${SUPPORTED_SCHEMA_MAJOR}`,
     );
   }
 
-  return {
-    schemaVersion: announcement.schemaVersion,
-    host: announcement.host,
-    port: announcement.port,
-    pid: announcement.pid,
-  };
+  return { schemaVersion, host, port: port as number, pid: pid as number };
 }
