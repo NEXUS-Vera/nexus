@@ -61,13 +61,28 @@ It exists only to prove the runner is still Node-based and Electron-free.
 
 ## Current status
 
-Scaffold only. There is no window creation, no application lifecycle, no
-sidecar supervision, and no packaging configuration yet.
+`src/main/sidecar-supervisor.ts` supervises the local `nexus_api` sidecar: it
+spawns the process, reads the one-line loopback handshake from stdout, rejects
+an unsupported handshake major version, fails fast when no handshake arrives,
+restarts a crashed sidecar once before surfacing a terminal failure, and stops
+it without leaving an orphan. It is a plain Node module and takes no Electron
+dependency, so it is unit tested against the runner configured here.
+
+Everything else is still scaffold: no window creation, no application
+lifecycle, and no packaging configuration.
+
+### Platform assumption
+
+`stop()` assumes POSIX process semantics: `SIGTERM` asks the sidecar to exit and
+`SIGKILL` ends it if the grace period lapses. On Windows neither signal is real;
+`ChildProcess.kill` terminates the process abruptly and the sidecar's own
+parent-death watchdog (which polls `os.getppid()`) does not apply. Windows
+support is a later phase and is not covered by these tests.
 
 ## Future development expectations
 
-- A `SidecarSupervisor` for local sidecar process lifecycle, unit tested in
-  plain Node against the runner configured here.
+- Windows process termination and orphan cleanup, using a job object or an
+  equivalent mechanism rather than POSIX signals.
 - A bundler and packaging pipeline; until then the entry points are typechecked
   but not emitted, and `package.json` deliberately declares no `main` field
   rather than pointing at a build output that does not exist.
