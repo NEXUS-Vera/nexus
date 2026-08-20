@@ -5,10 +5,12 @@ from __future__ import annotations
 import copy
 import os
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
 from nexus_persistence.errors import ProjectNotFoundError, ProjectPersistenceError
+from nexus_persistence.factory import build_project_store
 from nexus_persistence.memory.store import InMemoryProjectStore
 from nexus_persistence.protocol import ProjectPackageStore
 
@@ -353,3 +355,20 @@ def test_postgres_store_contract() -> None:
     pg_store.save_initialization_package(package)
     state = pg_store.get_current_state(package["project"]["projectId"])
     assert len(state["artifacts"]) == 4
+
+
+def test_sqlite_store_persists_across_connections(tmp_path: Path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'nexus.db'}"
+    package = _minimal_package("proj_TESTSQLITEFILE00001")
+    project_id = package["project"]["projectId"]
+
+    writer = build_project_store(backend="sqlite", database_url=database_url)
+    writer.save_initialization_package(package)
+    del writer
+
+    reader = build_project_store(backend="sqlite", database_url=database_url)
+    state = reader.get_current_state(project_id)
+
+    assert state["project"] == package["project"]
+    assert state["userTurn"] == package["userTurn"]
+    assert state["artifacts"] == package["artifacts"]

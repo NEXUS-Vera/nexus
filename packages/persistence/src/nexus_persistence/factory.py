@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 from nexus_persistence.memory.store import InMemoryProjectStore
+from nexus_persistence.postgres.models import Base
 from nexus_persistence.postgres.session import create_db_engine, create_session_factory
 from nexus_persistence.postgres.store import PostgresProjectStore
 from nexus_persistence.protocol import ProjectPackageStore
@@ -28,5 +29,8 @@ def build_project_store(
     if mode in {"sqlite", "sqlite3"}:
         url = database_url or os.environ.get("NEXUS_DATABASE_URL") or "sqlite:///nexus.db"
         engine = create_db_engine(url)
+        # A SQLite database file is owned by the process that opens it, so the
+        # schema has to exist before the first session touches it.
+        Base.metadata.create_all(engine)
         return PostgresProjectStore(create_session_factory(engine))
     raise ValueError(f"Unsupported storage backend: {mode}")
