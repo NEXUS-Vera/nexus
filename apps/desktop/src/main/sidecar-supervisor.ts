@@ -17,6 +17,28 @@ import type { Readable } from 'node:stream';
  * stop reading, connect.
  */
 
+/**
+ * Handshake major version this supervisor understands.
+ *
+ * Per the contract policy, a major bump means required fields moved, so an
+ * announcement from a newer major is not something to interpret optimistically.
+ */
+const SUPPORTED_SCHEMA_MAJOR = 1;
+
+/** Why the sidecar failed to reach a usable listening state. */
+export type SidecarStartFailureReason = 'unsupported-schema-version';
+
+/** Typed failure surfaced by {@link SidecarSupervisor.start}. */
+export class SidecarStartError extends Error {
+  readonly reason: SidecarStartFailureReason;
+
+  constructor(reason: SidecarStartFailureReason, message: string) {
+    super(message);
+    this.name = 'SidecarStartError';
+    this.reason = reason;
+  }
+}
+
 /** The sidecar's announcement that it is bound and listening. */
 export interface SidecarHandshake {
   readonly schemaVersion: string;
@@ -86,6 +108,15 @@ function readFirstLine(stream: Readable): Promise<string> {
 
 function parseHandshake(line: string): SidecarHandshake {
   const announcement = JSON.parse(line) as SidecarHandshake;
+  const major = Number.parseInt(announcement.schemaVersion.split('.')[0] ?? '', 10);
+
+  if (major !== SUPPORTED_SCHEMA_MAJOR) {
+    throw new SidecarStartError(
+      'unsupported-schema-version',
+      `Sidecar announced handshake schema version ${announcement.schemaVersion}; ` +
+        `this shell supports major version ${SUPPORTED_SCHEMA_MAJOR}`,
+    );
+  }
 
   return {
     schemaVersion: announcement.schemaVersion,

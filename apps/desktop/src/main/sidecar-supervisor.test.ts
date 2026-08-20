@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { SidecarSupervisor } from './sidecar-supervisor.js';
+import { SidecarStartError, SidecarSupervisor } from './sidecar-supervisor.js';
 
 /**
  * These suites drive a REAL child process, not a mocked `child_process`.
@@ -61,5 +61,20 @@ describe('SidecarSupervisor.start', () => {
     const handshake = await supervisor.start();
 
     expect(handshake.port).toBe(54_321);
+  });
+
+  it('rejects a handshake announced under an unsupported schema major version', async () => {
+    const executable = await writeFakeSidecar(announce(54_321, '2.0.0'));
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+    });
+
+    await expect(supervisor.start()).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof SidecarStartError && error.reason === 'unsupported-schema-version',
+    );
   });
 });
