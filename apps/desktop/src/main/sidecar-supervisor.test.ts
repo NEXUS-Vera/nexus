@@ -348,3 +348,41 @@ describe('SidecarSupervisor.start with a malformed handshake', () => {
     });
   }, 15_000);
 });
+
+describe('SidecarSupervisor parent-death signalling', () => {
+  it('gives the sidecar a stdin pipe to detect the shell dying', async () => {
+    // The sidecar's other watchdog polls os.getppid(), which notices a dead
+    // parent only because POSIX reparents orphans to init. Windows does not
+    // reparent, so that watchdog never fires there. A pipe closes when its
+    // holder dies on every platform, which is why the sidecar watches stdin -
+    // and it can only do that if the supervisor hands it a pipe.
+    const executable = await writeFakeSidecar(
+      [
+        "import { fstatSync } from 'node:fs';",
+        // Node implements a 'pipe' stdio slot with a socketpair on unix, not a
+        // FIFO, so the sidecar's own check has to accept either. Asserting only
+        // isFIFO() here would pass a test the real sidecar then fails.
+        'const stat = fstatSync(0);',
+        'const piped = stat.isFIFO() || stat.isSocket();',
+        "process.stdout.write(JSON.stringify({",
+        "  event: 'nexus.api.listening',",
+        "  schemaVersion: '1.0.0',",
+        "  host: '127.0.0.1',",
+        '  port: piped ? 45_001 : 45_002,',
+        '  pid: process.pid,',
+        "}) + '\\n');",
+      ].join('\n'),
+    );
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'token',
+    });
+
+    const handshake = await supervisor.start();
+    expect(handshake.port).toBe(45_001);
+
+    await supervisor.stop();
+  }, 15_000);
+});

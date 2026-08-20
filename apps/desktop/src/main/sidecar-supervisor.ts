@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcessByStdio } from 'node:child_process';
-import type { Readable } from 'node:stream';
+import type { Readable, Writable } from 'node:stream';
 
 /**
  * Supervision of the local `nexus_api` sidecar process.
@@ -30,7 +30,7 @@ const SUPPORTED_SCHEMA_MAJOR = 1;
  * The spawned sidecar, typed to the exact stdio shape the supervisor requests:
  * no stdin, a piped stdout carrying the handshake, an inherited stderr.
  */
-type SidecarProcess = ChildProcessByStdio<null, Readable, null>;
+type SidecarProcess = ChildProcessByStdio<Writable, Readable, null>;
 
 /**
  * How long to wait for the handshake before giving up.
@@ -194,7 +194,14 @@ export class SidecarSupervisor {
       },
       // stdout is the contract channel. stderr is inherited so sidecar logging
       // reaches the shell's own diagnostics instead of filling an unread pipe.
-      stdio: ['ignore', 'pipe', 'inherit'],
+      //
+      // stdin is a pipe that is never written to. It exists so the sidecar can
+      // tell that this process died: the operating system closes a dead
+      // process's pipe ends on every platform, whereas the sidecar's other
+      // watchdog polls os.getppid() and so only works where orphans are
+      // reparented - not on Windows. Without this pipe, force-quitting the shell
+      // there leaves a sidecar holding the database file.
+      stdio: ['pipe', 'pipe', 'inherit'],
     });
 
     this.#current = child;

@@ -59,6 +59,23 @@ entry point.
 `src/main/vitest-harness.test.ts` is a harness smoke check, not a product test.
 It exists only to prove the runner is still Node-based and Electron-free.
 
+## Sidecar stdio contract
+
+The supervisor spawns the sidecar with `['pipe', 'pipe', 'inherit']`:
+
+- **stdin** is a pipe that is never written to. It is a liveness signal: the
+  operating system closes a dead process's pipe ends on every platform, so the
+  sidecar treats EOF here as "the shell is gone" and shuts down. Its other
+  watchdog polls `os.getppid()`, which detects a dead parent only because POSIX
+  reparents orphans to init - Windows does not, so without this pipe a
+  force-quit there strands a sidecar holding the database file.
+- **stdout** carries the handshake line and nothing else.
+- **stderr** is inherited, so sidecar logging reaches the shell's diagnostics
+  rather than filling a pipe nobody reads.
+
+Note that Node implements a `'pipe'` slot with a socketpair on unix rather than
+a FIFO, so the sidecar accepts either.
+
 ## Current status
 
 `src/main/sidecar-supervisor.ts` supervises the local `nexus_api` sidecar: it
