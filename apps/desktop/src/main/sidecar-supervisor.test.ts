@@ -139,3 +139,36 @@ describe('SidecarSupervisor restart policy', () => {
     expect(runs).toHaveLength(2);
   }, 5_000);
 });
+
+describe('SidecarSupervisor.stop', () => {
+  it('leaves no orphaned sidecar process behind', async () => {
+    // Runs long past the end of the suite unless the supervisor reaps it. An
+    // orphan keeps holding the local database, so the next launch fails with no
+    // visible cause.
+    const executable = await writeFakeSidecar(announce(54_321), 30_000);
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      handshakeTimeoutMs: 1_000,
+    });
+
+    const { pid } = await supervisor.start();
+    expect(isRunning(pid)).toBe(true);
+
+    await supervisor.stop();
+
+    expect(isRunning(pid)).toBe(false);
+  }, 5_000);
+});
+
+/** Signal 0 performs the permission and existence checks without delivering. */
+function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}

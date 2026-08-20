@@ -118,6 +118,33 @@ export class SidecarSupervisor {
     return this.#launch();
   }
 
+  /**
+   * Terminate the sidecar and resolve only once it has actually exited.
+   *
+   * Resolving on the signal rather than on the exit would let the shell quit
+   * while the sidecar is still shutting down, which is exactly how an orphan
+   * that still holds the local database survives a quit.
+   */
+  async stop(): Promise<void> {
+    const child = this.#current;
+    if (child === undefined) {
+      return;
+    }
+
+    // Clearing the reference first makes this exit read as superseded, so the
+    // restart policy does not resurrect a deliberately stopped sidecar.
+    this.#current = undefined;
+
+    const exited = new Promise<void>((resolve) => {
+      child.once('exit', () => {
+        resolve();
+      });
+    });
+
+    child.kill('SIGTERM');
+    await exited;
+  }
+
   async #launch(): Promise<SidecarHandshake> {
     const child = spawn(this.#options.command, [...this.#options.args], {
       // Port 0 asks the operating system for a free port; a fixed port would
