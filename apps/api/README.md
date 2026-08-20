@@ -54,6 +54,27 @@ setting a real token.
 
 Multi-user tenancy is **not** implemented.
 
+## Sidecar mode and the stdout handshake
+
+The API is spawned as a loopback child process by the desktop shell:
+
+```bash
+NEXUS_API_PORT=0 NEXUS_API_SESSION_TOKEN=<token> python -m nexus_api
+```
+
+`NEXUS_API_PORT=0` asks the operating system for a free port, which avoids
+colliding with the user's own tooling and with other users on a shared machine.
+The sidecar binds and listens first, then writes **exactly one line** to stdout:
+
+```json
+{"event":"nexus.api.listening","schemaVersion":"1.0.0","host":"127.0.0.1","port":54321,"pid":4242}
+```
+
+This line is a contract consumed by the shell's sidecar supervisor. stdout
+carries nothing else; all logging goes to stderr. The socket is already
+listening when the line is written, so a connection made immediately on reading
+it is accepted rather than refused.
+
 ## Local development
 
 ```bash
