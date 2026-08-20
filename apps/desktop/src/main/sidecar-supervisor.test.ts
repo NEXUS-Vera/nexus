@@ -100,6 +100,33 @@ describe('SidecarSupervisor.start', () => {
         error instanceof SidecarStartError && error.reason === 'handshake-timeout',
     );
   }, 2_000);
+
+  it('reaps the sidecar it gave up on instead of leaving it running', async () => {
+    // The child that failed the handshake is still holding whatever it managed
+    // to acquire. Rejecting while it lives converts a startup failure into an
+    // orphan that outlives the shell.
+    const executable = await writeFakeSidecar(
+      [
+        "import { writeFileSync } from 'node:fs';",
+        "writeFileSync(new URL('sidecar.pid', import.meta.url), String(process.pid));",
+      ].join('\n'),
+      30_000,
+    );
+    const pidPath = join(dirname(executable), 'sidecar.pid');
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      handshakeTimeoutMs: 150,
+      terminationGraceMs: 200,
+    });
+
+    await expect(supervisor.start()).rejects.toBeInstanceOf(SidecarStartError);
+
+    const pid = Number.parseInt(await readFile(pidPath, 'utf8'), 10);
+    expect(isRunning(pid)).toBe(false);
+  }, 3_000);
 });
 
 describe('SidecarSupervisor restart policy', () => {

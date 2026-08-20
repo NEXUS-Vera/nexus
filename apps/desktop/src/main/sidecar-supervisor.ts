@@ -143,7 +143,11 @@ export class SidecarSupervisor {
     // Clearing the reference first makes this exit read as superseded, so the
     // restart policy does not resurrect a deliberately stopped sidecar.
     this.#current = undefined;
+    await this.#terminate(child);
+  }
 
+  /** Signal, wait, escalate, and resolve only once the child has really gone. */
+  async #terminate(child: SidecarProcess): Promise<void> {
     const exited = new Promise<void>((resolve) => {
       child.once('exit', () => {
         resolve();
@@ -187,12 +191,24 @@ export class SidecarSupervisor {
       this.#onChildExit(child, code, signal);
     });
 
-    const line = await withHandshakeTimeout(
-      readFirstLine(child.stdout),
-      this.#options.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
-    );
+    try {
+      const line = await withHandshakeTimeout(
+        readFirstLine(child.stdout),
+        this.#options.handshakeTimeoutMs ?? DEFAULT_HANDSHAKE_TIMEOUT_MS,
+      );
 
-    return parseHandshake(line);
+      return parseHandshake(line);
+    } catch (error) {
+      // The child that failed the handshake is still holding whatever it did
+      // manage to acquire. Reap it before reporting, or a startup failure
+      // becomes an orphan that outlives the shell.
+      if (child === this.#current) {
+        this.#current = undefined;
+        await this.#terminate(child);
+      }
+
+      throw error;
+    }
   }
 
   #onChildExit(
