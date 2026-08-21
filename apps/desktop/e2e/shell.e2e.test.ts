@@ -1,3 +1,4 @@
+import type { ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { _electron as electron, expect, test } from '@playwright/test';
@@ -5,6 +6,16 @@ import type { ElectronApplication } from '@playwright/test';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fakeSidecar = path.join(packageRoot, 'e2e', 'fixtures', 'fake-sidecar.mjs');
+
+/**
+ * The shell process behind each launched application, remembered at launch.
+ *
+ * Playwright disposes the `ElectronApplication` once `close()` resolves, and
+ * `app.process()` throws from then on. The `ChildProcess` it hands out while
+ * the application is still live keeps reporting the exit truthfully, so the
+ * handle is taken once and kept rather than asked for again later.
+ */
+const shellProcesses = new WeakMap<ElectronApplication, ChildProcess>();
 
 /**
  * Launch the built shell against a sidecar these suites control.
@@ -30,7 +41,9 @@ async function launchShell(): Promise<ElectronApplication> {
   environment.NEXUS_SIDECAR_COMMAND = process.execPath;
   environment.NEXUS_SIDECAR_ARGS = JSON.stringify([fakeSidecar]);
 
-  return electron.launch({ args: [packageRoot], env: environment });
+  const app = await electron.launch({ args: [packageRoot], env: environment });
+  shellProcesses.set(app, app.process());
+  return app;
 }
 
 /**
@@ -42,7 +55,7 @@ async function launchShell(): Promise<ElectronApplication> {
  * hang the run for the sake of tidying up.
  */
 async function closeShell(app: ElectronApplication): Promise<void> {
-  const shell = app.process();
+  const shell = shellProcesses.get(app) ?? app.process();
   if (shell.exitCode !== null || shell.signalCode !== null) {
     return;
   }
