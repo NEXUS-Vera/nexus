@@ -102,6 +102,53 @@ a {
   cursor: not-allowed;
 }
 
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Takes whatever the notice above it does not, and scrolls its own content
+   rather than the document, so a full-height route stays inside the viewport. */
+.app-routes {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.service-restart-notice {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--nx-space-3);
+  padding: var(--nx-space-2) var(--nx-space-4);
+  border-bottom: 1px solid var(--nx-status-warning);
+  background: rgba(220, 107, 32, 0.12);
+  color: var(--nx-text);
+  font-size: 13px;
+}
+
+.service-restart-notice p {
+  margin: 0;
+  flex: 1;
+}
+
+.service-restart-notice button {
+  flex: none;
+  padding: var(--nx-space-1) var(--nx-space-3);
+  border: 1px solid var(--nx-border);
+  border-radius: var(--nx-radius-sm);
+  background: var(--nx-surface);
+  color: var(--nx-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.service-restart-notice button:hover {
+  border-color: var(--nx-border-hover);
+  color: var(--nx-text);
+}
+
 .error-panel {
   margin-top: 1rem;
   border: 1px solid var(--nx-status-danger);

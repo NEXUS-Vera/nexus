@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import copy
 import os
+from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import pytest
 from nexus_persistence.errors import ProjectNotFoundError, ProjectPersistenceError
+from nexus_persistence.factory import build_project_store
 from nexus_persistence.memory.store import InMemoryProjectStore
+from nexus_persistence.protocol import ProjectPackageStore
 
 try:
     from nexus_persistence.postgres.models import Base
@@ -181,12 +185,21 @@ def memory_store() -> InMemoryProjectStore:
     return InMemoryProjectStore()
 
 
-@pytest.fixture
-def store(memory_store: InMemoryProjectStore) -> InMemoryProjectStore:
-    return memory_store
+@pytest.fixture(params=["memory", "sqlite"])
+def store(request: pytest.FixtureRequest) -> Iterator[ProjectPackageStore]:
+    """Run every behavioural contract test against each supported local backend."""
+    if request.param == "memory":
+        yield InMemoryProjectStore()
+        return
+    engine = create_db_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    try:
+        yield PostgresProjectStore(create_session_factory(engine))
+    finally:
+        engine.dispose()
 
 
-def test_save_and_get_current_state(store: InMemoryProjectStore) -> None:
+def test_save_and_get_current_state(store: ProjectPackageStore) -> None:
     package = _minimal_package()
     store.save_initialization_package(package)
     state = store.get_current_state(package["project"]["projectId"])
@@ -195,13 +208,13 @@ def test_save_and_get_current_state(store: InMemoryProjectStore) -> None:
     assert len(store.list_dependencies(package["project"]["projectId"])) >= 1
 
 
-def test_project_not_found(store: InMemoryProjectStore) -> None:
+def test_project_not_found(store: ProjectPackageStore) -> None:
     with pytest.raises(ProjectNotFoundError) as exc:
         store.get_current_state("proj_DOESNOTEXIST00001")
     assert exc.value.code == "PROJECT_NOT_FOUND"
 
 
-def test_immutable_artifact_history(store: InMemoryProjectStore) -> None:
+def test_immutable_artifact_history(store: ProjectPackageStore) -> None:
     package = _minimal_package()
     store.save_initialization_package(package)
     project_id = package["project"]["projectId"]
@@ -276,7 +289,7 @@ def test_immutable_artifact_history(store: InMemoryProjectStore) -> None:
     assert v1["artifactId"] == old_req["artifactId"]
 
 
-def test_cross_project_isolation(store: InMemoryProjectStore) -> None:
+def test_cross_project_isolation(store: ProjectPackageStore) -> None:
     a = _minimal_package("proj_TESTPROJECTAAAA0001")
     b = _minimal_package("proj_TESTPROJECTBBBB0001")
     # uniquify nested IDs for b
@@ -307,7 +320,7 @@ def test_cross_project_isolation(store: InMemoryProjectStore) -> None:
     )
 
 
-def test_memory_rollback_on_failure(store: InMemoryProjectStore) -> None:
+def test_memory_rollback_on_failure(store: ProjectPackageStore) -> None:
     package = _minimal_package()
     store.save_initialization_package(package)
     project_id = package["project"]["projectId"]
@@ -342,3 +355,20 @@ def test_postgres_store_contract() -> None:
     pg_store.save_initialization_package(package)
     state = pg_store.get_current_state(package["project"]["projectId"])
     assert len(state["artifacts"]) == 4
+
+
+def test_sqlite_store_persists_across_connections(tmp_path: Path) -> None:
+    database_url = f"sqlite:///{tmp_path / 'nexus.db'}"
+    package = _minimal_package("proj_TESTSQLITEFILE00001")
+    project_id = package["project"]["projectId"]
+
+    writer = build_project_store(backend="sqlite", database_url=database_url)
+    writer.save_initialization_package(package)
+    del writer
+
+    reader = build_project_store(backend="sqlite", database_url=database_url)
+    state = reader.get_current_state(project_id)
+
+    assert state["project"] == package["project"]
+    assert state["userTurn"] == package["userTurn"]
+    assert state["artifacts"] == package["artifacts"]

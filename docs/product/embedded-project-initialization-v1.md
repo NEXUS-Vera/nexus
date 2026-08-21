@@ -203,7 +203,8 @@ The workflow will be considered successful when:
 ## Persistence and multi-turn modification (Phases 9–10)
 
 After successful initialization, the complete project package is persisted
-(`NEXUS_STORAGE_BACKEND=memory|postgres`). Projects reload by ID.
+(backend selected by `NEXUS_STORAGE_BACKEND`; see
+[`apps/api/README.md`](../../apps/api/README.md)). Projects reload by ID.
 
 Multi-turn updates use `POST /v1/projects/{projectId}/turns`. Fixture mode
 supports deterministic patterns (runtime/battery, accuracy answers, sampling,
@@ -211,5 +212,6 @@ environment, communication, size/weight, budget, reject proposed requirement)
 without a model key. Only impacted artifacts receive new immutable revisions
 (`new artifactId`, incremented `artifactVersion`, `supersedes*` links).
 
-Authentication / tenancy are not implemented.
+Every API request carries a session token; multi-user tenancy is not
+implemented. See [`apps/api/README.md`](../../apps/api/README.md).
 

@@ -22,6 +22,20 @@ EXCLUDES=(
   ':(exclude).env.example'
 )
 
+# Git-LFS files are committed as small pointer blobs, but git grep reads the
+# working tree. In any checkout that has run the smudge filter the real payload
+# is scanned instead of the pointer, so a vendored bundle can trip the scan on
+# one machine and not another. Their committed content is a pointer, so there
+# is nothing here to scan.
+if [[ -f .gitattributes ]]; then
+  while IFS= read -r attr_line; do
+    case "$attr_line" in
+      \#*|"") continue ;;
+      *filter=lfs*) EXCLUDES+=( ":(exclude)${attr_line%%[[:space:]]*}" ) ;;
+    esac
+  done < .gitattributes
+fi
+
 if git grep -nI -E "$PATTERN" -- "${EXCLUDES[@]}"; then
   echo "Potential secret pattern found in tracked files" >&2
   echo "Use non-matching identifier names (e.g. model_credential) for credential fields." >&2

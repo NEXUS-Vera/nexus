@@ -76,6 +76,13 @@ override.tf.json
 *_override.tf.json
 .terraform.lock.hcl
 
+# Agent tooling scratch. The Claude harness creates git worktrees under
+# .claude/worktrees/, which land in the index as gitlinks with no submodule
+# behind them and break `git clone --recurse-submodules` for everyone else.
+# Only the checked-in settings file belongs in the repository.
+.claude/*
+!.claude/settings.json
+
 # IDE / OS
 .idea/
 .vscode/

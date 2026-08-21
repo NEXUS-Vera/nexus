@@ -19,6 +19,11 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _json_payload() -> sa.types.TypeEngine[object]:
+    """JSONB on PostgreSQL, portable JSON elsewhere (e.g. SQLite)."""
+    return sa.JSON().with_variant(postgresql.JSONB(astext_type=sa.Text()), "postgresql")
+
+
 def upgrade() -> None:
     op.create_table(
         "projects",
@@ -28,7 +33,7 @@ def upgrade() -> None:
         sa.Column("project_phase", sa.String(length=64), nullable=False),
         sa.Column("autonomy_mode", sa.String(length=32), nullable=False),
         sa.Column("current_state_version", sa.Integer(), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
     )
@@ -40,7 +45,7 @@ def upgrade() -> None:
         ),
         sa.Column("parent_turn_id", sa.String(length=64), nullable=True),
         sa.Column("timestamp", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
     )
     op.create_index("ix_user_turns_project_id", "user_turns", ["project_id"])
     op.create_table(
@@ -50,7 +55,7 @@ def upgrade() -> None:
         sa.Column(
             "turn_id", sa.String(length=64), sa.ForeignKey("user_turns.turn_id"), nullable=False
         ),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
     )
     op.create_index("ix_turn_routes_project_id", "turn_routes", ["project_id"])
     op.create_index("ix_turn_routes_turn_id", "turn_routes", ["turn_id"])
@@ -61,7 +66,7 @@ def upgrade() -> None:
         sa.Column(
             "turn_id", sa.String(length=64), sa.ForeignKey("user_turns.turn_id"), nullable=False
         ),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
     )
     op.create_index("ix_workflow_runs_project_id", "workflow_runs", ["project_id"])
     op.create_index("ix_workflow_runs_turn_id", "workflow_runs", ["turn_id"])
@@ -75,7 +80,7 @@ def upgrade() -> None:
         sa.Column("workflow_run_id", sa.String(length=64), nullable=False),
         sa.Column("supersedes_artifact_id", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
         sa.UniqueConstraint(
             "project_id",
             "artifact_type",
@@ -88,7 +93,7 @@ def upgrade() -> None:
         "validation_issues",
         sa.Column("issue_id", sa.String(length=64), primary_key=True),
         sa.Column("project_id", sa.String(length=64), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
     )
     op.create_index("ix_validation_issues_project_id", "validation_issues", ["project_id"])
     op.create_table(
@@ -96,7 +101,7 @@ def upgrade() -> None:
         sa.Column("question_id", sa.String(length=64), primary_key=True),
         sa.Column("project_id", sa.String(length=64), nullable=False),
         sa.Column("status", sa.String(length=32), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
     )
     op.create_index("ix_open_questions_project_id", "open_questions", ["project_id"])
     op.create_table(
@@ -104,7 +109,7 @@ def upgrade() -> None:
         sa.Column("response_key", sa.String(length=64), primary_key=True),
         sa.Column("project_id", sa.String(length=64), nullable=False),
         sa.Column("turn_id", sa.String(length=64), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
     )
     op.create_index("ix_vera_responses_project_id", "vera_responses", ["project_id"])
     op.create_index("ix_vera_responses_turn_id", "vera_responses", ["turn_id"])
@@ -112,11 +117,11 @@ def upgrade() -> None:
         "artifact_dependencies",
         sa.Column("dependency_id", sa.String(length=64), primary_key=True),
         sa.Column("project_id", sa.String(length=64), nullable=False),
-        sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+        sa.Column("payload", _json_payload(), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.func.now(),
             nullable=False,
         ),
     )

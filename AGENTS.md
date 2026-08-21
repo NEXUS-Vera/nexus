@@ -63,7 +63,7 @@ This repository is one modular monorepo. Do not create separate repositories for
 
 | Area | Contains |
 | --- | --- |
-| `apps/` | Deployable applications only |
+| `apps/` | Top-level assembled applications only (shipped or deployed; see [ADR-0003](docs/decisions/ADR-0003-desktop-application.md)) |
 | `agents/` | Domain-agent packages |
 | `packages/` | Reusable platform capabilities |
 | `tools/` | Deterministic, independently testable capabilities |
@@ -188,7 +188,7 @@ Use:
 <type>(<scope>): <imperative description>
 ```
 
-Allowed common scopes: `repo`, `web`, `api`, `worker`, `vera`, `embedded`, `runtime`, `contracts`, `board`, `memory`, `retrieval`, `models`, `observability`, `evals`, `infra`, `ci`, `deps`, `docs`.
+Allowed common scopes: `repo`, `web`, `api`, `worker`, `desktop`, `vera`, `embedded`, `runtime`, `contracts`, `board`, `memory`, `persistence`, `retrieval`, `models`, `observability`, `evals`, `infra`, `ci`, `deps`, `docs`.
 
 Examples:
 

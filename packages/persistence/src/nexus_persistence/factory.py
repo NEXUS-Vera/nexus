@@ -3,11 +3,33 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+
+from alembic import command
+from alembic.config import Config
+from sqlalchemy.engine import Engine
 
 from nexus_persistence.memory.store import InMemoryProjectStore
 from nexus_persistence.postgres.session import create_db_engine, create_session_factory
 from nexus_persistence.postgres.store import PostgresProjectStore
 from nexus_persistence.protocol import ProjectPackageStore
+
+# The migration scripts ship inside the package rather than beside it, so this
+# resolves the same way from a checkout and from an installed distribution.
+_MIGRATION_SCRIPTS = Path(__file__).resolve().parent / "alembic"
+
+
+def _upgrade_to_head(engine: Engine) -> None:
+    """Bring a database up to the latest revision.
+
+    Alembic stays the single schema authority, so a database created here carries
+    a version stamp and a later release can upgrade it in place.
+    """
+    config = Config()
+    config.set_main_option("script_location", str(_MIGRATION_SCRIPTS))
+    with engine.connect() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "head")
 
 
 def build_project_store(
@@ -24,5 +46,12 @@ def build_project_store(
             or "postgresql+psycopg://nexus:nexus@localhost:5432/nexus"
         )
         engine = create_db_engine(url)
+        return PostgresProjectStore(create_session_factory(engine))
+    if mode in {"sqlite", "sqlite3"}:
+        url = database_url or os.environ.get("NEXUS_DATABASE_URL") or "sqlite:///nexus.db"
+        engine = create_db_engine(url)
+        # A SQLite database file is owned by the process that opens it, so the
+        # schema has to exist before the first session touches it.
+        _upgrade_to_head(engine)
         return PostgresProjectStore(create_session_factory(engine))
     raise ValueError(f"Unsupported storage backend: {mode}")

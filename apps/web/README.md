@@ -7,7 +7,7 @@ board workspace.
 
 ## Ownership boundary
 
-Deployable frontend only. Contract types are imported from `@nexus/contracts`
+Frontend application only. Contract types are imported from `@nexus/contracts`
 (generated from JSON Schemas). Do not duplicate domain types in this app.
 
 ## Architecture
@@ -28,8 +28,12 @@ workspace, and collapsible context inspector.
 
 ## Routes
 
-- `/` — create a new project
-- `/projects/:projectId` — persisted board workspace
+Routing is hash-based (`HashRouter`), so a route survives being loaded from
+disk: the desktop shell serves this bundle over `file://`, where a path-based
+route has no server to rewrite it onto `index.html`.
+
+- `/#/` — create a new project
+- `/#/projects/:projectId` — persisted board workspace
 
 Workspace URL query params:
 
@@ -59,7 +63,17 @@ Mind Graph is a dependency preview until a canonical graph source exists.
 
 ## API
 
-Base URL: `VITE_API_BASE_URL` (default `http://127.0.0.1:8000`).
+Base URL and credential are resolved in `src/api/client.ts`, in this order:
+
+1. the desktop shell's preload bridge (`window.nexus.api`), which carries the
+   port the sidecar actually bound and a token minted for that launch - neither
+   is knowable at build time;
+2. `VITE_API_BASE_URL` / `VITE_API_SESSION_TOKEN`;
+3. `http://127.0.0.1:8000` and the published development token.
+
+Every request sends `Authorization: Bearer <token>`; no route is exempt. See
+[`apps/api/README.md`](../api/README.md) for what the API does with it, and
+[`apps/desktop/README.md`](../desktop/README.md) for the bridge that supplies it.
 
 Client methods in `src/api/client.ts`:
 
@@ -90,7 +104,8 @@ Optional LLM initialization is configured on the API, not the web app.
 
 ```bash
 pnpm --filter @nexus/web test
-make test-e2e   # Playwright; starts API+web in fixture/memory mode
+make test-e2e   # Playwright; starts API+web in fixture/memory mode, then runs
+                # the Electron shell suite
 ```
 
 ## Current limitations

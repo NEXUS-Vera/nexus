@@ -27,6 +27,16 @@ collect_files() {
   fi
 }
 
+is_lfs_tracked() {
+  # Git-LFS files are committed as small pointer blobs. Whether the real
+  # payload exists on disk depends on local smudge state, so measuring the
+  # working-tree size tests the machine rather than the repository.
+  case "$(git check-attr filter -- "$1" 2>/dev/null)" in
+    *": filter: lfs") return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 is_allowed_root_md() {
   case "$1" in
     README.md|AGENTS.md|CLAUDE.md|CONTRIBUTING.md|SECURITY.md|CODE_OF_CONDUCT.md|CHANGELOG.md)
@@ -114,7 +124,7 @@ while IFS= read -r path; do
     fi
   fi
 
-  if [[ -f "$path" ]]; then
+  if [[ -f "$path" ]] && ! is_lfs_tracked "$path"; then
     size="$(wc -c < "$path" | tr -d " ")"
     if [[ "$size" -gt "$MAX_FILE_BYTES" ]]; then
       fail "file exceeds size threshold (${size} > ${MAX_FILE_BYTES}): $path"

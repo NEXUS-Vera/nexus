@@ -1,0 +1,30 @@
+{
+  "name": "@nexus/desktop",
+  "productName": "Nexus",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/main/index.cjs",
+  "scripts": {
+    "lint": "echo \"No eslint configured yet\"",
+    "typecheck": "tsc -b --pretty false",
+    "build:renderer": "pnpm --filter @nexus/web run build --base=./ --outDir ../desktop/dist/renderer --emptyOutDir",
+    "build:shell": "esbuild src/main/index.ts src/preload/index.ts --bundle --platform=node --target=node20 --format=cjs --external:electron --outdir=dist --out-extension:.js=.cjs",
+    "build": "pnpm run build:renderer && pnpm run build:shell",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "pnpm run build && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "@types/node": "^22.13.4",
+    "electron": "^43.4.1",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "node-pty": "1.2.0-beta.15"
+  }
+}

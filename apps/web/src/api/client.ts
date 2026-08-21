@@ -23,8 +23,56 @@ export class ApiClientError extends Error {
   }
 }
 
+/**
+ * What the desktop shell hands the renderer through its preload bridge.
+ *
+ * Both values are decided at launch and cannot be known at build time: the
+ * sidecar binds an operating-system-assigned port, and its credential is minted
+ * per launch. A bundle that read only `import.meta.env` would therefore be
+ * built pointing at an address nothing listens on, carrying a token the service
+ * rejects - which is why the bridge is consulted first and the environment is
+ * only the fallback.
+ */
+function desktopApiRuntime(): { baseUrl: string; sessionToken: string } | undefined {
+  // Read off `globalThis` rather than `window` so this stays evaluable under
+  // the Node-based test environment, where there is no window at all.
+  const api = (globalThis as { nexus?: { api?: unknown } }).nexus?.api;
+  if (!isRecord(api)) {
+    return undefined;
+  }
+
+  const { baseUrl, sessionToken: token } = api;
+  if (typeof baseUrl !== 'string' || typeof token !== 'string') {
+    // A bridge that is present but malformed is a shell/renderer mismatch. The
+    // environment fallback below is a better answer than a request addressed to
+    // `undefined`, and the failure then surfaces as an ordinary connection error.
+    return undefined;
+  }
+
+  return { baseUrl, sessionToken: token };
+}
+
 function apiBaseUrl(): string {
-  return (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://127.0.0.1:8000';
+  return (
+    desktopApiRuntime()?.baseUrl ??
+    (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+    'http://127.0.0.1:8000'
+  );
+}
+
+/**
+ * Every API request carries the sidecar session token. The API listens on
+ * loopback, so this token - not the network boundary - is the security
+ * boundary. The desktop shell injects a per-session value through the preload
+ * bridge; a browser development target falls back to the environment, and then
+ * to the API's well-known development token.
+ */
+function sessionToken(): string {
+  return (
+    desktopApiRuntime()?.sessionToken ??
+    (import.meta.env.VITE_API_SESSION_TOKEN as string | undefined) ??
+    'nexus-dev-session-token'
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -54,9 +102,11 @@ export function parseInitializationResult(
 }
 
 async function requestJson(path: string, init?: RequestInit): Promise<unknown> {
+  const headers = new Headers(init?.headers);
+  headers.set('Authorization', `Bearer ${sessionToken()}`);
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl()}${path}`, init);
+    response = await fetch(`${apiBaseUrl()}${path}`, { ...init, headers });
   } catch {
     throw new ApiClientError('Network failure while contacting the API.', 0, null);
   }

@@ -8,14 +8,15 @@
     "node": ">=20"
   },
   "scripts": {
-    "lint": "pnpm --filter @nexus/web lint",
+    "lint": "pnpm --filter @nexus/web --filter @nexus/desktop lint",
     "format": "echo \"TypeScript format deferred to package tooling\"",
-    "typecheck": "pnpm --filter @nexus/web typecheck",
-    "test": "pnpm --filter @nexus/web test",
+    "typecheck": "pnpm --filter @nexus/web --filter @nexus/desktop typecheck",
+    "test": "pnpm --filter @nexus/web --filter @nexus/desktop test",
     "build": "pnpm --filter @nexus/web build",
     "dev:web": "pnpm --filter @nexus/web dev"
   },
   "pnpm": {
+    "onlyBuiltDependencies": ["electron", "esbuild"],
     "packageExtensions": {
       "lucide-react@0.487.0": { "peerDependencies": { "@types/react": "^18.3.18" } },
       "sonner@2.0.7": { "peerDependencies": { "@types/react": "^18.3.18" } },

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import secrets
 import uuid
 from typing import Any, cast
 
@@ -49,13 +50,6 @@ ARTIFACT_TYPES = {
 }
 
 app = FastAPI(title="Nexus API", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Request-Id"],
-)
 
 _store = build_project_store(
     backend=settings.storage_backend,
@@ -95,6 +89,73 @@ def _error(
 
 def _request_id(request: Request) -> str:
     return request.headers.get("x-request-id") or str(uuid.uuid4())
+
+
+#: The expected credential as bytes, encoded once at import.
+EXPECTED_SESSION_TOKEN = settings.session_token.encode("utf-8")
+
+
+def _presented_session_token(request: Request) -> bytes:
+    """The presented bearer credential, as the raw bytes that arrived.
+
+    Deliberately bytes rather than ``str``. Starlette decodes headers as
+    latin-1, so any byte from 0x80 upwards becomes a non-ASCII character, and
+    ``secrets.compare_digest`` refuses to compare non-ASCII ``str`` at all - it
+    raises ``TypeError``, which inside the middleware becomes a 500 and a stack
+    trace where the documented 401 belongs. Encoding back to bytes recovers
+    exactly what the client sent and removes the failure mode rather than
+    guarding against it.
+    """
+    header = request.headers.get("authorization", "")
+    scheme, _, value = header.partition(" ")
+    if scheme.lower() != "bearer":
+        return b""
+    # Undoing Starlette's latin-1 decode is lossless for every byte a header can
+    # carry; ``replace`` only covers a caller that hands us a str from elsewhere,
+    # and yields bytes that cannot match a real token.
+    return value.strip().encode("latin-1", "replace")
+
+
+@app.middleware("http")
+async def require_session_token(request: Request, call_next: Any) -> Any:
+    """Reject every loopback request that does not carry the session token.
+
+    The sidecar listens on loopback, which any local process and any web page
+    the user visits can reach. The per-session bearer token, not the network
+    boundary, is what makes the API safe to expose.
+
+    No request is exempt. A browser's CORS preflight carries no credentials, but
+    it never arrives here either: ``CORSMiddleware`` sits outside this one and
+    answers a preflight itself, which is every ``OPTIONS`` request that carries
+    both an ``Origin`` and an ``Access-Control-Request-Method``. Waving the
+    remaining shape - preflight-looking, but with no ``Origin``, which no
+    browser sends - past the token check would widen the unauthenticated
+    surface for nothing.
+    """
+    presented = _presented_session_token(request)
+    if not secrets.compare_digest(presented, EXPECTED_SESSION_TOKEN):
+        return _error(
+            401,
+            code="SESSION_TOKEN_REQUIRED",
+            message="A valid session token is required.",
+            request_id=_request_id(request),
+        )
+    return await call_next(request)
+
+
+# Registered last, and that is the whole point: Starlette inserts each new
+# middleware at the front of the stack, so the most recently added one runs
+# outermost. CORS has to be outside the token check, or the 401 above is
+# returned without ``Access-Control-Allow-Origin`` and the browser blocks the
+# response body - turning an authentication failure into an opaque network
+# error the renderer cannot report or act on.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Request-Id", "Authorization"],
+)
 
 
 def _validate_project_id(project_id: str, request_id: str) -> JSONResponse | None:
@@ -205,9 +266,7 @@ async def get_project(project_id: str, request: Request) -> dict[str, Any] | JSO
 
 
 @app.get("/v1/projects/{project_id}/artifacts", response_model=None)
-async def get_project_artifacts(
-    project_id: str, request: Request
-) -> dict[str, Any] | JSONResponse:
+async def get_project_artifacts(project_id: str, request: Request) -> dict[str, Any] | JSONResponse:
     request_id = _request_id(request)
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
