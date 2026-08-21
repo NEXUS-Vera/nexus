@@ -44,8 +44,21 @@ export interface ShellHost {
    * a worse outcome than a visible failure.
    */
   updateRuntimeConfig(config: RendererRuntimeConfig): void;
-  reportFatalError(message: string): void;
+  reportFatalError(error: FatalError): void;
   quit(): void;
+}
+
+/**
+ * What the user is told when the shell cannot go on.
+ *
+ * The title travels with the message because the same channel carries two
+ * different events: a shell that never came up, and one that has been open for
+ * an hour and just lost the service under it. Telling a student who has been
+ * working all afternoon that Nexus "cannot start" contradicts the afternoon.
+ */
+export interface FatalError {
+  readonly title: string;
+  readonly message: string;
 }
 
 export interface StartShellOptions {
@@ -112,6 +125,9 @@ export async function startShell(options: StartShellOptions): Promise<void> {
   }
 }
 
+/** Shown when the shell never came up, as against one that has to close. */
+const STARTUP_FAILURE_TITLE = 'Nexus cannot start';
+
 /**
  * What the renderer is told about a sidecar, derived in one place.
  *
@@ -142,11 +158,11 @@ function runtimeConfigFor(
  * underlying message is always appended, because the person who eventually
  * reads a bug report needs the detail the person reading the dialog does not.
  */
-function describeStartupFailure(error: unknown): string {
+function describeStartupFailure(error: unknown): FatalError {
   // A missing interface already explains itself, including what to run. Wrapping
   // it in the local-service preamble would send the reader after the wrong fault.
   if (error instanceof RendererBundleError) {
-    return error.message;
+    return { title: STARTUP_FAILURE_TITLE, message: error.message };
   }
 
   const detail = error instanceof Error ? error.message : String(error);
@@ -154,25 +170,32 @@ function describeStartupFailure(error: unknown): string {
   if (error instanceof SidecarStartError) {
     switch (error.reason) {
       case 'handshake-timeout':
-        return (
-          'Nexus could not start its local service.\n\n' +
-          'The service was launched but never reported that it was ready. That ' +
-          'usually means its runtime is missing from the installation, or ' +
-          'security software on this machine blocked it from starting.\n\n' +
-          `Details: ${detail}`
-        );
+        return {
+          title: STARTUP_FAILURE_TITLE,
+          message:
+            'Nexus could not start its local service.\n\n' +
+            'The service was launched but never reported that it was ready. That ' +
+            'usually means its runtime is missing from the installation, or ' +
+            'security software on this machine blocked it from starting.\n\n' +
+            `Details: ${detail}`,
+        };
       case 'unsupported-schema-version':
-        return (
-          'Nexus could not start its local service.\n\n' +
-          'The service announced a startup protocol this version of Nexus does ' +
-          'not understand, which means the two halves of the installation do ' +
-          'not match. Reinstalling Nexus should resolve it.\n\n' +
-          `Details: ${detail}`
-        );
+        return {
+          title: STARTUP_FAILURE_TITLE,
+          message:
+            'Nexus could not start its local service.\n\n' +
+            'The service announced a startup protocol this version of Nexus does ' +
+            'not understand, which means the two halves of the installation do ' +
+            'not match. Reinstalling Nexus should resolve it.\n\n' +
+            `Details: ${detail}`,
+        };
     }
   }
 
-  return `Nexus could not start its local service.\n\nDetails: ${detail}`;
+  return {
+    title: STARTUP_FAILURE_TITLE,
+    message: `Nexus could not start its local service.\n\nDetails: ${detail}`,
+  };
 }
 
 /**
@@ -182,12 +205,14 @@ function describeStartupFailure(error: unknown): string {
  * so there is nothing left to offer but an accurate account: the window is
  * still on screen, but everything in it would now fail.
  */
-function describeTerminalFailure(error: Error): string {
-  return (
-    'The local service Nexus depends on stopped running and could not be ' +
-    'restarted, so Nexus has to close.\n\n' +
-    `Details: ${error.message}`
-  );
+function describeTerminalFailure(error: Error): FatalError {
+  return {
+    title: 'Nexus has to close',
+    message:
+      'The local service Nexus depends on stopped running and could not be ' +
+      'restarted, so Nexus has to close.\n\n' +
+      `Details: ${error.message}`,
+  };
 }
 
 /** Build the `before-quit` listener that shuts the sidecar down first. */

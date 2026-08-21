@@ -87,6 +87,7 @@ describe('startShell', () => {
       'Sidecar did not announce a listening port within 15000ms',
     );
     const reported: string[] = [];
+    const startupTitles: string[] = [];
     let quits = 0;
 
     await startShell({
@@ -99,7 +100,8 @@ describe('startShell', () => {
         registerShutdown: () => undefined,
         openWindow: async () => refuse('openWindow'),
         updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
-        reportFatalError: (message) => {
+        reportFatalError: ({ title, message }) => {
+          startupTitles.push(title);
           reported.push(message);
         },
         quit: () => {
@@ -110,6 +112,7 @@ describe('startShell', () => {
 
     expect(reported).toHaveLength(1);
     const [message] = reported;
+    expect(startupTitles).toEqual(['Nexus cannot start']);
     // The detail has to survive, or a user reporting the fault has nothing to
     // report; and it has to be more than the raw detail, or the message is a
     // stack trace wearing a dialog.
@@ -132,7 +135,7 @@ describe('startShell', () => {
         registerShutdown: () => undefined,
         openWindow: async () => refuse('openWindow'),
         updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
-        reportFatalError: (message) => {
+        reportFatalError: ({ message }) => {
           reported.push(message);
         },
         quit: () => {
@@ -167,7 +170,7 @@ describe('startShell', () => {
         registerShutdown: () => undefined,
         openWindow: () => Promise.reject(missingBundle),
         updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
-        reportFatalError: (message) => {
+        reportFatalError: ({ message }) => {
           reported.push(message);
         },
         quit: () => {
@@ -195,6 +198,7 @@ describe('startShell', () => {
     );
     const reported: string[] = [];
     let notifyTerminalFailure: ((error: SidecarTerminalError) => void) | undefined;
+    const titles: string[] = [];
     let quits = 0;
 
     await startShell({
@@ -207,7 +211,8 @@ describe('startShell', () => {
         registerShutdown: () => undefined,
         openWindow: async () => undefined,
         updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
-        reportFatalError: (message) => {
+        reportFatalError: ({ title, message }) => {
+          titles.push(title);
           reported.push(message);
         },
         quit: () => {
@@ -223,6 +228,9 @@ describe('startShell', () => {
 
     expect(reported).toHaveLength(1);
     expect(reported[0]).toContain(terminal.message);
+    // The window has been open by this point, so a dialog headed "cannot start"
+    // would contradict the time the student has just spent in the application.
+    expect(titles).toEqual(['Nexus has to close']);
     expect(quits).toBe(1);
   });
 

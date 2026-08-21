@@ -269,6 +269,62 @@ describe('SidecarSupervisor restart policy', () => {
     expect(terminalFailures).toBe(0);
   }, 5_000);
 
+  it('says nothing about a replacement the shell itself shut down', async () => {
+    // The sidecar crashes, a replacement is spawned, and the user quits while
+    // that replacement is still handshaking. Stopping it makes its handshake
+    // fail, which looks exactly like a replacement that could not start - but
+    // it is the shell closing on request. Reported, it puts a modal saying
+    // "Nexus has to close" in front of a user in the middle of their own quit.
+    const dir = await mkdtemp(join(tmpdir(), 'nexus-sidecar-'));
+    scratchDirs.push(dir);
+    const counter = join(dir, 'launches');
+    const executable = join(dir, 'fake-sidecar.mjs');
+    await writeFile(
+      executable,
+      [
+        "import { appendFileSync, existsSync, readFileSync } from 'node:fs';",
+        `const counter = ${JSON.stringify(counter)};`,
+        "const launches = existsSync(counter) ? readFileSync(counter, 'utf8').length : 0;",
+        "appendFileSync(counter, 'x');",
+        // The replacement stays alive and silent, so the restart is still in
+        // flight when the stop arrives.
+        'if (launches > 0) { setTimeout(() => process.exit(0), 30000); }',
+        'else {',
+        announce(48_001),
+        '  setTimeout(() => process.exit(1), 100);',
+        '}',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const failures: SidecarTerminalError[] = [];
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
+      // Long enough that the stop below, not the timeout, is what ends the
+      // replacement's handshake.
+      handshakeTimeoutMs: 30_000,
+      terminationGraceMs: 500,
+      onTerminalFailure: (error) => {
+        failures.push(error);
+      },
+    });
+
+    await supervisor.start();
+
+    // The replacement is in flight once the fixture has recorded a second run.
+    await vi.waitFor(async () => {
+      expect((await readFile(counter, 'utf8')).length).toBe(2);
+    }, 5_000);
+
+    await supervisor.stop();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(failures).toEqual([]);
+  }, 15_000);
+
   it('leaves nothing running when the exit beats the closed stdout', async () => {
     // The same startup crash, but with the two events that report it arriving
     // in the other order. Node guarantees neither, and which one wins decides

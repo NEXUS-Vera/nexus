@@ -169,8 +169,8 @@ async function bootstrap(): Promise<void> {
       },
       openWindow: openMainWindow,
       updateRuntimeConfig: republishRuntimeConfig,
-      reportFatalError: (message) => {
-        dialog.showErrorBox('Nexus cannot start', message);
+      reportFatalError: ({ title, message }) => {
+        dialog.showErrorBox(title, message);
       },
       quit: () => {
         app.quit();

@@ -28,7 +28,9 @@ const SUPPORTED_SCHEMA_MAJOR = 1;
 
 /**
  * The spawned sidecar, typed to the exact stdio shape the supervisor requests:
- * no stdin, a piped stdout carrying the handshake, an inherited stderr.
+ * a piped stdin that is never written to and exists only so its closure tells
+ * the sidecar this process died, a piped stdout carrying the handshake, and an
+ * inherited stderr.
  */
 type SidecarProcess = ChildProcessByStdio<Writable, Readable, null>;
 
@@ -141,6 +143,7 @@ export class SidecarSupervisor {
   #current: SidecarProcess | undefined;
   #restarts = 0;
   #started = false;
+  #stopping = false;
   #terminalReported = false;
 
   constructor(options: SidecarSupervisorOptions) {
@@ -165,6 +168,13 @@ export class SidecarSupervisor {
    * that still holds the local database survives a quit.
    */
   async stop(): Promise<void> {
+    // Recorded before anything else, and never cleared: from here on every
+    // death is one this supervisor asked for. A replacement still waiting on
+    // its handshake will fail that handshake because of the signal below, and
+    // reporting that as a service that could not be restarted would put a
+    // fatal-error dialog in front of the user in the middle of their own quit.
+    this.#stopping = true;
+
     const child = this.#current;
     if (child === undefined) {
       return;
@@ -334,15 +344,18 @@ export class SidecarSupervisor {
   }
 
   /**
-   * Tell the shell the sidecar is gone for good, at most once.
+   * Tell the shell the sidecar is gone for good, at most once, and only when
+   * that is news.
    *
    * Which of the two paths above gets here depends on whether a dying
    * replacement's `exit` or its closed stdout wins a race Node does not order.
    * Both describe the same end state, and the user needs to be told about it
-   * once, not once per event that happened to observe it.
+   * once, not once per event that happened to observe it. A sidecar this
+   * supervisor was asked to stop is not that end state at all: it is the shell
+   * shutting down, and there is nothing to report.
    */
   #reportTerminalFailure(error: SidecarTerminalError): void {
-    if (this.#terminalReported) {
+    if (this.#stopping || this.#terminalReported) {
       return;
     }
 

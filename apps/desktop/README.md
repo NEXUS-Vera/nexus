@@ -163,7 +163,10 @@ every load after it.
 spawns the process, reads the one-line loopback handshake from stdout, rejects
 an unsupported handshake major version, fails fast when no handshake arrives,
 restarts a crashed sidecar once before surfacing a terminal failure, and stops
-it without leaving an orphan. The restart policy arms only once `start()` has
+it without leaving an orphan. A stop is not a failure: once `stop()` has been
+called nothing further is reported, so quitting while a replacement is still
+handshaking closes the application rather than raising a dialog about a service
+the user themselves shut down. The restart policy arms only once `start()` has
 resolved: a sidecar that dies before it ever announces is a build that cannot
 start, so it is reported once through the typed `SidecarStartError` rather than
 respawned into a replacement no one is waiting for and no one owns. A
