@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-
 DEV_SESSION_TOKEN = "nexus-dev-session-token"
 
 #: Origins allowed while the session token is the published development

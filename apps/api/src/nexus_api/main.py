@@ -266,9 +266,7 @@ async def get_project(project_id: str, request: Request) -> dict[str, Any] | JSO
 
 
 @app.get("/v1/projects/{project_id}/artifacts", response_model=None)
-async def get_project_artifacts(
-    project_id: str, request: Request
-) -> dict[str, Any] | JSONResponse:
+async def get_project_artifacts(project_id: str, request: Request) -> dict[str, Any] | JSONResponse:
     request_id = _request_id(request)
     invalid = _validate_project_id(project_id, request_id)
     if invalid:

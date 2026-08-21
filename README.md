@@ -4,13 +4,13 @@ Nexus is a modular agentic engineering platform. Vera orchestrates specialist do
 
 ## Current status
 
-This repository contains the v1 embedded-project initialization and multi-turn modification stack: shared contracts, an API with project persistence/retrieval, fixture-mode workflows (no model key required by default), and a Vera prototype UI with project workspace routing. Initialization providers are `fixture` (default), `llm`, and `shadow`, selected via `NEXUS_INITIALIZATION_PROVIDER`. Project storage is `memory` (default for tests) or `postgres` via `NEXUS_STORAGE_BACKEND` (see `.env.example`, `packages/persistence/README.md`).
+This repository contains the v1 embedded-project initialization and multi-turn modification stack: shared contracts, an API with project persistence/retrieval, fixture-mode workflows (no model key required by default), and a Vera prototype UI with project workspace routing. Initialization providers are `fixture` (default), `llm`, and `shadow`, selected via `NEXUS_INITIALIZATION_PROVIDER`. Project storage is `memory` (default for tests), `sqlite` (what the packaged desktop shell runs), or `postgres` via `NEXUS_STORAGE_BACKEND` (see `.env.example`, `packages/persistence/README.md`). An Electron desktop shell runs the API as an authenticated loopback sidecar (see `apps/desktop/README.md`).
 
 ## Architecture overview
 
 Nexus is a single modular monorepo:
 
-- **`apps/`** — deployable applications (web, API, worker)
+- **`apps/`** — deployable applications (web, API, worker, desktop shell)
 - **`agents/`** — domain agents (Vera orchestrator, embedded-systems specialist, …)
 - **`packages/`** — shared platform capabilities (runtime, contracts, memory, retrieval, …)
 - **`tools/`** — deterministic, independently testable engineering tools
@@ -42,7 +42,7 @@ nexus/
 - Git
 - Make
 - Python 3.11+ (API, contracts, agents)
-- Node.js 20+ and [pnpm](https://pnpm.io/) (web)
+- Node.js 20+ and [pnpm](https://pnpm.io/) (web, desktop shell)
 - [GitHub CLI](https://cli.github.com/) (`gh`) for contribution workflows
 
 ## Setup
@@ -79,7 +79,7 @@ make dev
 | `make eval-embedded-initialization` | Run the embedded-project-initialization eval suite (fake provider by default) |
 | `make dev` / `make dev-api` / `make dev-web` | Local API and web servers |
 | `make dev-db` / `make db-migrate` | Start local Postgres and apply migrations |
-| `make test-e2e` | Playwright E2E (fixture + memory; no model key) |
+| `make test-e2e` | Playwright E2E: the web suite against a live API (fixture + memory; no model key) and the Electron shell suite (needs `xvfb` on Linux) |
 | `make clean` | Remove local build and cache artifacts |
 
 ## Documentation
@@ -89,5 +89,6 @@ make dev
 - [docs/index.md](./docs/index.md) — documentation index
 - [apps/api/README.md](./apps/api/README.md) — API application
 - [apps/web/README.md](./apps/web/README.md) — web application
+- [apps/desktop/README.md](./apps/desktop/README.md) - Electron desktop shell
 - [packages/contracts/README.md](./packages/contracts/README.md) — contract package
-- [packages/persistence/README.md](./packages/persistence/README.md) — project package store (memory / Postgres)
+- [packages/persistence/README.md](./packages/persistence/README.md) — project package store (memory / SQLite / Postgres)

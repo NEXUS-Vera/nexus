@@ -188,7 +188,7 @@ Use:
 <type>(<scope>): <imperative description>
 ```
 
-Allowed common scopes: `repo`, `web`, `api`, `worker`, `vera`, `embedded`, `runtime`, `contracts`, `board`, `memory`, `retrieval`, `models`, `observability`, `evals`, `infra`, `ci`, `deps`, `docs`.
+Allowed common scopes: `repo`, `web`, `api`, `worker`, `desktop`, `vera`, `embedded`, `runtime`, `contracts`, `board`, `memory`, `persistence`, `retrieval`, `models`, `observability`, `evals`, `infra`, `ci`, `deps`, `docs`.
 
 Examples:
 
