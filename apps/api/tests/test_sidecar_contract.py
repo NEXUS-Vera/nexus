@@ -80,6 +80,27 @@ async def test_401_is_readable_by_the_browser_that_asked() -> None:
     assert response.headers.get("access-control-allow-origin") is not None
 
 
+@pytest.mark.asyncio
+async def test_preflight_shaped_request_without_an_origin_is_still_rejected() -> None:
+    """No route is reachable without the token, preflight-looking or not.
+
+    A real browser preflight always carries an ``Origin`` and is answered by
+    ``CORSMiddleware`` outside this check, so it never reaches the token
+    middleware at all. A request that only looks like one - the header set, the
+    origin absent - is not a browser, and must not be waved through into the
+    router on the strength of resembling something that is.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.options(
+            "/v1/projects/initialize",
+            headers={"Access-Control-Request-Method": "POST"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "SESSION_TOKEN_REQUIRED"
+
+
 def _sidecar_env(**overrides: str) -> dict[str, str]:
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(entry for entry in sys.path if entry)

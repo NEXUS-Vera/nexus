@@ -110,6 +110,44 @@ test('exposes nothing to the renderer beyond the allowlisted bridge', async () =
   }
 });
 
+test('keeps the student’s projects in a named directory, on the sqlite backend', async () => {
+  const app = await launchShell();
+
+  try {
+    const page = await app.firstWindow();
+
+    const storage = await page.evaluate<{
+      storageBackend: string | null;
+      databaseUrl: string | null;
+    }>(async () => {
+      const api = (window as unknown as { nexus: { api: Record<string, string> } }).nexus.api;
+      const response = await fetch(`${api.baseUrl}/healthz`, {
+        headers: { Authorization: `Bearer ${api.sessionToken}` },
+      });
+
+      return (await response.json()) as {
+        storageBackend: string | null;
+        databaseUrl: string | null;
+      };
+    });
+
+    // The API's own default backend is in-memory, so a shell that says nothing
+    // loses every project on quit. Read back from the spawned process, because
+    // what matters is what it was actually started with.
+    expect(storage.storageBackend).toBe('sqlite');
+
+    const databaseFile = (storage.databaseUrl ?? '').replace(/^sqlite:\/\/\//, '');
+    expect(path.basename(databaseFile)).toBe('nexus.sqlite3');
+    // Electron derives `userData` from the application's name, which without an
+    // explicit `productName` is the npm package name - putting a scope segment
+    // into the directory a student's projects live in permanently. Moving it
+    // after a release orphans their data, so it is pinned here.
+    expect(path.basename(path.dirname(databaseFile))).toBe('Nexus');
+  } finally {
+    await closeShell(app);
+  }
+});
+
 test('hands the renderer a live address and the sidecar’s own credential', async () => {
   const app = await launchShell();
 

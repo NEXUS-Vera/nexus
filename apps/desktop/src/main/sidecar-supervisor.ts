@@ -140,6 +140,7 @@ export class SidecarSupervisor {
   readonly #options: SidecarSupervisorOptions;
   #current: SidecarProcess | undefined;
   #restarts = 0;
+  #started = false;
 
   constructor(options: SidecarSupervisorOptions) {
     this.#options = options;
@@ -147,7 +148,12 @@ export class SidecarSupervisor {
 
   /** Spawn the sidecar and resolve once it has announced a listening socket. */
   async start(): Promise<SidecarHandshake> {
-    return this.#launch();
+    const handshake = await this.#launch();
+    // The restart policy arms itself only here. Before this point there is a
+    // caller still waiting on an answer, and the honest answer to a sidecar
+    // that will not come up is the failure itself.
+    this.#started = true;
+    return handshake;
   }
 
   /**
@@ -171,6 +177,13 @@ export class SidecarSupervisor {
 
   /** Signal, wait, escalate, and resolve only once the child has really gone. */
   async #terminate(child: SidecarProcess): Promise<void> {
+    // A child that has already exited will never emit `exit` again, so waiting
+    // for one below would hang whatever is holding this - application quit
+    // included - on a process that is already gone.
+    if (child.exitCode !== null || child.signalCode !== null) {
+      return;
+    }
+
     const exited = new Promise<void>((resolve) => {
       child.once('exit', () => {
         resolve();
@@ -257,6 +270,16 @@ export class SidecarSupervisor {
     }
 
     this.#current = undefined;
+
+    if (!this.#started) {
+      // A sidecar that dies before `start()` has resolved is a build that
+      // cannot start, not a service that fell over: retrying it would spawn a
+      // replacement nobody is waiting for and nobody owns, since the shell has
+      // already taken the startup-failure path and never registered a shutdown
+      // for it. The pending `start()` rejects on its own - on the closed stdout
+      // or on the handshake timeout - and that is what the user is told, once.
+      return;
+    }
 
     if (this.#restarts >= MAX_RESTART_ATTEMPTS) {
       this.#options.onTerminalFailure?.(

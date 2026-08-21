@@ -123,12 +123,15 @@ async def require_session_token(request: Request, call_next: Any) -> Any:
     The sidecar listens on loopback, which any local process and any web page
     the user visits can reach. The per-session bearer token, not the network
     boundary, is what makes the API safe to expose.
-    """
-    if request.method == "OPTIONS" and "access-control-request-method" in request.headers:
-        # A browser never attaches credentials to a CORS preflight, and the
-        # preflight response carries no application data.
-        return await call_next(request)
 
+    No request is exempt. A browser's CORS preflight carries no credentials, but
+    it never arrives here either: ``CORSMiddleware`` sits outside this one and
+    answers a preflight itself, which is every ``OPTIONS`` request that carries
+    both an ``Origin`` and an ``Access-Control-Request-Method``. Waving the
+    remaining shape - preflight-looking, but with no ``Origin``, which no
+    browser sends - past the token check would widen the unauthenticated
+    surface for nothing.
+    """
     presented = _presented_session_token(request)
     if not secrets.compare_digest(presented, EXPECTED_SESSION_TOKEN):
         return _error(

@@ -170,6 +170,91 @@ describe('SidecarSupervisor restart policy', () => {
     const runs = (await readFile(runLog, 'utf8')).trim().split('\n');
     expect(runs).toHaveLength(2);
   }, 5_000);
+
+  it('does not restart a sidecar that died before it ever announced', async () => {
+    // A sidecar that cannot come up at all is a broken build, not a service
+    // that fell over. Restarting it would spawn a replacement nobody is waiting
+    // on and nobody owns - the shell has already taken the startup-failure path
+    // by then and never registers a shutdown for it - so the user would be told
+    // the shell cannot start while a live sidecar was left behind holding a
+    // loopback port and the database.
+    const executable = await writeFakeSidecar(
+      [
+        "import { appendFileSync } from 'node:fs';",
+        "appendFileSync(new URL('runs.log', import.meta.url), 'run\\n');",
+        // Dies without ever writing the handshake line.
+        'process.exit(1);',
+      ].join('\n'),
+    );
+    const runLog = join(dirname(executable), 'runs.log');
+
+    let terminalFailures = 0;
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
+      handshakeTimeoutMs: 1_000,
+      onTerminalFailure: () => {
+        terminalFailures += 1;
+      },
+    });
+
+    await expect(supervisor.start()).rejects.toMatchObject({
+      name: 'SidecarStartError',
+      reason: 'handshake-stream-closed',
+    });
+
+    // Long enough for a restart to have spawned and logged a second run.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    const runs = (await readFile(runLog, 'utf8')).trim().split('\n');
+    expect(runs).toHaveLength(1);
+    // The rejection above is the whole report; a terminal-failure dialog on top
+    // of it would tell the user the same thing twice.
+    expect(terminalFailures).toBe(0);
+  }, 5_000);
+
+  it('leaves nothing running when the exit beats the closed stdout', async () => {
+    // The same startup crash, but with the two events that report it arriving
+    // in the other order. Node guarantees neither, and which one wins decides
+    // which branch the supervisor takes - so this fixture forces the harder
+    // one: a detached grandchild holds the stdout pipe open, so the read never
+    // sees a close and `exit` is what arrives first. Without the guard the
+    // supervisor treats that as a service that fell over, spawns a replacement
+    // that nothing is waiting on, and still rejects `start()` - so the shell
+    // reports that it cannot start while a live sidecar keeps the loopback port
+    // and the database file.
+    const executable = await writeFakeSidecar(
+      [
+        "import { appendFileSync } from 'node:fs';",
+        "import { spawn } from 'node:child_process';",
+        "appendFileSync(new URL('runs.log', import.meta.url), 'run\\n');",
+        "spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1500)'], {",
+        "  stdio: ['ignore', 'inherit', 'ignore'],",
+        '  detached: true,',
+        '}).unref();',
+        'process.exit(1);',
+      ].join('\n'),
+    );
+    const runLog = join(dirname(executable), 'runs.log');
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
+      handshakeTimeoutMs: 1_000,
+    });
+
+    await expect(supervisor.start()).rejects.toMatchObject({
+      name: 'SidecarStartError',
+      reason: 'handshake-timeout',
+    });
+
+    const runs = (await readFile(runLog, 'utf8')).trim().split('\n');
+    expect(runs).toHaveLength(1);
+  }, 10_000);
 });
 
 describe('SidecarSupervisor.stop', () => {

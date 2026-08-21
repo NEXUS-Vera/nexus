@@ -3,10 +3,12 @@
  *
  * It binds a loopback socket the operating system chooses, announces it with
  * the same one-line handshake the Nexus API uses, and reports back whatever
- * `Authorization` header it was sent alongside the token it was started with.
- * That is enough to prove the shell resolved a live address and handed the
- * renderer the same credential the service received, without needing a Python
- * runtime or the real API on the machine running the suite.
+ * `Authorization` header it was sent alongside the token it was started with,
+ * plus the storage configuration the shell spawned it with. That is enough to
+ * prove the shell resolved a live address, handed the renderer the same
+ * credential the service received, and told the service where the student's
+ * projects live - without needing a Python runtime or the real API on the
+ * machine running the suite.
  */
 import { createServer } from 'node:http';
 
@@ -32,6 +34,8 @@ const server = createServer((request, response) => {
     JSON.stringify({
       authorization: request.headers.authorization ?? null,
       expectedToken,
+      storageBackend: process.env.NEXUS_STORAGE_BACKEND ?? null,
+      databaseUrl: process.env.NEXUS_DATABASE_URL ?? null,
       pid: process.pid,
     }),
   );

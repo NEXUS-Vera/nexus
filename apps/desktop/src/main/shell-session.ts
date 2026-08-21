@@ -79,9 +79,10 @@ export async function startShell(options: StartShellOptions): Promise<void> {
         options.host.quit();
       },
       // A replacement sidecar is only a recovery once the window knows where it
-      // went. Registered here rather than after `start()` so a sidecar that
-      // crashes during startup - the likeliest moment for it to crash - is
-      // already covered when its replacement announces itself.
+      // went. This covers a crash after the window is open, and only that: the
+      // supervisor does not restart a sidecar that died before `start()`
+      // resolved, so a shell that cannot come up reaches the user as the
+      // startup failure below rather than as a silent retry.
       onRestart: (replacement) => {
         options.host.updateRuntimeConfig(
           runtimeConfigFor(replacement, options.sessionToken, true),

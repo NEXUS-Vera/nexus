@@ -131,11 +131,15 @@ shutdown is hung on `before-quit`, which every exit passes through, and is
 arranged before the window exists so a quit during startup cannot outrun it.
 
 It also decides two things the sidecar cannot decide for itself. The database
-lives at `nexus.sqlite3` under Electron's `userData` directory - the per-user
-application data location the operating system set aside for it - and the
-sidecar is spawned with `NEXUS_STORAGE_BACKEND=sqlite` pointing there, because
-the API's own default backend is in-memory and would lose every project on
-quit. And when the supervisor replaces a crashed sidecar, the replacement binds
+lives at `nexus.sqlite3` under Electron's `userData` directory, which is a
+`Nexus` folder inside the per-user application data location the operating
+system set aside for it - `~/Library/Application Support/Nexus` on macOS,
+`%APPDATA%\Nexus` on Windows. That name comes from `productName` in
+`package.json`, declared rather than defaulted: Electron otherwise falls back to
+`name`, and this package is scoped, so the scope would end up in the path a
+student's projects live in permanently. The sidecar is spawned with
+`NEXUS_STORAGE_BACKEND=sqlite` pointing at that file, because the API's own
+default backend is in-memory and would lose every project on quit. And when the supervisor replaces a crashed sidecar, the replacement binds
 a different port, so the shell rewrites the runtime configuration the bridge
 serves and reloads the window. The preload exposes named values rather than a
 channel the page can poll, so a reload is how the renderer learns the new
@@ -155,7 +159,10 @@ every load after it.
 spawns the process, reads the one-line loopback handshake from stdout, rejects
 an unsupported handshake major version, fails fast when no handshake arrives,
 restarts a crashed sidecar once before surfacing a terminal failure, and stops
-it without leaving an orphan. It is a plain Node module and takes no Electron
+it without leaving an orphan. The restart policy arms only once `start()` has
+resolved: a sidecar that dies before it ever announces is a build that cannot
+start, so it is reported once through the typed `SidecarStartError` rather than
+respawned into a replacement no one is waiting for and no one owns. It is a plain Node module and takes no Electron
 dependency, so it is unit tested against the runner configured here.
 
 `src/main/terminal-session.ts` runs a command on a real pseudoterminal: input

@@ -82,10 +82,12 @@ Those two are the Vite dev server, which is the browser `make dev-api` and
 response with no `Access-Control-Allow-Origin`. Setting the variable is an
 explicit override and replaces the default in both cases.
 
-CORS preflights (`OPTIONS` with `Access-Control-Request-Method`) are exempt from
-the token check, since browsers never attach credentials to them and the
-preflight response carries no application data. Every other response, including
-a `401`, passes back out through the CORS layer, so a browser can read why it
+No request reaches the router without a valid token, preflights included -
+because a browser's preflight never reaches the token check in the first place.
+`CORSMiddleware` is registered outside it and answers any `OPTIONS` carrying
+both an `Origin` and an `Access-Control-Request-Method` itself, which is exactly
+what a browser sends and nothing else does. Every other response, a `401`
+included, passes back out through that same layer, so a browser can read why it
 was rejected instead of seeing an opaque network error.
 
 Multi-user tenancy is **not** implemented.
