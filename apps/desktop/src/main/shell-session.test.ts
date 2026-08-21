@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { RendererRuntimeConfig } from '../shared/runtime-config.js';
 import { SidecarStartError, SidecarTerminalError } from './sidecar-supervisor.js';
+import type { SidecarHandshake } from './sidecar-supervisor.js';
 import { RendererBundleError } from './renderer-entry.js';
 import { createShutdownHandler, startShell } from './shell-session.js';
 
@@ -33,6 +34,7 @@ describe('startShell', () => {
         openWindow: async () => {
           order.push('openWindow');
         },
+        updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
         reportFatalError: () => refuse('reportFatalError'),
         quit: () => refuse('quit'),
       },
@@ -59,6 +61,7 @@ describe('startShell', () => {
         openWindow: async (config) => {
           opened.push(config);
         },
+        updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
         reportFatalError: () => refuse('reportFatalError'),
         quit: () => refuse('quit'),
       },
@@ -89,6 +92,7 @@ describe('startShell', () => {
       host: {
         registerShutdown: () => undefined,
         openWindow: async () => refuse('openWindow'),
+        updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
         reportFatalError: (message) => {
           reported.push(message);
         },
@@ -121,6 +125,7 @@ describe('startShell', () => {
       host: {
         registerShutdown: () => undefined,
         openWindow: async () => refuse('openWindow'),
+        updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
         reportFatalError: (message) => {
           reported.push(message);
         },
@@ -155,6 +160,7 @@ describe('startShell', () => {
       host: {
         registerShutdown: () => undefined,
         openWindow: () => Promise.reject(missingBundle),
+        updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
         reportFatalError: (message) => {
           reported.push(message);
         },
@@ -187,13 +193,14 @@ describe('startShell', () => {
 
     await startShell({
       sessionToken: 'a-session-token',
-      createSidecar: (onTerminalFailure) => {
+      createSidecar: ({ onTerminalFailure }) => {
         notifyTerminalFailure = onTerminalFailure;
         return { start: async () => HANDSHAKE, stop: async () => undefined };
       },
       host: {
         registerShutdown: () => undefined,
         openWindow: async () => undefined,
+        updateRuntimeConfig: () => refuse('updateRuntimeConfig'),
         reportFatalError: (message) => {
           reported.push(message);
         },
@@ -211,6 +218,38 @@ describe('startShell', () => {
     expect(reported).toHaveLength(1);
     expect(reported[0]).toContain(terminal.message);
     expect(quits).toBe(1);
+  });
+
+  it('re-points the renderer when a crashed sidecar is replaced on a new port', async () => {
+    const republished: RendererRuntimeConfig[] = [];
+    let announceRestart: ((handshake: SidecarHandshake) => void) | undefined;
+
+    await startShell({
+      sessionToken: 'a-session-token',
+      createSidecar: ({ onRestart }) => {
+        announceRestart = onRestart;
+        return { start: async () => HANDSHAKE, stop: async () => undefined };
+      },
+      host: {
+        registerShutdown: () => undefined,
+        openWindow: async () => undefined,
+        updateRuntimeConfig: (config) => {
+          republished.push(config);
+        },
+        reportFatalError: () => refuse('reportFatalError'),
+        quit: () => refuse('quit'),
+      },
+    });
+
+    announceRestart?.({ ...HANDSHAKE, port: 61_234 });
+
+    // The replacement is spawned with NEXUS_API_PORT=0 like the original, so it
+    // binds somewhere else. A recovery nobody tells the renderer about leaves a
+    // window that reads as healthy while every request goes to a dead port -
+    // which is worse than the crash it recovered from, because nothing says so.
+    expect(republished).toEqual([
+      { baseUrl: 'http://127.0.0.1:61234', sessionToken: 'a-session-token' },
+    ]);
   });
 });
 

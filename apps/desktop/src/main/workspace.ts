@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -67,8 +67,15 @@ const DEFAULT_DEBOUNCE_MS = 100;
 export interface EditProposal {
   /** Workspace-relative path of the file the edit targets. */
   readonly path: string;
-  /** Hash of the file's bytes at the moment the proposal was made. */
-  readonly baseHash: string;
+  /**
+   * Hash of the file's bytes at the moment the proposal was made, or `null` if
+   * there was no file there yet.
+   *
+   * `null` is a value the apply-time check compares against like any other, so
+   * a file that appeared in between is refused rather than overwritten: the
+   * proposal was computed against "nothing", and something is not nothing.
+   */
+  readonly baseHash: string | null;
   /** The full contents the file would have if the proposal were applied. */
   readonly newContent: string;
   /** Unified-style rendering of the change, for the student to review. */
@@ -115,16 +122,21 @@ export class Workspace {
    * Compute what an edit would change, without changing it.
    *
    * Nothing here writes, creates, or so much as opens the file for writing.
+   *
+   * A path with no file behind it is a proposal, not an error: adding a source
+   * or header file is an ordinary agent edit, and it has to reach the same
+   * accept/reject gate as every other one rather than escaping as a raw
+   * `ENOENT` the caller cannot tell from a permissions failure.
    */
   async proposeEdit(relativePath: string, newContent: string): Promise<EditProposal> {
     const absolutePath = await this.#resolveInside(relativePath);
-    const current = await readFile(absolutePath, 'utf8');
+    const current = await readExistingFile(absolutePath);
 
     return {
       path: relativePath,
-      baseHash: hashContent(current),
+      baseHash: current === undefined ? null : hashContent(current),
       newContent,
-      diff: renderDiff(current, newContent),
+      diff: current === undefined ? renderCreation(newContent) : renderDiff(current, newContent),
     };
   }
 
@@ -144,16 +156,27 @@ export class Workspace {
   async applyEdit(proposal: EditProposal): Promise<AppliedEdit> {
     const absolutePath = await this.#resolveInside(proposal.path);
 
-    const currentHash = hashContent(await readFile(absolutePath, 'utf8'));
+    const current = await readExistingFile(absolutePath);
+    const currentHash = current === undefined ? null : hashContent(current);
     if (currentHash !== proposal.baseHash) {
       throw new WorkspaceError(
         'stale-proposal',
-        `${proposal.path} changed after this edit was proposed; ` +
-          're-read the file and propose again rather than overwriting the change',
+        `${proposal.path} is no longer the file this edit was proposed against - it has ` +
+          'since been created, changed, or removed; re-read it and propose again rather ' +
+          'than overwriting the change',
       );
     }
 
-    const checkpointRef = await this.#checkpoint(absolutePath);
+    const checkpointRef = await this.#checkpoint(absolutePath, current !== undefined);
+
+    if (current === undefined) {
+      // A new file may name a directory the project does not have yet - a
+      // `src/` in a flat sketch, a `drivers/` beside it. Without this the write
+      // fails with the same bare ENOENT that proposing one used to, which is
+      // the failure this path exists to remove. The parent is inside the
+      // workspace because the whole resolved path already was.
+      await mkdir(dirname(absolutePath), { recursive: true });
+    }
 
     await writeFile(absolutePath, proposal.newContent, 'utf8');
 
@@ -289,7 +312,7 @@ export class Workspace {
    * stages or commits on their behalf would corrupt the history they are in the
    * middle of writing. Nothing here mutates any state the student can see.
    */
-  async #checkpoint(targetPath: string): Promise<string> {
+  async #checkpoint(targetPath: string, targetExists: boolean): Promise<string> {
     const indexFile = join(await this.#gitDir(), `nexus-checkpoint-index-${randomUUID()}`);
     const env = { ...process.env, GIT_INDEX_FILE: indexFile };
     const head = await this.#headCommit();
@@ -304,7 +327,13 @@ export class Workspace {
       // about to be overwritten is forced in regardless, so recoverability does
       // not depend on the student's ignore rules. Only this one file is forced:
       // the whole ignored tree would drag in build output and dependencies.
-      await this.#git(['add', '--force', '--', targetPath], env);
+      //
+      // A file that does not exist yet has no prior bytes to preserve, and
+      // naming it here would fail the whole checkpoint on a pathspec that
+      // matches nothing. Its undo is that the checkpoint does not contain it.
+      if (targetExists) {
+        await this.#git(['add', '--force', '--', targetPath], env);
+      }
       const tree = await this.#git(['write-tree'], env);
 
       const commit = await this.#git(
@@ -406,6 +435,37 @@ async function realpathOfNearestExisting(absolutePath: string): Promise<string> 
       existing = parent;
     }
   }
+}
+
+/**
+ * Read a file, reporting a missing one as absence rather than as a failure.
+ *
+ * Only `ENOENT` is swallowed: a permissions error or an unreadable directory is
+ * a real fault, and turning it into "the file is not there" would make an edit
+ * that cannot be written look like an edit that creates something.
+ */
+async function readExistingFile(absolutePath: string): Promise<string | undefined> {
+  try {
+    return await readFile(absolutePath, 'utf8');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Render a file that does not exist yet as a pure addition.
+ *
+ * Diffing against an empty string would show a removed empty line, which is a
+ * line the student never had and would have to reason about.
+ */
+function renderCreation(content: string): string {
+  return content
+    .split('\n')
+    .map((line) => `+${line}`)
+    .join('\n');
 }
 
 /** Content hash used to detect that a file moved underneath a proposal. */

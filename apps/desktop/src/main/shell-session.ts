@@ -19,6 +19,12 @@ export interface SidecarLifecycle {
   stop(): Promise<void>;
 }
 
+/** What the supervisor reports back once `start()` has already resolved. */
+export interface SidecarCallbacks {
+  readonly onTerminalFailure: (error: Error) => void;
+  readonly onRestart: (handshake: SidecarHandshake) => void;
+}
+
 /** The Electron-shaped effects, injected so this module stays plain Node. */
 export interface ShellHost {
   /**
@@ -29,6 +35,15 @@ export interface ShellHost {
    */
   registerShutdown(sidecar: SidecarLifecycle): void;
   openWindow(config: RendererRuntimeConfig): Promise<void>;
+  /**
+   * Re-point an already-open window at a new runtime configuration.
+   *
+   * Called when a crashed sidecar has been replaced. The replacement binds a
+   * different port, so the address the window was opened with names nothing;
+   * without this the shell reads as healthy while every request fails, which is
+   * a worse outcome than a visible failure.
+   */
+  updateRuntimeConfig(config: RendererRuntimeConfig): void;
   reportFatalError(message: string): void;
   quit(): void;
 }
@@ -36,11 +51,12 @@ export interface ShellHost {
 export interface StartShellOptions {
   readonly sessionToken: string;
   /**
-   * Build the sidecar, wiring the supervisor's terminal-failure callback to the
-   * handler passed in. That callback is the only way a crash after startup can
-   * be reported: by then the start promise has long since settled.
+   * Build the sidecar, wiring the supervisor's post-startup callbacks to the
+   * handlers passed in. Both are the only way anything that happens after the
+   * start promise settles can reach the shell: a crash it could not recover
+   * from, and a recovery that moved the service to a new address.
    */
-  readonly createSidecar: (onTerminalFailure: (error: Error) => void) => SidecarLifecycle;
+  readonly createSidecar: (callbacks: SidecarCallbacks) => SidecarLifecycle;
   readonly host: ShellHost;
 }
 
@@ -57,9 +73,18 @@ export async function startShell(options: StartShellOptions): Promise<void> {
     // Constructing the sidecar can fail on its own - an unconfigured command,
     // a path that is not there - and to the user that is indistinguishable from
     // a sidecar that failed to start. Both belong on the same path out.
-    sidecar = options.createSidecar((error) => {
-      options.host.reportFatalError(describeTerminalFailure(error));
-      options.host.quit();
+    sidecar = options.createSidecar({
+      onTerminalFailure: (error) => {
+        options.host.reportFatalError(describeTerminalFailure(error));
+        options.host.quit();
+      },
+      // A replacement sidecar is only a recovery once the window knows where it
+      // went. Registered here rather than after `start()` so a sidecar that
+      // crashes during startup - the likeliest moment for it to crash - is
+      // already covered when its replacement announces itself.
+      onRestart: (replacement) => {
+        options.host.updateRuntimeConfig(runtimeConfigFor(replacement, options.sessionToken));
+      },
     });
     handshake = await sidecar.start();
   } catch (error) {
@@ -74,10 +99,7 @@ export async function startShell(options: StartShellOptions): Promise<void> {
   options.host.registerShutdown(sidecar);
 
   try {
-    await options.host.openWindow({
-      baseUrl: `http://${handshake.host}:${String(handshake.port)}`,
-      sessionToken: options.sessionToken,
-    });
+    await options.host.openWindow(runtimeConfigFor(handshake, options.sessionToken));
   } catch (error) {
     // The sidecar is running by now, so this is the one failure that can leave
     // a process behind: no window will ever close to trigger the shutdown.
@@ -85,6 +107,25 @@ export async function startShell(options: StartShellOptions): Promise<void> {
     await sidecar.stop();
     options.host.quit();
   }
+}
+
+/**
+ * What the renderer is told about a sidecar, derived in one place.
+ *
+ * The initial window and every replacement after a restart have to agree on
+ * how an announcement becomes an address, or a recovery quietly points the
+ * page somewhere the original never was.
+ */
+function runtimeConfigFor(
+  handshake: SidecarHandshake,
+  sessionToken: string,
+): RendererRuntimeConfig {
+  return {
+    baseUrl: `http://${handshake.host}:${String(handshake.port)}`,
+    // The supervisor spawns a replacement with the same credential, so this is
+    // still the token the service expects.
+    sessionToken,
+  };
 }
 
 /**

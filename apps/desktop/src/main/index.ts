@@ -1,3 +1,4 @@
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 
@@ -21,6 +22,57 @@ function preloadEntryPath(): string {
   return path.join(app.getAppPath(), 'dist', 'preload', 'index.cjs');
 }
 
+/**
+ * Where the sidecar keeps the user's projects.
+ *
+ * `userData` is the per-user application data directory the operating system
+ * set aside for exactly this - `~/Library/Application Support` on macOS,
+ * `%APPDATA%` on Windows - so the database survives an application update and
+ * belongs to the user rather than to the installation. The directory is created
+ * here because the sidecar is handed a path, not a chance to make one.
+ */
+function databaseFilePath(): string {
+  const directory = app.getPath('userData');
+  mkdirSync(directory, { recursive: true });
+  return path.join(directory, 'nexus.sqlite3');
+}
+
+/**
+ * The configuration the preload bridge is currently serving.
+ *
+ * Held here rather than captured by the channel handler because a replacement
+ * sidecar binds a new port: the answer has to be re-readable, not fixed at the
+ * moment the first window opened.
+ */
+let rendererRuntimeConfig: RendererRuntimeConfig | undefined;
+
+function currentRuntimeConfig(): RendererRuntimeConfig {
+  if (rendererRuntimeConfig === undefined) {
+    // Unreachable through `startShell`, which opens a window only after the
+    // handshake. Stated rather than defaulted, because a placeholder address
+    // here would reach the renderer as a real one.
+    throw new Error('The renderer asked for its runtime configuration before the shell had one.');
+  }
+  return rendererRuntimeConfig;
+}
+
+/**
+ * Point every open window at a replacement sidecar.
+ *
+ * The bridge deliberately exposes named values rather than anything the page
+ * can call, so there is no channel to push a new address down. Reloading is
+ * therefore how the renderer learns: the preload runs again and asks for the
+ * configuration above, which by then names the replacement. The alternative -
+ * leaving the page addressing a port nothing is listening on - looks healthy
+ * and fails on every request.
+ */
+function republishRuntimeConfig(config: RendererRuntimeConfig): void {
+  rendererRuntimeConfig = config;
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.reload();
+  }
+}
+
 async function openMainWindow(config: RendererRuntimeConfig): Promise<void> {
   // Checked before a window exists, so a missing interface is reported as one
   // sentence rather than as an empty frame that failed to load a file URL.
@@ -31,7 +83,8 @@ async function openMainWindow(config: RendererRuntimeConfig): Promise<void> {
 
   // Answering is arranged before the window exists: the preload asks for this
   // during its own load, which happens before the page's first script runs.
-  serveRuntimeConfig(ipcMain, config);
+  rendererRuntimeConfig = config;
+  serveRuntimeConfig(ipcMain, currentRuntimeConfig);
 
   const window = new BrowserWindow({
     width: 1280,
@@ -69,11 +122,13 @@ async function bootstrap(): Promise<void> {
 
   await startShell({
     sessionToken,
-    createSidecar: (onTerminalFailure) =>
+    createSidecar: ({ onTerminalFailure, onRestart }) =>
       new SidecarSupervisor({
         ...resolveSidecarLaunch(process.env),
         sessionToken,
+        databaseFile: databaseFilePath(),
         onTerminalFailure,
+        onRestart,
       }),
     host: {
       // Every route out of the application passes through `before-quit`: the
@@ -94,6 +149,7 @@ async function bootstrap(): Promise<void> {
         );
       },
       openWindow: openMainWindow,
+      updateRuntimeConfig: republishRuntimeConfig,
       reportFatalError: (message) => {
         dialog.showErrorBox('Nexus cannot start', message);
       },

@@ -39,9 +39,18 @@ export interface SyncChannelHost {
  * credential before it issues its first request, and a promise would force
  * every caller to be async for a value the main process already holds in
  * memory. The handler does no work beyond returning that value.
+ *
+ * The value is read per request rather than captured once, because the address
+ * can change while the application is running: a sidecar that crashes is
+ * replaced on a fresh operating-system-assigned port, and the page is reloaded
+ * to pick the replacement up. A captured value would hand that reload the dead
+ * address and leave the window looking healthy while every request failed.
  */
-export function serveRuntimeConfig(host: SyncChannelHost, config: RendererRuntimeConfig): void {
+export function serveRuntimeConfig(
+  host: SyncChannelHost,
+  readConfig: () => RendererRuntimeConfig,
+): void {
   host.on(RUNTIME_CONFIG_CHANNEL, (event) => {
-    event.returnValue = config;
+    event.returnValue = readConfig();
   });
 }

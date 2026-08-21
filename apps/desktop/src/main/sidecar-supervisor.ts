@@ -109,6 +109,16 @@ export interface SidecarSupervisorOptions {
   readonly args: readonly string[];
   /** Shared secret the sidecar requires on every loopback request. */
   readonly sessionToken: string;
+  /**
+   * Absolute path of the SQLite file the sidecar keeps the user's projects in.
+   *
+   * Required rather than defaulted, because the sidecar's own default storage
+   * backend is in-memory: a shell that forgot to say where the database lives
+   * would run perfectly and lose every project the moment the user quits. The
+   * shell is also the only party that knows the per-user application data
+   * directory this belongs in, so the decision cannot live down here.
+   */
+  readonly databaseFile: string;
   /** Defaults to {@link DEFAULT_HANDSHAKE_TIMEOUT_MS}. */
   readonly handshakeTimeoutMs?: number;
   /** Defaults to {@link DEFAULT_TERMINATION_GRACE_MS}. */
@@ -191,6 +201,11 @@ export class SidecarSupervisor {
         ...process.env,
         NEXUS_API_PORT: '0',
         NEXUS_API_SESSION_TOKEN: this.#options.sessionToken,
+        // Stated rather than inherited, and stated after the spread so a stray
+        // value in the shell's own environment cannot redirect the user's
+        // projects into a developer's Postgres or back into memory.
+        NEXUS_STORAGE_BACKEND: 'sqlite',
+        NEXUS_DATABASE_URL: sqliteUrl(this.#options.databaseFile),
       },
       // stdout is the contract channel. stderr is inherited so sidecar logging
       // reaches the shell's own diagnostics instead of filling an unread pipe.
@@ -267,6 +282,18 @@ export class SidecarSupervisor {
         // terminal branch.
       });
   }
+}
+
+/**
+ * Address a SQLite file the way SQLAlchemy expects.
+ *
+ * The path is absolute, so it contributes its own leading separator and the
+ * result carries four slashes on unix - which is the absolute form, as against
+ * the three-slash relative one that would put the database wherever the
+ * sidecar happened to be started from.
+ */
+function sqliteUrl(databaseFile: string): string {
+  return `sqlite:///${databaseFile}`;
 }
 
 /**

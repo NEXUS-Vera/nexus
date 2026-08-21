@@ -60,6 +60,7 @@ describe('SidecarSupervisor.start', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
     });
 
     const handshake = await supervisor.start();
@@ -74,6 +75,7 @@ describe('SidecarSupervisor.start', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
     });
 
     await expect(supervisor.start()).rejects.toSatisfy(
@@ -92,6 +94,7 @@ describe('SidecarSupervisor.start', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       handshakeTimeoutMs: 150,
     });
 
@@ -118,6 +121,7 @@ describe('SidecarSupervisor.start', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       handshakeTimeoutMs: 150,
       terminationGraceMs: 200,
     });
@@ -152,6 +156,7 @@ describe('SidecarSupervisor restart policy', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       handshakeTimeoutMs: 1_000,
       onTerminalFailure: (error) => surfaceTerminalFailure(error),
     });
@@ -178,6 +183,7 @@ describe('SidecarSupervisor.stop', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       handshakeTimeoutMs: 1_000,
     });
 
@@ -201,6 +207,7 @@ describe('SidecarSupervisor.stop', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       handshakeTimeoutMs: 1_000,
       terminationGraceMs: 200,
     });
@@ -258,6 +265,7 @@ describe('SidecarSupervisor restart reporting', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       onRestart: (handshake) => {
         restarts.push(handshake.port);
       },
@@ -286,6 +294,7 @@ describe('SidecarSupervisor.start when the sidecar dies without announcing', () 
       command: process.execPath,
       args: [executable],
       sessionToken: 'token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       // Generous, so the assertion below can only pass by noticing the closed
       // stream. Waiting for this timeout is the bug.
       handshakeTimeoutMs: 30_000,
@@ -303,6 +312,7 @@ describe('SidecarSupervisor.start when the sidecar dies without announcing', () 
       command: process.execPath,
       args: [executable],
       sessionToken: 'token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       handshakeTimeoutMs: 30_000,
     });
 
@@ -339,12 +349,65 @@ describe('SidecarSupervisor.start with a malformed handshake', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
       handshakeTimeoutMs: 5_000,
     });
 
     await expect(supervisor.start()).rejects.toMatchObject({
       name: 'SidecarStartError',
       reason: 'malformed-handshake',
+    });
+  }, 15_000);
+});
+
+describe('SidecarSupervisor storage configuration', () => {
+  it('tells the sidecar to persist to the SQLite file the shell chose', async () => {
+    // The API's own default storage backend is in-memory. A shell that spawns
+    // the sidecar without saying otherwise runs perfectly and loses every
+    // project the moment the user quits, which no unit test of either half
+    // catches - the fault lives exactly here, in what gets handed over.
+    const dir = await mkdtemp(join(tmpdir(), 'nexus-sidecar-'));
+    scratchDirs.push(dir);
+    const observed = join(dir, 'env.json');
+    const databaseFile = join(dir, 'projects.sqlite3');
+    const executable = join(dir, 'fake-sidecar.mjs');
+    await writeFile(
+      executable,
+      [
+        "import { writeFileSync } from 'node:fs';",
+        `writeFileSync(${JSON.stringify(observed)}, JSON.stringify({`,
+        '  backend: process.env.NEXUS_STORAGE_BACKEND,',
+        '  url: process.env.NEXUS_DATABASE_URL,',
+        '  token: process.env.NEXUS_API_SESSION_TOKEN,',
+        '  port: process.env.NEXUS_API_PORT,',
+        '}));',
+        announce(46_001),
+        'setTimeout(() => process.exit(0), 5000);',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'a-session-token',
+      databaseFile,
+      // The environment a developer happens to be running under must not decide
+      // where a user's projects go.
+      handshakeTimeoutMs: 5_000,
+    });
+
+    await supervisor.start();
+    await supervisor.stop();
+
+    expect(JSON.parse(await readFile(observed, 'utf8'))).toEqual({
+      backend: 'sqlite',
+      // Absolute, and addressed with SQLAlchemy's four-slash form: the
+      // three-slash one is relative and would put the database wherever the
+      // sidecar was started from.
+      url: `sqlite:///${databaseFile}`,
+      token: 'a-session-token',
+      port: '0',
     });
   }, 15_000);
 });
@@ -378,6 +441,7 @@ describe('SidecarSupervisor parent-death signalling', () => {
       command: process.execPath,
       args: [executable],
       sessionToken: 'token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
     });
 
     const handshake = await supervisor.start();

@@ -17,7 +17,7 @@ import time
 import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
-from nexus_api.config import settings
+from nexus_api.config import DEV_SESSION_TOKEN, settings
 from nexus_api.main import app
 
 SIDECAR_TOKEN = "test-session-token"
@@ -34,34 +34,50 @@ async def test_request_without_session_token_is_401() -> None:
 
 
 @pytest.mark.asyncio
-async def test_no_cors_allowlist_required_for_file_origin() -> None:
-    """A packaged Electron renderer loads over ``file://`` and sends ``Origin: null``."""
+async def test_non_ascii_credential_is_rejected_not_crashed() -> None:
+    """A byte above 0x7F in the header must still produce the documented 401.
+
+    Starlette decodes headers as latin-1, so such a byte arrives as a non-ASCII
+    ``str`` - and ``secrets.compare_digest`` raises ``TypeError`` rather than
+    returning ``False`` for those. Unhandled, that surfaces as a 500 with a
+    stack trace where an authentication failure belongs.
+    """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        preflight = await client.options(
-            "/v1/projects/initialize",
-            headers={
-                "Origin": "null",
-                "Access-Control-Request-Method": "POST",
-                # A browser never attaches credentials to a preflight.
-                "Access-Control-Request-Headers": "authorization,content-type",
-            },
-        )
         response = await client.get(
             "/v1/projects/proj_abcdefghijklmnop",
-            headers={
-                "Origin": "null",
-                "Authorization": f"Bearer {settings.session_token}",
-            },
+            # Raw bytes, because that is what a client puts on the wire; letting
+            # httpx encode a str would fail here rather than at the server.
+            headers=[(b"authorization", b"Bearer \xff\xfe")],
         )
 
-    assert preflight.status_code == 200
-    assert preflight.headers.get("access-control-allow-origin") in {"*", "null"}
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "SESSION_TOKEN_REQUIRED"
 
-    # The token, not the origin allowlist, decides: the request reaches the app.
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
-    assert response.headers.get("access-control-allow-origin") in {"*", "null"}
+
+@pytest.mark.asyncio
+async def test_401_is_readable_by_the_browser_that_asked() -> None:
+    """The rejection has to carry CORS headers, or the browser hides it.
+
+    The token check and CORS are both middleware, and only the outermost one
+    decorates a response the inner one short-circuits. With the token check on
+    the outside, a 401 comes back with no ``Access-Control-Allow-Origin``; the
+    browser then blocks the body and ``fetch`` rejects, so the renderer reports
+    a network failure for what was really an expired credential.
+    """
+    origin = settings.cors_origins[0]
+    if origin == "*":
+        origin = "http://localhost:5173"
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(
+            "/v1/projects/proj_abcdefghijklmnop",
+            headers={"Origin": origin, "Authorization": "Bearer not-the-token"},
+        )
+
+    assert response.status_code == 401
+    assert response.headers.get("access-control-allow-origin") is not None
 
 
 def _sidecar_env(**overrides: str) -> dict[str, str]:
@@ -69,6 +85,7 @@ def _sidecar_env(**overrides: str) -> dict[str, str]:
     env["PYTHONPATH"] = os.pathsep.join(entry for entry in sys.path if entry)
     env["NEXUS_API_SESSION_TOKEN"] = SIDECAR_TOKEN
     env["NEXUS_API_PORT"] = "0"
+    env.pop("NEXUS_API_CORS_ORIGINS", None)
     env.update(overrides)
     return env
 
@@ -94,6 +111,11 @@ def test_startup_announces_bound_port_as_json() -> None:
     process = subprocess.Popen(
         [sys.executable, "-m", "nexus_api"],
         env=_sidecar_env(),
+        # Explicit, so this case turns on the handshake alone: an inherited
+        # stdin that happens to be a closed pipe would arm the liveness
+        # watchdog and stop the sidecar for a reason unrelated to what is
+        # under test here.
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
@@ -122,6 +144,144 @@ def test_startup_announces_bound_port_as_json() -> None:
         process.wait(timeout=10)
 
 
+def _spawn_sidecar(**env: str) -> tuple[subprocess.Popen[str], int]:
+    """Start a real sidecar and return it alongside the port it announced."""
+    process = subprocess.Popen(
+        [sys.executable, "-m", "nexus_api"],
+        env=_sidecar_env(**env),
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    try:
+        return process, int(str(_read_handshake(process)["port"]))
+    except BaseException:
+        process.kill()
+        raise
+
+
+def test_packaged_renderer_origin_is_allowed_when_the_token_is_a_secret() -> None:
+    """A packaged Electron renderer loads over ``file://`` and sends ``Origin: null``.
+
+    No origin allowlist contains that, so the shipped shell only works because
+    the default is unrestricted - which is safe exactly while the token is the
+    per-launch secret the supervisor injects, as it is here.
+    """
+    process, port = _spawn_sidecar()
+    try:
+        preflight = httpx.options(
+            f"http://127.0.0.1:{port}/v1/projects/initialize",
+            headers={
+                "Origin": "null",
+                "Access-Control-Request-Method": "POST",
+                # A browser never attaches credentials to a preflight.
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+            timeout=10.0,
+        )
+        response = httpx.get(
+            f"http://127.0.0.1:{port}/v1/projects/proj_abcdefghijklmnop",
+            headers={"Origin": "null", "Authorization": f"Bearer {SIDECAR_TOKEN}"},
+            timeout=10.0,
+        )
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+
+    assert preflight.status_code == 200
+    assert preflight.headers.get("access-control-allow-origin") in {"*", "null"}
+
+    # The token, not the origin allowlist, decides: the request reaches the app.
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
+    assert response.headers.get("access-control-allow-origin") in {"*", "null"}
+
+
+def test_dev_server_still_reaches_the_api_under_the_published_token() -> None:
+    """Narrowing the default must not break `make dev`.
+
+    The web development target runs at :5173 and presents the published token,
+    which is the one arrangement the narrowed allowlist has to keep working -
+    under both spellings of loopback, since the browser treats them as
+    different origins.
+    """
+    process, port = _spawn_sidecar(NEXUS_API_SESSION_TOKEN="")
+    try:
+        responses = [
+            httpx.get(
+                f"http://127.0.0.1:{port}/v1/projects/proj_abcdefghijklmnop",
+                headers={
+                    "Origin": origin,
+                    "Authorization": f"Bearer {DEV_SESSION_TOKEN}",
+                },
+                timeout=10.0,
+            )
+            for origin in ("http://localhost:5173", "http://127.0.0.1:5173")
+        ]
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+
+    for response in responses:
+        assert response.status_code == 404
+        assert response.headers.get("access-control-allow-origin") is not None
+
+
+def test_published_dev_token_is_not_combined_with_open_cors() -> None:
+    """With no token configured the credential is public, so the origin matters.
+
+    ``DEV_SESSION_TOKEN`` is a constant published in this repository and baked
+    into the built web bundle, so any page the user happens to visit can present
+    it. If the sidecar also answered every origin, that page could read the
+    user's projects out of the API. The origin has to carry the boundary the
+    token cannot.
+    """
+    process, port = _spawn_sidecar(NEXUS_API_SESSION_TOKEN="")
+    try:
+        response = httpx.get(
+            f"http://127.0.0.1:{port}/v1/projects/proj_abcdefghijklmnop",
+            headers={
+                "Origin": "https://evil.example",
+                "Authorization": f"Bearer {DEV_SESSION_TOKEN}",
+            },
+            timeout=10.0,
+        )
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+
+    # The guessed credential still gets past the token check - that is the point:
+    # it is published. What stops the page is that it may not read the answer.
+    assert response.status_code == 404
+    assert response.headers.get("access-control-allow-origin") is None
+
+
+def test_sidecar_exits_when_its_stdin_pipe_closes() -> None:
+    """The stdin pipe is the only parent-death signal that works on Windows.
+
+    ``_watch_parent`` notices a dead parent only because POSIX reparents
+    orphans; Windows does not, so the pid never changes there and that watchdog
+    never fires. The supervisor hands over a stdin pipe precisely so an EOF can
+    say "the shell is gone" on every platform - which is worth nothing unless
+    something actually reads it.
+    """
+    process, _ = _spawn_sidecar()
+    try:
+        assert process.stdin is not None
+        assert process.poll() is None
+
+        process.stdin.close()
+
+        # Long enough to cover the sidecar's own shutdown grace period.
+        process.wait(timeout=20)
+    finally:
+        if process.poll() is None:  # pragma: no cover - only reached on regression
+            process.kill()
+            process.wait(timeout=10)
+            raise AssertionError("sidecar outlived the stdin pipe that signalled its parent")
+
+
 # Stands in for the desktop shell: spawns the sidecar and then is killed.
 PARENT_SOURCE = """
 import subprocess
@@ -144,6 +304,9 @@ def test_sidecar_exits_when_parent_dies() -> None:
     parent = subprocess.Popen(
         [sys.executable, "-c", PARENT_SOURCE],
         env=_sidecar_env(),
+        # No stdin pipe anywhere in this chain, so the sidecar can only notice
+        # the death through `os.getppid()` - which is the watchdog under test.
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,

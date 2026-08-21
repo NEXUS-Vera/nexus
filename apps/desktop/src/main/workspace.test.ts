@@ -133,6 +133,80 @@ describe('Workspace.applyEdit', () => {
     );
   });
 
+  it('creates a file that did not exist yet, through the same gate', async () => {
+    // Adding a source or header file is an ordinary agent edit. Before this,
+    // proposing one threw a raw ENOENT out of `readFile` - not a WorkspaceError
+    // with a reason the shell could act on - so the accept/reject gate had no
+    // path to creating a file at all.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    await writeFile(join(root, 'main.c'), 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('sensor.h', '#pragma once\n');
+
+    // Nothing was created by proposing, and the diff reads as a pure addition
+    // rather than as a removal of a line the student never had.
+    expect(proposal.baseHash).toBeNull();
+    expect(proposal.diff).toBe('+#pragma once\n+');
+    await expect(stat(join(root, 'sensor.h'))).rejects.toSatisfy(
+      (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT',
+    );
+
+    const applied = await workspace.applyEdit(proposal);
+
+    expect(await readFile(join(root, 'sensor.h'), 'utf8')).toBe('#pragma once\n');
+    // The checkpoint still exists and still describes the world before the
+    // edit, in which the file was simply not there.
+    await expect(git(root, ['show', `${applied.checkpointRef}:sensor.h`])).rejects.toBeDefined();
+    expect(await git(root, ['show', `${applied.checkpointRef}:main.c`])).toBe(
+      'int main(void) { return 0; }\n',
+    );
+  }, 10_000);
+
+  it('creates the directories a new file names but the project does not have', async () => {
+    // A new source file routinely arrives with a directory that is not there
+    // yet - a `drivers/` beside a flat sketch. Writing straight into it fails
+    // with the same bare ENOENT that proposing a missing file used to.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    await writeFile(join(root, 'main.c'), 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('drivers/i2c/bus.c', 'void init(void) {}\n');
+    await workspace.applyEdit(proposal);
+
+    expect(await readFile(join(root, 'drivers', 'i2c', 'bus.c'), 'utf8')).toBe(
+      'void init(void) {}\n',
+    );
+  }, 10_000);
+
+  it('refuses to create a file that appeared after the proposal was made', async () => {
+    // The proposal was computed against nothing, and something is not nothing.
+    // Weakening the check for creations specifically is how a student who added
+    // the file themselves in the seconds in between loses what they wrote.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    await writeFile(join(root, 'main.c'), 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('sensor.h', '#pragma once\n');
+
+    const typedByHand = '#pragma once\n// the student typed this\n';
+    await writeFile(join(root, 'sensor.h'), typedByHand, 'utf8');
+
+    await expect(workspace.applyEdit(proposal)).rejects.toSatisfy(
+      (error: unknown) => error instanceof WorkspaceError && error.reason === 'stale-proposal',
+    );
+    expect(await readFile(join(root, 'sensor.h'), 'utf8')).toBe(typedByHand);
+  }, 10_000);
+
   it('refuses to write into a directory that is not a git repository', async () => {
     // Recoverability is not a nicety here, it is the reason applying is allowed
     // at all: without a checkpoint there is no undo for an edit that overwrites

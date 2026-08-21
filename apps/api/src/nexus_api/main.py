@@ -50,13 +50,6 @@ ARTIFACT_TYPES = {
 }
 
 app = FastAPI(title="Nexus API", version="0.1.0")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "X-Request-Id", "Authorization"],
-)
 
 _store = build_project_store(
     backend=settings.storage_backend,
@@ -98,12 +91,29 @@ def _request_id(request: Request) -> str:
     return request.headers.get("x-request-id") or str(uuid.uuid4())
 
 
-def _presented_session_token(request: Request) -> str:
+#: The expected credential as bytes, encoded once at import.
+EXPECTED_SESSION_TOKEN = settings.session_token.encode("utf-8")
+
+
+def _presented_session_token(request: Request) -> bytes:
+    """The presented bearer credential, as the raw bytes that arrived.
+
+    Deliberately bytes rather than ``str``. Starlette decodes headers as
+    latin-1, so any byte from 0x80 upwards becomes a non-ASCII character, and
+    ``secrets.compare_digest`` refuses to compare non-ASCII ``str`` at all - it
+    raises ``TypeError``, which inside the middleware becomes a 500 and a stack
+    trace where the documented 401 belongs. Encoding back to bytes recovers
+    exactly what the client sent and removes the failure mode rather than
+    guarding against it.
+    """
     header = request.headers.get("authorization", "")
     scheme, _, value = header.partition(" ")
     if scheme.lower() != "bearer":
-        return ""
-    return value.strip()
+        return b""
+    # Undoing Starlette's latin-1 decode is lossless for every byte a header can
+    # carry; ``replace`` only covers a caller that hands us a str from elsewhere,
+    # and yields bytes that cannot match a real token.
+    return value.strip().encode("latin-1", "replace")
 
 
 @app.middleware("http")
@@ -120,7 +130,7 @@ async def require_session_token(request: Request, call_next: Any) -> Any:
         return await call_next(request)
 
     presented = _presented_session_token(request)
-    if not secrets.compare_digest(presented, settings.session_token):
+    if not secrets.compare_digest(presented, EXPECTED_SESSION_TOKEN):
         return _error(
             401,
             code="SESSION_TOKEN_REQUIRED",
@@ -128,6 +138,21 @@ async def require_session_token(request: Request, call_next: Any) -> Any:
             request_id=_request_id(request),
         )
     return await call_next(request)
+
+
+# Registered last, and that is the whole point: Starlette inserts each new
+# middleware at the front of the stack, so the most recently added one runs
+# outermost. CORS has to be outside the token check, or the 401 above is
+# returned without ``Access-Control-Allow-Origin`` and the browser blocks the
+# response body - turning an authentication failure into an opaque network
+# error the renderer cannot report or act on.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-Request-Id", "Authorization"],
+)
 
 
 def _validate_project_id(project_id: str, request_id: str) -> JSONResponse | None:

@@ -76,10 +76,13 @@ The supervisor spawns the sidecar with `['pipe', 'pipe', 'inherit']`:
 
 - **stdin** is a pipe that is never written to. It is a liveness signal: the
   operating system closes a dead process's pipe ends on every platform, so the
-  sidecar treats EOF here as "the shell is gone" and shuts down. Its other
-  watchdog polls `os.getppid()`, which detects a dead parent only because POSIX
-  reparents orphans to init - Windows does not, so without this pipe a
-  force-quit there strands a sidecar holding the database file.
+  sidecar treats EOF here as "the shell is gone" and shuts down
+  (`_watch_stdin` in `nexus_api/__main__.py`). Its other watchdog polls
+  `os.getppid()`, which detects a dead parent only because POSIX reparents
+  orphans to init - Windows does not, so without this pipe a force-quit there
+  strands a sidecar holding the database file. The sidecar arms the stdin
+  watchdog only when fd 0 really is a pipe, so a terminal, a file, or
+  `/dev/null` reporting EOF does not stop a server started by hand.
 - **stdout** carries the handshake line and nothing else.
 - **stderr** is inherited, so sidecar logging reaches the shell's diagnostics
   rather than filling a pipe nobody reads.
@@ -127,6 +130,17 @@ there - are reported as messages naming a cause and a remedy. The sidecar's
 shutdown is hung on `before-quit`, which every exit passes through, and is
 arranged before the window exists so a quit during startup cannot outrun it.
 
+It also decides two things the sidecar cannot decide for itself. The database
+lives at `nexus.sqlite3` under Electron's `userData` directory - the per-user
+application data location the operating system set aside for it - and the
+sidecar is spawned with `NEXUS_STORAGE_BACKEND=sqlite` pointing there, because
+the API's own default backend is in-memory and would lose every project on
+quit. And when the supervisor replaces a crashed sidecar, the replacement binds
+a different port, so the shell rewrites the runtime configuration the bridge
+serves and reloads the window. The preload exposes named values rather than a
+channel the page can poll, so a reload is how the renderer learns the new
+address; without it the window would look healthy while every request failed.
+
 `src/main/sidecar-supervisor.ts` supervises the local `nexus_api` sidecar: it
 spawns the process, reads the one-line loopback handshake from stdout, rejects
 an unsupported handshake major version, fails fast when no handshake arrives,
@@ -151,11 +165,15 @@ project, behind an accept/reject gate. It is the only module in the shell that
 can destroy a student's work, so its guarantees are stated as behaviour:
 
 - `proposeEdit` computes a diff and touches nothing - not the bytes, not the
-  mtime. Writing is only reachable through `applyEdit`.
+  mtime. Writing is only reachable through `applyEdit`. A file that does not
+  exist yet is proposed against empty content with a `null` base hash, so
+  adding a source or header file goes through the same gate as changing one.
 - `applyEdit` re-hashes the file and refuses with a typed `stale-proposal` error
-  if it changed since the proposal was made, because the student is expected to
-  be editing the same files by hand in their own editor at the same time. It
-  does not attempt a merge; only the student can say which version they meant.
+  if it is no longer what the proposal was computed against, because the student
+  is expected to be editing the same files by hand in their own editor at the
+  same time. That covers a file that changed, one that was removed, and one that
+  appeared where the proposal expected nothing. It does not attempt a merge;
+  only the student can say which version they meant.
 - `applyEdit` snapshots the working tree into a commit under
   `refs/nexus/checkpoints/` before writing, built through a throwaway index so
   the student's own index, HEAD, and branch are untouched. The file being
@@ -166,10 +184,9 @@ can destroy a student's work, so its guarantees are stated as behaviour:
 - `watch` reports external changes, coalesced per quiet window and scoped to the
   root, excluding `.git`.
 
-Everything else is still scaffold: no window creation, no application
-lifecycle, no renderer surface for either the terminal or the diff-review
-gate, and no packaging configuration. The renderer halves are later phases
-in `@nexus/web`.
+What is not here yet is the renderer half: neither `TerminalSession` nor the
+diff-review gate has a surface in `@nexus/web`, and both are later phases there.
+Packaging is also still open - see *Future development expectations* below.
 
 ### Known limits of the checkpoint
 
@@ -257,10 +274,14 @@ Windows runner. All current CI workflows are `ubuntu-latest` only.
 ## Future development expectations
 
 - Windows process termination and orphan cleanup, using a job object or an
-  equivalent mechanism rather than POSIX signals.
-- A bundler and packaging pipeline; until then the entry points are typechecked
-  but not emitted, and `package.json` deliberately declares no `main` field
-  rather than pointing at a build output that does not exist.
+  equivalent mechanism rather than POSIX signals. The sidecar's stdin-EOF
+  watchdog already covers the sidecar itself there; what remains is the
+  descendant tree a `TerminalSession` leaves behind.
+- A packaging pipeline. `pnpm build` bundles both entry points and the renderer,
+  and `package.json` points `main` at `dist/main/index.cjs`, but nothing yet
+  produces a distributable application. The renderer bundle is rebuilt in place,
+  so a launch during a rebuild finds no interface - reported rather than crashed
+  on, but packaging is what removes the window entirely.
 - Serial-device integration, added as its own phase with the native dependency
   introduced at that point, not ahead of it.
 - A renderer surface for `TerminalSession`, over the preload bridge. The session
@@ -297,10 +318,3 @@ exercises. Recorded here so they are not discovered during a release:
 - **Code signing on macOS.** Both `pty.node` and `spawn-helper` are Mach-O
   binaries and each needs its own signature; notarization rejects an unsigned
   nested executable.
-
-- A packaging pipeline. The entry points are bundled but not yet packaged into
-  a distributable application, and the renderer bundle is rebuilt in place,
-  which means a launch during a rebuild finds no interface. That is reported
-  rather than crashed on, but packaging is what removes the window entirely.
-- Terminal and serial-device integration, each added as its own phase with the
-  native dependency introduced at that point, not ahead of it.
