@@ -31,9 +31,9 @@ Nexus ships as an **Electron desktop application**.
 
 ## Relationship to ADR-0001
 
-The modular monorepo **stands**. Nothing here argues for splitting repositories, and the ownership map in `AGENTS.md` §3 is unchanged.
+The modular monorepo **stands**. Nothing here argues for splitting repositories, and the set of areas in the `AGENTS.md` §3 ownership map is unchanged.
 
-One assumption in ADR-0001 is **partly superseded** and is recorded here so the two do not silently drift. ADR-0001 and `docs/architecture/overview.md` both describe `apps/` as "deployable applications", and `AGENTS.md` §3 states `apps/` contains "Deployable applications only". Under this ADR:
+One assumption in ADR-0001 is **partly superseded** and is recorded here so the two do not silently drift. Before this ADR, `AGENTS.md` §3 and `docs/architecture/overview.md` both described `apps/` as "deployable applications"; both now read "top-level applications" and defer here. Under this ADR:
 
 - `apps/web` is no longer a deployed site. It is a renderer bundled into a desktop binary.
 - `apps/api` is no longer a deployed service. It is a frozen sidecar spawned by the shell.

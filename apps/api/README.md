@@ -7,7 +7,7 @@ multi-turn modification with optional PostgreSQL persistence.
 
 ## Ownership boundary
 
-Deployable API application only. Domain workflow logic lives in
+API application only. Domain workflow logic lives in
 `agents/embedded-systems`. Persistence adapters live in `packages/persistence`.
 
 ## Endpoints

@@ -10,7 +10,7 @@ This repository contains the v1 embedded-project initialization and multi-turn m
 
 Nexus is a single modular monorepo:
 
-- **`apps/`** — deployable applications (web, API, worker, desktop shell)
+- **`apps/`** — top-level applications (web, API, worker, desktop shell)
 - **`agents/`** — domain agents (Vera orchestrator, embedded-systems specialist, …)
 - **`packages/`** — shared platform capabilities (runtime, contracts, memory, retrieval, …)
 - **`tools/`** — deterministic, independently testable engineering tools
@@ -25,7 +25,7 @@ Applications may depend on agents and packages. Agents may depend on packages an
 
 ```text
 nexus/
-├── apps/           # Deployable applications
+├── apps/           # Top-level applications
 ├── agents/         # Domain agent packages
 ├── packages/       # Shared platform libraries
 ├── tools/          # Deterministic engineering tools

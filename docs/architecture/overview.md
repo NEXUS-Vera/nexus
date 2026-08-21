@@ -6,7 +6,7 @@ Nexus is a modular monorepo for an agentic engineering platform.
 
 | Layer | Role |
 | --- | --- |
-| `apps/` | Deployable applications (web, API, worker, desktop shell) |
+| `apps/` | Top-level applications (web, API, worker, desktop shell) |
 | `agents/` | Domain agents including Vera and specialists |
 | `packages/` | Shared platform libraries and contracts |
 | `tools/` | Deterministic engineering tools |

@@ -7,7 +7,7 @@ board workspace.
 
 ## Ownership boundary
 
-Deployable frontend only. Contract types are imported from `@nexus/contracts`
+Frontend application only. Contract types are imported from `@nexus/contracts`
 (generated from JSON Schemas). Do not duplicate domain types in this app.
 
 ## Architecture

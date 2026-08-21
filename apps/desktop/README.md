@@ -7,7 +7,7 @@ will front local, machine-bound capabilities the browser cannot reach.
 
 ## Ownership boundary
 
-Deployable desktop process only. This package owns process composition for the
+Desktop shell process only. This package owns process composition for the
 Electron main process and the `contextBridge` surface exposed to the renderer.
 It does not own UI: the renderer is `@nexus/web`. It does not own domain logic
 or shared contracts.
