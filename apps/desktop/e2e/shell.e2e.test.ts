@@ -33,10 +33,22 @@ async function launchShell(): Promise<ElectronApplication> {
   return electron.launch({ args: [packageRoot], env: environment });
 }
 
-/** Close the shell and wait until its process is really gone. */
+/**
+ * Close the shell and wait until its process is really gone.
+ *
+ * Safe to call on a shell that has already exited, so a test that closes the
+ * application as part of what it is asserting can still close it again from a
+ * `finally` block. Waiting on an `exit` that has already fired would otherwise
+ * hang the run for the sake of tidying up.
+ */
 async function closeShell(app: ElectronApplication): Promise<void> {
+  const shell = app.process();
+  if (shell.exitCode !== null || shell.signalCode !== null) {
+    return;
+  }
+
   const exited = new Promise<void>((resolve) => {
-    app.process().once('exit', () => {
+    shell.once('exit', () => {
       resolve();
     });
   });
@@ -185,20 +197,25 @@ test('hands the renderer a live address and the sidecar’s own credential', asy
 
 test('takes the sidecar with it when the shell closes', async () => {
   const app = await launchShell();
-  const page = await app.firstWindow();
 
-  const sidecarPid = await page.evaluate(async () => {
-    const api = (window as unknown as { nexus: { api: Record<string, string> } }).nexus.api;
-    const body = (await (await fetch(`${api.baseUrl}/healthz`)).json()) as Record<string, number>;
-    return body.pid;
-  });
+  try {
+    const page = await app.firstWindow();
 
-  await closeShell(app);
+    const sidecarPid = await page.evaluate(async () => {
+      const api = (window as unknown as { nexus: { api: Record<string, string> } }).nexus.api;
+      const body = (await (await fetch(`${api.baseUrl}/healthz`)).json()) as Record<string, number>;
+      return body.pid;
+    });
 
-  // A sidecar that survives the shell keeps holding the user's local database
-  // and its loopback port, and nothing on screen says it is there. Closing the
-  // application has to end it.
-  expect(() => {
-    process.kill(sidecarPid, 0);
-  }).toThrow();
+    await closeShell(app);
+
+    // A sidecar that survives the shell keeps holding the user's local database
+    // and its loopback port, and nothing on screen says it is there. Closing the
+    // application has to end it.
+    expect(() => {
+      process.kill(sidecarPid, 0);
+    }).toThrow();
+  } finally {
+    await closeShell(app);
+  }
 });

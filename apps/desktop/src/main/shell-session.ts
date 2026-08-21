@@ -82,6 +82,13 @@ export async function startShell(options: StartShellOptions): Promise<void> {
   let sidecar: SidecarLifecycle;
   let handshake: SidecarHandshake;
 
+  // `openWindow` does not resolve until the window has finished its first load,
+  // and re-pointing a window mid-load cancels the very navigation the recovery
+  // exists to keep. A replacement that arrives during that window is therefore
+  // held here and published the moment the load is done.
+  let windowOpen = false;
+  let heldRestart: RendererRuntimeConfig | undefined;
+
   try {
     // Constructing the sidecar can fail on its own - an unconfigured command,
     // a path that is not there - and to the user that is indistinguishable from
@@ -97,9 +104,12 @@ export async function startShell(options: StartShellOptions): Promise<void> {
       // resolved, so a shell that cannot come up reaches the user as the
       // startup failure below rather than as a silent retry.
       onRestart: (replacement) => {
-        options.host.updateRuntimeConfig(
-          runtimeConfigFor(replacement, options.sessionToken, true),
-        );
+        const config = runtimeConfigFor(replacement, options.sessionToken, true);
+        if (!windowOpen) {
+          heldRestart = config;
+          return;
+        }
+        options.host.updateRuntimeConfig(config);
       },
     });
     handshake = await sidecar.start();
@@ -116,12 +126,22 @@ export async function startShell(options: StartShellOptions): Promise<void> {
 
   try {
     await options.host.openWindow(runtimeConfigFor(handshake, options.sessionToken, false));
+    windowOpen = true;
   } catch (error) {
     // The sidecar is running by now, so this is the one failure that can leave
     // a process behind: no window will ever close to trigger the shutdown.
     options.host.reportFatalError(describeStartupFailure(error));
     await sidecar.stop();
     options.host.quit();
+    return;
+  }
+
+  // The window came up addressing a sidecar that has since been replaced, so
+  // it is pointing at a port nothing is listening on until this lands.
+  if (heldRestart !== undefined) {
+    const config = heldRestart;
+    heldRestart = undefined;
+    options.host.updateRuntimeConfig(config);
   }
 }
 

@@ -19,6 +19,16 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+# Alembic loads these by path at runtime rather than importing them, so they
+# are not modules setuptools would find on its own; an installed package
+# without them cannot migrate the database it is pointed at.
+[tool.setuptools.package-data]
+nexus_persistence = [
+  "alembic/*.py",
+  "alembic/*.mako",
+  "alembic/versions/*.py",
+]
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 asyncio_mode = "auto"

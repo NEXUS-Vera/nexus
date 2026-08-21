@@ -15,9 +15,10 @@ PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _alembic_config() -> Config:
-    config = Config(str(PACKAGE_ROOT / "alembic.ini"))
-    config.set_main_option("script_location", str(PACKAGE_ROOT / "alembic"))
-    return config
+    # Read through the checked-in file rather than pointed at the scripts
+    # directly, so the configuration the tests migrate with is the one
+    # `make db-migrate` and CI use.
+    return Config(str(PACKAGE_ROOT / "alembic.ini"))
 
 
 def test_alembic_upgrade_head_on_sqlite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

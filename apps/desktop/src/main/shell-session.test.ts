@@ -272,6 +272,60 @@ describe('startShell', () => {
       },
     ]);
   });
+
+  it('holds a restart that lands while the first window is still loading', async () => {
+    const republished: RendererRuntimeConfig[] = [];
+    let announceRestart: ((handshake: SidecarHandshake) => void) | undefined;
+    let finishLoad!: () => void;
+    const loaded = new Promise<void>((resolve) => {
+      finishLoad = resolve;
+    });
+    let startLoad!: () => void;
+    const loading = new Promise<void>((resolve) => {
+      startLoad = resolve;
+    });
+
+    const started = startShell({
+      sessionToken: 'a-session-token',
+      createSidecar: ({ onRestart }) => {
+        announceRestart = onRestart;
+        return { start: async () => HANDSHAKE, stop: async () => refuse('stop') };
+      },
+      host: {
+        registerShutdown: () => undefined,
+        openWindow: async () => {
+          startLoad();
+          return loaded;
+        },
+        updateRuntimeConfig: (config) => {
+          republished.push(config);
+        },
+        reportFatalError: () => refuse('reportFatalError'),
+        quit: () => refuse('quit'),
+      },
+    });
+
+    await loading;
+    announceRestart?.({ ...HANDSHAKE, port: 61_234 });
+
+    // Re-pointing the window now would cancel the navigation that is still in
+    // flight, and a cancelled first load is reported to the user as a shell
+    // that could not start - out of a restart that in fact succeeded.
+    expect(republished).toEqual([]);
+
+    finishLoad();
+    await started;
+
+    // Held, not dropped: the window opened addressing the sidecar that died, so
+    // without this it would be talking to a port nothing is listening on.
+    expect(republished).toEqual([
+      {
+        baseUrl: 'http://127.0.0.1:61234',
+        sessionToken: 'a-session-token',
+        serviceRestarted: true,
+      },
+    ]);
+  });
 });
 
 describe('createShutdownHandler', () => {

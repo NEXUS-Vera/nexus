@@ -14,7 +14,9 @@ from nexus_persistence.postgres.session import create_db_engine, create_session_
 from nexus_persistence.postgres.store import PostgresProjectStore
 from nexus_persistence.protocol import ProjectPackageStore
 
-_PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+# The migration scripts ship inside the package rather than beside it, so this
+# resolves the same way from a checkout and from an installed distribution.
+_MIGRATION_SCRIPTS = Path(__file__).resolve().parent / "alembic"
 
 
 def _upgrade_to_head(engine: Engine) -> None:
@@ -24,7 +26,7 @@ def _upgrade_to_head(engine: Engine) -> None:
     a version stamp and a later release can upgrade it in place.
     """
     config = Config()
-    config.set_main_option("script_location", str(_PACKAGE_ROOT / "alembic"))
+    config.set_main_option("script_location", str(_MIGRATION_SCRIPTS))
     with engine.connect() as connection:
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
