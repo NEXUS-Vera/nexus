@@ -58,31 +58,48 @@ if [[ "$ready" -ne 1 ]]; then
   exit 1
 fi
 
-pnpm --filter @nexus/web exec playwright install chromium
-set +e
-pnpm --filter @nexus/web test:e2e
-EXIT_CODE=$?
-set -e
-
 # The shell suite launches a real Electron process, so it needs a display. It
-# also needs no API: it spawns its own fixture sidecar. Skipping it silently
-# would leave the preload-bridge surface, the sqlite backend and the data
-# directory asserted by a suite that never runs.
-if [[ "$EXIT_CODE" -eq 0 ]]; then
-  DESKTOP_E2E=(pnpm --filter @nexus/desktop test:e2e)
+# also needs no API: it spawns its own fixture sidecar.
+run_desktop_e2e() {
+  local runner=(pnpm --filter @nexus/desktop test:e2e)
   if [[ "$(uname -s)" == "Linux" ]]; then
     if ! command -v xvfb-run >/dev/null 2>&1; then
       echo "xvfb-run is required to run the Electron shell suite on Linux (apt-get install xvfb)" >&2
-      EXIT_CODE=1
-      exit 1
+      return 1
     fi
-    DESKTOP_E2E=(xvfb-run --auto-servernum "${DESKTOP_E2E[@]}")
+    runner=(xvfb-run --auto-servernum "${runner[@]}")
   fi
 
-  set +e
-  "${DESKTOP_E2E[@]}"
-  EXIT_CODE=$?
-  set -e
+  "${runner[@]}"
+}
+
+pnpm --filter @nexus/web exec playwright install chromium
+set +e
+pnpm --filter @nexus/web test:e2e
+WEB_EXIT_CODE=$?
+set -e
+
+# Run regardless of how the web suite went, and combine the results afterwards.
+# The two suites share no state, so letting a web failure - a flaky assertion
+# against the live stack is enough - stand the shell suite down would drop the
+# preload-bridge surface, the sqlite backend and the data directory from the
+# run's coverage while the log said only that the web suite failed.
+set +e
+run_desktop_e2e
+DESKTOP_EXIT_CODE=$?
+set -e
+
+if [[ "$WEB_EXIT_CODE" -ne 0 ]]; then
+  echo "e2e: web suite failed (exit ${WEB_EXIT_CODE})" >&2
+fi
+if [[ "$DESKTOP_EXIT_CODE" -ne 0 ]]; then
+  echo "e2e: desktop shell suite failed (exit ${DESKTOP_EXIT_CODE})" >&2
+fi
+
+if [[ "$WEB_EXIT_CODE" -ne 0 ]]; then
+  EXIT_CODE="$WEB_EXIT_CODE"
+else
+  EXIT_CODE="$DESKTOP_EXIT_CODE"
 fi
 
 exit "$EXIT_CODE"

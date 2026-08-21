@@ -322,7 +322,11 @@ describe('startShell', () => {
       {
         baseUrl: 'http://127.0.0.1:61234',
         sessionToken: 'a-session-token',
-        serviceRestarted: true,
+        // The renderer announces a restart by telling the student that what
+        // they had typed was not kept. Nothing was: this reload lands on a page
+        // that has only just appeared, so the claim would be false and the
+        // notice belongs to the crash-after-startup case instead.
+        serviceRestarted: false,
       },
     ]);
   });

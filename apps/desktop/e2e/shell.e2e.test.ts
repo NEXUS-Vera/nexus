@@ -203,9 +203,24 @@ test('takes the sidecar with it when the shell closes', async () => {
 
     const sidecarPid = await page.evaluate(async () => {
       const api = (window as unknown as { nexus: { api: Record<string, string> } }).nexus.api;
-      const body = (await (await fetch(`${api.baseUrl}/healthz`)).json()) as Record<string, number>;
-      return body.pid;
+      // Authenticated like every other probe here. The real service exempts no
+      // route, so a probe that omits the credential would read an error envelope
+      // as a health report the day the fixture starts enforcing it too.
+      const response = await fetch(`${api.baseUrl}/healthz`, {
+        headers: { Authorization: `Bearer ${api.sessionToken}` },
+      });
+      const body = (await response.json()) as { pid?: number };
+      return Number(body.pid);
     });
+
+    // `process.kill` throws both for a process that has gone and for a pid that
+    // is not a number, so the liveness check below distinguishes the two only
+    // once this pid is known to name a process that was really running.
+    expect(Number.isInteger(sidecarPid)).toBe(true);
+    expect(sidecarPid).toBeGreaterThan(0);
+    expect(() => {
+      process.kill(sidecarPid, 0);
+    }).not.toThrow();
 
     await closeShell(app);
 

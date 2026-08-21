@@ -87,7 +87,7 @@ export async function startShell(options: StartShellOptions): Promise<void> {
   // exists to keep. A replacement that arrives during that window is therefore
   // held here and published the moment the load is done.
   let windowOpen = false;
-  let heldRestart: RendererRuntimeConfig | undefined;
+  let heldReplacement: SidecarHandshake | undefined;
 
   try {
     // Constructing the sidecar can fail on its own - an unconfigured command,
@@ -104,12 +104,13 @@ export async function startShell(options: StartShellOptions): Promise<void> {
       // resolved, so a shell that cannot come up reaches the user as the
       // startup failure below rather than as a silent retry.
       onRestart: (replacement) => {
-        const config = runtimeConfigFor(replacement, options.sessionToken, true);
         if (!windowOpen) {
-          heldRestart = config;
+          heldReplacement = replacement;
           return;
         }
-        options.host.updateRuntimeConfig(config);
+        options.host.updateRuntimeConfig(
+          runtimeConfigFor(replacement, options.sessionToken, true),
+        );
       },
     });
     handshake = await sidecar.start();
@@ -138,10 +139,18 @@ export async function startShell(options: StartShellOptions): Promise<void> {
 
   // The window came up addressing a sidecar that has since been replaced, so
   // it is pointing at a port nothing is listening on until this lands.
-  if (heldRestart !== undefined) {
-    const config = heldRestart;
-    heldRestart = undefined;
-    options.host.updateRuntimeConfig(config);
+  //
+  // Not reported to the renderer as a restart, though it is one: the restart
+  // flag exists to explain a reload that interrupted the student, and this
+  // reload lands on a page that has been on screen for a moment, on a route
+  // they have not navigated away from, holding nothing they typed. Saying work
+  // was not kept here would describe a loss that cannot have happened.
+  if (heldReplacement !== undefined) {
+    const replacement = heldReplacement;
+    heldReplacement = undefined;
+    options.host.updateRuntimeConfig(
+      runtimeConfigFor(replacement, options.sessionToken, false),
+    );
   }
 }
 
