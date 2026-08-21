@@ -102,10 +102,22 @@ a {
   cursor: not-allowed;
 }
 
+.app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Takes whatever the notice above it does not, and scrolls its own content
+   rather than the document, so a full-height route stays inside the viewport. */
+.app-routes {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
 .service-restart-notice {
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--nx-space-3);

@@ -98,9 +98,13 @@ pnpm --filter @nexus/desktop test:e2e
 
 It builds the shell and the renderer, then drives a real Electron process with
 Playwright. Some properties only exist at runtime and cannot be asserted any
-other way: how the renderer routes over `file://`, and what the preload bridge
-actually reaches. It needs a display, so it is kept out of `test` rather than
-making the unit runner conditional on one.
+other way: how the renderer routes over `file://`, what the preload bridge
+actually reaches, which storage backend the sidecar was started with, and where
+the student's database lands. It needs a display, so it is kept out of `test`
+rather than making the unit runner conditional on one - but it is not optional:
+`scripts/run-e2e.sh` runs it after the web suite (under `xvfb-run` on Linux), so
+`make test-e2e` and the Playwright E2E workflow both cover it. A suite that
+pins a security surface has to actually run, or it pins nothing.
 
 These suites spawn `e2e/fixtures/fake-sidecar.mjs` instead of the Python API.
 The fixture binds a real loopback socket and speaks the real handshake, so the
@@ -219,6 +223,12 @@ can destroy a student's work, so its guarantees are stated as behaviour:
   walking past the link would let a create land wherever it points. Creating a
   new file is opened `O_EXCL`, so it refuses any name that has appeared since,
   a link included.
+- Every refusal the file system has an account of arrives as a typed
+  `WorkspaceError`, not a bare errno: `not-a-file` for a path that names a
+  directory, `permission-denied` for one the file system will not open, and
+  `unresolvable-path` for a name that cannot be resolved at all. Naming a
+  directory is an ordinary model slip, and a caller that has only an `EISDIR`
+  string cannot tell it from a permissions problem.
 - `watch` reports external changes, coalesced per quiet window and scoped to the
   root, excluding `.git`.
 

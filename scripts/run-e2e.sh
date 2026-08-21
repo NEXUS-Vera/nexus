@@ -16,6 +16,15 @@ export NEXUS_E2E=1
 export VITE_API_BASE_URL="${VITE_API_BASE_URL:-http://127.0.0.1:8000}"
 export NEXUS_WEB_BASE_URL="${NEXUS_WEB_BASE_URL:-http://127.0.0.1:5173}"
 
+# Every route is behind the session token, `/healthz` included - it reports the
+# storage backend and the initialization provider, so it is not public. This
+# stack therefore mints its own token rather than relying on the published
+# development fallback, and hands the same value to the browser client through
+# `VITE_API_SESSION_TOKEN` so the page authenticates the way the shipped
+# renderer does.
+export NEXUS_API_SESSION_TOKEN="${NEXUS_API_SESSION_TOKEN:-$("$PYTHON" -c 'import secrets; print(secrets.token_hex(32))')}"
+export VITE_API_SESSION_TOKEN="$NEXUS_API_SESSION_TOKEN"
+
 EXIT_CODE=0
 
 cleanup() {
@@ -35,7 +44,9 @@ WEB_PID=$!
 
 ready=0
 for _ in $(seq 1 60); do
-  if curl -sf http://127.0.0.1:8000/healthz >/dev/null && curl -sf http://127.0.0.1:5173 >/dev/null; then
+  if curl -sf -H "Authorization: Bearer ${NEXUS_API_SESSION_TOKEN}" \
+      http://127.0.0.1:8000/healthz >/dev/null &&
+    curl -sf http://127.0.0.1:5173 >/dev/null; then
     ready=1
     break
   fi
@@ -52,4 +63,26 @@ set +e
 pnpm --filter @nexus/web test:e2e
 EXIT_CODE=$?
 set -e
+
+# The shell suite launches a real Electron process, so it needs a display. It
+# also needs no API: it spawns its own fixture sidecar. Skipping it silently
+# would leave the preload-bridge surface, the sqlite backend and the data
+# directory asserted by a suite that never runs.
+if [[ "$EXIT_CODE" -eq 0 ]]; then
+  DESKTOP_E2E=(pnpm --filter @nexus/desktop test:e2e)
+  if [[ "$(uname -s)" == "Linux" ]]; then
+    if ! command -v xvfb-run >/dev/null 2>&1; then
+      echo "xvfb-run is required to run the Electron shell suite on Linux (apt-get install xvfb)" >&2
+      EXIT_CODE=1
+      exit 1
+    fi
+    DESKTOP_E2E=(xvfb-run --auto-servernum "${DESKTOP_E2E[@]}")
+  fi
+
+  set +e
+  "${DESKTOP_E2E[@]}"
+  EXIT_CODE=$?
+  set -e
+fi
+
 exit "$EXIT_CODE"

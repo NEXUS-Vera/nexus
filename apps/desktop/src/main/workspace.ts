@@ -24,6 +24,8 @@ export type WorkspaceFailureReason =
   | 'not-a-git-repository'
   | 'path-escapes-workspace'
   | 'unresolvable-path'
+  | 'not-a-file'
+  | 'permission-denied'
   | 'stale-proposal';
 
 /** Typed refusal raised by {@link Workspace} operations. */
@@ -131,7 +133,7 @@ export class Workspace {
    */
   async proposeEdit(relativePath: string, newContent: string): Promise<EditProposal> {
     const absolutePath = await this.#resolveInside(relativePath);
-    const current = await readExistingFile(absolutePath);
+    const current = await readExistingFile(absolutePath, relativePath);
 
     return {
       path: relativePath,
@@ -161,7 +163,7 @@ export class Workspace {
   async applyEdit(proposal: EditProposal): Promise<AppliedEdit> {
     const absolutePath = await this.#resolveInside(proposal.path);
 
-    const current = await readExistingFile(absolutePath);
+    const current = await readExistingFile(absolutePath, proposal.path);
     const currentHash = current === undefined ? null : hashContent(current);
     if (currentHash !== proposal.baseHash) {
       throw new WorkspaceError('stale-proposal', staleProposalMessage(proposal.path));
@@ -169,16 +171,20 @@ export class Workspace {
 
     const checkpointRef = await this.#checkpoint(absolutePath, current !== undefined);
 
-    if (current === undefined) {
-      // A new file may name a directory the project does not have yet - a
-      // `src/` in a flat sketch, a `drivers/` beside it. Without this the write
-      // fails with the same bare ENOENT that proposing one used to, which is
-      // the failure this path exists to remove. The parent is inside the
-      // workspace because the whole resolved path already was.
-      await mkdir(dirname(absolutePath), { recursive: true });
-      await this.#createFile(absolutePath, proposal);
-    } else {
-      await writeFile(absolutePath, proposal.newContent, 'utf8');
+    try {
+      if (current === undefined) {
+        // A new file may name a directory the project does not have yet - a
+        // `src/` in a flat sketch, a `drivers/` beside it. Without this the
+        // write fails with the same bare ENOENT that proposing one used to,
+        // which is the failure this path exists to remove. The parent is inside
+        // the workspace because the whole resolved path already was.
+        await mkdir(dirname(absolutePath), { recursive: true });
+        await this.#createFile(absolutePath, proposal);
+      } else {
+        await writeFile(absolutePath, proposal.newContent, 'utf8');
+      }
+    } catch (error) {
+      throw asWorkspaceRefusal(error, proposal.path);
     }
 
     return { path: proposal.path, checkpointRef };
@@ -512,20 +518,79 @@ async function readlinkOrUndefined(absolutePath: string): Promise<string | undef
 }
 
 /**
+ * Why the file system refused, in terms a caller can act on.
+ *
+ * The path reaching these calls originates with a model, so naming a directory
+ * or an unwritable file is an ordinary slip rather than an exotic input. A bare
+ * errno escaping to the caller is the same defect the new-file work removed for
+ * a missing file: it carries no `reason` to switch on, and cannot be told apart
+ * from a permissions failure.
+ */
+const FILESYSTEM_REFUSALS: ReadonlyMap<string, { reason: WorkspaceFailureReason; detail: string }> =
+  new Map([
+    ['EISDIR', { reason: 'not-a-file' as const, detail: 'it is a directory, not a file' }],
+    [
+      'ENOTDIR',
+      { reason: 'not-a-file' as const, detail: 'part of the path names a file, not a directory' },
+    ],
+    ['EACCES', { reason: 'permission-denied' as const, detail: 'the file system refused access' }],
+    ['EPERM', { reason: 'permission-denied' as const, detail: 'the file system refused access' }],
+    [
+      'EROFS',
+      { reason: 'permission-denied' as const, detail: 'it is on a read-only file system' },
+    ],
+    [
+      'ELOOP',
+      { reason: 'unresolvable-path' as const, detail: 'it passes through too many symbolic links' },
+    ],
+    [
+      'ENAMETOOLONG',
+      {
+        reason: 'unresolvable-path' as const,
+        detail: 'the name is longer than the file system allows',
+      },
+    ],
+  ]);
+
+/**
+ * Translate a file-system error into a typed refusal, or leave it alone.
+ *
+ * An errno this module has no account of is rethrown untouched rather than
+ * flattened into a reason that would misdescribe it.
+ */
+function asWorkspaceRefusal(error: unknown, relativePath: string): unknown {
+  const code = (error as NodeJS.ErrnoException).code;
+  const refusal = code === undefined ? undefined : FILESYSTEM_REFUSALS.get(code);
+  if (refusal === undefined) {
+    return error;
+  }
+
+  return new WorkspaceError(
+    refusal.reason,
+    `Refusing to edit ${relativePath}: ${refusal.detail} (${code})`,
+  );
+}
+
+/**
  * Read a file, reporting a missing one as absence rather than as a failure.
  *
- * Only `ENOENT` is swallowed: a permissions error or an unreadable directory is
- * a real fault, and turning it into "the file is not there" would make an edit
- * that cannot be written look like an edit that creates something.
+ * Only `ENOENT` is swallowed, because a file that is not there is exactly what
+ * a creation proposes against. Every other refusal the file system has an
+ * account of becomes a typed `WorkspaceError`: turning one into "the file is
+ * not there" would make an edit that cannot be written look like an edit that
+ * creates something.
  */
-async function readExistingFile(absolutePath: string): Promise<string | undefined> {
+async function readExistingFile(
+  absolutePath: string,
+  relativePath: string,
+): Promise<string | undefined> {
   try {
     return await readFile(absolutePath, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return undefined;
     }
-    throw error;
+    throw asWorkspaceRefusal(error, relativePath);
   }
 }
 

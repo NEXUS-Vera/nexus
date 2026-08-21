@@ -300,6 +300,43 @@ describe('Workspace.applyEdit', () => {
     expect(await readFile(join(root, 'sensor.h'), 'utf8')).toBe(typedByHand);
   }, 10_000);
 
+  it('refuses a path that names a directory, with a reason rather than an errno', async () => {
+    // Model-supplied paths slip like this routinely. Before, `readFile` threw a
+    // bare `EISDIR` that reached the caller with no `reason` to switch on and
+    // nothing to tell it apart from a permissions failure.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    await mkdir(join(root, 'src'));
+
+    const workspace = await Workspace.open(root);
+
+    await expect(workspace.proposeEdit('src', 'int main(void) { return 0; }\n')).rejects.toSatisfy(
+      (error: unknown) => error instanceof WorkspaceError && error.reason === 'not-a-file',
+    );
+  }, 10_000);
+
+  it('refuses when the proposed file has become a directory since', async () => {
+    // The same refusal has to hold on the apply side, which re-reads the file:
+    // an errno escaping there reaches a caller that has already committed to
+    // writing and can only report it as an unexplained crash.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    const file = join(root, 'config.h');
+    await writeFile(file, '#define BAUD 115200\n', 'utf8');
+    await git(root, ['add', '--all']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('config.h', '#define BAUD 9600\n');
+
+    await rm(file);
+    await mkdir(file);
+
+    await expect(workspace.applyEdit(proposal)).rejects.toSatisfy(
+      (error: unknown) => error instanceof WorkspaceError && error.reason === 'not-a-file',
+    );
+  }, 10_000);
+
   it('refuses to write into a directory that is not a git repository', async () => {
     // Recoverability is not a nicety here, it is the reason applying is allowed
     // at all: without a checkpoint there is no undo for an edit that overwrites
