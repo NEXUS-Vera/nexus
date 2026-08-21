@@ -57,6 +57,19 @@ function currentRuntimeConfig(): RendererRuntimeConfig {
 }
 
 /**
+ * Hand the renderer its configuration, and spend the restart notice doing so.
+ *
+ * The notice belongs to the one load the restart caused. Leaving it set would
+ * make every later load of the page announce a recovery that has already
+ * happened.
+ */
+function serveCurrentRuntimeConfig(): RendererRuntimeConfig {
+  const config = currentRuntimeConfig();
+  rendererRuntimeConfig = { ...config, serviceRestarted: false };
+  return config;
+}
+
+/**
  * Point every open window at a replacement sidecar.
  *
  * The bridge deliberately exposes named values rather than anything the page
@@ -65,6 +78,12 @@ function currentRuntimeConfig(): RendererRuntimeConfig {
  * configuration above, which by then names the replacement. The alternative -
  * leaving the page addressing a port nothing is listening on - looks healthy
  * and fails on every request.
+ *
+ * `reload` rather than `loadFile`, because it re-requests the entry the window
+ * is already on and so keeps the fragment with it - which under the renderer's
+ * hash routing is the student's current view. What it cannot keep is anything
+ * held only in the page's memory, so the replacement configuration carries the
+ * fact that this was a restart and the renderer says so on screen.
  */
 function republishRuntimeConfig(config: RendererRuntimeConfig): void {
   rendererRuntimeConfig = config;
@@ -84,7 +103,7 @@ async function openMainWindow(config: RendererRuntimeConfig): Promise<void> {
   // Answering is arranged before the window exists: the preload asks for this
   // during its own load, which happens before the page's first script runs.
   rendererRuntimeConfig = config;
-  serveRuntimeConfig(ipcMain, currentRuntimeConfig);
+  serveRuntimeConfig(ipcMain, serveCurrentRuntimeConfig);
 
   const window = new BrowserWindow({
     width: 1280,

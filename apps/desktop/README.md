@@ -141,6 +141,16 @@ serves and reloads the window. The preload exposes named values rather than a
 channel the page can poll, so a reload is how the renderer learns the new
 address; without it the window would look healthy while every request failed.
 
+`webContents.reload()` rather than a fresh `loadFile`, because it re-requests
+the entry the window is already on and keeps the fragment with it - which under
+the renderer's hash routing is the student's current view. What a reload cannot
+keep is state held only in the page, a half-written message to Vera among it.
+So the replacement configuration carries `serviceRestarted`, the bridge exposes
+it as `window.nexus.shell.serviceRestarted`, and `@nexus/web` renders a notice
+saying the local service restarted and the view was reloaded. The flag is spent
+when it is served, so it describes the one load the restart caused rather than
+every load after it.
+
 `src/main/sidecar-supervisor.ts` supervises the local `nexus_api` sidecar: it
 spawns the process, reads the one-line loopback handshake from stdout, rejects
 an unsupported handshake major version, fails fast when no handshake arrives,
@@ -180,7 +190,12 @@ can destroy a student's work, so its guarantees are stated as behaviour:
   overwritten is force-added, so a `.gitignore`d file is recoverable too.
 - Paths are model-influenced, so they are treated as untrusted input under
   `AGENTS.md` section 13: they are resolved against the root and refused unless
-  contained by it, lexically first and then again after resolving symlinks.
+  contained by it, lexically first and then again after resolving symlinks. A
+  symbolic link whose target does not exist yet is resolved too, rather than
+  being mistaken for an absent file - `realpath` reports both as `ENOENT`, and
+  walking past the link would let a create land wherever it points. Creating a
+  new file is opened `O_EXCL`, so it refuses any name that has appeared since,
+  a link included.
 - `watch` reports external changes, coalesced per quiet window and scoped to the
   root, excluding `.git`.
 

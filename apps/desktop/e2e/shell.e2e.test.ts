@@ -76,6 +76,7 @@ test('exposes nothing to the renderer beyond the allowlisted bridge', async () =
       const scope = window as unknown as Record<string, unknown>;
       const bridge = scope.nexus as Record<string, unknown> | undefined;
       const api = bridge?.api as Record<string, unknown> | undefined;
+      const shell = bridge?.shell as Record<string, unknown> | undefined;
 
       return {
         require: typeof scope.require,
@@ -83,6 +84,8 @@ test('exposes nothing to the renderer beyond the allowlisted bridge', async () =
         ipcRenderer: typeof scope.ipcRenderer,
         bridgeKeys: bridge === undefined ? null : Object.keys(bridge).sort(),
         apiKeys: api === undefined ? null : Object.keys(api).sort(),
+        shellKeys: shell === undefined ? null : Object.keys(shell).sort(),
+        serviceRestarted: shell?.serviceRestarted,
         nonAllowlistedChannel: typeof bridge?.['nexus:write-file'],
       };
     });
@@ -95,8 +98,11 @@ test('exposes nothing to the renderer beyond the allowlisted bridge', async () =
       require: 'undefined',
       process: 'undefined',
       ipcRenderer: 'undefined',
-      bridgeKeys: ['api'],
+      bridgeKeys: ['api', 'shell'],
       apiKeys: ['baseUrl', 'sessionToken'],
+      shellKeys: ['serviceRestarted'],
+      // A first launch is not a recovery from anything.
+      serviceRestarted: false,
       nonAllowlistedChannel: 'undefined',
     });
   } finally {

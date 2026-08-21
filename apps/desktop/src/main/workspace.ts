@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readlink, realpath, rm, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -23,6 +23,7 @@ const execFileAsync = promisify(execFile);
 export type WorkspaceFailureReason =
   | 'not-a-git-repository'
   | 'path-escapes-workspace'
+  | 'unresolvable-path'
   | 'stale-proposal';
 
 /** Typed refusal raised by {@link Workspace} operations. */
@@ -151,7 +152,11 @@ export class Workspace {
    * than trusted, and a mismatch is refused instead of merged: only the student
    * can say which of the two versions they meant to keep.
    *
-   * The checkpoint follows the check, so a refused apply leaves no trace at all.
+   * The checkpoint follows the check, so a refused apply leaves no trace at all -
+   * except where the file appears in the window between the two, which the
+   * exclusive create below catches after the checkpoint has been taken. That
+   * leaves one unused checkpoint ref, which is private to Nexus and describes a
+   * tree nothing was written to.
    */
   async applyEdit(proposal: EditProposal): Promise<AppliedEdit> {
     const absolutePath = await this.#resolveInside(proposal.path);
@@ -159,12 +164,7 @@ export class Workspace {
     const current = await readExistingFile(absolutePath);
     const currentHash = current === undefined ? null : hashContent(current);
     if (currentHash !== proposal.baseHash) {
-      throw new WorkspaceError(
-        'stale-proposal',
-        `${proposal.path} is no longer the file this edit was proposed against - it has ` +
-          'since been created, changed, or removed; re-read it and propose again rather ' +
-          'than overwriting the change',
-      );
+      throw new WorkspaceError('stale-proposal', staleProposalMessage(proposal.path));
     }
 
     const checkpointRef = await this.#checkpoint(absolutePath, current !== undefined);
@@ -176,11 +176,32 @@ export class Workspace {
       // the failure this path exists to remove. The parent is inside the
       // workspace because the whole resolved path already was.
       await mkdir(dirname(absolutePath), { recursive: true });
+      await this.#createFile(absolutePath, proposal);
+    } else {
+      await writeFile(absolutePath, proposal.newContent, 'utf8');
     }
 
-    await writeFile(absolutePath, proposal.newContent, 'utf8');
-
     return { path: proposal.path, checkpointRef };
+  }
+
+  /**
+   * Write a file the proposal expects not to exist, and refuse if it does.
+   *
+   * `wx` is `O_CREAT | O_EXCL`, which the kernel refuses on any existing name
+   * including a symbolic link - so the create neither follows a link that
+   * appeared since the path was resolved nor overwrites a file that did. It is
+   * the same refusal the hash comparison above makes, taken atomically at the
+   * moment of the write rather than a moment before it.
+   */
+  async #createFile(absolutePath: string, proposal: EditProposal): Promise<void> {
+    try {
+      await writeFile(absolutePath, proposal.newContent, { encoding: 'utf8', flag: 'wx' });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        throw new WorkspaceError('stale-proposal', staleProposalMessage(proposal.path));
+      }
+      throw error;
+    }
   }
 
   /**
@@ -409,6 +430,15 @@ const CHECKPOINT_IDENTITY_EMAIL = 'nexus@localhost';
 
 
 /**
+ * How many links deep to follow before declaring a path unresolvable.
+ *
+ * A symlink that points at itself, directly or around a cycle, resolves
+ * forever. The kernel's own limit is in this range, so a path that needs more
+ * hops than this could not be opened anyway.
+ */
+const MAX_SYMLINK_HOPS = 32;
+
+/**
  * Resolve every symlink in a path, tolerating a file that does not exist yet.
  *
  * `realpath` fails outright on a missing leaf, but an edit may legitimately
@@ -416,8 +446,18 @@ const CHECKPOINT_IDENTITY_EMAIL = 'nexus@localhost';
  * re-attaching the missing tail answers the only question that matters - where
  * would a write to this path actually land - without requiring the target to
  * already be there.
+ *
+ * The subtlety is that `realpath` reports a dangling symlink and an absent name
+ * identically, as `ENOENT`, and those two are not the same question at all: a
+ * name that is not there will be created where it lexically sits, while a link
+ * whose target does not exist yet still redirects the write to that target,
+ * anywhere on the filesystem. Walking past the second case would hand back the
+ * link's own path and let the containment check pass on a write that lands
+ * outside the workspace. So a failure is interrogated rather than assumed: if
+ * the name is a link, its target is resolved and answered with; only a name
+ * that is genuinely absent is treated as a tail to re-attach.
  */
-async function realpathOfNearestExisting(absolutePath: string): Promise<string> {
+async function realpathOfNearestExisting(absolutePath: string, hops = 0): Promise<string> {
   let existing = absolutePath;
   const missing: string[] = [];
 
@@ -425,6 +465,25 @@ async function realpathOfNearestExisting(absolutePath: string): Promise<string> 
     try {
       return join(await realpath(existing), ...missing.reverse());
     } catch {
+      const target = await readlinkOrUndefined(existing);
+      if (target !== undefined) {
+        if (hops >= MAX_SYMLINK_HOPS) {
+          throw new WorkspaceError(
+            'unresolvable-path',
+            `Refusing to touch ${absolutePath}: it passes through more than ` +
+              `${MAX_SYMLINK_HOPS} symbolic links, so where it would land cannot be decided`,
+          );
+        }
+
+        // A relative link is relative to the directory holding it, not to the
+        // process's working directory.
+        const resolvedTarget = resolve(dirname(existing), target);
+        return join(
+          await realpathOfNearestExisting(resolvedTarget, hops + 1),
+          ...missing.reverse(),
+        );
+      }
+
       const parent = dirname(existing);
       if (parent === existing) {
         // Walked to the filesystem root without finding anything that exists.
@@ -434,6 +493,21 @@ async function realpathOfNearestExisting(absolutePath: string): Promise<string> 
       missing.push(basename(existing));
       existing = parent;
     }
+  }
+}
+
+/**
+ * The target of a symbolic link, or `undefined` if this name is not one.
+ *
+ * `readlink` answers the question `realpath` cannot: whether a path that failed
+ * to resolve failed because nothing is there, or because something is there and
+ * points elsewhere.
+ */
+async function readlinkOrUndefined(absolutePath: string): Promise<string | undefined> {
+  try {
+    return await readlink(absolutePath);
+  } catch {
+    return undefined;
   }
 }
 
@@ -458,14 +532,33 @@ async function readExistingFile(absolutePath: string): Promise<string | undefine
 /**
  * Render a file that does not exist yet as a pure addition.
  *
- * Diffing against an empty string would show a removed empty line, which is a
- * line the student never had and would have to reason about.
+ * Diffing against an empty string would hold the trailing empty element the two
+ * have in common and print it as a context line, which reads as though the
+ * student already had something there. A file that did not exist has no
+ * context: every line of it is added. The empty element `split` yields for a
+ * trailing newline is dropped, because it terminates the last line rather than
+ * being a line of its own.
  */
 function renderCreation(content: string): string {
-  return content
-    .split('\n')
-    .map((line) => `+${line}`)
-    .join('\n');
+  if (content === '') {
+    return '';
+  }
+
+  const lines = content.split('\n');
+  if (lines[lines.length - 1] === '') {
+    lines.pop();
+  }
+
+  return lines.map((line) => `+${line}`).join('\n');
+}
+
+/** The one account of a proposal that no longer describes what is on disk. */
+function staleProposalMessage(path: string): string {
+  return (
+    `${path} is no longer the file this edit was proposed against - it has since been ` +
+    'created, changed, or removed; re-read it and propose again rather than overwriting ' +
+    'the change'
+  );
 }
 
 /** Content hash used to detect that a file moved underneath a proposal. */

@@ -20,6 +20,14 @@ export interface RendererRuntimeConfig {
   readonly baseUrl: string;
   /** Shared secret the local API requires on every request. */
   readonly sessionToken: string;
+  /**
+   * Whether this load is the shell recovering from a local service that died.
+   *
+   * The renderer is reloaded to pick up the replacement's address, and a reload
+   * the user did not ask for is indistinguishable from the application losing
+   * their place. Saying so is what makes it read as a recovery.
+   */
+  readonly serviceRestarted: boolean;
 }
 
 /**

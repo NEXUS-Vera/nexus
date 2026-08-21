@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { promisify } from 'node:util';
@@ -150,7 +150,9 @@ describe('Workspace.applyEdit', () => {
     // Nothing was created by proposing, and the diff reads as a pure addition
     // rather than as a removal of a line the student never had.
     expect(proposal.baseHash).toBeNull();
-    expect(proposal.diff).toBe('+#pragma once\n+');
+    // Every line added and nothing else: a file that did not exist has no
+    // context line to hold in common, and no blank line after its terminator.
+    expect(proposal.diff).toBe('+#pragma once');
     await expect(stat(join(root, 'sensor.h'))).rejects.toSatisfy(
       (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT',
     );
@@ -183,6 +185,97 @@ describe('Workspace.applyEdit', () => {
     expect(await readFile(join(root, 'drivers', 'i2c', 'bus.c'), 'utf8')).toBe(
       'void init(void) {}\n',
     );
+  }, 10_000);
+
+  it('refuses a dangling symlink that redirects the write outside the root', async () => {
+    // A link whose target does not exist yet reports ENOENT from `realpath`,
+    // exactly as an absent file does - but the two are not the same question.
+    // An absent name is created where it sits; a link redirects the write to
+    // wherever it points, which is how allowing new files could otherwise hand
+    // back an arbitrary-file-write primitive running as the student.
+    const root = await makeScratchRoot();
+    const outside = await makeScratchRoot();
+    await initGitRepo(root);
+    const target = join(outside, 'authorized_keys');
+    await symlink(target, join(root, 'config.h'));
+
+    await expect(workspaceAt(root).then((w) => w.proposeEdit('config.h', 'pwned\n'))).rejects
+      .toSatisfy(
+        (error: unknown) =>
+          error instanceof WorkspaceError && error.reason === 'path-escapes-workspace',
+      );
+
+    // Refused at the resolution boundary, so nothing was written through it.
+    await expect(stat(target)).rejects.toSatisfy(
+      (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT',
+    );
+  }, 10_000);
+
+  it('refuses a dangling symlink introduced between the proposal and the write', async () => {
+    // The proposal was computed against a name with nothing behind it. A link
+    // appearing there afterwards must not be followed: applying re-resolves the
+    // path rather than trusting the one it was handed, so the containment check
+    // sees the target and refuses before anything is written.
+    const root = await makeScratchRoot();
+    const outside = await makeScratchRoot();
+    await initGitRepo(root);
+    await writeFile(join(root, 'main.c'), 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('config.h', 'pwned\n');
+
+    const target = join(outside, 'authorized_keys');
+    await symlink(target, join(root, 'config.h'));
+
+    await expect(workspace.applyEdit(proposal)).rejects.toSatisfy(
+      (error: unknown) =>
+        error instanceof WorkspaceError && error.reason === 'path-escapes-workspace',
+    );
+    await expect(stat(target)).rejects.toSatisfy(
+      (error: unknown) => (error as NodeJS.ErrnoException).code === 'ENOENT',
+    );
+  }, 10_000);
+
+  it('refuses a link that appeared inside the root, rather than writing through it', async () => {
+    // Same race, but the link points back inside the workspace, so containment
+    // has nothing to object to. The creation is opened `O_EXCL`, which the
+    // kernel refuses on any existing name including a symbolic link - so the
+    // file the student now has is not silently overwritten through it.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    await writeFile(join(root, 'main.c'), 'int main(void) { return 0; }\n', 'utf8');
+    await git(root, ['add', 'main.c']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('config.h', 'pwned\n');
+
+    await symlink(join(root, 'main.c'), join(root, 'config.h'));
+
+    await expect(workspace.applyEdit(proposal)).rejects.toSatisfy(
+      (error: unknown) => error instanceof WorkspaceError && error.reason === 'stale-proposal',
+    );
+    expect(await readFile(join(root, 'main.c'), 'utf8')).toBe('int main(void) { return 0; }\n');
+  }, 10_000);
+
+  it('still resolves a live symlink that stays inside the root', async () => {
+    // The refusal is about where the link lands, not about links: projects use
+    // them for innocent reasons, and one pointing back inside must still work.
+    const root = await makeScratchRoot();
+    await initGitRepo(root);
+    await mkdir(join(root, 'generated'));
+    await writeFile(join(root, 'generated', 'config.h'), '#define BAUD 115200\n', 'utf8');
+    await symlink(join(root, 'generated', 'config.h'), join(root, 'config.h'));
+    await git(root, ['add', '--all']);
+    await git(root, ['commit', '--message', 'initial']);
+
+    const workspace = await Workspace.open(root);
+    const proposal = await workspace.proposeEdit('config.h', '#define BAUD 9600\n');
+    await workspace.applyEdit(proposal);
+
+    expect(await readFile(join(root, 'generated', 'config.h'), 'utf8')).toBe('#define BAUD 9600\n');
   }, 10_000);
 
   it('refuses to create a file that appeared after the proposal was made', async () => {
@@ -363,6 +456,11 @@ describe('Workspace.watch', () => {
     }
   }, 10_000);
 });
+
+/** Open a workspace, so a one-line expectation can drive the whole call. */
+async function workspaceAt(root: string): Promise<Workspace> {
+  return Workspace.open(root);
+}
 
 /** Give the watcher time to report anything it was going to report. */
 async function settle(ms: number): Promise<void> {

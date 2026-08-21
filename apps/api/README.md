@@ -28,11 +28,16 @@ impact analysis).
 
 | Variable | Default | Notes |
 | --- | --- | --- |
-| `NEXUS_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
-| `NEXUS_DATABASE_URL` | local postgres URL | Used when backend is `postgres` |
+| `NEXUS_STORAGE_BACKEND` | `memory` | `memory`, `sqlite`, or `postgres`. The packaged desktop shell always runs `sqlite` |
+| `NEXUS_DATABASE_URL` | local postgres URL | Used by both `sqlite` and `postgres`. For SQLite it is `sqlite:///<absolute-path>` - note the four slashes an absolute path produces |
 | `NEXUS_INITIALIZATION_PROVIDER` | `fixture` | `fixture`, `llm`, or `shadow` |
-| `NEXUS_API_CORS_ORIGINS` | unrestricted | Development-only narrowing of allowed browser origins |
+| `NEXUS_API_CORS_ORIGINS` | conditional, see below | Explicit allowlist of browser origins; overrides the default either way |
 | `NEXUS_API_SESSION_TOKEN` | `nexus-dev-session-token` | Per-session bearer token; the desktop shell mints a fresh one per launch |
+
+The desktop shell points `NEXUS_DATABASE_URL` at `nexus.sqlite3` under Electron's
+per-user application data directory, so a student's projects survive a quit.
+Alembic is the sole schema authority for that file as it is for Postgres: the
+store runs migrations to head when it opens the database.
 
 ## Session-token authentication
 
@@ -53,14 +58,35 @@ back to the well-known development token `nexus-dev-session-token`, which keeps
 `make dev-api` and `make dev-web` working. Never run a packaged build without
 setting a real token.
 
-CORS is **not** a security boundary here and is unrestricted by default. A
-cross-origin page cannot obtain the session token, and an origin allowlist stops
-no local process that is not a browser. A packaged renderer loads over `file://`
-and sends `Origin: null`, which no useful allowlist contains. Setting
-`NEXUS_API_CORS_ORIGINS` narrows the allowed origins as a development-only
-convenience. CORS preflights (`OPTIONS` with `Access-Control-Request-Method`)
-are exempt from the token check, since browsers never attach credentials to
-them and the preflight response carries no application data.
+CORS is not the security boundary here; the session token is. A cross-origin
+page cannot obtain a token it does not know, and an origin allowlist stops no
+local process that is not a browser. A packaged renderer loads over `file://`
+and sends `Origin: null`, which no useful allowlist contains - so when the token
+is a real per-launch secret the default is unrestricted, which is what makes the
+shipped shell work at all.
+
+That argument holds only while the token is secret. With `NEXUS_API_SESSION_TOKEN`
+unset the token is `nexus-dev-session-token`, a constant published in this
+repository and baked into the built web bundle, so any page the user visits
+could present it. The default therefore depends on the token:
+
+| `NEXUS_API_SESSION_TOKEN` | Default allowed origins |
+| --- | --- |
+| set to a real secret | any origin |
+| unset (development token) | `http://localhost:5173` and `http://127.0.0.1:5173` |
+
+Those two are the Vite dev server, which is the browser `make dev-api` and
+`make dev-web` are for. **Serving the web app from any other port** - a
+`vite --port 3000`, a preview server, a Storybook - **needs
+`NEXUS_API_CORS_ORIGINS` set to that origin**, or the browser blocks the
+response with no `Access-Control-Allow-Origin`. Setting the variable is an
+explicit override and replaces the default in both cases.
+
+CORS preflights (`OPTIONS` with `Access-Control-Request-Method`) are exempt from
+the token check, since browsers never attach credentials to them and the
+preflight response carries no application data. Every other response, including
+a `401`, passes back out through the CORS layer, so a browser can read why it
+was rejected instead of seeing an opaque network error.
 
 Multi-user tenancy is **not** implemented.
 

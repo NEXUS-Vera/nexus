@@ -83,7 +83,9 @@ export async function startShell(options: StartShellOptions): Promise<void> {
       // crashes during startup - the likeliest moment for it to crash - is
       // already covered when its replacement announces itself.
       onRestart: (replacement) => {
-        options.host.updateRuntimeConfig(runtimeConfigFor(replacement, options.sessionToken));
+        options.host.updateRuntimeConfig(
+          runtimeConfigFor(replacement, options.sessionToken, true),
+        );
       },
     });
     handshake = await sidecar.start();
@@ -99,7 +101,7 @@ export async function startShell(options: StartShellOptions): Promise<void> {
   options.host.registerShutdown(sidecar);
 
   try {
-    await options.host.openWindow(runtimeConfigFor(handshake, options.sessionToken));
+    await options.host.openWindow(runtimeConfigFor(handshake, options.sessionToken, false));
   } catch (error) {
     // The sidecar is running by now, so this is the one failure that can leave
     // a process behind: no window will ever close to trigger the shutdown.
@@ -119,12 +121,14 @@ export async function startShell(options: StartShellOptions): Promise<void> {
 function runtimeConfigFor(
   handshake: SidecarHandshake,
   sessionToken: string,
+  serviceRestarted: boolean,
 ): RendererRuntimeConfig {
   return {
     baseUrl: `http://${handshake.host}:${String(handshake.port)}`,
     // The supervisor spawns a replacement with the same credential, so this is
     // still the token the service expects.
     sessionToken,
+    serviceRestarted,
   };
 }
 

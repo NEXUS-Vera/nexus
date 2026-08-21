@@ -21,4 +21,7 @@ contextBridge.exposeInMainWorld('nexus', {
     baseUrl: runtimeConfig.baseUrl,
     sessionToken: runtimeConfig.sessionToken,
   },
+  shell: {
+    serviceRestarted: runtimeConfig.serviceRestarted,
+  },
 });

@@ -71,7 +71,13 @@ describe('startShell', () => {
     // address only exists once the sidecar has announced it. Anything the
     // renderer was told earlier would be a guess.
     expect(opened).toEqual([
-      { baseUrl: 'http://127.0.0.1:54321', sessionToken: 'a-session-token' },
+      {
+        baseUrl: 'http://127.0.0.1:54321',
+        sessionToken: 'a-session-token',
+        // A first launch is not a recovery, and saying so would put a notice
+        // about a restart that never happened in front of the student.
+        serviceRestarted: false,
+      },
     ]);
   });
 
@@ -248,7 +254,14 @@ describe('startShell', () => {
     // window that reads as healthy while every request goes to a dead port -
     // which is worse than the crash it recovered from, because nothing says so.
     expect(republished).toEqual([
-      { baseUrl: 'http://127.0.0.1:61234', sessionToken: 'a-session-token' },
+      {
+        baseUrl: 'http://127.0.0.1:61234',
+        sessionToken: 'a-session-token',
+        // The renderer is reloaded to pick this up, and a reload nobody asked
+        // for reads as the application losing the student's place unless the
+        // page is told it was a recovery.
+        serviceRestarted: true,
+      },
     ]);
   });
 });
