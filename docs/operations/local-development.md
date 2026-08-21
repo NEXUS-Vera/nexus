@@ -4,7 +4,7 @@
 
 - Git, Make
 - Python 3.11+
-- Node.js 20+ and pnpm (when TypeScript packages exist)
+- Node.js 20+ and pnpm (web application and desktop shell)
 - GitHub CLI for contribution workflows
 
 ## Setup
@@ -21,4 +21,6 @@ make check
 
 `make check` runs repository policy, format check, lint, typecheck, contracts, tests, evaluations, and build. Unavailable language tooling is skipped cleanly when no sources exist; real failures still fail the suite.
 
-Product services are not implemented yet; there is no local application stack to start.
+## Running the application stack
+
+See [Local development in the root README](../../README.md#local-development) for the targets that start the API and web servers, and [`apps/desktop/README.md`](../../apps/desktop/README.md) for running the Electron shell.

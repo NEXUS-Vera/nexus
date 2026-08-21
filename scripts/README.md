@@ -21,4 +21,7 @@ Monorepo developer and CI helper scripts.
 
 ## Current status
 
-Placeholder only.
+Implemented. These scripts back the `make` targets; `make check` runs the policy,
+format, lint, typecheck, contracts, test, evaluation, and build scripts in order.
+See [Common commands in the root README](../README.md#common-commands) for the
+targets themselves.

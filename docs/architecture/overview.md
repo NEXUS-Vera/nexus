@@ -29,4 +29,6 @@ Vera communicates with domain agents through `packages/contracts`, not by import
 
 ## Current status
 
-Foundation and governance only. Product modules are placeholders.
+`apps/api`, `apps/web`, and the `apps/desktop` Electron shell are implemented; see [Current status in the root README](../../README.md#current-status) for what the shipped stack covers, and [ADR-0003](../decisions/ADR-0003-desktop-application.md) for the desktop shipping form factor and how it narrows the meaning of "deployable" for `apps/`.
+
+Modules under `agents/`, `tools/`, `evals/`, and `infra/` are still boundary placeholders. Each module states its own status in its `README.md`.
