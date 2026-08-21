@@ -16,12 +16,12 @@
     "test:e2e": "pnpm run build && playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.50.0",
-    "@types/node": "^22.13.4",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.2.0",
     "electron": "^43.4.1",
-    "esbuild": "^0.25.0",
-    "typescript": "^5.7.3",
-    "vitest": "^3.0.5"
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "chokidar": "^5.0.0",
