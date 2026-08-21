@@ -23,6 +23,7 @@ import {
 const scratchDirs: string[] = [];
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(scratchDirs.splice(0).map((dir) => rm(dir, { force: true, recursive: true })));
 });
 
@@ -170,6 +171,59 @@ describe('SidecarSupervisor restart policy', () => {
     const runs = (await readFile(runLog, 'utf8')).trim().split('\n');
     expect(runs).toHaveLength(2);
   }, 5_000);
+
+  it('reports a terminal failure when the replacement never announces', async () => {
+    // The first run announces and then dies, so the restart policy is armed and
+    // fires; the replacement dies without announcing. Nothing downstream is
+    // watching the replacement - its rejection resumes on the closed stdout and
+    // clears the current child before its own `exit` fires, so that event reads
+    // as superseded and is dropped. Unless this path reports, the shell keeps a
+    // window open on a port nothing is listening on with no dialog at all.
+    const dir = await mkdtemp(join(tmpdir(), 'nexus-sidecar-'));
+    scratchDirs.push(dir);
+    const counter = join(dir, 'launches');
+    const executable = join(dir, 'fake-sidecar.mjs');
+    await writeFile(
+      executable,
+      [
+        "import { appendFileSync, existsSync, readFileSync } from 'node:fs';",
+        `const counter = ${JSON.stringify(counter)};`,
+        "const launches = existsSync(counter) ? readFileSync(counter, 'utf8').length : 0;",
+        "appendFileSync(counter, 'x');",
+        'if (launches > 0) { process.exit(1); }',
+        announce(47_001),
+        'setTimeout(() => process.exit(1), 100);',
+      ].join('\n'),
+      'utf8',
+    );
+
+    const failures: SidecarTerminalError[] = [];
+    const supervisor = new SidecarSupervisor({
+      command: process.execPath,
+      args: [executable],
+      sessionToken: 'test-session-token',
+      databaseFile: '/tmp/nexus-test.sqlite3',
+      handshakeTimeoutMs: 1_000,
+      onTerminalFailure: (error) => {
+        failures.push(error);
+      },
+    });
+
+    await supervisor.start();
+
+    await vi.waitFor(() => {
+      expect(failures).toHaveLength(1);
+    }, 4_000);
+
+    expect(failures[0].reason).toBe('restart-failed');
+    // Whether the replacement's `exit` or its closed stdout wins that race is
+    // not ordered by Node, and both describe the same end state. The user hears
+    // about it once either way.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(failures).toHaveLength(1);
+    // Bounded as before: one original launch plus one replacement, no loop.
+    expect((await readFile(counter, 'utf8')).length).toBe(2);
+  }, 10_000);
 
   it('does not restart a sidecar that died before it ever announced', async () => {
     // A sidecar that cannot come up at all is a broken build, not a service
@@ -465,6 +519,8 @@ describe('SidecarSupervisor storage configuration', () => {
         '  url: process.env.NEXUS_DATABASE_URL,',
         '  token: process.env.NEXUS_API_SESSION_TOKEN,',
         '  port: process.env.NEXUS_API_PORT,',
+        '  host: process.env.NEXUS_API_HOST,',
+        '  corsOrigins: process.env.NEXUS_API_CORS_ORIGINS,',
         '}));',
         announce(46_001),
         'setTimeout(() => process.exit(0), 5000);',
@@ -472,13 +528,22 @@ describe('SidecarSupervisor storage configuration', () => {
       'utf8',
     );
 
+    // Poisoned deliberately: a packaged application must not be steerable by
+    // whatever the launching shell happens to export. `0.0.0.0` would bind every
+    // interface, publishing the student's project API to their whole network
+    // behind nothing but a token, and an inherited origin allowlist cannot
+    // contain the `Origin: null` a `file://` renderer sends - so it would break
+    // every request the shipped app makes.
+    vi.stubEnv('NEXUS_API_HOST', '0.0.0.0');
+    vi.stubEnv('NEXUS_API_CORS_ORIGINS', 'https://evil.example');
+    vi.stubEnv('NEXUS_STORAGE_BACKEND', 'postgres');
+    vi.stubEnv('NEXUS_DATABASE_URL', 'postgresql+psycopg://someone@elsewhere/db');
+
     const supervisor = new SidecarSupervisor({
       command: process.execPath,
       args: [executable],
       sessionToken: 'a-session-token',
       databaseFile,
-      // The environment a developer happens to be running under must not decide
-      // where a user's projects go.
       handshakeTimeoutMs: 5_000,
     });
 
@@ -493,6 +558,10 @@ describe('SidecarSupervisor storage configuration', () => {
       url: `sqlite:///${databaseFile}`,
       token: 'a-session-token',
       port: '0',
+      host: '127.0.0.1',
+      // Emptied, so the sidecar applies its own default rather than an
+      // allowlist that would exclude the packaged renderer.
+      corsOrigins: '',
     });
   }, 15_000);
 });

@@ -75,7 +75,7 @@ export class SidecarStartError extends Error {
 }
 
 /** Why the sidecar is considered unrecoverable and will not be respawned. */
-export type SidecarTerminalFailureReason = 'restart-limit-exceeded';
+export type SidecarTerminalFailureReason = 'restart-limit-exceeded' | 'restart-failed';
 
 /**
  * Typed failure surfaced after a successful start, through `onTerminalFailure`.
@@ -141,6 +141,7 @@ export class SidecarSupervisor {
   #current: SidecarProcess | undefined;
   #restarts = 0;
   #started = false;
+  #terminalReported = false;
 
   constructor(options: SidecarSupervisorOptions) {
     this.#options = options;
@@ -212,11 +213,26 @@ export class SidecarSupervisor {
       // collide with the user's own tooling and with a second Nexus instance.
       env: {
         ...process.env,
+        // Everything below is stated rather than inherited, and stated after
+        // the spread, so that nothing the launching shell happens to export can
+        // change what a packaged application does. The variables the sidecar
+        // reads are a configuration surface for a developer running it by hand;
+        // for the shipped shell they are decisions this module has already made.
         NEXUS_API_PORT: '0',
         NEXUS_API_SESSION_TOKEN: this.#options.sessionToken,
-        // Stated rather than inherited, and stated after the spread so a stray
-        // value in the shell's own environment cannot redirect the user's
-        // projects into a developer's Postgres or back into memory.
+        // Loopback is the invariant the session token is layered on top of. An
+        // inherited `0.0.0.0` would bind every interface, and nothing would look
+        // wrong: the announced address still reaches the renderer, so the window
+        // works normally while the student's project API answers their whole
+        // network to anyone holding a token.
+        NEXUS_API_HOST: '127.0.0.1',
+        // Emptied rather than set, so the sidecar applies its own default. The
+        // packaged renderer loads over `file://` and sends `Origin: null`, which
+        // no allowlist contains, so an inherited one would not narrow the shell
+        // - it would break every request it makes.
+        NEXUS_API_CORS_ORIGINS: '',
+        // A stray value here would redirect the user's projects into a
+        // developer's Postgres, or back into memory to be lost on quit.
         NEXUS_STORAGE_BACKEND: 'sqlite',
         NEXUS_DATABASE_URL: sqliteUrl(this.#options.databaseFile),
       },
@@ -282,7 +298,7 @@ export class SidecarSupervisor {
     }
 
     if (this.#restarts >= MAX_RESTART_ATTEMPTS) {
-      this.#options.onTerminalFailure?.(
+      this.#reportTerminalFailure(
         new SidecarTerminalError(
           'restart-limit-exceeded',
           `Sidecar exited (code ${String(code)}, signal ${String(signal)}) after ` +
@@ -299,11 +315,39 @@ export class SidecarSupervisor {
         // addressing the dead one.
         this.#options.onRestart?.(handshake);
       })
-      .catch(() => {
-        // A restart that cannot even hand shake is itself an exit-shaped
-        // failure; the replacement child's own `exit` carries it to the
-        // terminal branch.
+      .catch((error: unknown) => {
+        // A replacement that never announces has to be reported from here. Its
+        // own `exit` cannot carry it: the rejection above resumes in the
+        // microtask drain that follows the closed stdout and clears `#current`
+        // first, so by the time `exit` fires the child reads as superseded and
+        // is dropped. Left unreported, the window stays open on a port nothing
+        // is listening on, with nothing on screen saying why - which is the
+        // failure the restart wiring exists to remove, one step later.
+        this.#reportTerminalFailure(
+          new SidecarTerminalError(
+            'restart-failed',
+            'Sidecar exited and its replacement could not start: ' +
+              `${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
       });
+  }
+
+  /**
+   * Tell the shell the sidecar is gone for good, at most once.
+   *
+   * Which of the two paths above gets here depends on whether a dying
+   * replacement's `exit` or its closed stdout wins a race Node does not order.
+   * Both describe the same end state, and the user needs to be told about it
+   * once, not once per event that happened to observe it.
+   */
+  #reportTerminalFailure(error: SidecarTerminalError): void {
+    if (this.#terminalReported) {
+      return;
+    }
+
+    this.#terminalReported = true;
+    this.#options.onTerminalFailure?.(error);
   }
 }
 

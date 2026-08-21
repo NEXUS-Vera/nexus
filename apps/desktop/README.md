@@ -162,8 +162,24 @@ restarts a crashed sidecar once before surfacing a terminal failure, and stops
 it without leaving an orphan. The restart policy arms only once `start()` has
 resolved: a sidecar that dies before it ever announces is a build that cannot
 start, so it is reported once through the typed `SidecarStartError` rather than
-respawned into a replacement no one is waiting for and no one owns. It is a plain Node module and takes no Electron
-dependency, so it is unit tested against the runner configured here.
+respawned into a replacement no one is waiting for and no one owns. A
+replacement that does spawn but never announces is reported too, as a
+`restart-failed` terminal error, because nothing downstream would otherwise
+hear about it - its rejection clears the current child before its own `exit`
+fires, so that event reads as superseded and is dropped. Reporting is
+idempotent, since which of the two wins that race is not ordered.
+
+It is also what decides the sidecar's environment. `NEXUS_API_HOST`,
+`NEXUS_API_PORT`, `NEXUS_API_SESSION_TOKEN`, `NEXUS_API_CORS_ORIGINS`,
+`NEXUS_STORAGE_BACKEND` and `NEXUS_DATABASE_URL` are all stated after the
+inherited environment rather than left to it. For a developer running the API by
+hand those are a configuration surface; for a packaged application they are
+decisions already made, and a shell profile exporting `NEXUS_API_HOST=0.0.0.0`
+would otherwise bind every interface - publishing a student's project API to
+their whole network, with nothing on screen to say so, behind a token alone.
+
+It is a plain Node module and takes no Electron dependency, so it is unit tested
+against the runner configured here.
 
 `src/main/terminal-session.ts` runs a command on a real pseudoterminal: input
 written to the session reaches the child, a resize is visible to the child
