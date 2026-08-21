@@ -18,7 +18,9 @@ GREENHOUSE = (
 @pytest.mark.asyncio
 async def test_initialize_get_history_and_runtime_turn() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
         created = await client.post(
             "/v1/projects/initialize",
             json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
@@ -27,9 +29,7 @@ async def test_initialize_get_history_and_runtime_turn() -> None:
         body = created.json()
         project_id = body["project"]["projectId"]
         brief_v1 = next(
-            a["artifactVersion"]
-            for a in body["artifacts"]
-            if a["artifactType"] == "project-brief"
+            a["artifactVersion"] for a in body["artifacts"] if a["artifactType"] == "project-brief"
         )
 
         fetched = await client.get(f"/v1/projects/{project_id}")
@@ -71,7 +71,9 @@ async def test_initialize_get_history_and_runtime_turn() -> None:
 @pytest.mark.asyncio
 async def test_project_not_found() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
         response = await client.get("/v1/projects/proj_DOESNOTEXIST00001")
         assert response.status_code == 404
         assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
@@ -80,7 +82,9 @@ async def test_project_not_found() -> None:
 @pytest.mark.asyncio
 async def test_unsupported_fixture_modification() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test", headers=AUTH_HEADERS) as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
         created = await client.post(
             "/v1/projects/initialize",
             json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
@@ -92,6 +96,5 @@ async def test_unsupported_fixture_modification() -> None:
         )
         assert response.status_code == 422
         assert (
-            response.json()["error"]["code"]
-            == "UNSUPPORTED_PROJECT_MODIFICATION_FOR_FIXTURE_PHASE"
+            response.json()["error"]["code"] == "UNSUPPORTED_PROJECT_MODIFICATION_FOR_FIXTURE_PHASE"
         )
