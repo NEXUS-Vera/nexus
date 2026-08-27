@@ -8,7 +8,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 /**
  * Lightweight append-only history of a project: the turns that were submitted, the workflow runs they triggered, every artifact revision produced, and the user-facing responses returned.

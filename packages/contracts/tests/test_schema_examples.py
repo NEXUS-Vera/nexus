@@ -58,6 +58,7 @@ RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
     "workspace-draft-state.json": (
         "https://nexus.local/schemas/workspaces/workspace-draft-state.v1.schema.json"
     ),
+    "workspace-file.json": ("https://nexus.local/schemas/workspaces/workspace-file.v1.schema.json"),
     "execution-request.json": (
         "https://nexus.local/schemas/executions/execution-request.v1.schema.json"
     ),
@@ -722,6 +723,18 @@ def test_technology_level_language_is_non_blocking_warning() -> None:
     ]
     assert tech_warnings, "Expected non-blocking technology-level warning"
     assert not [e for e in errors if e.code == "COMPONENT_SPECIFIC_ARCHITECTURE" and e.blocking]
+
+
+def test_scrub_component_specific_language_removes_part_identifiers() -> None:
+    from nexus_contracts.validation.semantic_validators import scrub_component_specific_language
+
+    scrubbed = scrub_component_specific_language(
+        "ESP32 samples MPU6050 accel_x and streams over UART"
+    )
+    assert "ESP32" not in scrubbed
+    assert "MPU6050" not in scrubbed
+    assert "application microcontroller" in scrubbed
+    assert "inertial sensor" in scrubbed
 
 
 def test_user_explicit_numeric_claim_requires_user_support() -> None:

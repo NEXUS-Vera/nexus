@@ -10,6 +10,7 @@ from .schema_validator import (
 from .semantic_validators import (
     SemanticValidationError,
     find_hidden_reasoning_fields,
+    scrub_component_specific_language,
     semantic_validate_bundle,
 )
 
@@ -20,6 +21,7 @@ __all__ = [
     "find_hidden_reasoning_fields",
     "load_schemas_by_id",
     "make_validator",
+    "scrub_component_specific_language",
     "semantic_validate_bundle",
     "validate_against_schema",
     "validate_against_schema_id",

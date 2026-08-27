@@ -49,6 +49,11 @@ ID_PREFIXES: tuple[str, ...] = (
     "pzone_",
     "prel_",
     "parch_",
+    "test_",
+    "risk_",
+    "tplan_",
+    "rreg_",
+    "evi_",
 )
 
 # Longest prefix first so "question_" wins over shorter accidental matches.
@@ -162,6 +167,8 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
     component_plan_content = None
     electrical_architecture_content = None
     physical_architecture_content = None
+    test_plan_content = None
+    risk_register_content = None
     for art in artifacts:
         if not isinstance(art, dict):
             continue
@@ -179,6 +186,10 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
             electrical_architecture_content = content
         elif artifact_type == "physical-architecture" and isinstance(content, dict):
             physical_architecture_content = content
+        elif artifact_type == "test-plan" and isinstance(content, dict):
+            test_plan_content = content
+        elif artifact_type == "risk-register" and isinstance(content, dict):
+            risk_register_content = content
 
     return {
         "artifact_envelopes": artifacts,
@@ -192,6 +203,8 @@ def initialization_dict_to_package_bundle(result: dict[str, Any]) -> dict[str, A
         "component_plan_content": component_plan_content,
         "electrical_architecture_content": electrical_architecture_content,
         "physical_architecture_content": physical_architecture_content,
+        "test_plan_content": test_plan_content,
+        "risk_register_content": risk_register_content,
         "validation_issues": list(result.get("validationIssues") or []),
         "open_questions": list(result.get("openQuestions") or []),
         "vera_response": result.get("veraResponse"),

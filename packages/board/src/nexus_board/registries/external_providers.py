@@ -13,7 +13,19 @@ DEFAULT_EXTERNAL_PROVIDERS: list[dict[str, Any]] = [
         "displayName": "Fake Provider",
         "available": True,
         "capabilities": ["structured-validation", "fake-execution"],
-    }
+    },
+    {
+        "providerId": "local",
+        "displayName": "Local Filesystem",
+        "available": True,
+        "capabilities": ["file-workspace"],
+    },
+    {
+        "providerId": "local-sandbox",
+        "displayName": "Local Sandbox Runtime",
+        "available": True,
+        "capabilities": ["sandbox-execution"],
+    },
 ]
 
 

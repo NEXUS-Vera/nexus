@@ -37,12 +37,12 @@ test-wokwi-smoke:
 
 # Prints the fixture prompt used to initialize the Phase 13C golden Electrical
 # Design/Simulation project (FX-MCU-32 + FX-IMU-200 → Wokwi ESP32/MPU6050 surrogates).
-# Does not call Wokwi. See docs/architecture/golden-electrical-simulation-demo.md.
+# Does not call Wokwi. See docs/architecture/golden-full-demo-execution.md.
 seed-wokwi-golden-project:
 	@echo "Initialize a project with this prompt (fixture provider):"
 	@echo "I want a golden Nexus circuit simulation project with an ESP32-class MCU and an IMU motion sensor for Wokwi surrogate simulation."
 	@echo "Then open Architecture → Electrical (Design), switch to Simulation for the provider-backed view."
-	@echo "Docs: docs/architecture/golden-electrical-simulation-demo.md"
+	@echo "Full demo: docs/architecture/golden-full-demo-execution.md"
 
 eval:
 	@./scripts/run-evals.sh

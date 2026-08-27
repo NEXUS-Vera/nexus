@@ -27,10 +27,14 @@ from .consequence_level_v1 import *  # noqa: F403
 from .derived_fact_provenance_v1 import *  # noqa: F403
 from .electrical_architecture_v1 import *  # noqa: F403
 from .evidence_reference_v1 import *  # noqa: F403
+from .execution_command_spec_v1 import *  # noqa: F403
+from .execution_job_v1 import *  # noqa: F403
+from .execution_log_chunk_v1 import *  # noqa: F403
 from .execution_request_v1 import *  # noqa: F403
 from .execution_result_v1 import *  # noqa: F403
 from .execution_run_v1 import *  # noqa: F403
 from .external_workspace_reference_v1 import *  # noqa: F403
+from .firmware_patch_proposal_v1 import *  # noqa: F403
 from .functional_architecture_v1 import *  # noqa: F403
 from .graph_traversal_result_v1 import *  # noqa: F403
 from .next_action_v1 import *  # noqa: F403
@@ -62,6 +66,7 @@ from .vera_response_v1 import *  # noqa: F403
 from .workflow_run_v1 import *  # noqa: F403
 from .workspace_descriptor_v1 import *  # noqa: F403
 from .workspace_draft_state_v1 import *  # noqa: F403
+from .workspace_file_v1 import *  # noqa: F403
 from .workspace_snapshot_v1 import *  # noqa: F403
 
 __all__ = [
@@ -90,10 +95,14 @@ __all__ = [
     "derived_fact_provenance_v1",
     "electrical_architecture_v1",
     "evidence_reference_v1",
+    "execution_command_spec_v1",
+    "execution_job_v1",
+    "execution_log_chunk_v1",
     "execution_request_v1",
     "execution_result_v1",
     "execution_run_v1",
     "external_workspace_reference_v1",
+    "firmware_patch_proposal_v1",
     "functional_architecture_v1",
     "graph_traversal_result_v1",
     "next_action_v1",
@@ -125,5 +134,6 @@ __all__ = [
     "workflow_run_v1",
     "workspace_descriptor_v1",
     "workspace_draft_state_v1",
+    "workspace_file_v1",
     "workspace_snapshot_v1",
 ]

@@ -12,6 +12,8 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from nexus_contracts.validation.semantic_validators import scrub_component_specific_language
+
 from .ids import default_actor, new_id, utc_now
 
 ProjectStage = Literal["concept", "prototype-planning"]
@@ -157,9 +159,12 @@ def normalize_architecture_draft(
         nodes.append(
             {
                 "nodeId": local_node_to_id[node["localNodeKey"]],
-                "name": node["name"],
+                "name": scrub_component_specific_language(str(node["name"])),
                 "functionalType": node["functionalType"],
-                "responsibilities": list(node["responsibilities"]),
+                "responsibilities": [
+                    scrub_component_specific_language(str(item))
+                    for item in node["responsibilities"]
+                ],
                 "satisfiesRequirementIds": satisfies_requirement_ids,
             }
         )

@@ -31,6 +31,23 @@ class Settings:
     wokwi_cli_executable: str = "wokwi-cli"
     wokwi_cli_token: str = ""
     wokwi_firmware_elf: str = ""
+    file_store_root: str = ""
+    workspace_max_file_bytes: int = 1_048_576
+    workspace_max_bytes: int = 16_777_216
+    workspace_max_file_count: int = 256
+    execution_max_running_global: int = 2
+    execution_max_running_per_project: int = 1
+    execution_max_queued: int = 32
+    execution_wall_time_ms: int = 30_000
+    execution_stdout_bytes: int = 1_048_576
+    execution_stderr_bytes: int = 1_048_576
+    execution_total_log_bytes: int = 2_097_152
+    execution_produced_output_bytes: int = 4_194_304
+    execution_memory_bytes: int = 256 * 1024 * 1024
+    execution_cpu_millis: int = 1000
+    execution_process_count: int = 64
+    execution_runtime: str = "process"
+    execution_container_image: str = "python:3.13-slim"
 
 
 def load_settings() -> Settings:
@@ -55,6 +72,29 @@ def load_settings() -> Settings:
         wokwi_cli_executable=os.environ.get("NEXUS_WOKWI_CLI", "wokwi-cli"),
         wokwi_cli_token=os.environ.get("WOKWI_CLI_TOKEN", ""),
         wokwi_firmware_elf=os.environ.get("NEXUS_WOKWI_FIRMWARE_ELF", ""),
+        file_store_root=os.environ.get("NEXUS_FILE_STORE_ROOT", "").strip(),
+        workspace_max_file_bytes=int(os.environ.get("NEXUS_WORKSPACE_MAX_FILE_BYTES", "1048576")),
+        workspace_max_bytes=int(os.environ.get("NEXUS_WORKSPACE_MAX_BYTES", "16777216")),
+        workspace_max_file_count=int(os.environ.get("NEXUS_WORKSPACE_MAX_FILE_COUNT", "256")),
+        execution_max_running_global=int(os.environ.get("NEXUS_EXEC_MAX_RUNNING_GLOBAL", "2")),
+        execution_max_running_per_project=int(
+            os.environ.get("NEXUS_EXEC_MAX_RUNNING_PER_PROJECT", "1")
+        ),
+        execution_max_queued=int(os.environ.get("NEXUS_EXEC_MAX_QUEUED", "32")),
+        execution_wall_time_ms=int(os.environ.get("NEXUS_EXEC_WALL_TIME_MS", "30000")),
+        execution_stdout_bytes=int(os.environ.get("NEXUS_EXEC_STDOUT_BYTES", "1048576")),
+        execution_stderr_bytes=int(os.environ.get("NEXUS_EXEC_STDERR_BYTES", "1048576")),
+        execution_total_log_bytes=int(os.environ.get("NEXUS_EXEC_TOTAL_LOG_BYTES", "2097152")),
+        execution_produced_output_bytes=int(
+            os.environ.get("NEXUS_EXEC_PRODUCED_OUTPUT_BYTES", "4194304")
+        ),
+        execution_memory_bytes=int(os.environ.get("NEXUS_EXEC_MEMORY_BYTES", str(256 * 1024 * 1024))),
+        execution_cpu_millis=int(os.environ.get("NEXUS_EXEC_CPU_MILLIS", "1000")),
+        execution_process_count=int(os.environ.get("NEXUS_EXEC_PROCESS_COUNT", "64")),
+        execution_runtime=os.environ.get("NEXUS_EXECUTION_RUNTIME", "process").strip().lower(),
+        execution_container_image=os.environ.get(
+            "NEXUS_EXEC_CONTAINER_IMAGE", "python:3.13-slim"
+        ).strip(),
     )
 
 

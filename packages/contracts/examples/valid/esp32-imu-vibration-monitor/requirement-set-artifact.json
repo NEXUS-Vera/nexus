@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_16GOLDENREQS000000000000001",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "artifactType": "requirement-set",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENVERA00000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z",
+  "sourceTurnId": "turn_16GOLDENUSER000000000000001",
+  "workflowRunId": "run_16GOLDENRUN00000000000000001",
+  "content": {
+    "requirements": [
+      {
+        "requirementId": "req_16GOLDENR1I2CCOMM000000000000001",
+        "displayId": "R1",
+        "statement": "The system uses an ESP32-based design that communicates with an MPU6050 over I\u00b2C.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R1GOLDEN0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Confirm R1 is satisfied in architecture, firmware, and analysis."
+      },
+      {
+        "requirementId": "req_16GOLDENR2WIRING0000000000000001",
+        "displayId": "R2",
+        "statement": "I\u00b2C wiring for the MPU6050 uses SDA GPIO21 and SCL GPIO22.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R2GOLDEN0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "derived from golden vibration-monitor architecture"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm R2 is satisfied in architecture, firmware, and analysis."
+      },
+      {
+        "requirementId": "req_16GOLDENR3SERIAL000000000000001",
+        "displayId": "R3",
+        "statement": "Firmware initializes serial at 115200 baud for streaming acceleration telemetry.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R3GOLDEN0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "derived from golden vibration-monitor architecture"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm R3 is satisfied in architecture, firmware, and analysis."
+      },
+      {
+        "requirementId": "req_16GOLDENR4MPUINIT00000000000001",
+        "displayId": "R4",
+        "statement": "Firmware initializes the MPU6050 and reports readiness before streaming.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R4GOLDEN0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "derived from golden vibration-monitor architecture"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm R4 is satisfied in architecture, firmware, and analysis."
+      },
+      {
+        "requirementId": "req_16GOLDENR5TELEM0000000000000001",
+        "displayId": "R5",
+        "statement": "Firmware streams acceleration telemetry in a machine-readable form containing time_ms, accel_x_g, accel_y_g, and accel_z_g.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R5GOLDEN0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Confirm R5 is satisfied in architecture, firmware, and analysis."
+      },
+      {
+        "requirementId": "req_16GOLDENR6RATE00000000000000001",
+        "displayId": "R6",
+        "statement": "Target telemetry interval is approximately 20 ms (50 Hz) where simulator/runtime behavior permits.",
+        "category": "performance",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R6GOLDEN0000000000000001",
+          "sourceType": "agent-inference",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "inferred",
+          "sourceLocator": "derived from golden vibration-monitor architecture"
+        },
+        "confidence": "medium",
+        "confirmationStatus": "proposed",
+        "verificationMethod": "Confirm R6 is satisfied in architecture, firmware, and analysis."
+      },
+      {
+        "requirementId": "req_16GOLDENR7RMS000000000000000001",
+        "displayId": "R7",
+        "statement": "Analyze stationary sensor noise to verify that accel_x RMS noise stays below 0.10 g (demeaned).",
+        "category": "verification",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R7GOLDEN0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Compute demeaned accel_x RMS from Analysis and compare to 0.10 g deterministically."
+      },
+      {
+        "requirementId": "req_16GOLDENR8OUTPUTS00000000000001",
+        "displayId": "R8",
+        "statement": "Analysis of stationary sensor noise produces summary JSON, processed CSV, and an acceleration telemetry plot PNG.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "sourceReference": {
+          "schemaVersion": "1.0.0",
+          "evidenceId": "evi_R8GOLDEN0000000000000001",
+          "sourceType": "user-turn",
+          "sourceId": "turn_16GOLDENUSER000000000000001",
+          "evidenceStrength": "direct",
+          "sourceLocator": "rawUserMessage"
+        },
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "verificationMethod": "Confirm R8 is satisfied in architecture, firmware, and analysis."
+      }
+    ],
+    "requirementSummary": "ESP32-class MCU communicates with an MPU6050 over I2C (SDA GPIO21, SCL GPIO22), streams 115200 baud acceleration telemetry, and Analysis verifies demeaned accel_x RMS noise below 0.10 g with JSON/CSV/PNG outputs.",
+    "missingDimensions": [],
+    "openQuestionIds": []
+  }
+}

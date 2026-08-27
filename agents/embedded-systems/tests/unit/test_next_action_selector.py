@@ -165,3 +165,72 @@ def test_dimension_gap_action_attaches_relevant_open_question_prerequisites() ->
     )
     assert action["sourceQuestionIds"] == ["question_perf"]
     assert action["prerequisites"] == [{"schemaVersion": "1.0.0", "questionId": "question_perf"}]
+
+
+def test_verify_failed_and_uncovered_surface_as_next_action() -> None:
+    failed = select_next_action(
+        issues=[],
+        open_questions=[],
+        missing_dimensions=[],
+        project_stage="prototype-planning",
+        test_plan_content={
+            "coverageSummary": {
+                "uncoveredRequirements": 0,
+                "failedRequirements": 1,
+            },
+            "testCases": [],
+        },
+    )
+    assert failed["title"] == "Resolve failed requirement verification"
+
+    uncovered = select_next_action(
+        issues=[],
+        open_questions=[],
+        missing_dimensions=[],
+        project_stage="prototype-planning",
+        test_plan_content={
+            "coverageSummary": {
+                "uncoveredRequirements": 2,
+                "failedRequirements": 0,
+            },
+            "testCases": [],
+        },
+    )
+    assert uncovered["title"] == "Cover uncovered requirements with TestCases"
+
+
+def test_verify_blocked_and_high_risk_gaps_surface() -> None:
+    blocked = select_next_action(
+        issues=[],
+        open_questions=[],
+        missing_dimensions=[],
+        project_stage="prototype-planning",
+        test_plan_content={
+            "coverageSummary": {"uncoveredRequirements": 0, "failedRequirements": 0},
+            "testCases": [{"displayId": "T4", "status": "blocked"}],
+        },
+    )
+    assert blocked["title"] == "Unblock blocked verification tests"
+
+    risk = select_next_action(
+        issues=[],
+        open_questions=[],
+        missing_dimensions=[],
+        project_stage="prototype-planning",
+        test_plan_content={
+            "coverageSummary": {"uncoveredRequirements": 0, "failedRequirements": 0},
+            "testCases": [{"displayId": "T7", "status": "passed"}],
+        },
+        risk_register_content={
+            "risks": [
+                {
+                    "displayId": "K9",
+                    "severity": "high",
+                    "status": "open",
+                    "verificationTestIds": [],
+                    "linkedTestIds": [],
+                }
+            ]
+        },
+    )
+    assert risk["title"] == "Add verification tests for high-severity risks"

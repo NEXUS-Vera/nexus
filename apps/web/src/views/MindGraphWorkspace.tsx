@@ -19,11 +19,7 @@ export function MindGraphWorkspace({ state, isDark, onNavigate }: Props) {
         ? undefined
         : selectArtifactByType(
             state.artifacts,
-            def.artifactType as
-              | 'project-brief'
-              | 'requirement-set'
-              | 'functional-architecture'
-              | 'next-action',
+            def.artifactType as any,
           );
     const angle = (index / ARTIFACT_ORDER.length) * Math.PI * 2 - Math.PI / 2;
     return {
@@ -39,10 +35,12 @@ export function MindGraphWorkspace({ state, isDark, onNavigate }: Props) {
     ['project-brief', 'requirement-set'],
     ['requirement-set', 'functional-architecture'],
     ['functional-architecture', 'component-plan'],
-    ['component-plan', 'firmware-scaffold'],
-    ['firmware-scaffold', 'analysis-notebook'],
+    ['component-plan', 'firmware'],
+    ['firmware', 'analysis'],
+    ['analysis', 'test-plan'],
     ['requirement-set', 'test-plan'],
     ['functional-architecture', 'risk-register'],
+    ['test-plan', 'risk-register'],
   ];
 
   return (

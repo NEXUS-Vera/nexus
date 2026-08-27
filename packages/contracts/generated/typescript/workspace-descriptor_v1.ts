@@ -8,7 +8,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export interface WorkspaceDescriptor {
   artifactId: string;
@@ -24,6 +29,7 @@ export interface WorkspaceDescriptor {
     | 'structured-validation'
     | 'fake-execution'
     | 'file-workspace'
+    | 'sandbox-execution'
     | 'embedded-build'
     | 'python-kernel'
     | 'circuit-simulation'

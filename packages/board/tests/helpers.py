@@ -190,6 +190,7 @@ def build_test_kernel(
     *,
     autonomy_mode: str = "collaborate",
     capability_executors: dict[str, Any] | None = None,
+    **kernel_kwargs: Any,
 ) -> tuple[Any, InMemoryProjectStore, InMemoryKernelStore, str]:
     project_store = InMemoryProjectStore()
     kernel_store = InMemoryKernelStore(project_store=project_store)
@@ -201,6 +202,7 @@ def build_test_kernel(
         kernel_store,
         project_store=project_store,
         capability_executors=capability_executors,
+        **kernel_kwargs,
     )
     return kernel, project_store, kernel_store, project_id
 

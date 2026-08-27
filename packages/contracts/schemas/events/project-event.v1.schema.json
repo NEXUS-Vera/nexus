@@ -58,7 +58,11 @@
         "component-selection.rejected",
         "compatibility-check.recorded",
         "component-plan.revised",
-        "component-plan.marked-stale"
+        "component-plan.marked-stale",
+        "workspace.scaffold-generated",
+        "workspace.patch-proposed",
+        "workspace.patch-applied",
+        "workspace.patch-discarded"
       ]
     },
     "occurredAt": {
@@ -161,6 +165,7 @@
             "structured-validation",
             "fake-execution",
             "file-workspace",
+            "sandbox-execution",
             "embedded-build",
             "python-kernel",
             "circuit-simulation",
@@ -201,6 +206,112 @@
         },
         "evidenceStatus": {
           "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
+        },
+        "generationId": {
+          "type": "string",
+          "pattern": "^gen_[A-Za-z0-9]{16,}$"
+        },
+        "generationKind": {
+          "type": "string",
+          "enum": ["scaffold", "patch"]
+        },
+        "scaffoldProfileId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scaffoldProfileVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "generatedFiles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "contentHash"],
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "contentHash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        "patchProposalId": {
+          "type": "string",
+          "pattern": "^fwpatch_[A-Za-z0-9]{16,}$"
+        },
+        "baseSnapshotId": {
+          "type": "string",
+          "pattern": "^snap_[A-Za-z0-9]{16,}$"
+        },
+        "requestedChange": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "generatorId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "generatorVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputArtifactReferences": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["artifactType", "artifactVersion"],
+            "properties": {
+              "artifactType": {
+                "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+              },
+              "artifactVersion": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "artifactId": {
+                "type": "string",
+                "pattern": "^art_[A-Za-z0-9]{16,}$"
+              }
+            }
+          }
+        },
+        "patchOperations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operationType", "path"],
+            "properties": {
+              "operationType": {
+                "type": "string",
+                "enum": ["create-file", "replace-file", "delete-file"]
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "expectedBaseHash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              },
+              "contentHash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
         }
       }
     }

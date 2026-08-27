@@ -4,22 +4,12 @@ import { ARTIFACT_REGISTRY } from './registry';
 import type { ArtifactRouteKey } from './types';
 
 type Props = {
-  routeKey: Extract<
-    ArtifactRouteKey,
-    | 'firmware-scaffold'
-    | 'analysis-notebook'
-    | 'test-plan'
-    | 'risk-register'
-  >;
+  routeKey: Extract<ArtifactRouteKey, 'test-plan' | 'risk-register'>;
   isDark: boolean;
   nextActionTitle?: string;
 };
 
 const SHELL_HINTS: Partial<Record<ArtifactRouteKey, string>> = {
-  'firmware-scaffold':
-    'Visual shell reserved for file tree, editor, and terminal panels. No project files are generated yet.',
-  'analysis-notebook':
-    'Visual shell reserved for notebook cells and outputs. No runtime is connected.',
   'test-plan': 'Visual shell reserved for verification tables and case detail.',
   'risk-register': 'Visual shell reserved for risk tables and mitigation detail.',
 };

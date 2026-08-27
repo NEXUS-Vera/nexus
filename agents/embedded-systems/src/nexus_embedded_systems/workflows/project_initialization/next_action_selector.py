@@ -58,6 +58,8 @@ def select_next_action(
     component_plan_content: dict[str, Any] | None = None,
     electrical_content: dict[str, Any] | None = None,
     physical_content: dict[str, Any] | None = None,
+    test_plan_content: dict[str, Any] | None = None,
+    risk_register_content: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Select and construct the single highest-priority Next Action.
 
@@ -71,7 +73,9 @@ def select_next_action(
       6. Component-plan gaps (missing constraints, awaiting approval, no candidates).
       7. Electrical gaps (preferred implementations, unresolved connections/interfaces).
       8. Physical gaps (unresolved placement).
-      9. Fallback: the project is ready for later component-selection.
+      9. VERIFY coverage gaps (uncovered / failed / blocked tests; high risks
+         without verification tests) when present.
+      10. Fallback: the project is ready for later component-selection.
     """
 
     blocking_issues = [issue for issue in issues if issue.get("blocking") is True]
@@ -138,6 +142,13 @@ def select_next_action(
     physical_gap = _physical_architecture_gap_action(physical_content)
     if physical_gap is not None:
         return physical_gap
+
+    verify_gap = _verify_coverage_gap_action(
+        test_plan_content,
+        risk_register_content=risk_register_content,
+    )
+    if verify_gap is not None:
+        return verify_gap
 
     return _component_selection_ready_action(project_stage)
 
@@ -336,6 +347,96 @@ def _physical_architecture_gap_action(
         source_issue_ids=[],
         source_question_ids=[],
     )
+
+
+def _verify_coverage_gap_action(
+    test_plan_content: dict[str, Any] | None,
+    *,
+    risk_register_content: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    if not isinstance(test_plan_content, dict):
+        test_plan_content = None
+    summary = (test_plan_content or {}).get("coverageSummary") or {}
+    uncovered = int(summary.get("uncoveredRequirements") or 0)
+    failed = int(summary.get("failedRequirements") or 0)
+    cases = list((test_plan_content or {}).get("testCases") or [])
+    blocked = sum(1 for c in cases if isinstance(c, dict) and c.get("status") == "blocked")
+    if failed > 0:
+        return _build_action(
+            title="Resolve failed requirement verification",
+            description=(
+                f"{failed} requirement(s) currently FAIL verification. Inspect linked "
+                "TestCases, Evidence, and Analysis/Firmware results."
+            ),
+            rationale="Failed verification must be addressed before claiming Evidence closure.",
+            priority="high",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="validation-issues-cleared",
+            completion_criteria="Failed TestCases are re-run or corrected to PASS/INCONCLUSIVE with evidence.",
+            source_issue_ids=[],
+            source_question_ids=[],
+        )
+    if blocked > 0:
+        return _build_action(
+            title="Unblock blocked verification tests",
+            description=(
+                f"{blocked} TestCase(s) are blocked (missing eligible run/evidence). "
+                "Provide firmware/simulation/analysis evidence or revise preconditions."
+            ),
+            rationale="Blocked tests leave linked requirements unverified.",
+            priority="high",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="validation-issues-cleared",
+            completion_criteria="Blocked TestCases move to ready/passed/failed/inconclusive with evidence.",
+            source_issue_ids=[],
+            source_question_ids=[],
+        )
+    if uncovered > 0:
+        return _build_action(
+            title="Cover uncovered requirements with TestCases",
+            description=(
+                f"{uncovered} requirement(s) have no linked TestCase. Update the Test Plan "
+                "so every must-verify requirement is covered."
+            ),
+            rationale="Uncovered requirements cannot silently disappear from VERIFY.",
+            priority="high",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="requirements-confirmed",
+            completion_criteria="Test Plan coverage shows zero uncovered must-verify requirements.",
+            source_issue_ids=[],
+            source_question_ids=[],
+        )
+    if isinstance(risk_register_content, dict):
+        risks = list(risk_register_content.get("risks") or [])
+        high_unverified = [
+            r
+            for r in risks
+            if isinstance(r, dict)
+            and r.get("severity") in {"high", "critical"}
+            and r.get("status") not in {"mitigated", "accepted"}
+            and not (r.get("verificationTestIds") or r.get("linkedTestIds"))
+        ]
+        if high_unverified:
+            sample = high_unverified[0]
+            return _build_action(
+                title="Add verification tests for high-severity risks",
+                description=(
+                    f"{len(high_unverified)} high/critical risk(s) lack verification TestCase "
+                    f"linkage (e.g. {sample.get('displayId')}). Link or author mitigating tests."
+                ),
+                rationale="High risks without verification tests remain unverifiable.",
+                priority="medium",
+                prerequisites=[],
+                blocks=[],
+                completion_condition_type="validation-issues-cleared",
+                completion_criteria="High/critical open risks reference verification TestCase IDs.",
+                source_issue_ids=[],
+                source_question_ids=[],
+            )
+    return None
 
 
 def _blocking_defect_action(blocking_issues: list[dict[str, Any]]) -> dict[str, Any]:

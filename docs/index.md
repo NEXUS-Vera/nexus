@@ -5,7 +5,10 @@ Durable long-form documentation for Nexus lives under `docs/`. Module-level purp
 ## Architecture
 
 - [Repository overview](./architecture/overview.md)
-- [Golden Electrical Simulation Demo](./architecture/golden-electrical-simulation-demo.md)
+- [Golden full demo execution](./architecture/golden-full-demo-execution.md)
+
+Phase 17 VERIFY (Test Plan / Risk Register structured verification + Phase 17F
+product evidence promotion) is described in the repository overview.
 
 ## Decisions
 

@@ -11,6 +11,10 @@ import {
   type ArchitectureViewId,
 } from '../architecture/views';
 import { ComponentPlanWorkspace } from '../component-plan/workspace';
+import { FirmwareWorkspace } from '../firmware/workspace';
+import { AnalysisWorkspace } from '../analysis/workspace';
+import { TestPlanWorkspace } from '../test-plan/workspace';
+import { RiskRegisterWorkspace } from '../risk-register/workspace';
 import { NextActionWorkspace } from '../next-action/workspace';
 import { ProjectBriefWorkspace } from '../project-brief/workspace';
 import { RequirementsWorkspace } from '../requirements/workspace';
@@ -26,7 +30,11 @@ export type WorkspaceRendererKey =
   | 'electrical-architecture'
   | 'physical-architecture'
   | 'next-action'
-  | 'component-plan';
+  | 'component-plan'
+  | 'analysis'
+  | 'firmware'
+  | 'test-plan'
+  | 'risk-register';
 
 export type WorkspaceRenderProps = {
   projectId: string;
@@ -37,11 +45,15 @@ export type WorkspaceRenderProps = {
   selectedRequirementId?: string | null;
   selectedNodeId?: string | null;
   selectedRoleId?: string | null;
+  selectedTestId?: string | null;
+  selectedRiskId?: string | null;
   architectureViewId?: ArchitectureViewId | null;
   electricalMode?: 'design' | 'simulation';
   onSelectRequirement?: (id: string) => void;
   onSelectNode?: (id: string | null) => void;
   onSelectRole?: (id: string) => void;
+  onSelectTest?: (id: string) => void;
+  onSelectRisk?: (id: string) => void;
   onSelectItem?: (selection: InspectorSelection) => void;
   onChangeArchitectureView?: (viewId: ArchitectureViewId) => void;
   onChangeElectricalMode?: (mode: 'design' | 'simulation') => void;
@@ -181,6 +193,68 @@ function ComponentPlanRenderer(props: WorkspaceRenderProps) {
   );
 }
 
+function FirmwareRenderer(props: WorkspaceRenderProps) {
+  return (
+    <FirmwareWorkspace
+      projectId={props.projectId}
+      isDark={props.isDark}
+      onCommandResult={props.onCommandResult}
+    />
+  );
+}
+
+function AnalysisRenderer(props: WorkspaceRenderProps) {
+  return <AnalysisWorkspace projectId={props.projectId} isDark={props.isDark} />;
+}
+
+function TestPlanRenderer(props: WorkspaceRenderProps) {
+  const artifact = selectArtifactByType(props.state.artifacts, 'test-plan');
+  if (!artifact || !props.onSelectTest) {
+    return (
+      <UnavailableWorkspace
+        rendererKey="test-plan"
+        isDark={props.isDark}
+        reason="Test Plan artifact is missing from current state."
+      />
+    );
+  }
+  const reqArt = selectArtifactByType(props.state.artifacts, 'requirement-set');
+  const statements: Record<string, string> = {};
+  for (const req of reqArt?.content.requirements ?? []) {
+    statements[req.displayId] = req.statement;
+  }
+  return (
+    <TestPlanWorkspace
+      artifact={artifact}
+      isDark={props.isDark}
+      selectedTestId={props.selectedTestId ?? null}
+      onSelectTest={props.onSelectTest}
+      requirementStatements={statements}
+    />
+  );
+}
+
+function RiskRegisterRenderer(props: WorkspaceRenderProps) {
+  const artifact = selectArtifactByType(props.state.artifacts, 'risk-register');
+  if (!artifact || !props.onSelectRisk) {
+    return (
+      <UnavailableWorkspace
+        rendererKey="risk-register"
+        isDark={props.isDark}
+        reason="Risk Register artifact is missing from current state."
+      />
+    );
+  }
+  return (
+    <RiskRegisterWorkspace
+      artifact={artifact}
+      isDark={props.isDark}
+      selectedRiskId={props.selectedRiskId ?? null}
+      onSelectRisk={props.onSelectRisk}
+    />
+  );
+}
+
 /**
  * Frontend workspace renderer registry.
  * Lookup is by artifactType / routeKey — never by array position.
@@ -196,6 +270,10 @@ export const WORKSPACE_RENDERER_REGISTRY: Record<
   'physical-architecture': ArchitectureRenderer,
   'next-action': NextActionRenderer,
   'component-plan': ComponentPlanRenderer,
+  analysis: AnalysisRenderer,
+  firmware: FirmwareRenderer,
+  'test-plan': TestPlanRenderer,
+  'risk-register': RiskRegisterRenderer,
 };
 
 export function isWorkspaceRendererKey(value: string): value is WorkspaceRendererKey {
@@ -327,6 +405,10 @@ export function shellMetaFor(
       'electrical-architecture': 'workspace-architecture-shell',
       'physical-architecture': 'workspace-architecture-shell',
       'component-plan': 'workspace-component-plan-shell',
+      firmware: 'workspace-firmware-shell',
+      analysis: 'workspace-analysis-shell',
+      'test-plan': 'workspace-test-plan-shell',
+      'risk-register': 'workspace-risk-register-shell',
     };
 
     let subtitle: string | undefined;
@@ -364,6 +446,14 @@ export function shellMetaFor(
       subtitle = `${artifact.content.maturity} · ${roles} roles · ${candidates} candidates`;
     } else if (key === 'component-plan') {
       subtitle = 'Component comparison workspace';
+    } else if (key === 'firmware') {
+      subtitle = 'Filesystem workspace · Monaco editor';
+    } else if (key === 'test-plan' && artifact?.artifactType === 'test-plan') {
+      const s = artifact.content.coverageSummary;
+      subtitle = `${s.coveredRequirements}/${s.totalRequirements} covered · ${s.verifiedRequirements} verified`;
+    } else if (key === 'risk-register' && artifact?.artifactType === 'risk-register') {
+      const s = artifact.content.summary;
+      subtitle = `${s.openRisks} open · ${s.highOrCritical} high/critical`;
     } else if (def.availability === 'placeholder') {
       subtitle = 'Future artifact — not produced yet';
     }
@@ -374,7 +464,11 @@ export function shellMetaFor(
       version: artifact?.artifactVersion,
       lifecycleStatus:
         artifact?.lifecycleStatus ??
-        (def.availability === 'placeholder' ? 'unavailable' : undefined),
+        (def.availability === 'placeholder'
+          ? 'unavailable'
+          : key === 'firmware'
+            ? 'ready'
+            : undefined),
       evidenceStatus: artifact?.evidenceStatus,
       approvalStatus: artifact?.approvalStatus,
       changeIndicator: liveType ? changeByType[liveType] : undefined,

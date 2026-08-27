@@ -41,6 +41,11 @@ class Node(TypedDict, closed=True):
             'component-plan',
             'electrical-architecture',
             'physical-architecture',
+            'code-scratch',
+            'firmware',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     createdAt: str

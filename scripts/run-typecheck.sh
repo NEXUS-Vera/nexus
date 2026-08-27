@@ -8,6 +8,7 @@ PY_FILES="$(find agents apps packages tools scripts -type f -name '*.py' \
   ! -path '*/generated/*' \
   ! -path '*/.venv/*' \
   ! -path '*/node_modules/*' \
+  ! -path '*/spikes/*' \
   2>/dev/null | sort || true)"
 
 if [[ -z "${PY_FILES}" ]]; then

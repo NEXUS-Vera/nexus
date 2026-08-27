@@ -55,6 +55,8 @@ results/
 tmp/
 temp/
 generated-notebooks/
+**/last_golden_report.json
+**/spike_report.json
 
 # ML / retrieval artifacts
 embeddings/

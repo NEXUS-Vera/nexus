@@ -667,6 +667,7 @@
                 "structured-validation",
                 "fake-execution",
                 "file-workspace",
+                "sandbox-execution",
                 "embedded-build",
                 "python-kernel",
                 "circuit-simulation",
@@ -707,6 +708,9 @@
                   "provider-workspace"
                 ]
               }
+            },
+            "commandSpec": {
+              "$ref": "https://nexus.local/schemas/executions/execution-command-spec.v1.schema.json"
             }
           }
         }
@@ -988,7 +992,9 @@
           "properties": {
             "entityType": {
               "type": "string",
-              "enum": ["functional-node"]
+              "enum": [
+                "functional-node"
+              ]
             },
             "entityId": {
               "type": "string",

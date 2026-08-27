@@ -1,0 +1,260 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_16GOLDENCPLAN0000000000001",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENVERA00000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z",
+  "sourceTurnId": "turn_16GOLDENUSER000000000000001",
+  "workflowRunId": "run_16GOLDENRUN00000000000000001",
+  "content": {
+    "componentPlanId": "cplan_16GOLDENPLAN00000000000001",
+    "maturity": "selection-proposed",
+    "summary": "Golden ESP32 DevKit (FX-MCU-32) + MPU6050 IMU (FX-IMU-200) for vibration monitor.",
+    "componentRoles": [
+      {
+        "componentRoleId": "role_16GOLDENMCUR000000000000001",
+        "displayId": "CR1",
+        "name": "Main MCU",
+        "category": "compute",
+        "description": "ESP32-class MCU",
+        "architectureNodeIds": [
+          "node_16GOLDENMCU0000000000000001",
+          "node_16GOLDENTELEM00000000000001"
+        ],
+        "requirementIds": [
+          "req_16GOLDENR1I2CCOMM000000000000001",
+          "req_16GOLDENR2WIRING0000000000000001",
+          "req_16GOLDENR3SERIAL000000000000001",
+          "req_16GOLDENR4MPUINIT00000000000001",
+          "req_16GOLDENR5TELEM0000000000000001",
+          "req_16GOLDENR6RATE00000000000000001"
+        ],
+        "requiredCapabilities": [
+          "i2c-master",
+          "uart"
+        ],
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "ESP32 DevKit drives MPU6050 and serial telemetry."
+      },
+      {
+        "componentRoleId": "role_16GOLDENIMUR000000000000001",
+        "displayId": "CR2",
+        "name": "IMU Sensor",
+        "category": "sensor",
+        "description": "MPU6050 acceleration sensing",
+        "architectureNodeIds": [
+          "node_16GOLDENIMU0000000000000001"
+        ],
+        "requirementIds": [
+          "req_16GOLDENR1I2CCOMM000000000000001",
+          "req_16GOLDENR2WIRING0000000000000001",
+          "req_16GOLDENR4MPUINIT00000000000001",
+          "req_16GOLDENR5TELEM0000000000000001",
+          "req_16GOLDENR7RMS000000000000000001"
+        ],
+        "requiredCapabilities": [
+          "i2c-slave",
+          "accel"
+        ],
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "MPU6050 provides accel_x/y/z."
+      }
+    ],
+    "selectionConstraints": [],
+    "candidates": [
+      {
+        "candidateId": "cand_16GOLDENFXMCU3200000000001",
+        "componentRoleId": "role_16GOLDENMCUR000000000000001",
+        "manufacturer": "Fixture Compute",
+        "partNumber": "FX-MCU-32",
+        "displayName": "Fixture MCU (ESP32-class)",
+        "candidateCategory": "compute",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "logic-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          },
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "gpio-sda",
+            "value": 21,
+            "operator": "eq"
+          },
+          {
+            "specKey": "gpio-scl",
+            "value": 22,
+            "operator": "eq"
+          },
+          {
+            "specKey": "uart-baud",
+            "value": 115200,
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Maps to Wokwi ESP32 DevKit surrogate"
+        ],
+        "limitations": [
+          "Surrogate fidelity only"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "high",
+        "notes": "Golden Wokwi-capable MCU (SDA=GPIO21, SCL=GPIO22, Serial 115200)."
+      },
+      {
+        "candidateId": "cand_16GOLDENFXIMU200000000001",
+        "componentRoleId": "role_16GOLDENIMUR000000000000001",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU (MPU6050-class)",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "i2c-address",
+            "value": "0x68",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Maps to Wokwi MPU6050 surrogate"
+        ],
+        "limitations": [
+          "Surrogate fidelity only"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "high",
+        "notes": "Golden Wokwi-capable IMU over I2C."
+      }
+    ],
+    "selectionDecisions": [
+      {
+        "selectionDecisionId": "sel_16GOLDENMCUDEC0000000000001",
+        "componentRoleId": "role_16GOLDENMCUR000000000000001",
+        "selectedCandidateId": "cand_16GOLDENFXMCU3200000000001",
+        "selectionState": "awaiting-user",
+        "rationale": "Select FX-MCU-32 for ESP32 path.",
+        "tradeoffs": [
+          "Surrogate mapping only"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_16GOLDENVERA00000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-08-11T12:00:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_16GOLDENIMUDEC0000000000001",
+        "componentRoleId": "role_16GOLDENIMUR000000000000001",
+        "selectedCandidateId": "cand_16GOLDENFXIMU200000000001",
+        "selectionState": "awaiting-user",
+        "rationale": "Select FX-IMU-200 for MPU6050 path.",
+        "tradeoffs": [
+          "Surrogate mapping only"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_16GOLDENVERA00000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-08-11T12:00:00Z"
+      }
+    ],
+    "compatibilityChecks": [],
+    "coverageSummary": {
+      "totalArchitectureNodes": 4,
+      "coveredArchitectureNodes": 3,
+      "uncoveredArchitectureNodeIds": [
+        "node_16GOLDENANAL000000000000001"
+      ],
+      "totalRelevantRequirements": 8,
+      "coveredRequirementIds": [
+        "req_16GOLDENR1I2CCOMM000000000000001",
+        "req_16GOLDENR2WIRING0000000000000001",
+        "req_16GOLDENR3SERIAL000000000000001",
+        "req_16GOLDENR4MPUINIT00000000000001",
+        "req_16GOLDENR5TELEM0000000000000001",
+        "req_16GOLDENR6RATE00000000000000001",
+        "req_16GOLDENR7RMS000000000000000001"
+      ],
+      "uncoveredRequirementIds": [
+        "req_16GOLDENR8OUTPUTS00000000000001"
+      ],
+      "rolesWithoutArchitectureMapping": 0,
+      "rolesWithoutRequirementMapping": 0,
+      "rolesWithoutCandidates": 0,
+      "rolesWithBlockedSelection": 0,
+      "rolesAwaitingApproval": 2
+    },
+    "openQuestions": [],
+    "assumptions": [
+      "FX-MCU-32 and FX-IMU-200 are fixture-backed Wokwi surrogates; real-part datasheet claims remain unverified."
+    ],
+    "evidenceReferences": [],
+    "validationSummary": {
+      "issueCount": 0,
+      "blockingIssueCount": 0,
+      "warningCount": 0,
+      "status": "ok"
+    }
+  }
+}

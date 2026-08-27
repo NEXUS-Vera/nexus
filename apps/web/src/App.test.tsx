@@ -1,10 +1,15 @@
+import { createElement } from 'react';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import fixture from '../../../packages/contracts/examples/valid/project-initialization-result/project-initialization-result.json';
-import { ARTIFACT_ORDER, ARTIFACT_REGISTRY } from './artifacts/registry';
+import { ARTIFACT_ORDER, ARTIFACT_REGISTRY, WORKFLOW_GROUPS } from './artifacts/registry';
+
+vi.mock('@monaco-editor/react', () => ({
+  default: () => createElement('textarea', { 'data-testid': 'firmware-monaco-editor' }),
+}));
 
 function renderApp(path = '/') {
   return render(
@@ -202,8 +207,27 @@ describe('Nexus web routing and project workspace', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockImplementation(async (url: string) => {
-        if (String(url).includes('/history')) {
+        const href = String(url);
+        if (href.includes('/history')) {
           return { ok: true, status: 200, text: async () => JSON.stringify(historyPayload(projectId)) };
+        }
+        if (href.includes('/workspace/runtime') || href.includes('/workspace/files')) {
+          const body = {
+            binding: {
+              schemaVersion: '1.0.0',
+              projectId,
+              artifactId: 'art_firmware',
+              artifactType: 'firmware',
+              workspaceId: 'ws_firmware',
+              baseArtifactVersion: 1,
+              baseProjectStateVersion: 1,
+              capabilities: { filesystem: true, execution: true },
+              filesystemEnabled: true,
+            },
+            draft: { draftVersion: 1 },
+            files: [],
+          };
+          return { ok: true, status: 200, text: async () => JSON.stringify(body) };
         }
         return { ok: true, status: 200, text: async () => JSON.stringify(fixture) };
       }),
@@ -224,7 +248,8 @@ describe('Nexus web routing and project workspace', () => {
     expect(screen.getByTestId('component-plan-role-list')).toHaveTextContent(/role/i);
 
     await user.click(screen.getByRole('button', { name: /^Firmware$/i }));
-    expect(screen.getByTestId('artifact-placeholder')).toHaveTextContent(/Firmware scaffold unavailable/i);
+    expect(await screen.findByTestId('firmware-workspace')).toBeInTheDocument();
+    expect(screen.getByTestId('firmware-file-tree-empty')).toBeInTheDocument();
 
     expect(screen.queryByText(/BMI270/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/T-008/i)).not.toBeInTheDocument();
@@ -257,5 +282,17 @@ describe('Nexus web routing and project workspace', () => {
       expect(ARTIFACT_REGISTRY[key].routeKey).toBe(key);
     }
     expect(ARTIFACT_ORDER).toHaveLength(8);
+  });
+
+  it('exposes exactly one Analysis entry in BUILD workflow navigation', () => {
+    const build = WORKFLOW_GROUPS.find((g) => g.label === 'BUILD');
+    expect(build).toBeDefined();
+    const analysisLabeled = build!.artifacts.filter(
+      (key) => ARTIFACT_REGISTRY[key].label === 'Analysis',
+    );
+    expect(analysisLabeled).toEqual(['analysis']);
+    expect(ARTIFACT_REGISTRY.analysis.availability).toBe('live');
+    expect(ARTIFACT_REGISTRY.analysis.artifactType).toBe('analysis');
+    expect(ARTIFACT_ORDER.filter((key) => key === 'analysis')).toHaveLength(1);
   });
 });

@@ -15,6 +15,11 @@ class Input(TypedDict, closed=True):
         'component-plan',
         'electrical-architecture',
         'physical-architecture',
+        'code-scratch',
+        'firmware',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     initialContent: NotRequired[dict[str, Any]]
 
@@ -151,16 +156,34 @@ class ArtifactCommandV18(TypedDict, closed=True):
     schemaVersion: Literal['1.0.0']
     workspaceId: str
 
+class DeclaredOutput(TypedDict, closed=True):
+    kind: Literal['result', 'artifact', 'log']
+    path: str
+
+class EnvironmentItem(TypedDict, closed=True):
+    name: str
+    value: str
+
+class CommandSpec(TypedDict, closed=True):
+    arguments: list[str]
+    declaredOutputs: list[DeclaredOutput]
+    environment: list[EnvironmentItem]
+    executable: str
+    schemaVersion: Literal['1.0.0']
+    workingDirectory: str
+
 class Input8(TypedDict, closed=True):
     capability: Literal[
         'structured-validation',
         'fake-execution',
         'file-workspace',
+        'sandbox-execution',
         'embedded-build',
         'python-kernel',
         'circuit-simulation',
         'architecture-export',
     ]
+    commandSpec: NotRequired[CommandSpec]
     executionMode: NotRequired[Literal['validate', 'simulate']]
     expectedText: NotRequired[str]
     maxDurationMs: NotRequired[int]

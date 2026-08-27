@@ -18,6 +18,13 @@ from nexus_persistence.errors import (
     WorkspaceNotFoundError,
 )
 from nexus_persistence.factory import build_kernel_store, build_project_store, build_stores
+from nexus_persistence.file_store import (
+    FileStore,
+    InMemoryFileStore,
+    LocalFileStore,
+    blob_digest,
+    opaque_content_reference,
+)
 from nexus_persistence.memory.kernel_store import InMemoryKernelStore
 from nexus_persistence.memory.store import InMemoryProjectStore
 from nexus_persistence.protocol import ProjectKernelStore, ProjectPackageStore
@@ -27,9 +34,12 @@ __all__ = [
     "ArtifactVersionConflictError",
     "ArtifactVersionNotFoundError",
     "ExecutionNotFoundError",
+    "FileStore",
+    "InMemoryFileStore",
     "InMemoryKernelStore",
     "InMemoryProjectStore",
     "LedgerImmutableError",
+    "LocalFileStore",
     "ProjectKernelStore",
     "ProjectNotFoundError",
     "ProjectPackageStore",
@@ -40,7 +50,9 @@ __all__ = [
     "SnapshotImmutableError",
     "SnapshotNotFoundError",
     "WorkspaceNotFoundError",
+    "blob_digest",
     "build_kernel_store",
     "build_project_store",
     "build_stores",
+    "opaque_content_reference",
 ]

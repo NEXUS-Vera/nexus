@@ -14,9 +14,11 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
     "@nexus/contracts": "workspace:*",
     "@xyflow/react": "^12.11.2",
     "lucide-react": "^0.487.0",
+    "monaco-editor": "^0.56.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-resizable-panels": "^2.1.7",

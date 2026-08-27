@@ -31,6 +31,8 @@ def load_project_package_bundle(folder: Path) -> dict[str, Any]:
         # Phase 13 layered artifacts are optional for backwards-compatible golden fixtures.
         "electrical_architecture_content": None,
         "physical_architecture_content": None,
+        "test_plan_content": None,
+        "risk_register_content": None,
         "validation_issues": [],
         "open_questions": [],
         "vera_response": None,
@@ -72,6 +74,10 @@ def load_project_package_bundle(folder: Path) -> dict[str, Any]:
                 bundle["electrical_architecture_content"] = content
             elif artifact_type == "physical-architecture":
                 bundle["physical_architecture_content"] = content
+            elif artifact_type == "test-plan":
+                bundle["test_plan_content"] = content
+            elif artifact_type == "risk-register":
+                bundle["risk_register_content"] = content
 
     return bundle
 

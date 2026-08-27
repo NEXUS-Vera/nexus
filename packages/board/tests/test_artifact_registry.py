@@ -10,7 +10,7 @@ from nexus_board.registries.artifact_types import (
 )
 
 
-def test_default_registry_has_seven_artifacts() -> None:
+def test_default_registry_has_core_artifacts() -> None:
     registry = default_artifact_type_registry()
     types = {item["artifactType"] for item in registry.list()}
     assert types == {
@@ -21,7 +21,33 @@ def test_default_registry_has_seven_artifacts() -> None:
         "component-plan",
         "electrical-architecture",
         "physical-architecture",
+        "code-scratch",
+        "firmware",
+        "analysis",
+        "test-plan",
+        "risk-register",
     }
+    assert registry.get("code-scratch")["workspaceType"] == "code-workspace"
+    assert registry.get("code-scratch")["boardVisibility"] == "hidden"
+    assert registry.get("code-scratch")["requiredCapabilities"] == [
+        "file-workspace",
+        "sandbox-execution",
+    ]
+    assert registry.get("firmware")["workspaceType"] == "code-workspace"
+    assert registry.get("firmware")["boardVisibility"] == "primary"
+    assert registry.get("firmware")["requiredCapabilities"] == [
+        "file-workspace",
+        "sandbox-execution",
+    ]
+    assert registry.get("firmware")["phase"] == "BUILD"
+
+    assert registry.get("analysis")["phase"] == "BUILD"
+    assert registry.get("analysis")["workspaceType"] == "code-workspace"
+    assert registry.get("analysis")["boardVisibility"] == "primary"
+    assert registry.get("analysis")["requiredCapabilities"] == [
+        "file-workspace",
+        "sandbox-execution",
+    ]
 
 
 def test_dependency_rules() -> None:

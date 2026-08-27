@@ -68,12 +68,19 @@ _COMPONENT_SPECIFIC_PATTERNS: list[str] = [
     r"\bRaspberry\s+Pi\s+Pico\b",
 ]
 
-_TECHNOLOGY_LEVEL_PHRASES: list[str] = [
-    "inertial sensing",
-    "radio communication",
-    "analog signal acquisition",
-    "digital communication interface",
-    "local nonvolatile storage",
+# Deterministic replacements used to keep functional-maturity architecture free of
+# concrete part identifiers while preserving readable engineering language.
+_COMPONENT_SPECIFIC_REPLACEMENTS: list[tuple[str, str]] = [
+    (r"\bESP32[A-Z0-9\-]*\b", "application microcontroller"),
+    (r"\bSTM32[A-Z0-9\-]*\b", "application microcontroller"),
+    (r"\bATMEGA\d+\b", "application microcontroller"),
+    (r"\bBME\d+\b", "environmental sensor"),
+    (r"\bBMI\d+\b", "inertial sensor"),
+    (r"\bBNO\d+\b", "inertial sensor"),
+    (r"\bMPU\d+\b", "inertial sensor"),
+    (r"\bnRF\d+\b", "wireless microcontroller"),
+    (r"\bVL\d+L\d+X\b", "distance sensor"),
+    (r"\bRaspberry\s+Pi\s+Pico\b", "development microcontroller board"),
 ]
 
 
@@ -88,6 +95,34 @@ def _component_specific_hits(text: str) -> list[str]:
         if re.search(pattern, text, flags=re.IGNORECASE):
             hits.append(pattern)
     return hits
+
+
+def scrub_component_specific_language(text: str) -> str:
+    """Replace concrete part identifiers with functional role language.
+
+    Functional-maturity architecture must not carry MCU/sensor/board part names
+    in node names or responsibilities, even when the user fixed those parts as
+    upstream constraints. Those constraints belong in project brief / component
+    planning, not functional architecture identity.
+    """
+
+    import re
+
+    if not isinstance(text, str) or not text:
+        return text
+    scrubbed = text
+    for pattern, replacement in _COMPONENT_SPECIFIC_REPLACEMENTS:
+        scrubbed = re.sub(pattern, replacement, scrubbed, flags=re.IGNORECASE)
+    return scrubbed
+
+
+_TECHNOLOGY_LEVEL_PHRASES: list[str] = [
+    "inertial sensing",
+    "radio communication",
+    "analog signal acquisition",
+    "digital communication interface",
+    "local nonvolatile storage",
+]
 
 
 def _technology_level_hits(text: str) -> list[str]:

@@ -21,6 +21,15 @@ from nexus_embedded_systems.workflows.layered_architecture import (
     compose_physical_architecture_content,
     compose_physical_architecture_envelope,
 )
+from nexus_board.verification.compose import (
+    compose_risk_register_content,
+    compose_test_plan_content,
+    compose_verify_artifact_envelope,
+)
+from nexus_board.verification.live_generate import (
+    generate_live_risk_register_content,
+    generate_live_test_plan_content,
+)
 
 from ..assembly import (
     ProjectStage,
@@ -225,6 +234,107 @@ class LlmInitializationProvider:
                 ledger=ledger,
             )
 
+            step = ledger.start_step("compose-test-plan")
+            req_list = list(req_art["content"].get("requirements") or [])
+            known_req_ids = {
+                str(r.get("displayId") or r.get("requirementId"))
+                for r in req_list
+                if isinstance(r, dict)
+            }
+            component_ids = {
+                str(c.get("partNumber") or c.get("name") or "")
+                for c in list((component_plan_art.get("content") or {}).get("candidates") or [])
+                if isinstance(c, dict)
+            } - {""}
+            test_plan_content = await generate_live_test_plan_content(
+                gateway=self.gateway,
+                model_policy=self.model_policy,
+                system_instructions=(
+                    "Draft a structured Nexus Test Plan. Use only provided requirement "
+                    "display IDs and allowed verification methods "
+                    "(inspection, simulation, firmware-test, analysis, execution-output, manual). "
+                    "Include typed criteria where possible. Never mark tests passed/failed."
+                ),
+                context={
+                    "requirements": req_list,
+                    "functionalArchitecture": arch_art.get("content"),
+                    "componentPlan": component_plan_art.get("content"),
+                    "electricalArchitecture": electrical_art.get("content"),
+                    "allowedVerificationMethods": [
+                        "inspection",
+                        "simulation",
+                        "firmware-test",
+                        "analysis",
+                        "execution-output",
+                        "manual",
+                    ],
+                },
+                requirements=req_list,
+                known_requirement_ids=known_req_ids,
+                known_component_ids=component_ids or None,
+            )
+            test_plan_art = compose_verify_artifact_envelope(
+                artifact_type="test-plan",
+                content=test_plan_content,
+                project_id=project_id,
+                turn_id=turn_id,
+                run_id=run_id,
+                now=now,
+                vera_actor=vera_actor,
+            )
+            ledger.complete_step(step, output_artifact_references=[_ref(test_plan_art)])
+
+            step = ledger.start_step("compose-risk-register")
+            known_test_ids = {
+                str(c.get("displayId"))
+                for c in list(test_plan_content.get("testCases") or [])
+                if isinstance(c, dict) and c.get("displayId")
+            }
+            risk_content = await generate_live_risk_register_content(
+                gateway=self.gateway,
+                model_policy=self.model_policy,
+                system_instructions=(
+                    "Draft a structured Nexus Risk Register for an embedded project. "
+                    "Use only allowed categories and severity/likelihood enums. "
+                    "Link risks to Requirement display IDs and Test display IDs when known. "
+                    "Never mark risks mitigated merely because mitigation text exists."
+                ),
+                context={
+                    "requirements": req_list,
+                    "functionalArchitecture": arch_art.get("content"),
+                    "componentPlan": component_plan_art.get("content"),
+                    "testPlan": test_plan_content,
+                    "coverageSummary": test_plan_content.get("coverageSummary"),
+                    "allowedCategories": [
+                        "electrical",
+                        "firmware",
+                        "communication",
+                        "power",
+                        "thermal",
+                        "mechanical",
+                        "integration",
+                        "performance",
+                        "data-quality",
+                        "safety",
+                    ],
+                },
+                requirements=req_list,
+                test_cases=list(test_plan_content.get("testCases") or []),
+                known_requirement_ids=known_req_ids,
+                known_test_ids=known_test_ids,
+                known_component_ids=component_ids or None,
+            )
+            risk_art = compose_verify_artifact_envelope(
+                artifact_type="risk-register",
+                content=risk_content,
+                project_id=project_id,
+                turn_id=turn_id,
+                run_id=run_id,
+                now=now,
+                vera_actor=vera_actor,
+            )
+            ledger.complete_step(step, output_artifact_references=[_ref(risk_art)])
+
             step = ledger.start_step("derive-next-action")
             next_content = select_next_action(
                 issues=issues,
@@ -234,6 +344,8 @@ class LlmInitializationProvider:
                 component_plan_content=component_plan_art.get("content"),
                 electrical_content=electrical_art.get("content"),
                 physical_content=physical_art.get("content"),
+                test_plan_content=test_plan_content,
+                risk_register_content=risk_content,
             )
             next_art_id = new_id("art_")
             next_art = {
@@ -265,6 +377,8 @@ class LlmInitializationProvider:
                 component_plan_art,
                 electrical_art,
                 physical_art,
+                test_plan_art,
+                risk_art,
                 next_art,
             ]
             created_refs = [_ref(a) for a in artifacts]

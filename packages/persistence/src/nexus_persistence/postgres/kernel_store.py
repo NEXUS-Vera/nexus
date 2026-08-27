@@ -15,6 +15,8 @@ from nexus_persistence.errors import (
     ProjectPersistenceError,
     ProjectStateConflictError,
     ProposalNotFoundError,
+    FirmwarePatchNotFoundError,
+    AnalysisPatchNotFoundError,
     SnapshotImmutableError,
     SnapshotNotFoundError,
     WorkspaceNotFoundError,
@@ -22,13 +24,18 @@ from nexus_persistence.errors import (
 from nexus_persistence.postgres.models import (
     ArtifactCommandRunRow,
     ArtifactProposalRow,
+    ExecutionJobRow,
+    ExecutionLogChunkRow,
     ExecutionRunRow,
+    FirmwarePatchProposalRow,
+    AnalysisPatchProposalRow,
     ProducedOutputRow,
     ProjectBoardProjectionRow,
     ProjectEventRow,
     ProjectGraphEdgeRow,
     ProjectGraphNodeRow,
     WorkspaceDraftRow,
+    WorkspaceFileRow,
     WorkspaceRow,
     WorkspaceSnapshotRow,
 )
@@ -118,6 +125,113 @@ class PostgresKernelStore:
             row.updated_at = _parse_dt(draft["updatedAt"])
             session.commit()
 
+    def upsert_workspace_file(self, file_record: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            row = session.scalars(
+                select(WorkspaceFileRow).where(
+                    WorkspaceFileRow.workspace_id == file_record["workspaceId"],
+                    WorkspaceFileRow.path == file_record["path"],
+                )
+            ).first()
+            if row is None:
+                session.add(
+                    WorkspaceFileRow(
+                        workspace_id=file_record["workspaceId"],
+                        path=file_record["path"],
+                        content_hash=file_record["contentHash"],
+                        size_bytes=int(file_record["sizeBytes"]),
+                        payload=file_record,
+                        updated_at=_parse_dt(file_record["updatedAt"]),
+                    )
+                )
+            else:
+                row.content_hash = file_record["contentHash"]
+                row.size_bytes = int(file_record["sizeBytes"])
+                row.payload = file_record
+                row.updated_at = _parse_dt(file_record["updatedAt"])
+            session.commit()
+
+    def get_workspace_file(self, workspace_id: str, path: str) -> dict[str, Any] | None:
+        with self._session_factory() as session:
+            row = session.scalars(
+                select(WorkspaceFileRow).where(
+                    WorkspaceFileRow.workspace_id == workspace_id,
+                    WorkspaceFileRow.path == path,
+                )
+            ).first()
+            return dict(row.payload) if row else None
+
+    def list_workspace_files(self, workspace_id: str) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(
+                select(WorkspaceFileRow)
+                .where(WorkspaceFileRow.workspace_id == workspace_id)
+                .order_by(WorkspaceFileRow.path.asc())
+            ).all()
+            return [dict(r.payload) for r in rows]
+
+    def delete_workspace_file(self, workspace_id: str, path: str) -> None:
+        with self._session_factory() as session:
+            row = session.scalars(
+                select(WorkspaceFileRow).where(
+                    WorkspaceFileRow.workspace_id == workspace_id,
+                    WorkspaceFileRow.path == path,
+                )
+            ).first()
+            if row is not None:
+                session.delete(row)
+                session.commit()
+
+    def replace_workspace_files(self, workspace_id: str, files: list[dict[str, Any]]) -> None:
+        with self._session_factory() as session:
+            existing = session.scalars(
+                select(WorkspaceFileRow).where(WorkspaceFileRow.workspace_id == workspace_id)
+            ).all()
+            for row in existing:
+                session.delete(row)
+            # Flush deletes before inserts so overlapping paths do not violate
+            # uq_workspace_files_workspace_path within the same unit of work.
+            session.flush()
+            for record in files:
+                if record["workspaceId"] != workspace_id:
+                    raise ProjectPersistenceError("File workspaceId mismatch on replace")
+                session.add(
+                    WorkspaceFileRow(
+                        workspace_id=workspace_id,
+                        path=record["path"],
+                        content_hash=record["contentHash"],
+                        size_bytes=int(record["sizeBytes"]),
+                        payload=record,
+                        updated_at=_parse_dt(record["updatedAt"]),
+                    )
+                )
+            session.commit()
+
+    def list_referenced_content_hashes(self) -> set[str]:
+        with self._session_factory() as session:
+            hashes: set[str] = set()
+            for row in session.scalars(select(WorkspaceFileRow)).all():
+                hashes.add(row.content_hash)
+            for snap in session.scalars(select(WorkspaceSnapshotRow)).all():
+                content = (snap.payload or {}).get("content") or {}
+                if content.get("kind") != "filesystem":
+                    continue
+                manifest = content.get("filesystemManifest") or {}
+                for entry in manifest.get("entries") or []:
+                    content_hash = entry.get("contentHash")
+                    if isinstance(content_hash, str):
+                        hashes.add(content_hash)
+            for output in session.scalars(select(ProducedOutputRow)).all():
+                content = (output.payload or {}).get("content") or {}
+                if content.get("kind") != "storage-reference":
+                    continue
+                if content.get("storageKind") != "file-store":
+                    continue
+                uri = content.get("uri")
+                if isinstance(uri, str) and uri.startswith("sha256:"):
+                    hashes.add(uri)
+            return hashes
+
     def create_snapshot(self, snapshot: dict[str, Any]) -> None:
         with self._session_factory() as session:
             try:
@@ -159,6 +273,64 @@ class PostgresKernelStore:
     def delete_snapshot(self, snapshot_id: str) -> None:
         raise SnapshotImmutableError("Snapshots are immutable.")
 
+    def reclaim_snapshot(self, snapshot_id: str) -> None:
+        """GC-only reclaim. Callers must verify the snapshot is unprotected."""
+        with self._session_factory() as session:
+            row = session.get(WorkspaceSnapshotRow, snapshot_id)
+            if row is None:
+                raise SnapshotNotFoundError(f"Snapshot not found: {snapshot_id}")
+            session.delete(row)
+            session.commit()
+
+    def list_all_snapshots(self) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(select(WorkspaceSnapshotRow)).all()
+            return [dict(r.payload) for r in rows]
+
+    def list_all_workspaces(self) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(select(WorkspaceRow)).all()
+            return [dict(r.payload) for r in rows]
+
+    def list_all_proposals(self) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(select(ArtifactProposalRow)).all()
+            return [dict(r.payload) for r in rows]
+
+    def list_all_execution_runs(self) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(select(ExecutionRunRow)).all()
+            return [dict(r.payload) for r in rows]
+
+    def list_all_execution_jobs(self) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(select(ExecutionJobRow)).all()
+            return [dict(r.payload) for r in rows]
+
+    def list_nonterminal_execution_jobs(self) -> list[dict[str, Any]]:
+        terminal = {"succeeded", "failed", "timed-out", "cancelled"}
+        with self._session_factory() as session:
+            rows = session.scalars(select(ExecutionJobRow)).all()
+            return [dict(r.payload) for r in rows if (r.payload or {}).get("status") not in terminal]
+
+    def list_all_produced_outputs(self) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(select(ProducedOutputRow)).all()
+            return [dict(r.payload) for r in rows]
+
+    def delete_execution_log_chunks(self, execution_job_id: str) -> int:
+        with self._session_factory() as session:
+            rows = session.scalars(
+                select(ExecutionLogChunkRow).where(
+                    ExecutionLogChunkRow.execution_job_id == execution_job_id
+                )
+            ).all()
+            count = len(rows)
+            for row in rows:
+                session.delete(row)
+            session.commit()
+            return count
+
     def create_proposal(self, proposal: dict[str, Any]) -> None:
         with self._session_factory() as session:
             session.add(
@@ -195,6 +367,77 @@ class PostgresKernelStore:
             row = session.get(ArtifactProposalRow, proposal_id)
             if row is None:
                 raise ProposalNotFoundError(f"Proposal not found: {proposal_id}")
+            row.payload = proposal
+            row.status = proposal["status"]
+            session.commit()
+
+    def create_firmware_patch_proposal(self, proposal: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            session.add(
+                FirmwarePatchProposalRow(
+                    proposal_id=proposal["proposalId"],
+                    project_id=proposal["projectId"],
+                    workspace_id=proposal["workspaceId"],
+                    status=proposal["status"],
+                    payload=proposal,
+                    requested_at=_parse_dt(proposal["requestedAt"]),
+                )
+            )
+            session.commit()
+
+    def get_firmware_patch_proposal(self, proposal_id: str) -> dict[str, Any]:
+        with self._session_factory() as session:
+            row = session.get(FirmwarePatchProposalRow, proposal_id)
+            if row is None:
+                raise FirmwarePatchNotFoundError(
+                    f"Firmware patch proposal not found: {proposal_id}"
+                )
+            return dict(row.payload)
+
+    def update_firmware_patch_proposal(self, proposal_id: str, proposal: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            row = session.get(FirmwarePatchProposalRow, proposal_id)
+            if row is None:
+                raise FirmwarePatchNotFoundError(
+                    f"Firmware patch proposal not found: {proposal_id}"
+                )
+            row.payload = proposal
+            row.status = proposal["status"]
+            session.commit()
+
+    # --- analysis patch proposals (Phase 16C) ---
+    def create_analysis_patch_proposal(self, proposal: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            session.add(
+                AnalysisPatchProposalRow(
+                    proposal_id=proposal["proposalId"],
+                    project_id=proposal["projectId"],
+                    workspace_id=proposal["workspaceId"],
+                    status=proposal["status"],
+                    payload=proposal,
+                    requested_at=_parse_dt(proposal["requestedAt"]),
+                )
+            )
+            session.commit()
+
+    def get_analysis_patch_proposal(self, proposal_id: str) -> dict[str, Any]:
+        with self._session_factory() as session:
+            row = session.get(AnalysisPatchProposalRow, proposal_id)
+            if row is None:
+                raise AnalysisPatchNotFoundError(
+                    f"Analysis patch proposal not found: {proposal_id}"
+                )
+            return dict(row.payload)
+
+    def update_analysis_patch_proposal(
+        self, proposal_id: str, proposal: dict[str, Any]
+    ) -> None:
+        with self._session_factory() as session:
+            row = session.get(AnalysisPatchProposalRow, proposal_id)
+            if row is None:
+                raise AnalysisPatchNotFoundError(
+                    f"Analysis patch proposal not found: {proposal_id}"
+                )
             row.payload = proposal
             row.status = proposal["status"]
             session.commit()
@@ -276,6 +519,82 @@ class PostgresKernelStore:
             items = [dict(r.payload) for r in page]
             next_cursor = page[-1].execution_run_id if len(rows) > limit else None
             return items, next_cursor
+
+    def create_execution_job(self, job: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            session.add(
+                ExecutionJobRow(
+                    execution_job_id=job["executionJobId"],
+                    execution_run_id=job["executionRunId"],
+                    project_id=job["projectId"],
+                    workspace_snapshot_id=job["workspaceSnapshotId"],
+                    status=job["status"],
+                    payload=job,
+                    created_at=_parse_dt(job["createdAt"]),
+                    started_at=_parse_dt(job["startedAt"]) if job.get("startedAt") else None,
+                    completed_at=_parse_dt(job["completedAt"]) if job.get("completedAt") else None,
+                )
+            )
+            session.commit()
+
+    def update_execution_job(self, job: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            row = session.get(ExecutionJobRow, job["executionJobId"])
+            if row is None:
+                raise ExecutionNotFoundError(f"Execution job not found: {job['executionJobId']}")
+            row.payload = job
+            row.status = job["status"]
+            row.execution_run_id = job["executionRunId"]
+            row.workspace_snapshot_id = job["workspaceSnapshotId"]
+            row.started_at = _parse_dt(job["startedAt"]) if job.get("startedAt") else row.started_at
+            row.completed_at = (
+                _parse_dt(job["completedAt"]) if job.get("completedAt") else row.completed_at
+            )
+            session.commit()
+
+    def get_execution_job(self, execution_job_id: str) -> dict[str, Any]:
+        with self._session_factory() as session:
+            row = session.get(ExecutionJobRow, execution_job_id)
+            if row is None:
+                raise ExecutionNotFoundError(f"Execution job not found: {execution_job_id}")
+            return dict(row.payload)
+
+    def get_execution_job_by_run(self, execution_run_id: str) -> dict[str, Any] | None:
+        with self._session_factory() as session:
+            row = session.scalars(
+                select(ExecutionJobRow).where(ExecutionJobRow.execution_run_id == execution_run_id)
+            ).first()
+            return dict(row.payload) if row is not None else None
+
+    def append_execution_log_chunk(self, chunk: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            session.add(
+                ExecutionLogChunkRow(
+                    execution_job_id=chunk["executionJobId"],
+                    sequence=int(chunk["sequence"]),
+                    stream=chunk["stream"],
+                    payload=chunk,
+                    timestamp=_parse_dt(chunk["timestamp"]),
+                )
+            )
+            session.commit()
+
+    def list_execution_log_chunks(
+        self,
+        execution_job_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        with self._session_factory() as session:
+            rows = session.scalars(
+                select(ExecutionLogChunkRow)
+                .where(ExecutionLogChunkRow.execution_job_id == execution_job_id)
+                .where(ExecutionLogChunkRow.sequence > after_sequence)
+                .order_by(ExecutionLogChunkRow.sequence.asc())
+                .limit(limit)
+            ).all()
+            return [dict(r.payload) for r in rows]
 
     def create_produced_output(self, output: dict[str, Any]) -> None:
         with self._session_factory() as session:

@@ -8,7 +8,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -16,7 +21,12 @@ export type ArtifactType1 =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 /**
  * Directed dependency between two project artifacts. Dependencies are recorded at artifact-type level so they survive artifact revisions, and may additionally pin the specific revisions involved.

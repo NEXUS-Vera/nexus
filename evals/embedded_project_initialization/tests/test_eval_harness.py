@@ -179,10 +179,13 @@ def test_cli_module_is_invocable_via_python_dash_m() -> None:
     src_roots = (
         "apps/api/src",
         "agents/embedded-systems/src",
+        "packages/board/src",
+        "packages/circuit-simulation/src",
         "packages/contracts/src",
         "packages/contracts/generated/python",
         "packages/model-gateway/src",
         "packages/observability/src",
+        "packages/persistence/src",
     )
     env = dict(os.environ)
     env["PYTHONPATH"] = os.pathsep.join(str(REPO_ROOT / root) for root in src_roots)

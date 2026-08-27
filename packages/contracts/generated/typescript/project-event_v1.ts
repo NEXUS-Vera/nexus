@@ -8,7 +8,25 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
+export type ArtifactType1 =
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export interface ProjectEvent {
   actor: ActorReference;
@@ -44,16 +62,23 @@ export interface ProjectEvent {
     | 'component-selection.rejected'
     | 'compatibility-check.recorded'
     | 'component-plan.revised'
-    | 'component-plan.marked-stale';
+    | 'component-plan.marked-stale'
+    | 'workspace.scaffold-generated'
+    | 'workspace.patch-proposed'
+    | 'workspace.patch-applied'
+    | 'workspace.patch-discarded';
   occurredAt: string;
   payload: {
     artifactId?: string;
     artifactType?: ArtifactType;
     artifactVersion?: number;
+    baseProjectStateVersion?: number;
+    baseSnapshotId?: string;
     capability?:
       | 'structured-validation'
       | 'fake-execution'
       | 'file-workspace'
+      | 'sandbox-execution'
       | 'embedded-build'
       | 'python-kernel'
       | 'circuit-simulation'
@@ -62,6 +87,19 @@ export interface ProjectEvent {
     evidenceId?: string;
     evidenceStatus?: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
     executionRunId?: string;
+    generatedFiles?: {
+      contentHash: string;
+      path: string;
+    }[];
+    generationId?: string;
+    generationKind?: 'scaffold' | 'patch';
+    generatorId?: string;
+    generatorVersion?: string;
+    inputArtifactReferences?: {
+      artifactId?: string;
+      artifactType: ArtifactType1;
+      artifactVersion: number;
+    }[];
     outputId?: string;
     outputType?:
       | 'validation-report'
@@ -71,11 +109,21 @@ export interface ProjectEvent {
       | 'plot-reference'
       | 'binary-reference'
       | 'test-report';
+    patchOperations?: {
+      contentHash?: string;
+      expectedBaseHash?: string;
+      operationType: 'create-file' | 'replace-file' | 'delete-file';
+      path: string;
+    }[];
+    patchProposalId?: string;
     proposalId?: string;
     questionId?: string;
     reason?: string;
+    requestedChange?: string;
     resultingArtifactId?: string;
     resultingArtifactVersion?: number;
+    scaffoldProfileId?: string;
+    scaffoldProfileVersion?: string;
     snapshotId?: string;
     status?: string;
     summary?: string;

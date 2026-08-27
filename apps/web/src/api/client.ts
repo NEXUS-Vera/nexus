@@ -324,6 +324,484 @@ export async function listExecutions(
   throw new Error('Executions response must include an items array');
 }
 
+export async function getExecution(
+  projectId: string,
+  executionRunId: string,
+): Promise<{
+  executionRun: import('@nexus/contracts').ExecutionRun;
+  executionJob?: import('@nexus/contracts').ExecutionJob | null;
+}> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/executions/${executionRunId}`,
+  )) as {
+    executionRun: import('@nexus/contracts').ExecutionRun;
+    executionJob?: import('@nexus/contracts').ExecutionJob | null;
+  };
+}
+
+export async function getExecutionLogs(
+  projectId: string,
+  executionRunId: string,
+  after = 0,
+): Promise<{
+  chunks: import('@nexus/contracts').ExecutionLogChunk[];
+  logTruncated?: boolean;
+  jobStatus?: string;
+}> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/executions/${executionRunId}/logs?after=${after}`,
+  )) as {
+    chunks: import('@nexus/contracts').ExecutionLogChunk[];
+    logTruncated?: boolean;
+    jobStatus?: string;
+  };
+}
+
+export async function cancelExecution(
+  projectId: string,
+  executionRunId: string,
+  requestedBy?: {
+    schemaVersion: '1.0.0';
+    actorId: string;
+    actorType: string;
+    displayName?: string;
+  },
+): Promise<{
+  executionRun: import('@nexus/contracts').ExecutionRun;
+  executionJob?: import('@nexus/contracts').ExecutionJob | null;
+}> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/executions/${executionRunId}/cancel`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestedBy ? { requestedBy } : {}),
+    },
+  )) as {
+    executionRun: import('@nexus/contracts').ExecutionRun;
+    executionJob?: import('@nexus/contracts').ExecutionJob | null;
+  };
+}
+
+/** Phase 14D: artifact-scoped workspace runtime binding + capabilities. */
+export async function getWorkspaceRuntimeBinding(
+  projectId: string,
+  artifactType: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/runtime`,
+  )) as Record<string, unknown>;
+}
+
+export async function listWorkspaceRuntimeFiles(
+  projectId: string,
+  artifactType: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/files`,
+  )) as Record<string, unknown>;
+}
+
+export async function readWorkspaceRuntimeFile(
+  projectId: string,
+  artifactType: string,
+  path: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/file?path=${encodeURIComponent(path)}`,
+  )) as Record<string, unknown>;
+}
+
+export async function writeWorkspaceRuntimeFile(
+  projectId: string,
+  artifactType: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/file`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+export async function deleteWorkspaceRuntimeFile(
+  projectId: string,
+  artifactType: string,
+  path: string,
+  opts: {
+    expectedDraftVersion: number;
+    baseArtifactVersion: number;
+    baseProjectStateVersion: number;
+    actorId?: string;
+  },
+): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams({
+    path,
+    expectedDraftVersion: String(opts.expectedDraftVersion),
+    baseArtifactVersion: String(opts.baseArtifactVersion),
+    baseProjectStateVersion: String(opts.baseProjectStateVersion),
+  });
+  if (opts.actorId) {
+    q.set('actorId', opts.actorId);
+  }
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/file?${q}`,
+    { method: 'DELETE' },
+  )) as Record<string, unknown>;
+}
+
+export async function listWorkspaceRuntimeSnapshots(
+  projectId: string,
+  artifactType: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots`,
+  )) as Record<string, unknown>;
+}
+
+export async function createWorkspaceRuntimeSnapshot(
+  projectId: string,
+  artifactType: string,
+  body?: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+  )) as Record<string, unknown>;
+}
+
+export async function restoreWorkspaceRuntimeSnapshot(
+  projectId: string,
+  artifactType: string,
+  snapshotId: string,
+  body?: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots/${snapshotId}/restore`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+  )) as Record<string, unknown>;
+}
+
+export async function startWorkspaceRuntimeExecution(
+  projectId: string,
+  artifactType: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/executions`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 15B: generate deterministic Firmware scaffold (server-owned template). */
+export async function generateFirmwareScaffold(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/scaffold`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16B: generate deterministic Analysis scaffold. */
+export async function generateAnalysisScaffold(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/scaffold`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16B: upload a user file into Analysis `data/` via application boundary. */
+export async function uploadAnalysisInputFile(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/inputs/upload`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16B: import an existing ProducedOutput into Analysis `data/`. */
+export async function importProducedOutputIntoAnalysisInput(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/inputs/import-produced-output`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 15C: propose a firmware patch against an immutable base snapshot. */
+export async function proposeFirmwarePatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/patch/propose`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 15C: apply a previously proposed firmware patch. */
+export async function applyFirmwarePatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/patch/apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 15C: discard a proposed firmware patch. */
+export async function discardFirmwarePatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/patch/discard`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16D: run analysis.py against an immutable pre-run snapshot. */
+export async function runAnalysis(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/run`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 17F: promote Analysis summary metrics into a Test Plan revision. */
+export async function promoteAnalysisSummary(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/promote-analysis-summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })) as Record<string, unknown>;
+}
+
+/** Phase 17F: promote ExecutionRun outputs into a Test Plan revision. */
+export async function promoteExecutionEvidence(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/promote-execution`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })) as Record<string, unknown>;
+}
+
+/** Phase 17F: promote Electrical/Wokwi pin maps into Test Plan revision. */
+export async function promoteStructuralMapping(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/promote-structural`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })) as Record<string, unknown>;
+}
+
+/** Phase 17F: Requirement → Test → Evidence chain for Evidence Explorer. */
+export async function getVerificationEvidenceChain(
+  projectId: string,
+): Promise<{ chains: unknown[]; requirementVerification: unknown[] }> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/evidence-chain`)) as {
+    chains: unknown[];
+    requirementVerification: unknown[];
+  };
+}
+
+/** Phase 16D: re-run analysis against a specific immutable snapshot. */
+export async function rerunAnalysis(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/rerun`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16C/G: propose an analysis patch against an immutable base snapshot. */
+export async function proposeAnalysisPatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/patch/propose`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16C/G: apply a previously proposed analysis patch. */
+export async function applyAnalysisPatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/patch/apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16C/G: discard a proposed analysis patch. */
+export async function discardAnalysisPatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/patch/discard`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16G: compare ProducedOutput content hashes between baseline and rerun. */
+export async function compareAnalysisOutputs(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/compare-outputs`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 16G: bounded Analysis ProducedOutput preview. */
+export async function previewAnalysisOutput(
+  projectId: string,
+  outputId: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/outputs/${encodeURIComponent(outputId)}/preview`,
+  )) as Record<string, unknown>;
+}
+
+/** Phase 15D: read a file from an immutable workspace snapshot (read-only). */
+export async function readWorkspaceSnapshotFile(
+  projectId: string,
+  artifactType: string,
+  snapshotId: string,
+  path: string,
+): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams({ path });
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots/${snapshotId}/file?${q}`,
+  )) as Record<string, unknown>;
+}
+
+/** Phase 15E: compile firmware via product operation (immutable pre-compile snapshot). */
+export async function compileFirmware(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/compile`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+/** Phase 15E: test firmware via product operation (immutable pre-test snapshot). */
+export async function testFirmware(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/test`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
 export async function listProducedOutputs(
   projectId: string,
 ): Promise<import('@nexus/contracts').ProducedOutput[]> {

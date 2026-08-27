@@ -53,3 +53,39 @@ def test_normalize_architecture_backfills_unsatisfied_requirements() -> None:
         if isinstance(rid, str)
     }
     assert satisfied == set(local_key_to_req_id.values())
+
+
+def test_normalize_architecture_scrubs_user_named_components() -> None:
+    draft = {
+        "systemBoundary": "ESP32 vibration monitor boundary",
+        "nodes": [
+            {
+                "localNodeKey": "node-sense",
+                "name": "MPU6050 Sensing",
+                "functionalType": "sensing",
+                "responsibilities": [
+                    "Sample accel_x from the MPU6050 over I2C.",
+                    "Stream telemetry from the ESP32 UART.",
+                ],
+                "satisfiesLocalRequirementKeys": ["req-a"],
+            }
+        ],
+        "edges": [],
+        "assumptions": [],
+        "unresolvedDecisionStatements": [],
+        "requirementCoverageLocalKeys": ["req-a"],
+    }
+    content = normalize_architecture_draft(
+        draft,
+        {"req-a": "req_AAAAAAAAAAAAAAAA"},
+        open_questions=[],
+        project_id="proj_TESTTESTTESTTEST",
+        artifact_id="art_TESTTESTTESTTEST",
+        now="2026-08-04T00:00:00Z",
+    )
+    node = content["nodes"][0]
+    blob = f"{node['name']} {' '.join(node['responsibilities'])}"
+    assert "MPU6050" not in blob
+    assert "ESP32" not in blob
+    assert "inertial sensor" in blob.lower()
+    assert "application microcontroller" in blob.lower()

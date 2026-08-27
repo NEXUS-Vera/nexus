@@ -8,7 +8,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -16,7 +21,12 @@ export type ArtifactType1 =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export interface ArtifactTypeDefinition {
   approvalPolicyId: string;
@@ -35,6 +45,7 @@ export interface ArtifactTypeDefinition {
     | 'structured-validation'
     | 'fake-execution'
     | 'file-workspace'
+    | 'sandbox-execution'
     | 'embedded-build'
     | 'python-kernel'
     | 'circuit-simulation'

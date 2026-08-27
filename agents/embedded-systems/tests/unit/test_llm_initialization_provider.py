@@ -57,6 +57,8 @@ FULL_SUCCESS_STEP_TYPES: tuple[str, ...] = (
     "materialize-component-plan",
     "compose-electrical-architecture",
     "compose-physical-architecture",
+    "compose-test-plan",
+    "compose-risk-register",
     "derive-next-action",
     "compose-vera-response",
     "assemble-result",

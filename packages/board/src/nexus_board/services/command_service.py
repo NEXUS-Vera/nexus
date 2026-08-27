@@ -659,6 +659,7 @@ class ArtifactCommandService:
                     "expectedText",
                     "requestedOutputs",
                     "maxOutputBytes",
+                    "commandSpec",
                 )
                 if key in command["input"]
             },
@@ -668,8 +669,16 @@ class ArtifactCommandService:
             "artifact_id": workspace["artifactId"],
             "snapshot_id": command["input"]["snapshotId"],
             "execution_run_id": result["executionRun"]["executionRunId"],
-            "output_references": [o["outputId"] for o in result["outputs"]],
+            "output_references": [o["outputId"] for o in result.get("outputs") or []],
             "evidence_references": result["executionRun"].get("evidenceReferences") or [],
+            "result_payload": (
+                {
+                    "executionJobId": result["executionJob"]["executionJobId"],
+                    "accepted": True,
+                }
+                if result.get("executionJob")
+                else None
+            ),
         }
 
     def _inspect_deletion_impact(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:

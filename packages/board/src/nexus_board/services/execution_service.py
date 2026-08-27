@@ -1,4 +1,4 @@
-"""Fake execution runtime service."""
+"""Execution runtime service (sync providers + async sandbox jobs)."""
 
 from __future__ import annotations
 
@@ -7,10 +7,13 @@ from collections.abc import Mapping
 from typing import Any, Protocol
 
 from nexus_board.errors import StaleExecutionResultError
+from nexus_board.execution.limits import ExecutionLimits
 from nexus_board.ids import content_digest, new_id, utc_now_iso
 from nexus_board.registries.runtime_capabilities import RuntimeCapabilityRegistry
 from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.projection_service import ProjectBoardProjectionService
+
+SANDBOX_CAPABILITY = "sandbox-execution"
 
 
 class _KernelStore(Protocol):
@@ -71,6 +74,7 @@ class ExecutionService:
         ledger: ProjectLedgerService,
         projection: ProjectBoardProjectionService,
         capability_executors: Mapping[str, CapabilityExecutor] | None = None,
+        job_service: Any | None = None,
     ) -> None:
         self._kernel = kernel_store
         self._projects = project_store
@@ -79,11 +83,50 @@ class ExecutionService:
         self._ledger = ledger
         self._projection = projection
         self._capability_executors = dict(capability_executors or {})
+        self._jobs = job_service
 
     def list_runs(
         self, project_id: str, *, limit: int = 50, cursor: str | None = None
     ) -> tuple[list[dict[str, Any]], str | None]:
         return self._kernel.list_execution_runs(project_id, limit=limit, cursor=cursor)
+
+    def get_run(self, execution_run_id: str) -> dict[str, Any]:
+        return self._kernel.get_execution_run(execution_run_id)
+
+    def list_logs(
+        self,
+        execution_run_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        if self._jobs is None:
+            raise StaleExecutionResultError("Execution job service is not configured")
+        result = self._jobs.list_logs(
+            execution_run_id,
+            after_sequence=after_sequence,
+            limit=limit,
+        )
+        assert isinstance(result, dict)
+        return result
+
+    def cancel(
+        self, execution_run_id: str, *, actor: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        if self._jobs is None:
+            raise StaleExecutionResultError("Execution job service is not configured")
+        result = self._jobs.cancel(execution_run_id, actor=actor)
+        assert isinstance(result, dict)
+        return result
+
+    def get_job_for_run(self, execution_run_id: str) -> dict[str, Any] | None:
+        if self._jobs is None:
+            return None
+        job = self._jobs.get_job_for_run(execution_run_id)
+        if job is None:
+            return None
+        assert isinstance(job, dict)
+        return job
 
     def list_outputs(self, project_id: str) -> list[dict[str, Any]]:
         return self._kernel.list_produced_outputs(project_id)
@@ -121,6 +164,20 @@ class ExecutionService:
         if capability not in required:
             raise StaleExecutionResultError(
                 f"Capability {capability} is not permitted for {artifact_type}"
+            )
+        if capability == SANDBOX_CAPABILITY:
+            return self._execute_sandbox(
+                project_id=project_id,
+                artifact_id=artifact_id,
+                workspace_id=workspace_id,
+                snapshot_id=snapshot_id,
+                capability=capability,
+                actor=actor,
+                base_artifact_version=base_artifact_version,
+                base_project_state_version=base_project_state_version,
+                causation_id=causation_id,
+                max_duration_ms=max_duration_ms,
+                options=execution_options,
             )
         if capability not in {"structured-validation", "fake-execution"} and (
             capability not in self._capability_executors
@@ -362,6 +419,91 @@ class ExecutionService:
         )
         self._projection.update_after_write(project_id)
         return {"executionRun": run, "outputs": outputs}
+
+    def _execute_sandbox(
+        self,
+        *,
+        project_id: str,
+        artifact_id: str,
+        workspace_id: str,
+        snapshot_id: str,
+        capability: str,
+        actor: dict[str, Any],
+        base_artifact_version: int,
+        base_project_state_version: int,
+        causation_id: str | None,
+        max_duration_ms: int | None,
+        options: dict[str, Any],
+    ) -> dict[str, Any]:
+        if self._jobs is None:
+            raise StaleExecutionResultError("Execution job service is not configured")
+        command_spec = options.get("commandSpec")
+        if not isinstance(command_spec, dict):
+            raise StaleExecutionResultError("sandbox-execution requires commandSpec")
+        snapshot = self._kernel.get_snapshot(snapshot_id)
+        if (
+            snapshot.get("projectId") != project_id
+            or snapshot.get("artifactId") != artifact_id
+            or snapshot.get("workspaceId") != workspace_id
+        ):
+            raise StaleExecutionResultError(
+                "Execution snapshot does not belong to the requested workspace"
+            )
+        cap = self._capabilities.get(capability)
+        now = utc_now_iso()
+        run_id = new_id("exec")
+        run: dict[str, Any] = {
+            "schemaVersion": "1.0.0",
+            "executionRunId": run_id,
+            "executionRequestId": new_id("execreq"),
+            "projectId": project_id,
+            "artifactId": artifact_id,
+            "workspaceId": workspace_id,
+            "providerId": cap["providerId"],
+            "capability": capability,
+            "status": "queued",
+            "baseArtifactVersion": base_artifact_version,
+            "baseProjectStateVersion": base_project_state_version,
+            "inputSnapshotId": snapshot_id,
+            "startedAt": now,
+            "outputReferences": [],
+            "evidenceReferences": [],
+        }
+        self._kernel.create_execution_run(run)
+        self._ledger.append(
+            project_id=project_id,
+            event_type="execution.queued",
+            actor=actor,
+            subject_type="execution",
+            subject_id=run_id,
+            payload={"executionRunId": run_id, "capability": capability, "async": True},
+            causation_id=causation_id,
+            correlation_id=causation_id,
+            occurred_at=now,
+        )
+        limits = None
+        if max_duration_ms is not None or options.get("maxOutputBytes") is not None:
+            overrides: dict[str, int] = {}
+            if max_duration_ms is not None:
+                overrides["wall_time_ms"] = int(max_duration_ms)
+            if options.get("maxOutputBytes") is not None:
+                overrides["produced_output_bytes"] = int(options["maxOutputBytes"])
+            limits = ExecutionLimits().override(**overrides)
+        submitted = self._jobs.submit(
+            run=run,
+            snapshot=snapshot,
+            command_spec=command_spec,
+            actor=actor,
+            limits=limits,
+            causation_id=causation_id,
+        )
+        self._projection.update_after_write(project_id)
+        return {
+            "executionRun": submitted["executionRun"],
+            "executionJob": submitted["executionJob"],
+            "outputs": [],
+            "accepted": True,
+        }
 
     def _produce_outputs(
         self,

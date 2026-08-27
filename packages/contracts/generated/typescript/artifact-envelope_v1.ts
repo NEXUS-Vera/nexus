@@ -8,7 +8,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'code-scratch'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ComponentCategory =
   | 'sensor'
   | 'compute'
@@ -45,10 +50,12 @@ export interface ArtifactEnvelope {
     | NextActionContent
     | ComponentPlanContent
     | ElectricalArchitectureContent
-    | PhysicalArchitectureContent;
+    | PhysicalArchitectureContent
+    | TestPlanContent
+    | RiskRegisterContent;
   contentSchemaVersion: '1.0.0';
   createdAt: string;
-  createdBy: ActorReference12;
+  createdBy: ActorReference14;
   evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
   lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
   projectId: string;
@@ -942,7 +949,218 @@ export interface OpenQuestionReference5 {
   questionId: string;
   schemaVersion: '1.0.0';
 }
+export interface TestPlanContent {
+  coverageSummary: {
+    blockedRequirements: number;
+    coveredRequirements: number;
+    failedRequirements: number;
+    totalRequirements: number;
+    uncoveredRequirements: number;
+    unverifiedRequirements: number;
+    verifiedRequirements: number;
+  };
+  provenance?: {
+    generatedBy?: 'fixture' | 'llm' | 'user' | 'derived';
+    notes?: string;
+  };
+  schemaVersion: '1.0.0';
+  summary?: string;
+  /**
+   * @minItems 1
+   */
+  testCases: [
+    {
+      actualResult?: string;
+      assessment?: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+      assessmentAuthority?: 'deterministic-code' | 'manual' | 'none';
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: any;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
+      description?: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference9[];
+      executionRunId?: string;
+      expectedResult: string;
+      finding?: string;
+      inputs?: string[];
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds: string[];
+      preconditions?: string[];
+      procedure?: string[];
+      producedOutputIds?: string[];
+      status: 'planned' | 'ready' | 'running' | 'passed' | 'failed' | 'blocked' | 'inconclusive';
+      testId: string;
+      title: string;
+      verificationMethod: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
+    },
+    ...{
+      actualResult?: string;
+      assessment?: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+      assessmentAuthority?: 'deterministic-code' | 'manual' | 'none';
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: any;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
+      description?: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference9[];
+      executionRunId?: string;
+      expectedResult: string;
+      finding?: string;
+      inputs?: string[];
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds: string[];
+      preconditions?: string[];
+      procedure?: string[];
+      producedOutputIds?: string[];
+      status: 'planned' | 'ready' | 'running' | 'passed' | 'failed' | 'blocked' | 'inconclusive';
+      testId: string;
+      title: string;
+      verificationMethod: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
+    }[]
+  ];
+  testPlanId: string;
+  title?: string;
+}
+export interface EvidenceReference9 {
+  attribution?: ActorReference12;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
 export interface ActorReference12 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface RiskRegisterContent {
+  provenance?: {
+    generatedBy?: 'fixture' | 'llm' | 'user' | 'derived';
+    notes?: string;
+  };
+  riskRegisterId: string;
+  /**
+   * @minItems 1
+   */
+  risks: [
+    {
+      category:
+        | 'electrical'
+        | 'firmware'
+        | 'communication'
+        | 'power'
+        | 'thermal'
+        | 'mechanical'
+        | 'integration'
+        | 'performance'
+        | 'data-quality'
+        | 'safety';
+      description: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference10[];
+      likelihood: 'rare' | 'unlikely' | 'possible' | 'likely';
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds?: string[];
+      linkedTestIds?: string[];
+      mitigation: string;
+      priorityScore: number;
+      residualRisk?: string;
+      riskId: string;
+      severity: 'low' | 'medium' | 'high' | 'critical';
+      status: 'open' | 'mitigating' | 'mitigated' | 'accepted' | 'monitoring';
+      title: string;
+      verificationTestIds?: string[];
+    },
+    ...{
+      category:
+        | 'electrical'
+        | 'firmware'
+        | 'communication'
+        | 'power'
+        | 'thermal'
+        | 'mechanical'
+        | 'integration'
+        | 'performance'
+        | 'data-quality'
+        | 'safety';
+      description: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference10[];
+      likelihood: 'rare' | 'unlikely' | 'possible' | 'likely';
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds?: string[];
+      linkedTestIds?: string[];
+      mitigation: string;
+      priorityScore: number;
+      residualRisk?: string;
+      riskId: string;
+      severity: 'low' | 'medium' | 'high' | 'critical';
+      status: 'open' | 'mitigating' | 'mitigated' | 'accepted' | 'monitoring';
+      title: string;
+      verificationTestIds?: string[];
+    }[]
+  ];
+  schemaVersion: '1.0.0';
+  summary: {
+    highOrCritical: number;
+    mitigated: number;
+    openRisks: number;
+    totalRisks: number;
+    unverifiedMitigations: number;
+  };
+  title?: string;
+}
+export interface EvidenceReference10 {
+  attribution?: ActorReference13;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference13 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference14 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;

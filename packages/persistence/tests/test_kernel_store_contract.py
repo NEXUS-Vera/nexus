@@ -170,6 +170,78 @@ def stores(request: pytest.FixtureRequest) -> Any:
     Base.metadata.drop_all(engine)
 
 
+def _file_record(workspace_id: str, path: str, content_hash: str) -> dict[str, Any]:
+    return {
+        "schemaVersion": "1.0.0",
+        "workspaceId": workspace_id,
+        "path": path,
+        "contentHash": content_hash,
+        "sizeBytes": 1,
+        "contentType": "text/plain",
+        "origin": "USER",
+        "writePolicy": "USER_EDITABLE",
+        "modifiedByUser": True,
+        "createdAt": "2026-08-10T00:00:00Z",
+        "updatedAt": "2026-08-10T00:00:00Z",
+        "updatedBy": _actor(),
+    }
+
+
+def test_replace_workspace_files_allows_overlapping_paths(stores: Any) -> None:
+    """Regression: Postgres must flush deletes before inserts on path overlap."""
+    project_store, kernel_store = stores
+    package = _minimal_package("proj_KERNELTEST00000005")
+    project_store.save_initialization_package(copy.deepcopy(package))
+    art = package["artifacts"][0]
+    workspace_id = "ws_KERNELTESTFILE000001"
+    kernel_store.create_workspace(
+        {
+            "schemaVersion": "1.0.0",
+            "workspaceId": workspace_id,
+            "projectId": package["project"]["projectId"],
+            "artifactId": art["artifactId"],
+            "artifactType": "project-brief",
+            "workspaceType": "code-workspace",
+            "status": "ready",
+            "baseArtifactVersion": 1,
+            "baseProjectStateVersion": 1,
+            "createdBy": _actor(),
+            "createdAt": "2026-08-10T00:00:00Z",
+            "updatedAt": "2026-08-10T00:00:00Z",
+            "runtimeCapabilityRequirements": [],
+            "externalWorkspaceReferences": [],
+        },
+        {
+            "schemaVersion": "1.0.0",
+            "workspaceId": workspace_id,
+            "draftVersion": 1,
+            "baseArtifactVersion": 1,
+            "baseProjectStateVersion": 1,
+            "content": {},
+            "validationState": "unvalidated",
+            "createdAt": "2026-08-10T00:00:00Z",
+            "updatedAt": "2026-08-10T00:00:00Z",
+            "updatedBy": _actor(),
+        },
+    )
+    kernel_store.upsert_workspace_file(_file_record(workspace_id, "A.txt", "sha256:aaa"))
+    kernel_store.upsert_workspace_file(_file_record(workspace_id, "B.txt", "sha256:bbb"))
+    # Overlapping A.txt must not violate uq_workspace_files_workspace_path.
+    kernel_store.replace_workspace_files(
+        workspace_id,
+        [
+            _file_record(workspace_id, "A.txt", "sha256:aaa-restored"),
+            _file_record(workspace_id, "B.txt", "sha256:bbb"),
+        ],
+    )
+    paths = [f["path"] for f in kernel_store.list_workspace_files(workspace_id)]
+    assert paths == ["A.txt", "B.txt"]
+    assert (
+        kernel_store.get_workspace_file(workspace_id, "A.txt")["contentHash"]
+        == "sha256:aaa-restored"
+    )
+
+
 def test_immutable_snapshots_and_events(stores: Any) -> None:
     project_store, kernel_store = stores
     package = _minimal_package("proj_KERNELTEST00000001")

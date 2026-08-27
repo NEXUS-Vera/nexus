@@ -13,6 +13,8 @@ Deployable API application only. Domain workflow logic lives in
 ## Endpoints
 
 - `GET /healthz`
+- `GET /v1/runtime/health`
+- `POST /v1/admin/retention/gc?dry_run=`
 - `POST /v1/projects/initialize`
 - `GET /v1/projects/{projectId}`
 - `GET /v1/projects/{projectId}/artifacts`
@@ -23,6 +25,13 @@ Deployable API application only. Domain workflow logic lives in
 - `GET /v1/projects/{projectId}/board`
 - `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace`
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace`
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/runtime`
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/files`
+- `GET|PUT|DELETE /v1/projects/{projectId}/artifacts/{artifactType}/workspace/file`
+- `GET|POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/snapshots`
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/snapshots/{snapshotId}/restore`
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/executions`
+- `POST /v1/projects/{projectId}/artifacts/firmware/workspace/scaffold`
 - `POST /v1/projects/{projectId}/artifact-commands`
 - `GET /v1/projects/{projectId}/executions?limit=&cursor=`
 - `GET /v1/projects/{projectId}/events?limit=&cursor=`
@@ -45,6 +54,8 @@ candidates, constraints, alternatives) in addition to requirement edits.
 | `NEXUS_STORAGE_BACKEND` | `memory` | `memory` or `postgres` |
 | `NEXUS_DATABASE_URL` | local postgres URL | Used when backend is `postgres` |
 | `NEXUS_INITIALIZATION_PROVIDER` | `fixture` | `fixture`, `llm`, or `shadow` |
+| `NEXUS_EXECUTION_RUNTIME` | `process` | `process` or `container` (no silent fallback) |
+| `NEXUS_EXEC_CONTAINER_IMAGE` | `python:3.13-slim` | Used when runtime is `container` |
 
 Authentication and multi-user tenancy are **not** implemented.
 

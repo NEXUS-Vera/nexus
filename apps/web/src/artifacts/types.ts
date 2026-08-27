@@ -6,8 +6,8 @@ export type ArtifactRouteKey =
   | 'electrical-architecture'
   | 'physical-architecture'
   | 'component-plan'
-  | 'firmware-scaffold'
-  | 'analysis-notebook'
+  | 'firmware'
+  | 'analysis'
   | 'test-plan'
   | 'risk-register';
 
@@ -25,7 +25,11 @@ export type LiveArtifactType =
   | 'electrical-architecture'
   | 'physical-architecture'
   | 'next-action'
-  | 'component-plan';
+  | 'component-plan'
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export type ChangeIndicator = 'Updated' | 'Regenerated' | 'Unchanged' | 'Affected' | 'Stale' | 'Current';
 

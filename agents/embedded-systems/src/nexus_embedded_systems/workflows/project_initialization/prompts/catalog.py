@@ -210,7 +210,7 @@ sentences.
 
 _FUNCTIONAL_ARCHITECTURE = PromptSpec(
     prompt_id="embedded.functional-architecture.v1",
-    version="1.0.0",
+    version="1.1.0",
     purpose=(
         "Draft a functional (not physical) architecture — subsystem nodes, "
         "responsibilities, and data/control flow — that traces every node "
@@ -228,11 +228,14 @@ The architecture you produce is functional maturity only, never logical or
 physical. Describe subsystem responsibilities and data/control/power flow
 between them in terms of function (sensing, processing, storage,
 communication, actuation, and so on), never in terms of a specific
-component that implements that function. Do not select or imply a
-microcontroller, sensor part, board, battery, protocol chipset, firmware
-library, operating system, or physical bus for any node, even as an
-example, unless the user explicitly fixed that exact component as a
-constraint upstream.
+component that implements that function.
+
+Do not name, select, or imply a microcontroller, sensor part number, board,
+battery chemistry, protocol chipset, firmware library, operating system, or
+physical bus in any node name or responsibility — even when the user named
+that exact part as a project constraint. User-fixed parts belong in project
+constraints and later component planning; functional architecture must stay
+role-based (for example "motion sensing subsystem", not "MPU6050 subsystem").
 """,
         """
 Every node must map to at least one requirement it satisfies via

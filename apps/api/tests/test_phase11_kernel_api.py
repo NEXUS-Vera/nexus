@@ -42,6 +42,11 @@ async def test_phase11_kernel_api_flow() -> None:
             "component-plan",
             "electrical-architecture",
             "physical-architecture",
+            "code-scratch",
+            "firmware",
+            "analysis",
+            "test-plan",
+            "risk-register",
         }
 
         created = await client.post(

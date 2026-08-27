@@ -45,6 +45,14 @@ class ProposalNotFoundError(PersistenceError):
     code = "PROPOSAL_NOT_FOUND"
 
 
+class FirmwarePatchNotFoundError(PersistenceError):
+    code = "FIRMWARE_PATCH_NOT_FOUND"
+
+
+class AnalysisPatchNotFoundError(PersistenceError):
+    code = "ANALYSIS_PATCH_NOT_FOUND"
+
+
 class ExecutionNotFoundError(PersistenceError):
     code = "EXECUTION_NOT_FOUND"
 

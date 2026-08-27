@@ -16,6 +16,9 @@ live in `packages/persistence`. Contracts live in `packages/contracts`.
 - Artifact type, runtime capability, and external provider registries
 - Approval / concurrency governance
 - Workspace, command, execution, ledger, graph, and projection services
+- Phase 14D `WorkspaceRuntimeService` facade (`kernel.workspace_runtime`)
+- Phase 15A canonical `firmware` artifact (`code-workspace` + filesystem/sandbox caps)
+- Phase 15B deterministic Firmware scaffold (`platformio-arduino-esp32-v1`)
 - `ProjectKernel` wiring via `build_project_kernel(store)`
 
 ## What must not be placed here

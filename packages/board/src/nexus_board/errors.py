@@ -75,3 +75,69 @@ class DraftEditLeaseRequiredError(BoardError):
 
 class GraphBoundExceededError(BoardError):
     code = "GRAPH_BOUND_EXCEEDED"
+
+
+class WorkspacePathError(BoardError):
+    code = "WORKSPACE_PATH_INVALID"
+
+
+class WorkspaceQuotaExceededError(BoardError):
+    code = "WORKSPACE_QUOTA_EXCEEDED"
+
+
+class WorkspaceFileNotFoundError(BoardError):
+    code = "WORKSPACE_FILE_NOT_FOUND"
+
+
+class WorkspaceWritePolicyError(BoardError):
+    code = "WORKSPACE_WRITE_POLICY_DENIED"
+
+
+class WorkspaceNotFilesystemError(BoardError):
+    code = "WORKSPACE_NOT_FILESYSTEM"
+
+
+class WorkspaceScaffoldConflictError(BoardError):
+    """Scaffold target path exists and does not match the deterministic template."""
+
+    code = "WORKSPACE_SCAFFOLD_CONFLICT"
+
+
+class FirmwarePatchValidationError(BoardError):
+    code = "FIRMWARE_PATCH_VALIDATION_FAILED"
+
+
+class FirmwarePatchStaleError(BoardError):
+    code = "FIRMWARE_PATCH_STALE"
+
+
+class FirmwarePatchNotFoundError(BoardError):
+    code = "FIRMWARE_PATCH_NOT_FOUND"
+
+
+class FirmwarePatchGenerationError(BoardError):
+    code = "FIRMWARE_PATCH_GENERATION_FAILED"
+
+
+class FirmwareToolchainValidationError(BoardError):
+    code = "FIRMWARE_TOOLCHAIN_VALIDATION_FAILED"
+
+
+class FirmwareTestNotConfiguredError(BoardError):
+    code = "FIRMWARE_TEST_NOT_CONFIGURED"
+
+
+class AnalysisPatchValidationError(BoardError):
+    code = "ANALYSIS_PATCH_VALIDATION_FAILED"
+
+
+class AnalysisPatchStaleError(BoardError):
+    code = "ANALYSIS_PATCH_STALE"
+
+
+class AnalysisPatchNotFoundError(BoardError):
+    code = "ANALYSIS_PATCH_NOT_FOUND"
+
+
+class AnalysisPatchGenerationError(BoardError):
+    code = "ANALYSIS_PATCH_GENERATION_FAILED"
