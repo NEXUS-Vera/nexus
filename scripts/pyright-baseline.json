@@ -37,6 +37,7 @@
   "agents/mind-graph/tests/test_api.py::reportMissingImports": 8,
   "agents/mind-graph/tests/test_artifact_loop.py::reportMissingImports": 8,
   "agents/mind-graph/tests/test_cascade.py::reportMissingImports": 6,
+  "agents/mind-graph/tests/test_cli.py::reportMissingImports": 4,
   "agents/mind-graph/tests/test_coldstart.py::reportMissingImports": 10,
   "agents/mind-graph/tests/test_companion.py::reportMissingImports": 5,
   "agents/mind-graph/tests/test_corroboration.py::reportMissingImports": 3,
