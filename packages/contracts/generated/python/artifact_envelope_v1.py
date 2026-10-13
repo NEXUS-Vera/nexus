@@ -186,6 +186,20 @@ class Content3(TypedDict, closed=True):
     sourceQuestionIds: list[str]
     title: str
 
+class Content4(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    candidateCount: int
+    constraintSummary: str
+    selectionState: Literal['draft', 'proposed', 'accepted', 'blocked']
+    unresolvedCompatibilityChecks: list[str]
+
 class CreatedBy(TypedDict, closed=True):
     actorId: str
     actorType: Literal['user', 'vera', 'embedded-systems-agent', 'shared', 'system']
@@ -203,10 +217,14 @@ class ArtifactEnvelopeV1(TypedDict, closed=True):
     ]
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
-    content: Content | Content1 | Content2 | Content3
+    content: Content | Content1 | Content2 | Content3 | Content4
     contentSchemaVersion: Literal['1.0.0']
     createdAt: str
     createdBy: CreatedBy

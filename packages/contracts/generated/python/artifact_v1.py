@@ -332,4 +332,55 @@ class ArtifactV14(TypedDict, closed=True):
     updatedAt: str
     workflowRunId: str
 
-ArtifactV1: TypeAlias = ArtifactV11 | ArtifactV12 | ArtifactV13 | ArtifactV14
+class Content4(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    candidateCount: int
+    constraintSummary: str
+    selectionState: Literal['draft', 'proposed', 'accepted', 'blocked']
+    unresolvedCompatibilityChecks: list[str]
+
+class ArtifactV15(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    artifactId: str
+    artifactType: Literal['component-plan']
+    artifactVersion: int
+    content: Content4
+    contentSchemaVersion: Literal['1.0.0']
+    createdAt: str
+    createdBy: CreatedBy
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    lifecycleStatus: Literal[
+        'drafted', 'ready', 'affected', 'stale', 'blocked', 'superseded', 'archived'
+    ]
+    projectId: str
+    schemaVersion: Literal['1.0.0']
+    sourceTurnId: str
+    supersedesArtifactId: NotRequired[str]
+    supersedesArtifactVersion: NotRequired[int]
+    updatedAt: str
+    workflowRunId: str
+
+ArtifactV1: TypeAlias = (
+    ArtifactV11 | ArtifactV12 | ArtifactV13 | ArtifactV14 | ArtifactV15
+)

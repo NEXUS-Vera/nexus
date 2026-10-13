@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/workspaces/workspace-draft-state.v1.schema.json",
+  "title": "WorkspaceDraftState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workspaceId",
+    "draftVersion",
+    "baseArtifactVersion",
+    "baseProjectStateVersion",
+    "content",
+    "validationState",
+    "createdAt",
+    "updatedAt",
+    "updatedBy"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9]{16,}$"
+    },
+    "draftVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseArtifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseProjectStateVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "content": {
+      "type": "object"
+    },
+    "validationState": {
+      "type": "string",
+      "enum": [
+        "unvalidated",
+        "valid",
+        "invalid",
+        "stale"
+      ]
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    }
+  }
+}

@@ -17,73 +17,153 @@
     "errorReferences"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
-    "workflowRunId": { "type": "string", "pattern": "^run_[A-Za-z0-9]{16,}$" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "workflowRunId": {
+      "type": "string",
+      "pattern": "^run_[A-Za-z0-9]{16,}$"
+    },
     "workflowType": {
       "type": "string",
-      "enum": ["embedded-project-initialization", "embedded-project-modification"]
+      "enum": [
+        "embedded-project-initialization",
+        "embedded-project-modification"
+      ]
     },
-    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
-    "turnId": { "type": "string", "pattern": "^turn_[A-Za-z0-9]{16,}$" },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "turnId": {
+      "type": "string",
+      "pattern": "^turn_[A-Za-z0-9]{16,}$"
+    },
     "runStatus": {
       "type": "string",
-      "enum": ["pending", "running", "completed", "completed-with-warnings", "failed"]
+      "enum": [
+        "pending",
+        "running",
+        "completed",
+        "completed-with-warnings",
+        "failed"
+      ]
     },
     "stepRecords": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["stepId", "stepType", "status", "attempt"],
+        "required": [
+          "stepId",
+          "stepType",
+          "status",
+          "attempt"
+        ],
         "properties": {
-          "stepId": { "type": "string", "minLength": 1 },
-          "stepType": { "type": "string", "minLength": 1 },
-          "status": { "type": "string", "enum": ["pending", "running", "completed", "failed"] },
-          "attempt": { "type": "integer", "minimum": 1 },
-          "startedAt": { "type": "string", "format": "date-time" },
-          "completedAt": { "type": "string", "format": "date-time" },
+          "stepId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "stepType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
           "outputArtifactReferences": {
             "type": "array",
-            "items": { "$ref": "#/$defs/artifactReference" }
+            "items": {
+              "$ref": "#/$defs/artifactReference"
+            }
           },
-          "errorReference": { "$ref": "#/$defs/validationIssueReference" }
+          "errorReference": {
+            "$ref": "#/$defs/validationIssueReference"
+          }
         }
       }
     },
-    "startTime": { "type": "string", "format": "date-time" },
-    "completionTime": { "type": "string", "format": "date-time" },
+    "startTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completionTime": {
+      "type": "string",
+      "format": "date-time"
+    },
     "warnings": {
       "type": "array",
-      "items": { "$ref": "#/$defs/validationIssueReference" }
+      "items": {
+        "$ref": "#/$defs/validationIssueReference"
+      }
     },
     "errorReferences": {
       "type": "array",
-      "items": { "$ref": "#/$defs/validationIssueReference" }
+      "items": {
+        "$ref": "#/$defs/validationIssueReference"
+      }
     }
   },
   "$defs": {
     "artifactReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifactType", "artifactId", "artifactVersion", "contentSchemaVersion"],
+      "required": [
+        "artifactType",
+        "artifactId",
+        "artifactVersion",
+        "contentSchemaVersion"
+      ],
       "properties": {
         "artifactType": {
-          "type": "string",
-          "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+          "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
         },
-        "artifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
-        "artifactVersion": { "type": "integer", "minimum": 1 },
-        "contentSchemaVersion": { "type": "string", "const": "1.0.0" }
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "artifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "contentSchemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        }
       }
     },
     "validationIssueReference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["issueId"],
+      "required": [
+        "issueId"
+      ],
       "properties": {
-        "issueId": { "type": "string", "pattern": "^issue_[A-Za-z0-9]{16,}$" }
+        "issueId": {
+          "type": "string",
+          "pattern": "^issue_[A-Za-z0-9]{16,}$"
+        }
       }
     }
   }
 }
-

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "eventId": "evt_02PHASE11EVT0000000000001",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "eventType": "workspace.snapshot-created",
+  "occurredAt": "2026-08-04T12:00:00Z",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02USERACTOR000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "subject": {
+    "subjectType": "snapshot",
+    "subjectId": "snap_02PHASE11SNAP000000000001"
+  },
+  "causationId": "cmd_02PHASE11CMD00000000000001",
+  "correlationId": "cmd_02PHASE11CMD00000000000001",
+  "payload": {
+    "workspaceId": "ws_02PHASE11WORK0000000000001",
+    "snapshotId": "snap_02PHASE11SNAP000000000001",
+    "artifactType": "requirement-set",
+    "reason": "checkpoint"
+  }
+}

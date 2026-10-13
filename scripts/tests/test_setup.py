@@ -26,12 +26,12 @@ class SetupTests(unittest.TestCase):
             bin_dir.mkdir()
             python = bin_dir / "python3.13"
             python.write_text(
-                '#!/bin/bash\n'
+                "#!/bin/bash\n"
                 'echo "$0 $*" >> "$TEST_LOG"\n'
                 'if [[ "$1 $2" == "-m venv" ]]; then\n'
                 '  mkdir -p "$3/bin"\n'
                 '  cp "$0" "$3/bin/python"\n'
-                'fi\n'
+                "fi\n"
             )
             python.chmod(0o755)
             pnpm = bin_dir / "pnpm"
@@ -43,17 +43,29 @@ class SetupTests(unittest.TestCase):
             env.update(PATH=f"{bin_dir}:/usr/bin:/bin", TEST_LOG=str(log))
             for _ in range(2):
                 subprocess.run(
-                    ["make", "setup"], cwd=root, env=env, check=True,
-                    capture_output=True, text=True,
+                    ["make", "setup"],
+                    cwd=root,
+                    env=env,
+                    check=True,
+                    capture_output=True,
+                    text=True,
                 )
             subprocess.run(
-                ["make", "test-unit"], cwd=root, env=env, check=True,
-                capture_output=True, text=True,
+                ["make", "test-unit"],
+                cwd=root,
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
             )
             # Direct script invocation also uses the repository environment.
             subprocess.run(
-                [str(scripts / "run-tests.sh"), "unit"], cwd=root,
-                env=env, check=True, capture_output=True, text=True,
+                [str(scripts / "run-tests.sh"), "unit"],
+                cwd=root,
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
             )
             calls = log.read_text().splitlines()
             self.assertEqual(sum("-m venv" in call for call in calls), 1)

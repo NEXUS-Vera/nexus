@@ -9,7 +9,11 @@ from typing_extensions import TypedDict
 class ArtifactRevision(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     createdAt: str

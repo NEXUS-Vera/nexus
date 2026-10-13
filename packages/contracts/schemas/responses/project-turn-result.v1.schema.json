@@ -14,7 +14,10 @@
     "regeneratedArtifactTypes"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
     "currentState": {
       "$ref": "https://nexus.local/schemas/responses/project-current-state.v1.schema.json"
     },
@@ -24,18 +27,23 @@
     "impactAnalysis": {
       "$ref": "https://nexus.local/schemas/modification/project-impact-analysis.v1.schema.json"
     },
-    "changedArtifactTypes": { "$ref": "#/$defs/artifactTypeList" },
-    "regeneratedArtifactTypes": { "$ref": "#/$defs/artifactTypeList" }
+    "changedArtifactTypes": {
+      "$ref": "#/$defs/artifactTypeList"
+    },
+    "regeneratedArtifactTypes": {
+      "$ref": "#/$defs/artifactTypeList"
+    }
   },
   "$defs": {
     "artifactType": {
-      "type": "string",
-      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
     },
     "artifactTypeList": {
       "type": "array",
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/artifactType" }
+      "items": {
+        "$ref": "#/$defs/artifactType"
+      }
     }
   }
 }

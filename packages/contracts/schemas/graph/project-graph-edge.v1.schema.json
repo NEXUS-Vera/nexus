@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/graph/project-graph-edge.v1.schema.json",
+  "title": "ProjectGraphEdge",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "edgeId",
+    "projectId",
+    "sourceNodeId",
+    "targetNodeId",
+    "edgeType",
+    "validFrom",
+    "createdByEventId"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "edgeId": {
+      "type": "string",
+      "pattern": "^gedge_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "sourceNodeId": {
+      "type": "string",
+      "pattern": "^gnode_[A-Za-z0-9]{16,}$"
+    },
+    "targetNodeId": {
+      "type": "string",
+      "pattern": "^gnode_[A-Za-z0-9]{16,}$"
+    },
+    "edgeType": {
+      "type": "string",
+      "enum": [
+        "depends-on",
+        "derives-from",
+        "constrains",
+        "covers",
+        "blocks",
+        "invalidates",
+        "supports",
+        "contradicts",
+        "supersedes",
+        "produced-by",
+        "belongs-to",
+        "answers"
+      ]
+    },
+    "validFrom": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "validUntil": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdByEventId": {
+      "type": "string",
+      "pattern": "^evt_[A-Za-z0-9]{16,}$"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

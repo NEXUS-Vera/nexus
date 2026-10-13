@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/providers/external-workspace-reference.v1.schema.json",
+  "title": "ExternalWorkspaceReference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "providerId",
+    "externalReferenceId",
+    "syncStatus",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "providerId": {
+      "type": "string",
+      "enum": [
+        "fake",
+        "wokwi",
+        "flux",
+        "jupyter",
+        "github",
+        "kicad"
+      ]
+    },
+    "externalReferenceId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+    },
+    "displayLabel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "syncStatus": {
+      "type": "string",
+      "enum": [
+        "unbound",
+        "bound",
+        "stale",
+        "error"
+      ]
+    },
+    "lastSyncedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

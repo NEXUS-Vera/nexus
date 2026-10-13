@@ -13,14 +13,15 @@ export type WorkflowPhase = 'DEFINE' | 'DESIGN' | 'BUILD' | 'VERIFY';
 
 export type GlobalView = 'overview' | 'workspace' | 'mind-graph';
 
-export type ArtifactAvailability = 'live' | 'placeholder';
+export type ArtifactAvailability = 'live' | 'proof' | 'placeholder';
 
-/** Canonical live artifact types currently produced by the backend. */
+/** Canonical live / proof artifact types recognized by the board UI. */
 export type LiveArtifactType =
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
-  | 'next-action';
+  | 'next-action'
+  | 'component-plan';
 
 export type ChangeIndicator = 'Updated' | 'Regenerated' | 'Unchanged' | 'Affected' | 'Stale' | 'Current';
 

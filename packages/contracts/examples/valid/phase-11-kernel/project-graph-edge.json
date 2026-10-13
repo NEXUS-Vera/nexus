@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "1.0.0",
+  "edgeId": "gedge_02PHASE11EDGE00000000001",
+  "projectId": "proj_02PHASE11PROJ000000000001",
+  "sourceNodeId": "gnode_02PHASE11NODE00000000001",
+  "targetNodeId": "gnode_02PHASE11NODE00000000002",
+  "edgeType": "depends-on",
+  "validFrom": "2026-08-04T12:00:00Z",
+  "createdByEventId": "evt_02PHASE11EVT0000000000001",
+  "reason": "Requirements depend on project brief"
+}

@@ -12,7 +12,11 @@ class BlockerIssueReference(TypedDict, closed=True):
 class CreatedArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -20,7 +24,11 @@ class CreatedArtifactReference(TypedDict, closed=True):
 class NextActionArtifactReference(TypedDict, closed=True):
     artifactId: str
     artifactType: Literal[
-        'project-brief', 'requirement-set', 'functional-architecture', 'next-action'
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

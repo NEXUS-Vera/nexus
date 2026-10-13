@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import type { Artifact } from '@nexus/contracts';
-import { WorkspaceHeader } from '../../components/layout/WorkspaceHeader';
 import { themeColors } from '../../lib/theme';
 
 type Props = {
   artifact: Extract<Artifact, { artifactType: 'functional-architecture' }>;
-  changeIndicator?: string;
   isDark: boolean;
   selectedNodeId: string | null;
   onSelectNode: (id: string) => void;
@@ -28,7 +26,6 @@ const TYPE_COLORS: Record<string, string> = {
 
 export function ArchitectureWorkspace({
   artifact,
-  changeIndicator,
   isDark,
   selectedNodeId,
   onSelectNode,
@@ -56,16 +53,6 @@ export function ArchitectureWorkspace({
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }} data-testid="workspace-architecture">
-      <WorkspaceHeader
-        title="Architecture"
-        subtitle={`Functional maturity: ${architectureMaturity} · Boundary: ${systemBoundary}`}
-        version={artifact.artifactVersion}
-        lifecycleStatus={artifact.lifecycleStatus}
-        evidenceStatus={artifact.evidenceStatus}
-        approvalStatus={artifact.approvalStatus}
-        changeIndicator={changeIndicator}
-        isDark={isDark}
-      />
       <div
         style={{
           padding: '8px 16px',
@@ -101,7 +88,8 @@ export function ArchitectureWorkspace({
           Physical (placeholder)
         </span>
         <span style={{ marginLeft: 'auto', fontSize: 12, color: t.textSec }}>
-          Coverage: {requirementCoverage.coveredRequirementIds.length} requirements
+          {architectureMaturity} · {systemBoundary} · Coverage:{' '}
+          {requirementCoverage.coveredRequirementIds.length} requirements
         </span>
       </div>
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'minmax(0,1.4fr) minmax(260px,0.8fr)', overflow: 'hidden' }}>

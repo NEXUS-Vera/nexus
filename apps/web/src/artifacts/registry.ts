@@ -9,7 +9,7 @@ import {
   List,
   Network,
 } from 'lucide-react';
-import type { ArtifactRouteKey, ArtifactAvailability, WorkflowPhase } from './types';
+import type { ArtifactRouteKey, ArtifactAvailability, LiveArtifactType, WorkflowPhase } from './types';
 
 export type ArtifactUiAction =
   | 'select'
@@ -19,8 +19,8 @@ export type ArtifactUiAction =
 
 export type ArtifactDefinition = {
   routeKey: ArtifactRouteKey;
-  /** Canonical backend artifactType when live; null for future placeholders. */
-  artifactType: ArtifactRouteKey | null;
+  /** Canonical backend artifactType when live/proof; null for future placeholders. */
+  artifactType: LiveArtifactType | null;
   phase: WorkflowPhase;
   label: string;
   shortLabel: string;
@@ -85,17 +85,16 @@ export const ARTIFACT_REGISTRY: Record<ArtifactRouteKey, ArtifactDefinition> = {
   },
   'component-plan': {
     routeKey: 'component-plan',
-    artifactType: null,
+    artifactType: 'component-plan',
     phase: 'DESIGN',
     label: 'Components',
     shortLabel: 'Components',
     icon: Cpu,
-    availability: 'placeholder',
+    availability: 'proof',
     dependencyLabels: ['Architecture', 'Requirements'],
-    supportedActions: ['select'],
-    placeholderTitle: 'Component and Sensor Plan is not generated yet',
-    placeholderBody:
-      'Candidate comparison, compatibility checks, evidence, and approval will appear here once the backend produces a component-plan artifact.',
+    supportedActions: ['select', 'inspect', 'request-change-via-vera', 'view-history'],
+    placeholderTitle: '',
+    placeholderBody: '',
   },
   'firmware-scaffold': {
     routeKey: 'firmware-scaffold',

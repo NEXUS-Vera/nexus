@@ -16,24 +16,54 @@
     "createdAt"
   ],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
-    "dependencyId": { "type": "string", "pattern": "^dep_[A-Za-z0-9]{16,}$" },
-    "projectId": { "type": "string", "pattern": "^proj_[A-Za-z0-9]{16,}$" },
-    "sourceArtifactType": { "$ref": "#/$defs/artifactType" },
-    "targetArtifactType": { "$ref": "#/$defs/artifactType" },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "dependencyId": {
+      "type": "string",
+      "pattern": "^dep_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "sourceArtifactType": {
+      "$ref": "#/$defs/artifactType"
+    },
+    "targetArtifactType": {
+      "$ref": "#/$defs/artifactType"
+    },
     "dependencyKind": {
       "type": "string",
-      "enum": ["derives-from", "constrains", "covers", "blocks", "invalidates"]
+      "enum": [
+        "derives-from",
+        "constrains",
+        "covers",
+        "blocks",
+        "invalidates"
+      ]
     },
-    "reason": { "type": "string", "minLength": 1 },
-    "createdAt": { "type": "string", "format": "date-time" },
-    "sourceArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" },
-    "targetArtifactId": { "type": "string", "pattern": "^art_[A-Za-z0-9]{16,}$" }
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sourceArtifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "targetArtifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    }
   },
   "$defs": {
     "artifactType": {
-      "type": "string",
-      "enum": ["project-brief", "requirement-set", "functional-architecture", "next-action"]
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
     }
   }
 }

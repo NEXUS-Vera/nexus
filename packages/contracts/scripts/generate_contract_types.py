@@ -51,6 +51,29 @@ PUBLIC_SCHEMA_STEMS = [
     "requirement-set.v1",
     "functional-architecture.v1",
     "next-action.v1",
+    "component-plan.v1",
+    "artifact-type.v1",
+    "artifact-type-definition.v1",
+    "artifact-command.v1",
+    "artifact-command-result.v1",
+    "artifact-proposal.v1",
+    "workspace-descriptor.v1",
+    "workspace-snapshot.v1",
+    "workspace-draft-state.v1",
+    "execution-request.v1",
+    "execution-run.v1",
+    "execution-result.v1",
+    "produced-output.v1",
+    "runtime-capability.v1",
+    "external-workspace-reference.v1",
+    "project-event.v1",
+    "project-board-projection.v1",
+    "artifact-authority.v1",
+    "approval-requirement.v1",
+    "consequence-level.v1",
+    "project-graph-node.v1",
+    "project-graph-edge.v1",
+    "graph-traversal-result.v1",
     "validation-issue.v1",
     "open-question.v1",
     "vera-response.v1",
@@ -474,8 +497,31 @@ async function main() {
     "export type { RequirementSetContent } from './requirement-set_v1';",
     "export type { FunctionalArchitectureContent } from './functional-architecture_v1';",
     "export type { NextActionContent } from './next-action_v1';",
+    "export type { ComponentPlanContent } from './component-plan_v1';",
     "export type { ArtifactEnvelope } from './artifact-envelope_v1';",
     "export type { ArtifactStatus } from './artifact-status_v1';",
+    "export type { ArtifactType } from './artifact-type_v1';",
+    "export type { ArtifactTypeDefinition } from './artifact-type-definition_v1';",
+    "export type { ArtifactCommand } from './artifact-command_v1';",
+    "export type { ArtifactCommandResult } from './artifact-command-result_v1';",
+    "export type { ArtifactProposal } from './artifact-proposal_v1';",
+    "export type { WorkspaceDescriptor } from './workspace-descriptor_v1';",
+    "export type { WorkspaceSnapshot } from './workspace-snapshot_v1';",
+    "export type { WorkspaceDraftState } from './workspace-draft-state_v1';",
+    "export type { ExecutionRequest } from './execution-request_v1';",
+    "export type { ExecutionRun } from './execution-run_v1';",
+    "export type { ExecutionResult } from './execution-result_v1';",
+    "export type { ProducedOutput } from './produced-output_v1';",
+    "export type { RuntimeCapability } from './runtime-capability_v1';",
+    "export type { ExternalWorkspaceReference } from './external-workspace-reference_v1';",
+    "export type { ProjectEvent } from './project-event_v1';",
+    "export type { ProjectBoardProjection } from './project-board-projection_v1';",
+    "export type { ArtifactAuthority } from './artifact-authority_v1';",
+    "export type { ApprovalRequirement } from './approval-requirement_v1';",
+    "export type { ConsequenceLevel } from './consequence-level_v1';",
+    "export type { ProjectGraphNode } from './project-graph-node_v1';",
+    "export type { ProjectGraphEdge } from './project-graph-edge_v1';",
+    "export type { GraphTraversalResult } from './graph-traversal-result_v1';",
   ];
   const index = indexLines.join('\\n') + '\\n';
   fs.writeFileSync(path.join(outputDir, 'index.ts'), index, 'utf8');
@@ -516,7 +562,11 @@ def _content_fingerprint(directory: Path) -> str:
     digest = hashlib.sha256()
     if not directory.exists():
         return digest.hexdigest()
-    for path in sorted(p for p in directory.rglob("*") if p.is_file()):
+    for path in sorted(
+        p
+        for p in directory.rglob("*")
+        if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc"
+    ):
         rel = path.relative_to(directory).as_posix()
         digest.update(rel.encode("utf-8"))
         digest.update(b"\0")
@@ -569,6 +619,10 @@ def generate(*, check: bool = False) -> int:
         bundled_dir.mkdir(parents=True, exist_ok=True)
         ts_bundled_dir = Path(tmp) / "bundled-ts"
         ts_bundled_dir.mkdir(parents=True, exist_ok=True)
+        py_out_dir = Path(tmp) / "generated-python"
+        ts_out_dir = Path(tmp) / "generated-typescript"
+        py_out_dir.mkdir(parents=True, exist_ok=True)
+        ts_out_dir.mkdir(parents=True, exist_ok=True)
         for stem in PUBLIC_SCHEMA_STEMS:
             schema = schemas_by_stem[stem]
             bundled = _bundle_schema(schema, store)
@@ -578,9 +632,26 @@ def generate(*, check: bool = False) -> int:
                 _prepare_schema_for_typescript(bundled),
             )
 
+        _generate_python(bundled_dir, py_out_dir)
+        _generate_typescript(ts_bundled_dir, ts_out_dir)
+
+        # Replace destination directories only after both generations succeed;
+        # restore the previous outputs if the swap itself fails.
         with _restore_on_failure(GENERATED_PYTHON, GENERATED_TYPESCRIPT):
-            _generate_python(bundled_dir, GENERATED_PYTHON)
-            _generate_typescript(ts_bundled_dir, GENERATED_TYPESCRIPT)
+            GENERATED_PYTHON.mkdir(parents=True, exist_ok=True)
+            GENERATED_TYPESCRIPT.mkdir(parents=True, exist_ok=True)
+            for path in GENERATED_PYTHON.glob("*.py"):
+                path.unlink()
+            for path in GENERATED_TYPESCRIPT.glob("*.ts"):
+                path.unlink()
+            for path in sorted(py_out_dir.glob("*.py")):
+                (GENERATED_PYTHON / path.name).write_text(
+                    path.read_text(encoding="utf-8"), encoding="utf-8"
+                )
+            for path in sorted(ts_out_dir.glob("*.ts")):
+                (GENERATED_TYPESCRIPT / path.name).write_text(
+                    path.read_text(encoding="utf-8"), encoding="utf-8"
+                )
 
     # Remove legacy placeholders if present.
     for keep in (GENERATED_PYTHON / ".gitkeep", GENERATED_TYPESCRIPT / ".gitkeep"):

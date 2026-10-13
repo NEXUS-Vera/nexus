@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/events/project-event.v1.schema.json",
+  "title": "ProjectEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "projectId",
+    "eventType",
+    "occurredAt",
+    "actor",
+    "subject",
+    "payload"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "eventId": {
+      "type": "string",
+      "pattern": "^evt_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "workspace.created",
+        "workspace.snapshot-created",
+        "artifact.revision-proposed",
+        "artifact.revision-accepted",
+        "artifact.revision-rejected",
+        "artifact.marked-affected",
+        "artifact.superseded",
+        "execution.queued",
+        "execution.started",
+        "execution.completed",
+        "execution.failed",
+        "output.produced",
+        "evidence.attached",
+        "evidence.contradicted",
+        "evidence.superseded",
+        "question.opened",
+        "question.resolved",
+        "decision.accepted",
+        "decision.reversed"
+      ]
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subjectType",
+        "subjectId"
+      ],
+      "properties": {
+        "subjectType": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "artifact",
+            "proposal",
+            "execution",
+            "output",
+            "evidence",
+            "question",
+            "decision",
+            "snapshot"
+          ]
+        },
+        "subjectId": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "causationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "correlationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "artifactType": {
+          "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+        },
+        "artifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "snapshotId": {
+          "type": "string",
+          "pattern": "^snap_[A-Za-z0-9]{16,}$"
+        },
+        "proposalId": {
+          "type": "string",
+          "pattern": "^prop_[A-Za-z0-9]{16,}$"
+        },
+        "executionRunId": {
+          "type": "string",
+          "pattern": "^exec_[A-Za-z0-9]{16,}$"
+        },
+        "outputId": {
+          "type": "string",
+          "pattern": "^out_[A-Za-z0-9]{16,}$"
+        },
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "questionId": {
+          "type": "string",
+          "pattern": "^q_[A-Za-z0-9]{16,}$"
+        },
+        "decisionId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "capability": {
+          "type": "string",
+          "enum": [
+            "structured-validation",
+            "fake-execution",
+            "file-workspace",
+            "embedded-build",
+            "python-kernel",
+            "circuit-simulation",
+            "architecture-export"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "resultingArtifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "resultingArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "supersededBy": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "outputType": {
+          "type": "string",
+          "enum": [
+            "validation-report",
+            "log",
+            "structured-result",
+            "file-reference",
+            "plot-reference",
+            "binary-reference",
+            "test-report"
+          ]
+        },
+        "evidenceStatus": {
+          "$ref": "https://nexus.local/schemas/common/artifact-status.v1.schema.json#/$defs/evidenceStatus"
+        }
+      }
+    }
+  }
+}

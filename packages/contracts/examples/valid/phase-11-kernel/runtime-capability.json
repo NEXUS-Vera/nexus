@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "capabilityId": "structured-validation",
+  "displayName": "Structured Validation",
+  "providerId": "fake",
+  "available": true,
+  "description": "Deterministic fake structured validation"
+}

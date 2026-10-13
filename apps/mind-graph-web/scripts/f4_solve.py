@@ -10,14 +10,14 @@ actually has to hold.
 
     python3 scripts/f4_solve.py
 """
+
 from __future__ import annotations
 
 import itertools
 import math
 import random
 
-from f4_gate import (FLOOR, VSUP, dE, desaturate, lin_to_oklab, oklab_to_lin,
-                     simulate)
+from f4_gate import FLOOR, VSUP, dE, desaturate, lin_to_oklab, oklab_to_lin, simulate
 
 TYPES = ["Concept", "Question", "Claim", "Artifact", "Source", "Note"]
 CONDS = ["normal", "deuteranopia", "protanopia", "tritanopia"]
@@ -56,10 +56,12 @@ def score(palette: list[tuple[float, float, float]]) -> float:
 
 def to_hex(lab) -> str:
     r, g, b = oklab_to_lin(*lab)
+
     def enc(c):
         c = min(max(c, 0.0), 1.0)
         c = 12.92 * c if c <= 0.0031308 else 1.055 * c ** (1 / 2.4) - 0.055
         return round(c * 255)
+
     return "#{:02X}{:02X}{:02X}".format(enc(r), enc(g), enc(b))
 
 
@@ -95,11 +97,11 @@ def solve(iters: int = 60000, seed: int = 7):
 
 if __name__ == "__main__":
     pal, s = solve()
-    print(f"\n  worst-pair dE = {s:.4f}   (floor {FLOOR:.3f})  "
-          f"{'PASS' if s >= FLOOR else 'FAIL'}\n")
+    print(
+        f"\n  worst-pair dE = {s:.4f}   (floor {FLOOR:.3f})  {'PASS' if s >= FLOOR else 'FAIL'}\n"
+    )
     for name, lab in zip(TYPES, pal):
         L, a, b = lab
         C, h = math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
-        print(f"  --type-{name.lower():<9} {to_hex(lab)}   "
-              f"oklch({L:.3f} {C:.3f} {h:.1f})")
+        print(f"  --type-{name.lower():<9} {to_hex(lab)}   oklch({L:.3f} {C:.3f} {h:.1f})")
     print()

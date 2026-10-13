@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/governance/consequence-level.v1.schema.json",
+  "title": "ConsequenceLevel",
+  "type": "string",
+  "enum": [
+    "low",
+    "medium",
+    "high",
+    "safety-critical"
+  ]
+}
