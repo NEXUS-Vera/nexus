@@ -78,8 +78,8 @@ def decompose(question: str, llm=None) -> list[str]:
     stem = question.rstrip("?").strip()
     return [f"What has to be true for: {stem}?",
             f"What would you measure to test: {stem}?",
-            f"What could confound that measurement?",
-            f"What accuracy would be enough to be useful?"]
+            "What could confound that measurement?",
+            "What accuracy would be enough to be useful?"]
 
 
 def seed_project(s, question: str, *, project_id: str | None = None,
@@ -101,7 +101,7 @@ def seed_project(s, question: str, *, project_id: str | None = None,
     nodes = [{"id": root, "type": "Question", "project_id": pid}]
     edges = []
     labels = {root: question}
-    for qid, text in zip(cs.subquestions, subs):
+    for qid, text in zip(cs.subquestions, subs, strict=False):
         nodes.append({"id": qid, "type": "Question", "project_id": pid})
         labels[qid] = text
         edges.append({"id": uuid7(), "src": root, "dst": qid,

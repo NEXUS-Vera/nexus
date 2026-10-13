@@ -11,8 +11,7 @@ from dataclasses import dataclass
 from .events import EventType
 from .ids import uuid7
 from .projector import GraphState
-from .schema import (MERGE_HARD, Confidence, NodeType, Origin, Rank, Relation,
-                     Scope)
+from .schema import MERGE_HARD, Confidence, NodeType, Origin, Rank, Relation, Scope
 
 NOTE_RATIO_TRIGGER = 0.40      # unstructured share of recent nodes
 NOTE_COUNT_TRIGGER = 15

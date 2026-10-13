@@ -87,14 +87,18 @@ def validate(fragment: dict, known_keys: set[str] | None = None) -> Validated:
     for n in fragment.get("nodes", []):
         n = dict(n)
         if n.get("type") not in {t.value for t in NodeType}:
-            out.rejects.append(Reject(n, "unknown type")); continue
+            out.rejects.append(Reject(n, "unknown type"))
+            continue
         if n.get("kind") not in KINDS[n["type"]]:
-            out.rejects.append(Reject(n, "bad kind")); continue
+            out.rejects.append(Reject(n, "bad kind"))
+            continue
         if not (n.get("key") and KEY_RE.fullmatch(n["key"])):
-            out.rejects.append(Reject(n, "malformed key")); continue
+            out.rejects.append(Reject(n, "malformed key"))
+            continue
         label = n.get("label") or ""
         if not label:
-            out.rejects.append(Reject(n, "missing label")); continue
+            out.rejects.append(Reject(n, "missing label"))
+            continue
 
         # SOFT — demote rather than discard.
         if n["type"] != "Note" and is_sentence_like(label):
@@ -113,13 +117,17 @@ def validate(fragment: dict, known_keys: set[str] | None = None) -> Validated:
     for e in fragment.get("edges", []):
         e = dict(e)
         if e.get("relation") not in {r.value for r in Relation}:
-            out.rejects.append(Reject(e, "unknown relation")); continue
+            out.rejects.append(Reject(e, "unknown relation"))
+            continue
         if e.get("score") not in LEGAL_SCORES:
-            out.rejects.append(Reject(e, "off-rubric score")); continue
+            out.rejects.append(Reject(e, "off-rubric score"))
+            continue
         if e.get("confidence") not in {c.value for c in Confidence}:
-            out.rejects.append(Reject(e, "unknown confidence tier")); continue
+            out.rejects.append(Reject(e, "unknown confidence tier"))
+            continue
         if e["confidence"] == "EXTRACTED" and e["score"] != 1.0:
-            out.rejects.append(Reject(e, "false certainty")); continue
+            out.rejects.append(Reject(e, "false certainty"))
+            continue
 
         # Citation state gates the tier (Backend/08 §5.1). This closes the most
         # likely route to a confident, well-cited, WRONG edge.
@@ -141,11 +149,14 @@ def validate(fragment: dict, known_keys: set[str] | None = None) -> Validated:
         if e["relation"] == "requires" and not all(
                 types.get(k, "Concept") == "Concept"
                 for k in (e.get("src_key"), e.get("dst_key")) if k in types):
-            out.rejects.append(Reject(e, "requires is Concept->Concept only")); continue
+            out.rejects.append(Reject(e, "requires is Concept->Concept only"))
+            continue
         if e.get("src_key") == e.get("dst_key"):
-            out.rejects.append(Reject(e, "self-loop")); continue
+            out.rejects.append(Reject(e, "self-loop"))
+            continue
         if e.get("src_key") not in frag_keys or e.get("dst_key") not in frag_keys:
-            out.rejects.append(Reject(e, "dangling endpoint")); continue
+            out.rejects.append(Reject(e, "dangling endpoint"))
+            continue
         if e.get("span") is None and e["confidence"] != "EXTRACTED":
             e["score"] = demote_one_rung(e["score"])
 

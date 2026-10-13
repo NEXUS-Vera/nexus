@@ -10,8 +10,7 @@ import threading
 import urllib.request
 
 import pytest
-
-from conftest import accept, edge, node
+from conftest import edge
 from mindgraph.agents import Cap
 from mindgraph.api import BUNDLES, Api, ApiError, serve
 from mindgraph.artifact import Session

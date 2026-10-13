@@ -7,7 +7,6 @@ outlives an erasure request.
 from __future__ import annotations
 
 import pytest
-
 from conftest import accept, edge, node, validate
 from mindgraph.crypto import KeyStore, decrypt, encrypt
 from mindgraph.errors import KeyDestroyed

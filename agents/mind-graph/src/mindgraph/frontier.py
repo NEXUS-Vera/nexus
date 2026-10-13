@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .projector import GraphState
-from .schema import (Confidence, NodeType, Rank, Relation, Strength, Support)
+from .schema import Confidence, NodeType, Rank, Relation, Strength, Support
 
 # Six kinds. The trigger is WIDE — kind decides framing, never whether it fires.
 FRAMING = {

@@ -14,19 +14,33 @@ SCHEMA_VERSION = 2
 
 
 class NodeType(StrEnum):
-    CONCEPT = "Concept"; QUESTION = "Question"; CLAIM = "Claim"
-    ARTIFACT = "Artifact"; SOURCE = "Source"; NOTE = "Note"
+    CONCEPT = "Concept"
+    QUESTION = "Question"
+    CLAIM = "Claim"
+    ARTIFACT = "Artifact"
+    SOURCE = "Source"
+    NOTE = "Note"
 
 
 class Relation(StrEnum):
-    CONTAINS = "contains"; PART_OF = "part_of"
-    SUPPORTS = "supports"; CONTRADICTS = "contradicts"
-    REFUTES = "refutes"; CONFIRMS = "confirms"; EXTENDS = "extends"
-    EVIDENCE_FOR = "evidence_for"; MEASURED_BY = "measured_by"
-    CITES = "cites"; USES_METHOD_IN = "uses_method_in"
-    REQUIRES = "requires"; RELATES_TO = "relates_to"; SAME_AS = "same_as"
-    ANSWERS = "answers"; RAISES = "raises"
-    SUPERSEDES = "supersedes"; DERIVED_FROM = "derived_from"
+    CONTAINS = "contains"
+    PART_OF = "part_of"
+    SUPPORTS = "supports"
+    CONTRADICTS = "contradicts"
+    REFUTES = "refutes"
+    CONFIRMS = "confirms"
+    EXTENDS = "extends"
+    EVIDENCE_FOR = "evidence_for"
+    MEASURED_BY = "measured_by"
+    CITES = "cites"
+    USES_METHOD_IN = "uses_method_in"
+    REQUIRES = "requires"
+    RELATES_TO = "relates_to"
+    SAME_AS = "same_as"
+    ANSWERS = "answers"
+    RAISES = "raises"
+    SUPERSEDES = "supersedes"
+    DERIVED_FROM = "derived_from"
 
 
 SUPPORTING = {Relation.SUPPORTS, Relation.EVIDENCE_FOR,
@@ -35,32 +49,42 @@ OPPOSING = {Relation.CONTRADICTS, Relation.REFUTES}
 
 
 class Confidence(StrEnum):
-    EXTRACTED = "EXTRACTED"; INFERRED = "INFERRED"; AMBIGUOUS = "AMBIGUOUS"
+    EXTRACTED = "EXTRACTED"
+    INFERRED = "INFERRED"
+    AMBIGUOUS = "AMBIGUOUS"
 
 
 class Rank(StrEnum):
-    PREFERRED = "preferred"; NORMAL = "normal"; DEPRECATED = "deprecated"
+    PREFERRED = "preferred"
+    NORMAL = "normal"
+    DEPRECATED = "deprecated"
 
 
 class Support(StrEnum):
     """Distinct from Rank. A claim can be true but unsupported."""
-    SUPPORTED = "supported"; UNSUPPORTED = "unsupported"
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
     CONTESTED = "contested"
     UNKNOWN = "unknown"
 
 
 class Strength(StrEnum):
-    TENTATIVE = "tentative"; ESTABLISHED = "established"; CONTESTED = "contested"
+    TENTATIVE = "tentative"
+    ESTABLISHED = "established"
+    CONTESTED = "contested"
 
 
 class CitationState(StrEnum):
-    PRESENT_RELEVANT = "present_relevant"; PRESENT_WEAK = "present_weak"
-    MISSING = "missing"; WRONG_SOURCE = "wrong_source"
+    PRESENT_RELEVANT = "present_relevant"
+    PRESENT_WEAK = "present_weak"
+    MISSING = "missing"
+    WRONG_SOURCE = "wrong_source"
     ANCHOR_UNAVAILABLE = "anchor_unavailable"
 
 
 class Scope(StrEnum):
-    GLOBAL = "global"; PROJECT = "project"
+    GLOBAL = "global"
+    PROJECT = "project"
 
 
 class Origin(StrEnum):

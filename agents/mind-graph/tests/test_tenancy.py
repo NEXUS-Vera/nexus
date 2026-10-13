@@ -2,15 +2,22 @@
 from __future__ import annotations
 
 import pytest
-
 from conftest import accept, edge, node
-from mindgraph.crypto import KeyStore
 from mindgraph.errors import KeyDestroyed
 from mindgraph.ledger import Ledger
 from mindgraph.projector import project, state_hash
-from mindgraph.tenancy import (GraphCache, TenancyError, backup, erase, health,
-                               keystore, provision, restore, user_dir,
-                               verify_key_separation)
+from mindgraph.tenancy import (
+    GraphCache,
+    TenancyError,
+    backup,
+    erase,
+    health,
+    keystore,
+    provision,
+    restore,
+    user_dir,
+    verify_key_separation,
+)
 
 
 def _populate(root, user):
@@ -45,7 +52,8 @@ def test_keys_live_outside_the_data_directory(tmp_path):
 
 
 def test_two_users_cannot_see_each_other(tmp_path):
-    provision(tmp_path, "u1"); provision(tmp_path, "u2")
+    provision(tmp_path, "u1")
+    provision(tmp_path, "u2")
     h1 = _populate(tmp_path, "u1")
     led2 = Ledger(user_dir(tmp_path, "u2") / "ledger.db")
     assert state_hash(project(led2.read())) != h1
@@ -82,7 +90,8 @@ def test_a_tampered_backup_is_refused(tmp_path):
     restore(tmp_path, "u1", arc)
     led = Ledger(user_dir(tmp_path, "u1") / "ledger.db")
     led.db.execute("UPDATE events SET structural='{\"nodes\":[]}' WHERE seq=1")
-    led.db.commit(); led.close()
+    led.db.commit()
+    led.close()
     bad = backup(tmp_path, "u1", tmp_path / "bad.tgz")
     with pytest.raises(TenancyError, match="hash chain"):
         restore(tmp_path, "u1", bad)
@@ -109,7 +118,8 @@ def test_erase_destroys_the_key_and_records_it(tmp_path):
 
 
 def test_health_reports_shredded_users(tmp_path):
-    provision(tmp_path, "u1"); provision(tmp_path, "u2")
+    provision(tmp_path, "u1")
+    provision(tmp_path, "u2")
     erase(tmp_path, "u2")
     h = health(tmp_path)
     assert h["users"] == 2 and h["keys_outside_data_dir"]
@@ -121,9 +131,12 @@ def test_health_reports_shredded_users(tmp_path):
 def test_the_cache_evicts_by_lru(tmp_path):
     """⭐ CPU was never the limit — memory was. 144-240 MB per live graph."""
     for u in ("u1", "u2", "u3"):
-        provision(tmp_path, u); _populate(tmp_path, u)
+        provision(tmp_path, u)
+        _populate(tmp_path, u)
     c = GraphCache(tmp_path, capacity=2)
-    c.get("u1"); c.get("u2"); c.get("u1")     # u2 is now least-recent
+    c.get("u1")
+    c.get("u2")
+    c.get("u1")     # u2 is now least-recent
     c.get("u3")
     assert c.resident == 2 and c.evictions == 1
 
@@ -131,7 +144,8 @@ def test_the_cache_evicts_by_lru(tmp_path):
 def test_an_evicted_graph_rebuilds_identically(tmp_path):
     """Eviction is free because replay is 122 ms — drop it, rebuild on the
     next request."""
-    provision(tmp_path, "u1"); expected = _populate(tmp_path, "u1")
+    provision(tmp_path, "u1")
+    expected = _populate(tmp_path, "u1")
     c = GraphCache(tmp_path, capacity=1)
     first = state_hash(c.get("u1"))
     c.drop("u1")
@@ -140,9 +154,11 @@ def test_an_evicted_graph_rebuilds_identically(tmp_path):
 
 
 def test_a_cache_hit_does_not_rebuild(tmp_path):
-    provision(tmp_path, "u1"); _populate(tmp_path, "u1")
+    provision(tmp_path, "u1")
+    _populate(tmp_path, "u1")
     c = GraphCache(tmp_path, capacity=4)
-    c.get("u1"); c.get("u1")
+    c.get("u1")
+    c.get("u1")
     assert c.rebuilds == 1
 
 

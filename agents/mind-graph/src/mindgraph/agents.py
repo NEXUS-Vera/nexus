@@ -195,12 +195,15 @@ def gate(proposals: list[dict], role: Role, *, basis_required: bool = True,
 
             # Downgrade-only: the Critic may say "this passage supports that
             # claim less than claimed", never more.
-            if (was := prior.get(p.get("id"))) and Cap.VERIFY_SPAN in role.caps \
-                    and Cap.READ_CONTENT not in role.caps:
-                if CITATION_CEILING.get(cs, 1.0) > CITATION_CEILING.get(was, 1.0):
-                    out.rejected.append(Rejection(
-                        p, "VERIFY_SPAN may downgrade a citation, never raise it"))
-                    continue
+            if (
+                (was := prior.get(p.get("id")))
+                and Cap.VERIFY_SPAN in role.caps
+                and Cap.READ_CONTENT not in role.caps
+                and CITATION_CEILING.get(cs, 1.0) > CITATION_CEILING.get(was, 1.0)
+            ):
+                out.rejected.append(Rejection(
+                    p, "VERIFY_SPAN may downgrade a citation, never raise it"))
+                continue
 
         if basis_required and not p.get("basis"):
             out.rejected.append(Rejection(

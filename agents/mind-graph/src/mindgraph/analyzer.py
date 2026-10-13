@@ -142,15 +142,18 @@ def crossover_score(state: GraphState, u: str, v: str, edge,
 
     du, dv = _discipline(state, u), _discipline(state, v)
     if du != dv and "unknown" not in (du, dv):
-        score += 3; why.append(f"crosses {du} <-> {dv}")
+        score += 3
+        why.append(f"crosses {du} <-> {dv}")
 
     pu, pv = _project(state, u), _project(state, v)
     if pu != pv and pu and pv:
-        score += 2; why.append("connects two of your projects")
+        score += 2
+        why.append("connects two of your projects")
 
     au, av = state.nodes[u].created_seq, state.nodes[v].created_seq
     if abs(au - av) > 30:
-        score += 1; why.append("links work weeks apart")
+        score += 1
+        why.append("links work weeks apart")
 
     kinds = {state.nodes[u].type, state.nodes[v].type}
     if kinds == {NodeType.SOURCE, NodeType.ARTIFACT}:
@@ -164,7 +167,8 @@ def crossover_score(state: GraphState, u: str, v: str, edge,
         degree = {n: gg.degree(n) for n in gg}
     deg = {n: degree[n] for n in (u, v) if n in degree}
     if len(deg) == 2 and min(deg.values()) <= 2 and max(deg.values()) >= 5:
-        score += 1; why.append("peripheral node unexpectedly reaches a hub")
+        score += 1
+        why.append("peripheral node unexpectedly reaches a hub")
 
     # Suppression: a label-matched INFERRED edge is resolver pollution, not
     # insight. Without this, the top of every crossover list is near-duplicates.

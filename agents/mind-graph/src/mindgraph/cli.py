@@ -16,23 +16,22 @@ import json
 import sys
 from pathlib import Path
 
-from .artifact import (ArtifactError, Session, calibration, measure, predict,
-                       show)
+from .adapters import from_env
+from .agents import run_turn
+from .analyzer import analyze
+from .artifact import ArtifactError, Session, calibration, measure, predict, show
+from .coldstart import seed_project
+from .costlog import default as costlog
 from .crypto import encrypt
+from .curation import export, promote_concepts, structuring_nudge
+from .evaluation import cost_per_accepted
 from .events import EventType
-from .extract import FakeLLM, HTTPLLM, ingest_text
+from .extract import HTTPLLM, FakeLLM, ingest_text
+from .frontier import frontier, tensions
 from .graph import stats
 from .ids import uuid7
 from .proposals import decide, ingest, pending_review
-from .analyzer import analyze
-from .adapters import from_env
-from .agents import run_turn
-from .coldstart import seed_project
-from .costlog import default as costlog
-from .curation import export, promote_concepts, structuring_nudge
-from .evaluation import cost_per_accepted
-from .frontier import frontier, tensions
-from .retrieve import explain, path, query
+from .retrieve import explain, query
 
 BAR = "─" * 58
 
@@ -135,7 +134,8 @@ def main(argv: list[str] | None = None) -> int:
     ex.add_argument("node_id")
 
     pa = sub.add_parser("path", help="shortest justified path between two nodes")
-    pa.add_argument("a"); pa.add_argument("b")
+    pa.add_argument("a")
+    pa.add_argument("b")
 
     an = sub.add_parser("analyze", help="nightly jobs — off the request path")
     an.add_argument("--json", action="store_true")
@@ -153,7 +153,8 @@ def main(argv: list[str] | None = None) -> int:
 
     ak = sub.add_parser("ask", help="ask the graph — the full turn protocol")
     ak.add_argument("question")
-    ak.add_argument("--endpoint"); ak.add_argument("--api-credential")
+    ak.add_argument("--endpoint")
+    ak.add_argument("--api-credential")
     ak.add_argument("--budget", type=float)
     ak.add_argument("-k", type=int, default=25)
 
@@ -163,7 +164,8 @@ def main(argv: list[str] | None = None) -> int:
     ex2.add_argument("-o", "--out")
     sub.add_parser("cost", help="what this has actually cost")
     eb = sub.add_parser("embed", help="backfill embeddings (needs an endpoint)")
-    eb.add_argument("--endpoint"); eb.add_argument("--api-credential")
+    eb.add_argument("--endpoint")
+    eb.add_argument("--api-credential")
 
     sub.add_parser("status", help="graph + calibration summary")
 
@@ -236,7 +238,8 @@ def main(argv: list[str] | None = None) -> int:
         elif a.cmd == "explain":
             e = explain(s.state(), a.node_id)
             if not e:
-                print("no such node"); return 1
+                print("no such node")
+                return 1
             lb = _labels(s)
             print(BAR)
             print(f"  {lb.get(a.node_id, a.node_id)}")
@@ -256,7 +259,8 @@ def main(argv: list[str] | None = None) -> int:
         elif a.cmd == "analyze":
             sc = analyze(s.state())
             if a.json:
-                print(json.dumps(sc.as_dict(), indent=2)); return 0
+                print(json.dumps(sc.as_dict(), indent=2))
+                return 0
             lb = _labels(s)
             print(f"  communities   {len(sc.communities)}")
             print(f"  predictions   {len(sc.predictions)} (Adamic-Adar)")
@@ -303,7 +307,7 @@ def main(argv: list[str] | None = None) -> int:
                 print("⚠️  nothing matched the embedded-systems skeleton — "
                       "question decomposition only.\n")
             d = cs.as_dict()
-            print(f"  root question   1")
+            print("  root question   1")
             print(f"  sub-questions   {d['subquestions']}")
             print(f"  concepts        {d['concepts']}"
                   f"{f' (+{d[chr(39)+chr(39)]})' if False else ''}"
@@ -352,7 +356,8 @@ def main(argv: list[str] | None = None) -> int:
         elif a.cmd == "export":
             blob = export(s.state(), _labels(s))
             if a.out:
-                Path(a.out).write_text(blob); print(f"wrote {a.out}")
+                Path(a.out).write_text(blob)
+                print(f"wrote {a.out}")
             else:
                 print(blob)
         elif a.cmd == "cost":
@@ -360,16 +365,18 @@ def main(argv: list[str] | None = None) -> int:
             if not rows:
                 print("no operations recorded yet")
             agg: dict = {}
-            for op, wall, cpu, _tags in rows:
+            for op, wall, _cpu, _tags in rows:
                 d = agg.setdefault(op, {"n": 0, "wall_ms": 0})
-                d["n"] += 1; d["wall_ms"] += wall
+                d["n"] += 1
+                d["wall_ms"] += wall
             for op, d in sorted(agg.items()):
                 print(f"  {op:<12} {d['n']:>4} calls  {d['wall_ms']:>6} ms"
                       f"  ({d['wall_ms'] / max(1, d['n']):.1f} ms avg)")
         elif a.cmd == "embed":
             _, embedder, _ = from_env(a.endpoint, a.api_credential)
             if embedder is None:
-                print("✗ no endpoint configured", file=sys.stderr); return 1
+                print("✗ no endpoint configured", file=sys.stderr)
+                return 1
             vs = s.vectors()
             n = vs.backfill(_labels(s), embedder)
             vs.close()

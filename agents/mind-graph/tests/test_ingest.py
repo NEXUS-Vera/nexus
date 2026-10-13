@@ -2,14 +2,12 @@
 from __future__ import annotations
 
 import pytest
-
 from mindgraph.artifact import Session
 from mindgraph.crypto import KeyStore
-from mindgraph.extract import (FakeLLM, extract_csv, extract_python,
-                               ingest_text, route)
+from mindgraph.extract import FakeLLM, extract_csv, extract_python, ingest_text, route
 from mindgraph.ledger import Ledger, canonical
 from mindgraph.proposals import decide, ingest, pending_review
-from mindgraph.resolve import band_for, normalise, resolve_candidates, similarity
+from mindgraph.resolve import band_for, normalise, similarity
 from mindgraph.validate import is_sentence_like, validate
 
 

@@ -213,7 +213,8 @@ def _map(api, s, tok, p, _b):
     by a different definition of "interesting" than everything else.
     """
     require(tok, Cap.READ_STRUCTURE)
-    from .retrieve import cap as cap_results, expand, rank
+    from .retrieve import cap as cap_results
+    from .retrieve import expand, rank
     st = s.state()
     focus = p.get("focus")
     seeds = [focus] if focus and focus in st.nodes else []

@@ -4,21 +4,32 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from conftest import accept, edge, node
 from mindgraph.artifact import Session
 from mindgraph.crypto import KeyStore
-from mindgraph.curation import (MAX_REFUSALS, export, joint_support,
-                                promote_concepts, refuse_nudge,
-                                structuring_nudge)
-from mindgraph.evaluation import (Prediction, calibration_error,
-                                  cost_per_accepted, evaluate_prereg,
-                                  extraction_quality, frontier_quality,
-                                  interval_coverage, ndcg, reliability_curve,
-                                  retrieval_vs_baseline)
+from mindgraph.curation import (
+    MAX_REFUSALS,
+    export,
+    joint_support,
+    promote_concepts,
+    refuse_nudge,
+    structuring_nudge,
+)
+from mindgraph.evaluation import (
+    Prediction,
+    calibration_error,
+    cost_per_accepted,
+    evaluate_prereg,
+    extraction_quality,
+    frontier_quality,
+    interval_coverage,
+    ndcg,
+    reliability_curve,
+    retrieval_vs_baseline,
+)
 from mindgraph.ledger import Ledger
 from mindgraph.projector import project
-from mindgraph.schema import Origin, Rank, Scope
+from mindgraph.schema import Origin, Scope
 
 
 @pytest.fixture
@@ -251,8 +262,8 @@ def test_a_correction_merges_dicts_instead_of_replacing_them(s):
 
 def test_an_invalid_correction_is_refused(s):
     """The ontology still applies after a correction."""
-    from mindgraph.events import EventType
     import pydantic
+    from mindgraph.events import EventType
     accept(s.ledger, [node("a", "Concept", project_id="p1")])
     s.ledger.append("u1", EventType.CORRECTION,
                     {"target": "a", "fields": {"scope": "global"}})

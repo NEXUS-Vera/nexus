@@ -3,13 +3,19 @@ from __future__ import annotations
 
 import networkx as nx
 import pytest
-
 from conftest import accept, edge, node
-from conftest import validate as val_event
-from mindgraph.analyzer import (adamic_adar, analyze, centrality, cocitation,
-                                communities, contradiction_sweep,
-                                crossover_score, crossovers, staleness_sweep,
-                                unlinked_mentions)
+from mindgraph.analyzer import (
+    adamic_adar,
+    analyze,
+    centrality,
+    cocitation,
+    communities,
+    contradiction_sweep,
+    crossover_score,
+    crossovers,
+    staleness_sweep,
+    unlinked_mentions,
+)
 from mindgraph.graph import to_networkx
 from mindgraph.projector import project
 

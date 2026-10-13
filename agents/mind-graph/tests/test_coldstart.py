@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import pytest
-
 from mindgraph.artifact import Session
-from mindgraph.coldstart import (NODE_CAP, ColdStart, decompose,
-                                 exposure_marks, is_vague, seed_project)
+from mindgraph.coldstart import (
+    NODE_CAP,
+    decompose,
+    exposure_marks,
+    is_vague,
+    seed_project,
+)
 from mindgraph.crypto import KeyStore
 from mindgraph.frontier import frontier, knowledge_state, outer_fringe
 from mindgraph.ledger import Ledger, canonical
@@ -209,6 +213,7 @@ def test_every_named_vertical_seeds(sk):
     """
     import tempfile
     from pathlib import Path
+
     from mindgraph.artifact import Session
     from mindgraph.coldstart import seed_project
 

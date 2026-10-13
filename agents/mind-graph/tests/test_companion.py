@@ -10,9 +10,8 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from mindgraph.artifact import Session, measure, predict, show
-from mindgraph.companion import bias, impact, recall_failures, transfer
+from mindgraph.companion import bias, impact, recall_failures
 
 
 @pytest.fixture

@@ -102,7 +102,7 @@ def seed(state: GraphState, query: str, labels: dict[str, str],
         q = embedder.embed(query)
         def cos(v):
             d = math.sqrt(sum(a * a for a in q)) * math.sqrt(sum(b * b for b in v))
-            return sum(a * b for a, b in zip(q, v)) / d if d else 0.0
+            return sum(a * b for a, b in zip(q, v, strict=False)) / d if d else 0.0
         knn = sorted(((nid, cos(v)) for nid, v in vectors.items()),
                      key=lambda t: (-t[1], t[0]))[:N_SEEDS // 2]
         out += [nid for nid, _ in knn]

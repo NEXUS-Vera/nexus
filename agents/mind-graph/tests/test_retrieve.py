@@ -2,13 +2,23 @@
 from __future__ import annotations
 
 import pytest
-
 from conftest import accept, edge, node
 from conftest import validate as val_event
 from mindgraph.projector import project
-from mindgraph.retrieve import (K_COLD, K_UI, cap, explain, known_set,
-                                lexical_seeds, maturity, path, query, seed,
-                                timeline, weights)
+from mindgraph.retrieve import (
+    K_COLD,
+    K_UI,
+    cap,
+    explain,
+    known_set,
+    lexical_seeds,
+    maturity,
+    path,
+    query,
+    seed,
+    timeline,
+    weights,
+)
 
 
 @pytest.fixture

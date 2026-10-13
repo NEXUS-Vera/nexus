@@ -8,16 +8,14 @@ from __future__ import annotations
 import json
 
 import pytest
-
-from conftest import accept, edge, node
+from conftest import accept, node
 from mindgraph.adapters import ROLE_PROMPT, TIER_MODELS, HTTPAgent, from_env
-from mindgraph.agents import DEFAULT_ROLES, Cap, Tier
+from mindgraph.agents import DEFAULT_ROLES
 from mindgraph.artifact import Session
 from mindgraph.cli import main
-from mindgraph.costlog import CostLog, default
+from mindgraph.costlog import CostLog
 from mindgraph.projector import state_hash
 from mindgraph.vectors import VectorStore
-
 
 # ── adapters ────────────────────────────────────────────────────────────────
 
@@ -97,7 +95,8 @@ def test_embeddings_reach_retrieval(tmp_path):
     s = Session.open("u1", tmp_path)
     accept(s.ledger, [node("a"), node("b")])
     labels = {"a": "skin impedance", "b": "electrode drift"}
-    vs = s.vectors(); vs.backfill(labels, FakeEmbedder())
+    vs = s.vectors()
+    vs.backfill(labels, FakeEmbedder())
     got = seed(s.state(), "impedance", labels, FakeEmbedder(), vs.all())
     assert got
     s.close()
@@ -132,7 +131,8 @@ def test_a_corrupt_snapshot_degrades_to_a_full_replay(tmp_path):
 def test_closing_checkpoints(tmp_path):
     s = Session.open("u1", tmp_path)
     accept(s.ledger, [node("C1")])
-    s.state(); s.close()
+    s.state()
+    s.close()
     assert (tmp_path / "u1" / "graph.snapshot").exists()
 
 
@@ -193,11 +193,14 @@ def test_one_users_rows_never_land_in_anothers_file(tmp_path):
     on user B after opening user A writes B's rows into A's file — a tenancy
     leak in the very table meant to prove we can measure ourselves."""
     a = Session.open("u1", tmp_path)
-    accept(a.ledger, [node("C1")]); a.state()
+    accept(a.ledger, [node("C1")])
+    a.state()
     b = Session.open("u2", tmp_path)
-    accept(b.ledger, [node("C2")]); b.state()
+    accept(b.ledger, [node("C2")])
+    b.state()
     assert len(b.costs.rows()) == 1        # not polluted by u1
-    a.close(); b.close()
+    a.close()
+    b.close()
 
 
 def test_the_cost_table_survives_the_process(tmp_path):
@@ -206,7 +209,8 @@ def test_the_cost_table_survives_the_process(tmp_path):
     instant it is written."""
     s = Session.open("u1", tmp_path)
     accept(s.ledger, [node("C1")])
-    s.state(); s.close()
+    s.state()
+    s.close()
     assert (tmp_path / "u1" / "costs.db").exists()
 
     from mindgraph.costlog import CostLog

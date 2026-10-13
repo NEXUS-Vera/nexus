@@ -2,10 +2,17 @@
 from __future__ import annotations
 
 import pytest
+from mindgraph.schema import (
+    CitationState,
+    Confidence,
+    Edge,
+    Hyperedge,
+    Node,
+    NodeType,
+    Origin,
+    Scope,
+)
 from pydantic import ValidationError
-
-from mindgraph.schema import (CitationState, Confidence, Edge, Hyperedge, Node,
-                              NodeType, Origin, Scope)
 
 
 def _edge(**kw):

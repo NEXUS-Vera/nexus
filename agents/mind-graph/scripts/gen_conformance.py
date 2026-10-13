@@ -25,11 +25,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from mindgraph.artifact import Session, measure, predict          # noqa: E402
-from mindgraph.coldstart import seed_project                       # noqa: E402
-from mindgraph.extract import FakeLLM, ingest_text                 # noqa: E402
-from mindgraph.portable import rank_portable, to_portable          # noqa: E402
-from mindgraph.proposals import ingest                             # noqa: E402
+from mindgraph.artifact import Session, measure, predict  # noqa: E402
+from mindgraph.coldstart import seed_project  # noqa: E402
+from mindgraph.extract import FakeLLM, ingest_text  # noqa: E402
+from mindgraph.portable import rank_portable, to_portable  # noqa: E402
+from mindgraph.proposals import ingest  # noqa: E402
 
 OUT = ROOT.parent / "Frontend_build" / "src" / "lib" / "__fixtures__" / "conformance.json"
 Q = "Can skin impedance track hydration to within 10 percent?"

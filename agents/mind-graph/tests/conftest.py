@@ -5,7 +5,6 @@ from __future__ import annotations
 import itertools
 
 import pytest
-
 from mindgraph.events import EventType
 from mindgraph.ledger import Ledger
 

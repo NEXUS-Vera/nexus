@@ -14,11 +14,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src"))
 
-from mindgraph.api import Api, serve                    # noqa: E402
+from mindgraph.api import Api, serve  # noqa: E402
 from mindgraph.artifact import Session, measure, predict  # noqa: E402
-from mindgraph.coldstart import seed_project            # noqa: E402
-from mindgraph.extract import FakeLLM, ingest_text      # noqa: E402
-from mindgraph.proposals import ingest                  # noqa: E402
+from mindgraph.coldstart import seed_project  # noqa: E402
+from mindgraph.extract import FakeLLM, ingest_text  # noqa: E402
+from mindgraph.proposals import ingest  # noqa: E402
 
 ROOT_DIR = ROOT / "demo_users"
 Q = "Can skin impedance track hydration to within 10 percent?"
@@ -89,9 +89,9 @@ def main() -> int:
               flush=True)
     token = api.tokens.mint("local", "human")
     (ROOT_DIR / "token.txt").write_text(token)
-    print(f"\n  Graph API on http://127.0.0.1:8787", flush=True)
+    print("\n  Graph API on http://127.0.0.1:8787", flush=True)
     print(f"  token: {token}", flush=True)
-    print(f"  also written to demo_users/token.txt\n", flush=True)
+    print("  also written to demo_users/token.txt\n", flush=True)
     print("  In the demo's Workbench, run in the console:")
     print(f"    WB_API.token = '{token}'; \n")
     serve(api, port=8787).serve_forever()

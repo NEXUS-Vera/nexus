@@ -23,10 +23,10 @@ CREATE TABLE IF NOT EXISTS ops (
 """
 
 
-_DEFAULT: "CostLog | None" = None
+_DEFAULT: CostLog | None = None
 
 
-def default() -> "CostLog":
+def default() -> CostLog:
     """Process-wide sink so instrumentation is opt-out, not opt-in.
 
     ⚠️ Nobody in this field has published real cost or curation data, and the
@@ -39,7 +39,7 @@ def default() -> "CostLog":
     return _DEFAULT
 
 
-def use(path) -> "CostLog":
+def use(path) -> CostLog:
     """Open a file-backed log.
 
     ⚠️ An in-memory log looks like it is working and records nothing that
@@ -54,7 +54,7 @@ def use(path) -> "CostLog":
     return CostLog(path)
 
 
-def for_session(s) -> "CostLog":
+def for_session(s) -> CostLog:
     """The session's own log, or the process default when there is no session."""
     return getattr(s, "costs", None) or default()
 

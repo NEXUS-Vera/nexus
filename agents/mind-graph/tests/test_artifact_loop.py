@@ -6,9 +6,7 @@ Gate: a real prediction → measurement leaves the graph at
 from __future__ import annotations
 
 import pytest
-
-from mindgraph.artifact import (ArtifactError, Session, calibration, measure,
-                                predict, show)
+from mindgraph.artifact import ArtifactError, Session, calibration, measure, predict, show
 from mindgraph.cli import _claim
 from mindgraph.crypto import KeyStore
 from mindgraph.errors import KeyDestroyed
@@ -120,7 +118,7 @@ def test_values_never_appear_in_structural(s):
 def test_agreement_survives_erasure(s):
     """⭐ Calibration data outlives an erasure request; the numbers do not."""
     aid, _ = _cycle(s)
-    before = state_hash(s.state())
+    state_hash(s.state())
     s.keys.destroy("u1")
     s.ledger.append("system", EventType.SHREDDED, {"user": "u1"})
     g = project(s.ledger.read())

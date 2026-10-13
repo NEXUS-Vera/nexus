@@ -46,8 +46,17 @@ from typing import Any
 import networkx as nx
 
 from .graph import GraphState
-from .retrieve import MAX_HOPS, _confidence, _learnable, _outcome, _salience, _stale
-from .retrieve import expand, known_set, weights
+from .retrieve import (
+    MAX_HOPS,
+    _confidence,
+    _learnable,
+    _outcome,
+    _salience,
+    _stale,
+    expand,
+    known_set,
+    weights,
+)
 
 # ⚠️ Mirrored in `src/lib/frontier.ts`. The distance coefficient is part of the
 # contract, not a tuning knob either side may change alone — the conformance

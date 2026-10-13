@@ -2,13 +2,18 @@
 from __future__ import annotations
 
 import pytest
-
 from conftest import accept, edge, node
 from conftest import validate as val_event
 from mindgraph.events import EventType
-from mindgraph.frontier import (dead_end_nodes, frontier, knowledge_state,
-                                open_questions, outer_fringe, resurrected,
-                                tensions)
+from mindgraph.frontier import (
+    dead_end_nodes,
+    frontier,
+    knowledge_state,
+    open_questions,
+    outer_fringe,
+    resurrected,
+    tensions,
+)
 from mindgraph.projector import project
 
 

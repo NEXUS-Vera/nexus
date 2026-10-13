@@ -7,7 +7,6 @@ downstream of it.
 from __future__ import annotations
 
 import pytest
-
 from conftest import accept, edge, node, validate
 from mindgraph.errors import UnknownEventType
 from mindgraph.events import Event, EventType

@@ -6,11 +6,19 @@ because that is the whole contract.
 from __future__ import annotations
 
 import pytest
-
 from conftest import accept, edge, node
-from mindgraph.agents import (DEFAULT_ROLES, NEVER_GRANTED, Cap, Role, Tier,
-                              Turn, gate, project_view, route_turn, run_turn,
-                              spans_for)
+from mindgraph.agents import (
+    DEFAULT_ROLES,
+    NEVER_GRANTED,
+    Cap,
+    Role,
+    Tier,
+    gate,
+    project_view,
+    route_turn,
+    run_turn,
+    spans_for,
+)
 from mindgraph.projector import project
 from mindgraph.schema import Confidence
 
@@ -123,7 +131,8 @@ def test_validate_and_retract_are_never_granted():
 
 def test_no_basis_is_rejected(g):
     """An agent that cannot name its basis has produced an unjustified claim."""
-    p = _p(); p.pop("basis")
+    p = _p()
+    p.pop("basis")
     assert "basis" in gate([p], DEFAULT_ROLES["grounder"]).rejected[0].reason
 
 

@@ -14,11 +14,16 @@ from .schema import SCHEMA_VERSION
 
 
 class EventType(StrEnum):
-    OBSERVED = "observed"; PROPOSED = "proposed"
-    ACCEPTED = "accepted"; REJECTED = "rejected"
+    OBSERVED = "observed"
+    PROPOSED = "proposed"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
     VALIDATED = "validated"      # the outcome path
-    RETRACTED = "retracted"; MERGED = "merged"; SPLIT = "split"
-    ANNOTATED = "annotated"; ACCESSED = "accessed"
+    RETRACTED = "retracted"
+    MERGED = "merged"
+    SPLIT = "split"
+    ANNOTATED = "annotated"
+    ACCESSED = "accessed"
     DEAD_END = "dead_end"        # this approach failed
     CORRECTION = "correction"    # user fixed something; a learning signal
     SHREDDED = "shredded"

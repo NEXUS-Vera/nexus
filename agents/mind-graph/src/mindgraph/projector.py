@@ -24,9 +24,20 @@ from dataclasses import dataclass, field
 from .errors import UnknownEventType
 from .events import Event, EventType
 from .ledger import canonical
-from .schema import (EXTERNAL_TYPES, MIN_CORROBORATION, OPPOSING, SUPPORTING,
-                     Edge, Hyperedge, Node, NodeType, Rank, Relation, Strength,
-                     Support)
+from .schema import (
+    EXTERNAL_TYPES,
+    MIN_CORROBORATION,
+    OPPOSING,
+    SUPPORTING,
+    Edge,
+    Hyperedge,
+    Node,
+    NodeType,
+    Rank,
+    Relation,
+    Strength,
+    Support,
+)
 from .upcast import upcast
 
 
