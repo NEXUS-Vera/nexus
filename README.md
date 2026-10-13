@@ -53,6 +53,10 @@ cd nexus
 make setup
 ```
 
+Setup creates or reuses `.venv` and installs the Python development dependencies
+and pnpm workspace dependencies. Make targets use `.venv` automatically; no shell
+activation or manual pip install is needed. Run `make test-unit` after setup.
+
 ## Local development
 
 ```bash
