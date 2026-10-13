@@ -6,12 +6,16 @@ import secrets
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api.config import settings
 from nexus_api.main import app
 
 GREENHOUSE = (
     "I want to build a greenhouse monitoring node that measures temperature, "
     "humidity, soil moisture, and light, and reports the readings remotely."
 )
+
+
+AUTH_HEADERS = {"Authorization": f"Bearer {settings.session_token}"}
 
 
 def _cmd_id() -> str:
@@ -30,7 +34,9 @@ def _actor() -> dict:
 @pytest.mark.asyncio
 async def test_phase11_kernel_api_flow() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
         types = await client.get("/v1/artifact-types")
         assert types.status_code == 200
         names = {t["artifactType"] for t in types.json()["artifactTypes"]}
@@ -48,18 +54,14 @@ async def test_phase11_kernel_api_flow() -> None:
         )
         assert created.status_code == 200, created.text
         project_id = created.json()["project"]["projectId"]
-        req = next(
-            a for a in created.json()["artifacts"] if a["artifactType"] == "requirement-set"
-        )
+        req = next(a for a in created.json()["artifacts"] if a["artifactType"] == "requirement-set")
 
         board = await client.get(f"/v1/projects/{project_id}/board")
         assert board.status_code == 200
         summaries = {s["artifactType"] for s in board.json()["artifactSummaries"]}
         assert "component-plan" in summaries
 
-        missing = await client.get(
-            f"/v1/projects/{project_id}/artifacts/requirement-set/workspace"
-        )
+        missing = await client.get(f"/v1/projects/{project_id}/artifacts/requirement-set/workspace")
         assert missing.status_code == 404
 
         ws = await client.post(
