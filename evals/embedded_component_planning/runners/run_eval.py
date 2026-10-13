@@ -36,7 +36,9 @@ def _score_component_plan(case: EvalCase, content: dict[str, Any]) -> dict[str, 
     sensor_ok = (not case.require_sensor_role) or any(
         r.get("category") == "sensor" for r in roles if isinstance(r, dict)
     )
-    maturity_ok = case.expected_maturity is None or content.get("maturity") == case.expected_maturity
+    maturity_ok = (
+        case.expected_maturity is None or content.get("maturity") == case.expected_maturity
+    )
     tested_forbidden = not any(
         isinstance(c, dict) and c.get("evidenceStatus") == "tested" for c in candidates
     )
@@ -72,7 +74,9 @@ async def run_case(case: EvalCase) -> dict[str, Any]:
     provider = FixtureInitializationProvider()
     try:
         result = await provider.initialize(
-            case.prompt, "collaborate", InitializationRequestContext(request_id=f"cp_eval_{case.id}")
+            case.prompt,
+            "collaborate",
+            InitializationRequestContext(request_id=f"cp_eval_{case.id}"),
         )
     except FixtureRoutingError as exc:
         match = case.expected_outcome == "unsupported" and (
@@ -107,7 +111,11 @@ async def run_case(case: EvalCase) -> dict[str, Any]:
             None,
         )
         reqs = next(
-            (a for a in result.get("artifacts") or [] if a.get("artifactType") == "requirement-set"),
+            (
+                a
+                for a in result.get("artifacts") or []
+                if a.get("artifactType") == "requirement-set"
+            ),
             None,
         )
         if arch is None or reqs is None:
