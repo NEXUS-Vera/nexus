@@ -11,6 +11,9 @@ from typing import Any, cast
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from nexus_board import build_project_kernel
+from nexus_board.errors import BoardError
+from nexus_board.ids import new_id
 from nexus_embedded_systems.workflows.project_initialization import (
     InitializationProviderError,
     InitializationRoutingError,
@@ -33,9 +36,6 @@ from nexus_persistence import (
     ProjectRetrievalError,
     build_stores,
 )
-from nexus_board import build_project_kernel
-from nexus_board.errors import BoardError
-from nexus_board.ids import new_id
 from project_initialization_result_v1 import ProjectInitializationResultV1
 
 from .config import settings
