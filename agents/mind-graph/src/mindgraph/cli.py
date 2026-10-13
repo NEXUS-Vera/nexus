@@ -32,7 +32,7 @@ from .frontier import frontier, tensions
 from .graph import stats
 from .ids import uuid7
 from .proposals import decide, ingest, pending_review
-from .retrieve import explain, query
+from .retrieve import explain, path, query
 
 BAR = "─" * 58
 
@@ -212,8 +212,8 @@ def main(argv: list[str] | None = None) -> int:
                     "⚠️  no --endpoint: text falls back to the stub extractor."
                     "\n    Code and CSV are parsed for real (0 tokens).\n"
                 )
-            for path in a.paths:
-                pth = Path(path)
+            for file_path in a.paths:
+                pth = Path(file_path)
                 rep = ingest(s, ingest_text(pth.name, pth.read_text(), llm))
                 d = rep.as_dict()
                 mark = "· duplicate, skipped" if rep.duplicate else ""
