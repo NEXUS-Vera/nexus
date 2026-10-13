@@ -397,6 +397,7 @@ export function ContextInspector({
           padding: '8px 10px',
           borderBottom: `1px solid ${t.border}`,
           gap: 8,
+          flexShrink: 0,
         }}
       >
         <div

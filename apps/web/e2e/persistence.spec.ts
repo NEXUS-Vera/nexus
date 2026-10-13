@@ -29,13 +29,27 @@ test.describe('service-restart notice layout', () => {
     await expect(page).toHaveURL(/\/projects\/proj_/, { timeout: 60_000 });
     await expect(page.getByRole('status')).toBeVisible();
 
+    // Vera lives in the inspector sidecar; open the conversation as a user would.
+    await page.getByRole('tab', { name: 'Vera', exact: true }).click();
+
     // The notice apologises for losing what the student had typed, so the box
     // they would retype it into has to still be on screen. A notice rendered as
     // a sibling of a `100vh` workspace makes the document taller than the
     // viewport and pushes the composer below the fold, where the workspace's
     // own `overflow: hidden` puts it out of reach.
     const composer = page.getByLabel(/Continue the conversation/i);
-    await expect(composer).toBeInViewport();
+    await expect(composer).toBeInViewport({ ratio: 1 });
+    const send = page.getByRole('button', { name: /Send to Vera/i });
+    await expect(send).toBeInViewport({ ratio: 1 });
+
+    // A short workspace and a scrolled conversation must keep the input usable.
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.getByTestId('vera-thread').evaluate((thread) => {
+      thread.style.minHeight = '2000px';
+      thread.parentElement!.scrollTop = 2000;
+    });
+    await expect(composer).toBeInViewport({ ratio: 1 });
+    await expect(send).toBeInViewport({ ratio: 1 });
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollHeight - window.innerHeight,
