@@ -123,15 +123,35 @@ describe('SidecarSupervisor.start', () => {
       args: [executable],
       sessionToken: 'test-session-token',
       databaseFile: '/tmp/nexus-test.sqlite3',
-      handshakeTimeoutMs: 150,
+      // vi.waitFor advances fake timers while polling for fixture readiness.
+      // Keep that bounded wait well below the controlled handshake deadline.
+      handshakeTimeoutMs: 30_000,
       terminationGraceMs: 200,
     });
 
-    await expect(supervisor.start()).rejects.toBeInstanceOf(SidecarStartError);
+    // A real 150 ms deadline can kill a slow-starting Node child before it
+    // writes sidecar.pid. Control the deadline, then prove the fixture is alive
+    // before timing out its handshake and checking that it was reaped.
+    vi.useFakeTimers();
+    try {
+      const rejected = expect(supervisor.start()).rejects.toMatchObject({
+        name: 'SidecarStartError',
+        reason: 'handshake-timeout',
+      });
+      let pid = 0;
+      await vi.waitFor(async () => {
+        pid = Number.parseInt(await readFile(pidPath, 'utf8'), 10);
+        expect(isRunning(pid)).toBe(true);
+      }, 5_000);
 
-    const pid = Number.parseInt(await readFile(pidPath, 'utf8'), 10);
-    expect(isRunning(pid)).toBe(false);
-  }, 3_000);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await rejected;
+      expect(isRunning(pid)).toBe(false);
+    } finally {
+      vi.useRealTimers();
+      await supervisor.stop();
+    }
+  }, 10_000);
 });
 
 describe('SidecarSupervisor restart policy', () => {
