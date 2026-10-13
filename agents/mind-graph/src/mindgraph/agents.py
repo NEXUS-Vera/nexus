@@ -16,6 +16,7 @@ conversation and the document text is still in context: the gate checks the
 declared capabilities, the context contains material those capabilities
 exclude, and the guarantee silently becomes a lie while every test still passes.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -28,14 +29,14 @@ from .schema import Confidence, Rank
 
 class Cap(StrEnum):
     READ_STRUCTURE = "READ_STRUCTURE"
-    READ_CONTENT = "READ_CONTENT"          # ⚠️ the user's private text
+    READ_CONTENT = "READ_CONTENT"  # ⚠️ the user's private text
     READ_FRONTIER = "READ_FRONTIER"
     READ_TIMELINE = "READ_TIMELINE"
-    VERIFY_SPAN = "VERIFY_SPAN"            # read ONE already-cited span
+    VERIFY_SPAN = "VERIFY_SPAN"  # read ONE already-cited span
     SEARCH_EXTERNAL = "SEARCH_EXTERNAL"
     PROPOSE = "PROPOSE"
-    VALIDATE = "VALIDATE"                  # ⚠️⚠️ never granted to an agent
-    RETRACT = "RETRACT"                    # ⚠️⚠️ never granted to an agent
+    VALIDATE = "VALIDATE"  # ⚠️⚠️ never granted to an agent
+    RETRACT = "RETRACT"  # ⚠️⚠️ never granted to an agent
 
 
 NEVER_GRANTED = {Cap.VALIDATE, Cap.RETRACT}
@@ -50,8 +51,11 @@ TIER_REQUIRES = {
 }
 
 CITATION_CEILING = {
-    "present_relevant": 1.0, "present_weak": 0.75, "missing": 0.65,
-    "anchor_unavailable": 0.75, "wrong_source": 0.3,
+    "present_relevant": 1.0,
+    "present_weak": 0.75,
+    "missing": 0.65,
+    "anchor_unavailable": 0.75,
+    "wrong_source": 0.3,
 }
 
 
@@ -61,11 +65,12 @@ class Tier(StrEnum):
     If a wrong answer is caught by code, use the cheapest model that passes the
     validator. If it is caught only by a human — or by nobody — use the best.
     """
-    T0 = "none"          # deterministic. free, zero latency
-    T1A = "oss"          # bulk extraction + embeddings; schema-validated
-    T1B = "haiku"        # small, user-visible, needs instruction-following
-    T2 = "sonnet"        # partially checkable
-    T3 = "opus"          # not mechanically checkable
+
+    T0 = "none"  # deterministic. free, zero latency
+    T1A = "oss"  # bulk extraction + embeddings; schema-validated
+    T1B = "haiku"  # small, user-visible, needs instruction-following
+    T2 = "sonnet"  # partially checkable
+    T3 = "opus"  # not mechanically checkable
 
 
 @dataclass(frozen=True)
@@ -80,23 +85,32 @@ class Role:
 # is not. Merging Grounder and Synthesiser would cost ~70% MORE, because
 # project_view keeps document bodies off the expensive model.
 DEFAULT_ROLES = {
-    "planner": Role("planner", frozenset({Cap.READ_STRUCTURE, Cap.READ_FRONTIER}),
-                    Tier.T3, can_propose=False),
-    "grounder": Role("grounder", frozenset({Cap.READ_STRUCTURE, Cap.READ_CONTENT,
-                                            Cap.SEARCH_EXTERNAL, Cap.PROPOSE}),
-                     Tier.T2),
-    "synthesiser": Role("synthesiser",
-                        frozenset({Cap.READ_STRUCTURE, Cap.PROPOSE}), Tier.T3),
-    "critic": Role("critic", frozenset({Cap.READ_STRUCTURE, Cap.READ_TIMELINE,
-                                        Cap.VERIFY_SPAN, Cap.PROPOSE}),
-                   Tier.T2),
+    "planner": Role(
+        "planner", frozenset({Cap.READ_STRUCTURE, Cap.READ_FRONTIER}), Tier.T3, can_propose=False
+    ),
+    "grounder": Role(
+        "grounder",
+        frozenset({Cap.READ_STRUCTURE, Cap.READ_CONTENT, Cap.SEARCH_EXTERNAL, Cap.PROPOSE}),
+        Tier.T2,
+    ),
+    "synthesiser": Role("synthesiser", frozenset({Cap.READ_STRUCTURE, Cap.PROPOSE}), Tier.T3),
+    "critic": Role(
+        "critic",
+        frozenset({Cap.READ_STRUCTURE, Cap.READ_TIMELINE, Cap.VERIFY_SPAN, Cap.PROPOSE}),
+        Tier.T2,
+    ),
 }
 
 
 # ── project_view: the capability filter that is also a cost filter ──────────
 
-def project_view(state: GraphState, caps: frozenset[Cap], node_ids: list[str],
-                 labels: dict[str, str] | None = None) -> dict:
+
+def project_view(
+    state: GraphState,
+    caps: frozenset[Cap],
+    node_ids: list[str],
+    labels: dict[str, str] | None = None,
+) -> dict:
     """⭐ One function, and it carries most of the security model.
 
     It is also most of the COST model: stripping bodies for a structure-only
@@ -110,10 +124,16 @@ def project_view(state: GraphState, caps: frozenset[Cap], node_ids: list[str],
     for nid in sorted(set(node_ids)):
         if (n := state.nodes.get(nid)) is None:
             continue
-        d = {"id": nid, "type": n.type.value, "kind": n.kind,
-             "support": n.support.value, "strength": n.strength.value,
-             "corroboration": n.corroboration, "single_method": n.single_method}
-        if Cap.READ_CONTENT in caps:          # ⚠️ privileged
+        d = {
+            "id": nid,
+            "type": n.type.value,
+            "kind": n.kind,
+            "support": n.support.value,
+            "strength": n.strength.value,
+            "corroboration": n.corroboration,
+            "single_method": n.single_method,
+        }
+        if Cap.READ_CONTENT in caps:  # ⚠️ privileged
             d["label"] = labels.get(nid)
             d["body_ref"] = n.body_ref
         nodes.append(d)
@@ -121,9 +141,15 @@ def project_view(state: GraphState, caps: frozenset[Cap], node_ids: list[str],
     for eid in sorted(state.edges):
         e = state.edges[eid]
         if e.src in keep and e.dst in keep and e.rank is not Rank.DEPRECATED:
-            ed = {"id": eid, "src": e.src, "dst": e.dst,
-                  "relation": e.relation.value, "confidence": e.confidence.value,
-                  "score": e.score, "weight": e.weight}
+            ed = {
+                "id": eid,
+                "src": e.src,
+                "dst": e.dst,
+                "relation": e.relation.value,
+                "confidence": e.confidence.value,
+                "score": e.score,
+                "weight": e.weight,
+            }
             if Cap.READ_CONTENT in caps:
                 ed["span"] = e.provenance.get("span")
             edges.append(ed)
@@ -133,11 +159,15 @@ def project_view(state: GraphState, caps: frozenset[Cap], node_ids: list[str],
 def spans_for(state: GraphState, edge_ids: list[str]) -> dict[str, str]:
     """VERIFY_SPAN: exactly the spans another call already cited THIS TURN.
     Cannot browse, cannot search."""
-    return {eid: state.edges[eid].provenance.get("span")
-            for eid in sorted(set(edge_ids)) if eid in state.edges}
+    return {
+        eid: state.edges[eid].provenance.get("span")
+        for eid in sorted(set(edge_ids))
+        if eid in state.edges
+    }
 
 
 # ── the gate ────────────────────────────────────────────────────────────────
+
 
 @dataclass
 class Rejection:
@@ -152,8 +182,13 @@ class GateResult:
     downgrades: list[str] = field(default_factory=list)
 
 
-def gate(proposals: list[dict], role: Role, *, basis_required: bool = True,
-         prior: dict[str, str] | None = None) -> GateResult:
+def gate(
+    proposals: list[dict],
+    role: Role,
+    *,
+    basis_required: bool = True,
+    prior: dict[str, str] | None = None,
+) -> GateResult:
     """Every rule here is enforced server-side. No client-supplied capabilities.
 
     ⭐ The Critic's citation_state changes are DOWNGRADE-ONLY. A Critic that
@@ -173,8 +208,9 @@ def gate(proposals: list[dict], role: Role, *, basis_required: bool = True,
 
         need = TIER_REQUIRES[tier]
         if not need <= role.caps:
-            out.rejected.append(Rejection(
-                p, f"{role.name} lacks {sorted(need - role.caps)} for {tier.value}"))
+            out.rejected.append(
+                Rejection(p, f"{role.name} lacks {sorted(need - role.caps)} for {tier.value}")
+            )
             continue
         if tier is Confidence.EXTRACTED and not p.get("span"):
             out.rejected.append(Rejection(p, "EXTRACTED requires a span"))
@@ -187,24 +223,26 @@ def gate(proposals: list[dict], role: Role, *, basis_required: bool = True,
                 out.rejected.append(Rejection(p, f"unknown citation_state {cs}"))
                 continue
             if p.get("score", 0) > ceiling:
-                out.downgrades.append(
-                    f"{p.get('id')}: {p['score']} -> {ceiling} ({cs})")
+                out.downgrades.append(f"{p.get('id')}: {p['score']} -> {ceiling} ({cs})")
                 p = {**p, "score": ceiling}
                 if ceiling <= 0.3:
                     p["confidence"] = Confidence.AMBIGUOUS.value
 
             # Downgrade-only: the Critic may say "this passage supports that
             # claim less than claimed", never more.
-            if (was := prior.get(p.get("id"))) and Cap.VERIFY_SPAN in role.caps \
-                    and Cap.READ_CONTENT not in role.caps:
-                if CITATION_CEILING.get(cs, 1.0) > CITATION_CEILING.get(was, 1.0):
-                    out.rejected.append(Rejection(
-                        p, "VERIFY_SPAN may downgrade a citation, never raise it"))
-                    continue
+            if (
+                (was := prior.get(p.get("id")))
+                and Cap.VERIFY_SPAN in role.caps
+                and Cap.READ_CONTENT not in role.caps
+                and CITATION_CEILING.get(cs, 1.0) > CITATION_CEILING.get(was, 1.0)
+            ):
+                out.rejected.append(
+                    Rejection(p, "VERIFY_SPAN may downgrade a citation, never raise it")
+                )
+                continue
 
         if basis_required and not p.get("basis"):
-            out.rejected.append(Rejection(
-                p, "no basis — an unjustified claim is rejected"))
+            out.rejected.append(Rejection(p, "no basis — an unjustified claim is rejected"))
             continue
         out.accepted.append(p)
     return out
@@ -212,12 +250,21 @@ def gate(proposals: list[dict], role: Role, *, basis_required: bool = True,
 
 # ── the turn ────────────────────────────────────────────────────────────────
 
+
 class Agent(Protocol):
     def run(self, role: Role, payload: dict, question: str) -> dict: ...
 
 
-HARD_MARKERS = ("why", "keep failing", "everything", "whole", "compare",
-                "across", "explain how", "root cause")
+HARD_MARKERS = (
+    "why",
+    "keep failing",
+    "everything",
+    "whole",
+    "compare",
+    "across",
+    "explain how",
+    "root cause",
+)
 
 
 @dataclass
@@ -255,11 +302,17 @@ def route_turn(question: str, state: GraphState) -> tuple[frozenset[Cap], bool]:
     return frozenset(caps), hard
 
 
-def run_turn(state: GraphState, question: str, node_ids: list[str],
-             agent: Agent, *, labels: dict[str, str] | None = None,
-             roles: dict[str, Role] | None = None,
-             budget_usd: float | None = None,
-             on_token=None) -> Turn:
+def run_turn(
+    state: GraphState,
+    question: str,
+    node_ids: list[str],
+    agent: Agent,
+    *,
+    labels: dict[str, str] | None = None,
+    roles: dict[str, Role] | None = None,
+    budget_usd: float | None = None,
+    on_token=None,
+) -> Turn:
     """The turn protocol, with display decoupled from acceptance.
 
     ⭐ Run strictly in sequence this is three model round-trips before the
@@ -270,7 +323,7 @@ def run_turn(state: GraphState, question: str, node_ids: list[str],
     """
     roles = roles or DEFAULT_ROLES
     t = Turn(question=question)
-    caps, hard = route_turn(question, state)      # step 0 — free
+    caps, hard = route_turn(question, state)  # step 0 — free
     t.escalated = hard
 
     def call(role: Role, payload: dict) -> dict:
@@ -278,20 +331,22 @@ def run_turn(state: GraphState, question: str, node_ids: list[str],
         # previous call is threaded in.
         out = agent.run(role, payload, question)
         t.role_calls.append(role.name)
-        t.cost_rows.append({
-            "role": role.name, "model_tier": role.tier.value,
-            "caps": sorted(c.value for c in role.caps),
-            "tokens_in": out.get("tokens_in", 0),
-            "tokens_out": out.get("tokens_out", 0),
-            "escalated": hard, "degraded": t.degraded,
-        })
+        t.cost_rows.append(
+            {
+                "role": role.name,
+                "model_tier": role.tier.value,
+                "caps": sorted(c.value for c in role.caps),
+                "tokens_in": out.get("tokens_in", 0),
+                "tokens_out": out.get("tokens_out", 0),
+                "escalated": hard,
+                "degraded": t.degraded,
+            }
+        )
         return out
 
     def spent() -> float:
-        rate = {Tier.T0: 0, Tier.T1A: 0.0001, Tier.T1B: 0.0005,
-                Tier.T2: 0.003, Tier.T3: 0.015}
-        return sum(r["tokens_in"] / 1000 * rate[Tier(r["model_tier"])]
-                   for r in t.cost_rows)
+        rate = {Tier.T0: 0, Tier.T1A: 0.0001, Tier.T1B: 0.0005, Tier.T2: 0.003, Tier.T3: 0.015}
+        return sum(r["tokens_in"] / 1000 * rate[Tier(r["model_tier"])] for r in t.cost_rows)
 
     plan = None
     if hard:
@@ -302,8 +357,10 @@ def run_turn(state: GraphState, question: str, node_ids: list[str],
         if budget_usd is not None and spent() >= budget_usd:
             t.degraded = True
         else:
-            plan = call(roles["planner"], project_view(
-                state, roles["planner"].caps & caps, node_ids, labels))
+            plan = call(
+                roles["planner"],
+                project_view(state, roles["planner"].caps & caps, node_ids, labels),
+            )
 
     # Grounder: the only role that sees document bodies.
     gr = roles["grounder"]
@@ -322,7 +379,7 @@ def run_turn(state: GraphState, question: str, node_ids: list[str],
         t.rejected += sres.rejected
         t.answer = sout.get("answer", t.answer)
 
-    if on_token:                                   # display, before acceptance
+    if on_token:  # display, before acceptance
         on_token(t.answer)
 
     # Critic: non-suppressible on any turn producing a conclusion, and run
@@ -330,11 +387,9 @@ def run_turn(state: GraphState, question: str, node_ids: list[str],
     if t.proposals:
         cr = roles["critic"]
         payload = project_view(state, cr.caps & caps, node_ids)
-        payload["spans"] = spans_for(state, [p["id"] for p in t.proposals
-                                             if "id" in p])
+        payload["spans"] = spans_for(state, [p["id"] for p in t.proposals if "id" in p])
         cout = call(cr, payload)
-        prior = {p["id"]: p.get("citation_state") for p in t.proposals
-                 if "id" in p}
+        prior = {p["id"]: p.get("citation_state") for p in t.proposals if "id" in p}
         cres = gate(cout.get("proposals", []), cr, prior=prior)
         t.critique = cres.accepted
         t.rejected += cres.rejected

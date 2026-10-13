@@ -10,6 +10,7 @@ Rules:
   * a golden ledger per schema version is frozen in tests/golden/, and CI
     asserts each still projects to its recorded state_hash
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -26,13 +27,13 @@ def register(from_version: int):
             raise RuntimeError(f"upcaster for v{from_version} already registered")
         UPCASTERS[from_version] = fn
         return fn
+
     return deco
 
 
 def upcast(payload: dict, version: int) -> dict:
     if version > SCHEMA_VERSION:
-        raise ValueError(
-            f"event schema v{version} is newer than this code (v{SCHEMA_VERSION})")
+        raise ValueError(f"event schema v{version} is newer than this code (v{SCHEMA_VERSION})")
     while version < SCHEMA_VERSION:
         fn = UPCASTERS.get(version)
         if fn is None:

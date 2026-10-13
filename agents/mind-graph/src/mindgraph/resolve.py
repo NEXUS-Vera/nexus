@@ -13,6 +13,7 @@ I2C, I²C, IIC, TWI, Inter-Integrated Circuit.
 a wrong `same_as` edge is one deletion. When unsure, prefer the mistake that is
 cheap to reverse.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -41,13 +42,12 @@ def normalise(text: str) -> str:
 
 def trigrams(text: str) -> set[str]:
     t = f"  {normalise(text)}  "
-    return {t[i:i + 3] for i in range(len(t) - 2)} or {t}
+    return {t[i : i + 3] for i in range(len(t) - 2)} or {t}
 
 
 def minhash(text: str) -> tuple[int, ...]:
     grams = trigrams(text)
-    base = [int(hashlib.blake2b(g.encode(), digest_size=4).hexdigest(), 16)
-            for g in sorted(grams)]
+    base = [int(hashlib.blake2b(g.encode(), digest_size=4).hexdigest(), 16) for g in sorted(grams)]
     return tuple(min(((a * h + b) & _MASK) for h in base) for a, b in _PERM)
 
 
@@ -79,12 +79,12 @@ def block(labels: dict[str, str], bands: int = 16) -> list[tuple[str, str]]:
     sigs = {k: minhash(v) for k, v in labels.items()}
     for key, sig in sigs.items():
         for b in range(bands):
-            buckets[(b, sig[b * rows:(b + 1) * rows])].add(key)
+            buckets[(b, sig[b * rows : (b + 1) * rows])].add(key)
     pairs: set[tuple[str, str]] = set()
     for members in buckets.values():
         if len(members) > 1:
             ms = sorted(members)
-            pairs.update((a, b) for i, a in enumerate(ms) for b in ms[i + 1:])
+            pairs.update((a, b) for i, a in enumerate(ms) for b in ms[i + 1 :])
     return sorted(pairs)
 
 
@@ -96,14 +96,14 @@ def band_for(score: float) -> str:
     return "distinct"
 
 
-def resolve_candidates(labels: dict[str, str],
-                       aliases: dict[str, list[str]] | None = None) -> list[dict]:
+def resolve_candidates(
+    labels: dict[str, str], aliases: dict[str, list[str]] | None = None
+) -> list[dict]:
     """Score every blocked pair and assign it a band."""
     aliases = aliases or {}
     out = []
     for a, b in block(labels):
-        s = similarity(labels[a], labels[b],
-                       aliases.get(a, ()), aliases.get(b, ()))
+        s = similarity(labels[a], labels[b], aliases.get(a, ()), aliases.get(b, ()))
         band = band_for(s)
         if band != "distinct":
             out.append({"a": a, "b": b, "score": s, "band": band})

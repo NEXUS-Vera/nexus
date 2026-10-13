@@ -1,11 +1,16 @@
 """Phase 6 — cold start. Backend/07 §1."""
+
 from __future__ import annotations
 
 import pytest
-
 from mindgraph.artifact import Session
-from mindgraph.coldstart import (NODE_CAP, ColdStart, decompose,
-                                 exposure_marks, is_vague, seed_project)
+from mindgraph.coldstart import (
+    NODE_CAP,
+    decompose,
+    exposure_marks,
+    is_vague,
+    seed_project,
+)
 from mindgraph.crypto import KeyStore
 from mindgraph.frontier import frontier, knowledge_state, outer_fringe
 from mindgraph.ledger import Ledger, canonical
@@ -17,8 +22,7 @@ Q = "Can skin impedance track hydration to within 10 percent?"
 
 @pytest.fixture
 def s(tmp_path):
-    sess = Session(user="u1", ledger=Ledger(tmp_path / "l.db"),
-                   keys=KeyStore(tmp_path / "k.json"))
+    sess = Session(user="u1", ledger=Ledger(tmp_path / "l.db"), keys=KeyStore(tmp_path / "k.json"))
     sess.keys.create("u1")
     yield sess
     sess.close()
@@ -31,18 +35,18 @@ def sk():
 
 # ── the skeleton ────────────────────────────────────────────────────────────
 
+
 def test_the_skeleton_loads(sk):
     # 213 (v0, embedded) + robotics and life-sciences packs (v0.2)
     assert len(sk) == 278
-    assert sk.concepts["impedance"].requires == ("capacitance", "inductance",
-                                                 "complex_numbers")
+    assert sk.concepts["impedance"].requires == ("capacitance", "inductance", "complex_numbers")
 
 
 def test_closure_pulls_prerequisites_two_levels_up(sk):
     """⭐ This is what makes the frontier computable at t=0."""
     out = sk.closure({"impedance"}, levels=2)
     assert {"capacitance", "inductance", "complex_numbers"} <= out
-    assert "charge_current_voltage" in out          # second level
+    assert "charge_current_voltage" in out  # second level
     assert "algebra_manipulation" in out
 
 
@@ -56,6 +60,7 @@ def test_parse_survives_a_malformed_row():
 
 
 # ── the guard ───────────────────────────────────────────────────────────────
+
 
 def test_a_vague_question_is_flagged():
     """⚠️ "Build a robot" produces a generic decomposition and a useless graph.
@@ -71,6 +76,7 @@ def test_decomposition_never_returns_nothing():
 
 
 # ── the resulting graph ─────────────────────────────────────────────────────
+
 
 def test_the_graph_is_never_empty(s):
     cs = seed_project(s, Q)
@@ -131,6 +137,7 @@ def test_no_skeleton_match_degrades_instead_of_failing(s):
 
 # ── the transcript is a prior, not a state ─────────────────────────────────
 
+
 def test_exposure_never_becomes_knowledge(s):
     """⚠️ A passed course is evidence of EXPOSURE, not knowledge. Structurally
     prevented: it writes an annotation, never a `supports` edge."""
@@ -145,6 +152,7 @@ def test_exposure_never_becomes_knowledge(s):
 
 # ── hygiene ─────────────────────────────────────────────────────────────────
 
+
 def test_question_text_never_reaches_the_plaintext_half(s):
     seed_project(s, Q)
     for e in s.ledger.read():
@@ -153,9 +161,9 @@ def test_question_text_never_reaches_the_plaintext_half(s):
 
 def test_cold_start_replays_deterministically(s):
     from mindgraph.projector import project, state_hash
+
     seed_project(s, Q)
-    assert state_hash(project(s.ledger.read())) == \
-           state_hash(project(s.ledger.read()))
+    assert state_hash(project(s.ledger.read())) == state_hash(project(s.ledger.read()))
     assert s.ledger.verify_chain()
 
 
@@ -170,8 +178,9 @@ def test_no_concept_enters_with_dangling_prerequisites(s, sk):
     """
     seed_project(s, Q)
     g = s.state()
-    present = {n.external_ids["skeleton"] for n in g.nodes.values()
-               if n.external_ids.get("skeleton")}
+    present = {
+        n.external_ids["skeleton"] for n in g.nodes.values() if n.external_ids.get("skeleton")
+    }
     for cid in present:
         missing = [p for p in sk.concepts[cid].requires if p not in present]
         assert not missing, f"{cid} seeded without prerequisites {missing}"
@@ -197,6 +206,7 @@ def test_matched_reports_what_was_seeded_not_what_was_hit(s, sk):
 
 # ── v0.2: does the frontier reach the other two verticals? ──────────────────
 
+
 def test_every_named_vertical_seeds(sk):
     """⚠️ Measured before the packs existed: "I want to build a robot arm"
     matched ZERO concepts. A cold start that matches nothing recommends
@@ -209,14 +219,17 @@ def test_every_named_vertical_seeds(sk):
     """
     import tempfile
     from pathlib import Path
+
     from mindgraph.artifact import Session
     from mindgraph.coldstart import seed_project
 
-    for q in ("I want to build a robot arm that picks up objects within 5 mm",
-              "Can a ROS lidar robot avoid obstacles at 1 m/s?",
-              "Does my ELISA detect the antigen below 10 ng/mL?",
-              "Can I detect protein binding with a quartz crystal microbalance?",
-              "Can skin impedance track hydration to within 10 percent?"):
+    for q in (
+        "I want to build a robot arm that picks up objects within 5 mm",
+        "Can a ROS lidar robot avoid obstacles at 1 m/s?",
+        "Does my ELISA detect the antigen below 10 ng/mL?",
+        "Can I detect protein binding with a quartz crystal microbalance?",
+        "Can skin impedance track hydration to within 10 percent?",
+    ):
         with tempfile.TemporaryDirectory() as tmp:
             s = Session.open("v", Path(tmp))
             cs = seed_project(s, q)
@@ -244,6 +257,7 @@ def test_prerequisites_all_resolve_and_stay_acyclic(sk):
     """⚠️ A dangling `requires` silently drops a node from the closure, so the
     frontier recommends a concept whose prerequisite it never showed you."""
     import networkx as nx
+
     g = nx.DiGraph()
     for c in sk.concepts.values():
         g.add_node(c.id)

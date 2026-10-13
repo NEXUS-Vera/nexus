@@ -12,6 +12,7 @@ The model-backed lane goes through `LLMClient`, which is a protocol. Phase 1
 ships with a deterministic fake so the whole pipeline is testable with no
 account, no key and no network.
 """
+
 from __future__ import annotations
 
 import ast
@@ -46,8 +47,7 @@ def route(path: str | Path) -> str:
         return "document"
     if ext in IMG_EXT:
         return "image"
-    if ext in LOG_EXT and Path(path).stem.lower().endswith(
-            ("log", "serial", "capture", "trace")):
+    if ext in LOG_EXT and Path(path).stem.lower().endswith(("log", "serial", "capture", "trace")):
         return "log"
     if ext in TEXT_EXT:
         return "text"
@@ -61,13 +61,13 @@ def slug(text: str, prefix: str = "") -> str:
 
 # ── deterministic lane — 0 tokens ───────────────────────────────────────────
 
+
 def extract_python(source: str, filename: str) -> dict:
     """AST, not a model. Every edge here is EXTRACTED 1.0 and cannot be wrong
     about whether a function exists."""
     nodes, edges = [], []
     fkey = slug(Path(filename).stem, "file:")
-    nodes.append({"key": fkey, "type": "Artifact", "kind": "code",
-                  "label": Path(filename).name})
+    nodes.append({"key": fkey, "type": "Artifact", "kind": "code", "label": Path(filename).name})
     try:
         tree = ast.parse(source)
     except SyntaxError:
@@ -78,19 +78,31 @@ def extract_python(source: str, filename: str) -> dict:
         if isinstance(n, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
             k = slug(n.name, "def:")
             defined.add(n.name)
-            nodes.append({"key": k, "type": "Artifact", "kind": "code",
-                          "label": n.name})
-            edges.append({"src_key": fkey, "dst_key": k, "relation": "contains",
-                          "confidence": "EXTRACTED", "score": 1.0,
-                          "citation_state": "present_relevant",
-                          "span": f"{filename}:{n.lineno}"})
+            nodes.append({"key": k, "type": "Artifact", "kind": "code", "label": n.name})
+            edges.append(
+                {
+                    "src_key": fkey,
+                    "dst_key": k,
+                    "relation": "contains",
+                    "confidence": "EXTRACTED",
+                    "score": 1.0,
+                    "citation_state": "present_relevant",
+                    "span": f"{filename}:{n.lineno}",
+                }
+            )
     for n in ast.walk(tree):
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) \
-                and n.func.id in defined:
-            edges.append({"src_key": fkey, "dst_key": slug(n.func.id, "def:"),
-                          "relation": "relates_to", "confidence": "EXTRACTED",
-                          "score": 1.0, "citation_state": "present_relevant",
-                          "span": f"{filename}:{n.lineno}"})
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in defined:
+            edges.append(
+                {
+                    "src_key": fkey,
+                    "dst_key": slug(n.func.id, "def:"),
+                    "relation": "relates_to",
+                    "confidence": "EXTRACTED",
+                    "score": 1.0,
+                    "citation_state": "present_relevant",
+                    "span": f"{filename}:{n.lineno}",
+                }
+            )
     return {"nodes": nodes, "edges": edges}
 
 
@@ -100,28 +112,37 @@ def extract_csv(source: str, filename: str) -> dict:
     if not rows:
         return {"nodes": [], "edges": []}
     akey = slug(Path(filename).stem, "run:")
-    nodes = [{"key": akey, "type": "Artifact", "kind": "measurement",
-              "label": Path(filename).name}]
+    nodes = [{"key": akey, "type": "Artifact", "kind": "measurement", "label": Path(filename).name}]
     edges = []
     for col in rows[0]:
         if not col.strip():
             continue
         k = slug(col, "q:")
         nodes.append({"key": k, "type": "Concept", "label": col.strip()[:60]})
-        edges.append({"src_key": akey, "dst_key": k, "relation": "measured_by",
-                      "confidence": "EXTRACTED", "score": 1.0,
-                      "citation_state": "present_relevant",
-                      "span": f"{filename}:1"})
+        edges.append(
+            {
+                "src_key": akey,
+                "dst_key": k,
+                "relation": "measured_by",
+                "confidence": "EXTRACTED",
+                "score": 1.0,
+                "citation_state": "present_relevant",
+                "span": f"{filename}:1",
+            }
+        )
     return {"nodes": nodes, "edges": edges}
 
 
 SERIAL = re.compile(
     r"^\s*(?:\[?(?P<ts>[\d:.]+)\]?\s+)?"
     r"(?P<level>ERROR|WARN|WARNING|INFO|DEBUG|FAIL|FAULT|PANIC)\b[:\s]*"
-    r"(?P<msg>.+?)\s*$", re.I)
+    r"(?P<msg>.+?)\s*$",
+    re.I,
+)
 MEASURE = re.compile(
     r"(?P<name>[A-Za-z][\w ]{2,30}?)\s*[=:]\s*"
-    r"(?P<value>-?\d+(?:\.\d+)?)\s*(?P<unit>[a-zA-Zµ%Ω/]{1,8})?")
+    r"(?P<value>-?\d+(?:\.\d+)?)\s*(?P<unit>[a-zA-Zµ%Ω/]{1,8})?"
+)
 
 FAULT_LEVELS = {"ERROR", "FAIL", "FAULT", "PANIC"}
 
@@ -134,8 +155,7 @@ def extract_serial_log(source: str, filename: str) -> dict:
     the Disagreement Engine needs to fire on.
     """
     akey = slug(Path(filename).stem, "log:")
-    nodes = [{"key": akey, "type": "Artifact", "kind": "run",
-              "label": Path(filename).name}]
+    nodes = [{"key": akey, "type": "Artifact", "kind": "run", "label": Path(filename).name}]
     edges = []
     seen: set[str] = set()
     for i, line in enumerate(source.splitlines(), 1):
@@ -145,11 +165,17 @@ def extract_serial_log(source: str, filename: str) -> dict:
             if k not in seen:
                 seen.add(k)
                 nodes.append({"key": k, "type": "Claim", "label": msg})
-                edges.append({"src_key": akey, "dst_key": k,
-                              "relation": "evidence_for",
-                              "confidence": "EXTRACTED", "score": 1.0,
-                              "citation_state": "present_relevant",
-                              "span": f"{filename}:{i}"})
+                edges.append(
+                    {
+                        "src_key": akey,
+                        "dst_key": k,
+                        "relation": "evidence_for",
+                        "confidence": "EXTRACTED",
+                        "score": 1.0,
+                        "citation_state": "present_relevant",
+                        "span": f"{filename}:{i}",
+                    }
+                )
         for mm in MEASURE.finditer(line):
             name = mm.group("name").strip()
             if len(name) < 3:
@@ -159,10 +185,17 @@ def extract_serial_log(source: str, filename: str) -> dict:
                 continue
             seen.add(k)
             nodes.append({"key": k, "type": "Concept", "label": name[:60]})
-            edges.append({"src_key": akey, "dst_key": k,
-                          "relation": "measured_by", "confidence": "EXTRACTED",
-                          "score": 1.0, "citation_state": "present_relevant",
-                          "span": f"{filename}:{i}"})
+            edges.append(
+                {
+                    "src_key": akey,
+                    "dst_key": k,
+                    "relation": "measured_by",
+                    "confidence": "EXTRACTED",
+                    "score": 1.0,
+                    "citation_state": "present_relevant",
+                    "span": f"{filename}:{i}",
+                }
+            )
     return {"nodes": nodes, "edges": edges}
 
 
@@ -174,11 +207,24 @@ def extract_git(repo: str | Path, limit: int = 200) -> dict:
     changed your mind about the code, which is what makes staleness detectable.
     """
     import subprocess
+
     try:
         out = subprocess.run(
-            ["git", "-C", str(repo), "log", f"-{limit}",
-             "--pretty=format:%H%x1f%s", "--name-only", "-z"],
-            capture_output=True, text=True, timeout=30, check=True).stdout
+            [
+                "git",
+                "-C",
+                str(repo),
+                "log",
+                f"-{limit}",
+                "--pretty=format:%H%x1f%s",
+                "--name-only",
+                "-z",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        ).stdout
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
         return {"nodes": [], "edges": []}
 
@@ -189,22 +235,32 @@ def extract_git(repo: str | Path, limit: int = 200) -> dict:
         head, _, files = block.partition("\n")
         sha, _, subject = head.partition("\x1f")
         ckey = slug(sha[:12], "commit:")
-        nodes.append({"key": ckey, "type": "Artifact", "kind": "code",
-                      "label": subject[:60] or sha[:12]})
+        nodes.append(
+            {"key": ckey, "type": "Artifact", "kind": "code", "label": subject[:60] or sha[:12]}
+        )
         for f in [x for x in files.replace("\x00", "\n").splitlines() if x.strip()]:
             fkey = slug(Path(f).stem, "file:")
             if fkey not in seen:
                 seen.add(fkey)
-                nodes.append({"key": fkey, "type": "Artifact", "kind": "code",
-                              "label": Path(f).name})
-            edges.append({"src_key": ckey, "dst_key": fkey,
-                          "relation": "contains", "confidence": "EXTRACTED",
-                          "score": 1.0, "citation_state": "present_relevant",
-                          "span": f"{sha[:12]}:{f}"})
+                nodes.append(
+                    {"key": fkey, "type": "Artifact", "kind": "code", "label": Path(f).name}
+                )
+            edges.append(
+                {
+                    "src_key": ckey,
+                    "dst_key": fkey,
+                    "relation": "contains",
+                    "confidence": "EXTRACTED",
+                    "score": 1.0,
+                    "citation_state": "present_relevant",
+                    "span": f"{sha[:12]}:{f}",
+                }
+            )
     return {"nodes": nodes, "edges": edges}
 
 
 # ── model-backed lane ───────────────────────────────────────────────────────
+
 
 class VisionClient(Protocol):
     """⚠️ Tier 2 (Sonnet), NOT Tier 1a. Image grounding is materially weaker in
@@ -219,15 +275,17 @@ class VisionClient(Protocol):
 class FakeVision:
     """Shape-only stand-in, like FakeLLM. Emits AMBIGUOUS by default because an
     unread image genuinely IS ambiguous — silence would be a worse lie."""
+
     canned: dict = field(default_factory=dict)
 
     def describe(self, image_bytes: bytes, source_ref: str) -> dict:
         if source_ref in self.canned:
             return self.canned[source_ref]
         k = slug(Path(source_ref).stem, "img:")
-        return {"nodes": [{"key": k, "type": "Note",
-                           "label": Path(source_ref).stem[:60]}],
-                "edges": []}
+        return {
+            "nodes": [{"key": k, "type": "Note", "label": Path(source_ref).stem[:60]}],
+            "edges": [],
+        }
 
 
 class LLMClient(Protocol):
@@ -250,23 +308,31 @@ class FakeLLM:
     bad fragments, so the validator and quarantine paths are exercised without
     a key. Swap in a real client and nothing downstream changes.
     """
+
     canned: dict[str, dict] = field(default_factory=dict)
 
     def extract(self, text: str, source_ref: str) -> dict:
         if source_ref in self.canned:
             return self.canned[source_ref]
         skey = slug(Path(source_ref).stem, "src:")
-        nodes = [{"key": skey, "type": "Source", "kind": "paper",
-                  "label": Path(source_ref).stem[:60]}]
+        nodes = [
+            {"key": skey, "type": "Source", "kind": "paper", "label": Path(source_ref).stem[:60]}
+        ]
         edges = []
-        for i, line in enumerate(
-                [ln.strip() for ln in text.splitlines() if ln.strip()][:10], 1):
+        for i, line in enumerate([ln.strip() for ln in text.splitlines() if ln.strip()][:10], 1):
             k = slug(line, "c:")
             nodes.append({"key": k, "type": "Claim", "label": line[:120]})
-            edges.append({"src_key": skey, "dst_key": k,
-                          "relation": "evidence_for", "confidence": "INFERRED",
-                          "score": 0.75, "citation_state": "present_relevant",
-                          "span": f"{source_ref}:{i}"})
+            edges.append(
+                {
+                    "src_key": skey,
+                    "dst_key": k,
+                    "relation": "evidence_for",
+                    "confidence": "INFERRED",
+                    "score": 0.75,
+                    "citation_state": "present_relevant",
+                    "span": f"{source_ref}:{i}",
+                }
+            )
         return {"nodes": nodes, "edges": edges}
 
 
@@ -277,28 +343,40 @@ class HTTPLLM:
     so self-hosting later is a config change (Backend/05 §3.2).
     """
 
-    def __init__(self, base_url: str, model: str, api_credential: str = "",
-                 prompt_path: str | Path | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_credential: str = "",
+        prompt_path: str | Path | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.api_credential = api_credential
-        self.prompt = (Path(prompt_path).read_text() if prompt_path
-                       else DEFAULT_PROMPT)
+        self.prompt = Path(prompt_path).read_text() if prompt_path else DEFAULT_PROMPT
 
     def extract(self, text: str, source_ref: str) -> dict:
         import urllib.request
-        body = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "system", "content": self.prompt},
-                         {"role": "user",
-                          "content": f"source_ref: {source_ref}\n\n{text}"}],
-            "temperature": 0,
-            "response_format": {"type": "json_object"},
-        }).encode()
+
+        body = json.dumps(
+            {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": self.prompt},
+                    {"role": "user", "content": f"source_ref: {source_ref}\n\n{text}"},
+                ],
+                "temperature": 0,
+                "response_format": {"type": "json_object"},
+            }
+        ).encode()
         req = urllib.request.Request(
-            f"{self.base_url}/chat/completions", data=body,
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self.api_credential}"})
+            f"{self.base_url}/chat/completions",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_credential}",
+            },
+        )
         with urllib.request.urlopen(req, timeout=120) as r:
             out = json.loads(r.read())
         return json.loads(out["choices"][0]["message"]["content"])
@@ -339,6 +417,7 @@ def read_document(path) -> str:
     """PDF and DOCX to text. ⚠️ Layout is discarded, so a span is a PAGE, not a
     character offset — an honest anchor beats a precise-looking wrong one."""
     from pathlib import Path as _P
+
     p = _P(path)
     ext = p.suffix.lower()
     if ext == ".pdf":
@@ -346,16 +425,20 @@ def read_document(path) -> str:
             from pypdf import PdfReader
         except ImportError:
             raise RuntimeError("pip install pypdf to ingest PDFs") from None
-        return "\n".join(f"[p{i}] {(pg.extract_text() or '').strip()}"
-                          for i, pg in enumerate(PdfReader(str(p)).pages, 1))
+        return "\n".join(
+            f"[p{i}] {(pg.extract_text() or '').strip()}"
+            for i, pg in enumerate(PdfReader(str(p)).pages, 1)
+        )
     if ext == ".docx":
         import xml.etree.ElementTree as ET
         import zipfile
+
         ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
         with zipfile.ZipFile(p) as z:
             root = ET.fromstring(z.read("word/document.xml"))
-        return "\n".join("".join(t.text or "" for t in para.iter(f"{ns}t"))
-                          for para in root.iter(f"{ns}p"))
+        return "\n".join(
+            "".join(t.text or "" for t in para.iter(f"{ns}t")) for para in root.iter(f"{ns}p")
+        )
     return p.read_text(errors="replace")
 
 
@@ -370,20 +453,26 @@ def ingest_text(name: str, data: str, llm: LLMClient) -> Fragment:
     else:
         payload = llm.extract(data, name)
         lane = "model"
-    return Fragment(source_ref=name, lane=lane,
-                    sha256=content_hash(data.encode()), payload=payload)
+    return Fragment(source_ref=name, lane=lane, sha256=content_hash(data.encode()), payload=payload)
 
 
 def ingest_image(name: str, data: bytes, vision: VisionClient) -> Fragment:
-    return Fragment(source_ref=name, lane="vision", sha256=content_hash(data),
-                    payload=vision.describe(data, name))
+    return Fragment(
+        source_ref=name,
+        lane="vision",
+        sha256=content_hash(data),
+        payload=vision.describe(data, name),
+    )
 
 
 def ingest_git(repo: str | Path) -> Fragment:
     payload = extract_git(repo)
-    return Fragment(source_ref=f"git:{Path(repo).name}", lane="git",
-                    sha256=content_hash(canonical_git(payload).encode()),
-                    payload=payload)
+    return Fragment(
+        source_ref=f"git:{Path(repo).name}",
+        lane="git",
+        sha256=content_hash(canonical_git(payload).encode()),
+        payload=payload,
+    )
 
 
 def canonical_git(payload: dict) -> str:

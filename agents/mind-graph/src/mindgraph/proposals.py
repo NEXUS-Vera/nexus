@@ -15,6 +15,7 @@ well-calibrated auto-accept a requirement rather than an optimisation.
 The queue holds ONLY what nobody but the student can settle. That is what turns
 it from an integrity gate into a thinking prompt.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -26,7 +27,7 @@ from .ids import uuid7
 from .resolve import resolve_candidates
 from .validate import Validated, validate
 
-REVIEW_SOFT_CAP = 50     # above this we stop proposing anything below 0.85
+REVIEW_SOFT_CAP = 50  # above this we stop proposing anything below 0.85
 
 
 @dataclass
@@ -42,19 +43,20 @@ class IngestReport:
     duplicate: bool = False
 
     def as_dict(self) -> dict:
-        return {"source": self.source_ref, "lane": self.lane,
-                "accepted": {"nodes": self.accepted_nodes,
-                             "edges": self.accepted_edges},
-                "review": len(self.review),
-                "quarantined": len(self.quarantined),
-                "demoted": len(self.demotions),
-                "same_as": len(self.same_as),
-                "duplicate": self.duplicate}
+        return {
+            "source": self.source_ref,
+            "lane": self.lane,
+            "accepted": {"nodes": self.accepted_nodes, "edges": self.accepted_edges},
+            "review": len(self.review),
+            "quarantined": len(self.quarantined),
+            "demoted": len(self.demotions),
+            "same_as": len(self.same_as),
+            "duplicate": self.duplicate,
+        }
 
 
 def _seen_hashes(s) -> set[str]:
-    return {e.structural.get("sha256") for e in s.ledger.read()
-            if e.structural.get("sha256")}
+    return {e.structural.get("sha256") for e in s.ledger.read() if e.structural.get("sha256")}
 
 
 def _key_to_id(s, key: str, cache: dict[str, str]) -> str:
@@ -74,6 +76,7 @@ def _route(edge: dict) -> str:
 
 def ingest(s, frag: Fragment, *, project_id: str = "p1") -> IngestReport:
     from .costlog import for_session
+
     with for_session(s).measure("ingest", lane=frag.lane, source=frag.source_ref):
         return _ingest(s, frag, project_id=project_id)
 
@@ -82,7 +85,7 @@ def _ingest(s, frag: Fragment, *, project_id: str = "p1") -> IngestReport:
     rep = IngestReport(source_ref=frag.source_ref, lane=frag.lane)
 
     if frag.sha256 in _seen_hashes(s):
-        rep.duplicate = True                       # cheap filter, runs first
+        rep.duplicate = True  # cheap filter, runs first
         return rep
 
     v: Validated = validate(frag.payload)
@@ -98,53 +101,73 @@ def _ingest(s, frag: Fragment, *, project_id: str = "p1") -> IngestReport:
         if n.get("kind"):
             d["kind"] = n["kind"]
         if n["type"] == "Concept":
-            d["project_id"] = project_id           # extracted -> project-scoped
+            d["project_id"] = project_id  # extracted -> project-scoped
         nodes.append(d)
-        labels[nid] = n["label"]                   # user text: encrypted below
+        labels[nid] = n["label"]  # user text: encrypted below
 
     accept_edges, review_edges = [], []
     for e in v.edges:
-        payload = {"id": uuid7(),
-                   "src": keymap[e["src_key"]], "dst": keymap[e["dst_key"]],
-                   "relation": e["relation"], "confidence": e["confidence"],
-                   "score": e["score"],
-                   "weight_source_nodes": [keymap[e["src_key"]]],
-                   "provenance": {"citation_state": e.get("citation_state"),
-                                  "span": e.get("span"),
-                                  "actor": "extractor"}}
+        payload = {
+            "id": uuid7(),
+            "src": keymap[e["src_key"]],
+            "dst": keymap[e["dst_key"]],
+            "relation": e["relation"],
+            "confidence": e["confidence"],
+            "score": e["score"],
+            "weight_source_nodes": [keymap[e["src_key"]]],
+            "provenance": {
+                "citation_state": e.get("citation_state"),
+                "span": e.get("span"),
+                "actor": "extractor",
+            },
+        }
         (accept_edges if _route(e) == "accept" else review_edges).append(payload)
 
     # Entity resolution against what is already in the graph, plus this batch.
     existing = {nid: st.nodes[nid].label for nid in st.nodes if st.nodes[nid].label}
     for cand in resolve_candidates({**existing, **labels}):
         if cand["band"] == "same_as":
-            accept_edges.append({
-                "id": uuid7(), "src": cand["a"], "dst": cand["b"],
-                "relation": "same_as", "confidence": "INFERRED",
-                "score": 0.75, "weight_source_nodes": [cand["a"]],
-                "provenance": {"actor": "resolver", "similarity": cand["score"]}})
+            accept_edges.append(
+                {
+                    "id": uuid7(),
+                    "src": cand["a"],
+                    "dst": cand["b"],
+                    "relation": "same_as",
+                    "confidence": "INFERRED",
+                    "score": 0.75,
+                    "weight_source_nodes": [cand["a"]],
+                    "provenance": {"actor": "resolver", "similarity": cand["score"]},
+                }
+            )
             rep.same_as.append(cand)
         elif cand["band"] == "merge":
-            s.ledger.append(s.user, EventType.MERGED,
-                            {"kept": cand["a"], "absorbed": cand["b"]})
+            s.ledger.append(s.user, EventType.MERGED, {"kept": cand["a"], "absorbed": cand["b"]})
 
     if nodes or accept_edges:
         s.ledger.append(
-            s.user, EventType.ACCEPTED,
-            {"nodes": nodes, "edges": accept_edges,
-             "sha256": frag.sha256, "source_ref_id": uuid7()},
-            content=encrypt(s.keys, s.user, {"labels": labels,
-                                             "source_ref": frag.source_ref}))
+            s.user,
+            EventType.ACCEPTED,
+            {
+                "nodes": nodes,
+                "edges": accept_edges,
+                "sha256": frag.sha256,
+                "source_ref_id": uuid7(),
+            },
+            content=encrypt(s.keys, s.user, {"labels": labels, "source_ref": frag.source_ref}),
+        )
         rep.accepted_nodes, rep.accepted_edges = len(nodes), len(accept_edges)
 
     if review_edges or rep.quarantined:
         s.ledger.append(
-            s.user, EventType.PROPOSED,
-            {"edges": review_edges,
-             "quarantine": [{"reason": q["reason"]} for q in rep.quarantined],
-             "sha256": frag.sha256},
-            content=encrypt(s.keys, s.user,
-                            {"quarantine_raw": rep.quarantined}))
+            s.user,
+            EventType.PROPOSED,
+            {
+                "edges": review_edges,
+                "quarantine": [{"reason": q["reason"]} for q in rep.quarantined],
+                "sha256": frag.sha256,
+            },
+            content=encrypt(s.keys, s.user, {"quarantine_raw": rep.quarantined}),
+        )
     rep.review = review_edges
     return rep
 
@@ -171,11 +194,17 @@ def decide(s, edge_ids: list[str], accept: bool) -> int:
     if not chosen:
         return 0
     if accept:
-        s.ledger.append(s.user, EventType.ACCEPTED,
-                        {"nodes": [], "edges": [{k: v for k, v in c.items()
-                                                 if k != "seq"} for c in chosen],
-                         "decided": [c["id"] for c in chosen]})
+        s.ledger.append(
+            s.user,
+            EventType.ACCEPTED,
+            {
+                "nodes": [],
+                "edges": [{k: v for k, v in c.items() if k != "seq"} for c in chosen],
+                "decided": [c["id"] for c in chosen],
+            },
+        )
     else:
-        s.ledger.append(s.user, EventType.REJECTED,
-                        {"edges": [], "decided": [c["id"] for c in chosen]})
+        s.ledger.append(
+            s.user, EventType.REJECTED, {"edges": [], "decided": [c["id"] for c in chosen]}
+        )
     return len(chosen)
