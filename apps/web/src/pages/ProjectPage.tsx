@@ -373,7 +373,7 @@ export function ProjectPage() {
         historyOpen={url.historyOpen}
       />
 
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
         <PanelGroup direction="horizontal" style={{ flex: 1, overflow: 'hidden' }}>
           <Panel
             defaultSize={railCollapsed ? 5 : 16}

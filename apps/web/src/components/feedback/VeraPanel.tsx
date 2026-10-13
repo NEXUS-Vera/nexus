@@ -89,10 +89,9 @@ export function VeraPanel({
       style={{
         display: 'flex',
         flexDirection: 'column',
-        height: compact ? '100%' : undefined,
         minHeight: 0,
         background: t.surface,
-        flex: compact ? 1 : undefined,
+        flex: compact ? '1 1 0' : undefined,
         overflow: 'hidden',
         ...(compact
           ? {}
