@@ -3,6 +3,7 @@
 ⭐ The tests that matter are the refusals: capabilities are checked
 server-side, and a client that could name its own has none.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,16 +23,25 @@ def api(tmp_path):
     s = Session.open("u1", tmp_path)
     from mindgraph.crypto import encrypt
     from mindgraph.events import EventType
+
     # Labels ride in the ENCRYPTED half, as they do everywhere else.
-    s.ledger.append("u1", EventType.ACCEPTED,
-                    {"nodes": [{"id": "S1", "type": "Source", "kind": "paper"},
-                               {"id": "C1", "type": "Claim"},
-                               {"id": "R1", "type": "Artifact", "kind": "run"}],
-                     "edges": [dict(edge("S1", "supports", "C1")),
-                               dict(edge("R1", "contradicts", "C1"))]},
-                    content=encrypt(s.keys, "u1", {"labels": {
-                        "S1": "Chen 2019", "C1": "47 kOhm means hydrated",
-                        "R1": "forearm sweep"}}))
+    s.ledger.append(
+        "u1",
+        EventType.ACCEPTED,
+        {
+            "nodes": [
+                {"id": "S1", "type": "Source", "kind": "paper"},
+                {"id": "C1", "type": "Claim"},
+                {"id": "R1", "type": "Artifact", "kind": "run"},
+            ],
+            "edges": [dict(edge("S1", "supports", "C1")), dict(edge("R1", "contradicts", "C1"))],
+        },
+        content=encrypt(
+            s.keys,
+            "u1",
+            {"labels": {"S1": "Chen 2019", "C1": "47 kOhm means hydrated", "R1": "forearm sweep"}},
+        ),
+    )
     s.close()
     return a
 
@@ -41,6 +51,7 @@ def tok(api, bundle="human"):
 
 
 # ── tokens are server-minted ────────────────────────────────────────────────
+
 
 def test_no_token_is_refused(api):
     with pytest.raises(ApiError) as e:
@@ -79,6 +90,7 @@ def test_no_bundle_grants_validate_or_retract_to_an_agent():
 
 
 # ── capabilities are checked server-side ────────────────────────────────────
+
 
 def test_a_reader_cannot_text_search_at_all(api):
     """⭐ Not an oversight. Hybrid seeding matches against LABELS, which are
@@ -122,8 +134,7 @@ def test_a_critic_may_read_the_timeline(api):
 def test_an_agent_cannot_validate(api):
     for bundle in ("reader", "grounder", "critic"):
         with pytest.raises(ApiError) as e:
-            api.handle("validate", {}, tok(api, bundle),
-                       {"artifact_id": "R1", "value": 1.0})
+            api.handle("validate", {}, tok(api, bundle), {"artifact_id": "R1", "value": 1.0})
         assert e.value.status == 403
 
 
@@ -141,9 +152,9 @@ def test_a_reader_cannot_propose(api):
 
 # ── proposals are not writes ────────────────────────────────────────────────
 
+
 def test_a_proposal_is_pending_not_structure(api):
-    out = api.handle("propose", {}, tok(api, "grounder"),
-                     {"edges": [], "basis": ["C1"]})
+    out = api.handle("propose", {}, tok(api, "grounder"), {"edges": [], "basis": ["C1"]})
     assert out["status"] == "pending"
 
 
@@ -155,6 +166,7 @@ def test_a_proposal_without_basis_is_rejected(api):
 
 
 # ── the read surface ────────────────────────────────────────────────────────
+
 
 def test_explain_and_path_and_frontier(api):
     t = tok(api)
@@ -173,14 +185,15 @@ def test_an_unknown_route_404s(api):
 
 # ── the transport ───────────────────────────────────────────────────────────
 
+
 def test_over_http(api):
     srv = serve(api, port=0)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     port = srv.server_address[1]
     try:
         req = urllib.request.Request(
-            f"http://127.0.0.1:{port}/stats",
-            headers={"Authorization": f"Bearer {tok(api)}"})
+            f"http://127.0.0.1:{port}/stats", headers={"Authorization": f"Bearer {tok(api)}"}
+        )
         with urllib.request.urlopen(req, timeout=5) as r:
             assert json.loads(r.read())["nodes"] == 3
 
@@ -194,12 +207,33 @@ def test_over_http(api):
 
 # ── the routes the Workbench needs ──────────────────────────────────────────
 
+
 def test_every_workbench_route_exists(api):
     from mindgraph.api import ROUTES
-    need = {"query", "explain", "path", "neighbors", "frontier", "contradictions",
-            "resurrections", "timeline", "stats", "export", "review", "nudge",
-            "calibration", "analyze", "propose", "decide", "ingest",
-            "predict", "validate", "retract", "start"}
+
+    need = {
+        "query",
+        "explain",
+        "path",
+        "neighbors",
+        "frontier",
+        "contradictions",
+        "resurrections",
+        "timeline",
+        "stats",
+        "export",
+        "review",
+        "nudge",
+        "calibration",
+        "analyze",
+        "propose",
+        "decide",
+        "ingest",
+        "predict",
+        "validate",
+        "retract",
+        "start",
+    }
     assert need <= set(ROUTES)
 
 
@@ -238,15 +272,19 @@ def test_cors_reflects_an_allowed_origin_only(api):
     port = srv.server_address[1]
     try:
         allowed = urllib.request.Request(
-            f"http://127.0.0.1:{port}/stats", method="OPTIONS",
-            headers={"Origin": "http://localhost:5173"})
+            f"http://127.0.0.1:{port}/stats",
+            method="OPTIONS",
+            headers={"Origin": "http://localhost:5173"},
+        )
         with urllib.request.urlopen(allowed, timeout=5) as r:
             assert r.status == 204
             assert r.headers["Access-Control-Allow-Origin"] == "http://localhost:5173"
 
         unknown = urllib.request.Request(
-            f"http://127.0.0.1:{port}/stats", method="OPTIONS",
-            headers={"Origin": "http://evil.example"})
+            f"http://127.0.0.1:{port}/stats",
+            method="OPTIONS",
+            headers={"Origin": "http://evil.example"},
+        )
         with urllib.request.urlopen(unknown, timeout=5) as r:
             assert r.status == 204
             assert "Access-Control-Allow-Origin" not in r.headers
@@ -255,6 +293,7 @@ def test_cors_reflects_an_allowed_origin_only(api):
 
 
 # ── turn: the one route that needs a model ──────────────────────────────────
+
 
 class _TurnAgent:
     """Returns a proposal the gate will accept and one it will not.
@@ -270,18 +309,34 @@ class _TurnAgent:
 
     def run(self, role, payload, question):
         self.roles.append(role.name)
-        out = {"answer": f"{role.name}: {question}", "tokens_in": 120,
-               "tokens_out": 40, "proposals": []}
+        out = {
+            "answer": f"{role.name}: {question}",
+            "tokens_in": 120,
+            "tokens_out": 40,
+            "proposals": [],
+        }
         if role.name == "grounder":
             out["proposals"] = [
-                {"id": "p1", "subject": "C1", "relation": "supports",
-                 "object": "S1", "confidence": "EXTRACTED", "basis": ["S1"],
-                 "span": "chen.pdf:p3"},
+                {
+                    "id": "p1",
+                    "subject": "C1",
+                    "relation": "supports",
+                    "object": "S1",
+                    "confidence": "EXTRACTED",
+                    "basis": ["S1"],
+                    "span": "chen.pdf:p3",
+                },
                 # ⚠️ EXTRACTED with no span — the gate must drop this one,
                 # because "the source says so" without a locator is the exact
                 # claim the citation rules exist to stop.
-                {"id": "p2", "subject": "C1", "relation": "supports",
-                 "object": "S1", "confidence": "EXTRACTED", "basis": ["S1"]},
+                {
+                    "id": "p2",
+                    "subject": "C1",
+                    "relation": "supports",
+                    "object": "S1",
+                    "confidence": "EXTRACTED",
+                    "basis": ["S1"],
+                },
             ]
         return out
 
@@ -302,7 +357,7 @@ def test_turn_needs_content_not_propose(api):
     would grant write intent to a read."""
     with pytest.raises(ApiError) as e:
         api.handle("turn", {}, tok(api, "reader"), {"question": "why?"})
-    assert e.value.status == 403          # reader has no READ_CONTENT
+    assert e.value.status == 403  # reader has no READ_CONTENT
     api.agent = _TurnAgent()
     # grounder has READ_CONTENT and no VALIDATE — and still gets a turn
     out = api.handle("turn", {}, tok(api, "grounder"), {"question": "why?"})
@@ -332,6 +387,7 @@ def test_turn_writes_nothing_to_the_ledger(api):
     """⚠️ The invariant behind the capability choice. If a turn could append,
     the review queue would fill with things no human ever saw."""
     from mindgraph.artifact import Session
+
     api.agent = _TurnAgent()
     s = Session.open("u1", api.root)
     before = len(list(s.ledger.read()))
@@ -345,6 +401,7 @@ def test_turn_writes_nothing_to_the_ledger(api):
 
 # ── log: what Share is published from ───────────────────────────────────────
 
+
 def test_log_carries_the_head_hash_and_verifies(api):
     """⚠️ Without the hash a reader cannot tell a record from a claim about a
     record, and the whole reason to publish this is that it can be replayed."""
@@ -355,7 +412,7 @@ def test_log_carries_the_head_hash_and_verifies(api):
 
 def test_log_needs_timeline_not_just_structure(api):
     with pytest.raises(ApiError) as e:
-        api.handle("log", {}, tok(api, "reader"))     # reader has no READ_TIMELINE
+        api.handle("log", {}, tok(api, "reader"))  # reader has no READ_TIMELINE
     assert e.value.status == 403
 
 
@@ -363,9 +420,12 @@ def test_log_keeps_retractions_as_entries(api):
     """⭐ A log that drops what was withdrawn is a write-up, and a write-up is
     what destroys the evidence of competence."""
     t = tok(api)
-    aid = api.handle("predict", {}, t, {
-        "label": "forearm sweep", "quantity": "impedance",
-        "low": 45, "high": 50, "unit": "kOhm"})["id"]
+    aid = api.handle(
+        "predict",
+        {},
+        t,
+        {"label": "forearm sweep", "quantity": "impedance", "low": 45, "high": 50, "unit": "kOhm"},
+    )["id"]
     api.handle("validate", {}, t, {"artifact_id": aid, "value": 47.2, "unit": "kOhm"})
     before = api.handle("log", {}, t)
     assert any(e["type"] == "validated" for e in before["entries"])
@@ -374,15 +434,25 @@ def test_log_keeps_retractions_as_entries(api):
     after = api.handle("log", {}, t)
     assert any(e["retracted"] for e in after["entries"])
     # the validation is still there — retraction is an entry, not a delete
-    assert len([e for e in after["entries"] if e["type"] == "validated"]) == \
-           len([e for e in before["entries"] if e["type"] == "validated"])
+    assert len([e for e in after["entries"] if e["type"] == "validated"]) == len(
+        [e for e in before["entries"] if e["type"] == "validated"]
+    )
 
 
 def test_log_artifacts_carry_predicted_and_measured(api):
     t = tok(api)
-    aid = api.handle("predict", {}, t, {
-        "label": "gel-electrode control", "quantity": "impedance",
-        "low": 30, "high": 40, "unit": "kOhm"})["id"]
+    aid = api.handle(
+        "predict",
+        {},
+        t,
+        {
+            "label": "gel-electrode control",
+            "quantity": "impedance",
+            "low": 30,
+            "high": 40,
+            "unit": "kOhm",
+        },
+    )["id"]
     api.handle("validate", {}, t, {"artifact_id": aid, "value": 33.0, "unit": "kOhm"})
     art = next(a for a in api.handle("log", {}, t)["artifacts"] if a["id"] == aid)
     assert art["predicted"] and art["measured"]
@@ -392,7 +462,7 @@ def test_log_artifacts_carry_predicted_and_measured(api):
 def test_log_degrades_to_shape_without_content(api):
     """⭐ A share link minted with a structure-only role gets the SHAPE of the
     work and none of the words. That is the intended degradation."""
-    t = api.tokens.mint("u1", "critic")   # structure + timeline, no content
+    t = api.tokens.mint("u1", "critic")  # structure + timeline, no content
     out = api.handle("log", {}, t)
     assert all(e["labels"] == [] for e in out["entries"])
 
@@ -401,9 +471,18 @@ def test_a_retraction_names_what_it_withdrew(api):
     """⚠️ `retract` stores its subject under `target`. Missing that key made
     the most important entry on the page render as "0 items"."""
     t = tok(api)
-    aid = api.handle("predict", {}, t, {
-        "label": "motion-artifact rejection", "quantity": "error",
-        "low": 0, "high": 5, "unit": "%"})["id"]
+    aid = api.handle(
+        "predict",
+        {},
+        t,
+        {
+            "label": "motion-artifact rejection",
+            "quantity": "error",
+            "low": 0,
+            "high": 5,
+            "unit": "%",
+        },
+    )["id"]
     api.handle("validate", {}, t, {"artifact_id": aid, "value": 11.4, "unit": "%"})
     api.handle("retract", {}, t, {"target": aid, "reason": "bad probe"})
     entry = next(e for e in api.handle("log", {}, t)["entries"] if e["retracted"])
@@ -412,6 +491,7 @@ def test_a_retraction_names_what_it_withdrew(api):
 
 
 # ── map: one ranking implementation, not two ────────────────────────────────
+
 
 def test_map_ranks_and_caps_server_side(api):
     out = api.handle("map", {"k": 3}, tok(api))
@@ -449,6 +529,7 @@ def test_map_needs_only_structure(api):
 
 # ── portable: one ranking, two runtimes (§4.4) ──────────────────────────────
 
+
 def test_portable_is_graphology_shaped(api):
     out = api.handle("portable", {}, tok(api))
     assert set(out) == {"options", "attributes", "nodes", "edges"}
@@ -472,14 +553,21 @@ def test_portable_carries_doi_components_not_a_ranking(api):
     offline, which is the whole point."""
     out = api.handle("portable", {}, tok(api))
     parts = out["nodes"][0]["attributes"]["doi"]
-    assert set(parts) == {"centrality", "salience", "outcome", "confidence",
-                          "learnability", "staleness"}
+    assert set(parts) == {
+        "centrality",
+        "salience",
+        "outcome",
+        "confidence",
+        "learnability",
+        "staleness",
+    }
 
 
 def test_portable_ranking_matches_retrieve_rank(api):
     """⚠️ The conformance oracle, server-side. If these diverge the fixture
     handed to the frontend is already wrong."""
     from mindgraph.portable import rank_portable
+
     out = api.handle("portable", {}, tok(api))
     ranked = rank_portable(out)
     assert len(ranked) == len(out["nodes"])

@@ -3,6 +3,7 @@
 A snapshot is a cache. The invariant here is what lets it be one safely — and
 it is also what makes LRU eviction free under concurrency (Backend/07 §4.6).
 """
+
 from __future__ import annotations
 
 from conftest import accept, edge, node, validate
@@ -11,8 +12,11 @@ from mindgraph.projector import project, state_hash
 
 
 def _build(led):
-    accept(led, [node("M1", "Artifact"), node("M2", "Artifact"), node("C")],
-           [edge("M1", "supports", "C"), edge("M2", "supports", "C")])
+    accept(
+        led,
+        [node("M1", "Artifact"), node("M2", "Artifact"), node("C")],
+        [edge("M1", "supports", "C"), edge("M2", "supports", "C")],
+    )
     validate(led, "M1", ["C"])
     validate(led, "M2", ["C"])
 
@@ -45,4 +49,5 @@ def test_snapshot_preserves_edge_index(led):
     accept(led, [], [edge("M1", "supports", "C")])
     g2 = project(led.read(since=g.last_seq), g)
     from mindgraph.schema import Relation
+
     assert g2.edges[g2.edge_key[("M1", Relation.SUPPORTS, "C")]].weight == 2

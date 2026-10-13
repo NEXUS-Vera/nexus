@@ -8,6 +8,7 @@ Two classes of failure, and the difference matters:
   SOFT  the item is DEMOTED rather than discarded — a weakly-cited claim
         becomes a low-confidence claim, not silence
 """
+
 from __future__ import annotations
 
 import re
@@ -23,15 +24,16 @@ KINDS: dict[str, set[str | None]] = {
     "Concept": {None},
     "Question": {None},
     "Claim": {None, "observation", "conclusion", "hypothesis"},
-    "Artifact": {None, "code", "circuit", "run", "measurement", "document",
-                 "method"},
+    "Artifact": {None, "code", "circuit", "run", "measurement", "document", "method"},
     "Source": {None, "paper", "datasheet", "video", "course", "web", "book"},
     "Note": {None},
 }
 
 SENTENCE_MARKERS = re.compile(
     r"\b(is|are|was|were|has|have|should|would|could|will|did|does|because|"
-    r"therefore|so that|which|that we|we|i)\b", re.I)
+    r"therefore|so that|which|that we|we|i)\b",
+    re.I,
+)
 
 RUNG = [1.0, 0.95, 0.85, 0.75, 0.65, 0.55, 0.3, 0.2, 0.1]
 
@@ -43,10 +45,12 @@ def is_sentence_like(label: str) -> bool:
     LLM-built graphs: prose becomes nodes and the graph turns into a pile of
     unjoinable sentences that no two documents ever agree on.
     """
-    return (len(label) > 60
-            or label.rstrip().endswith((".", "!", "?"))
-            or label.count(" ") > 7
-            or bool(SENTENCE_MARKERS.search(label)))
+    return (
+        len(label) > 60
+        or label.rstrip().endswith((".", "!", "?"))
+        or label.count(" ") > 7
+        or bool(SENTENCE_MARKERS.search(label))
+    )
 
 
 def demote_one_rung(score: float) -> float:
@@ -133,8 +137,7 @@ def validate(fragment: dict, known_keys: set[str] | None = None) -> Validated:
         # likely route to a confident, well-cited, WRONG edge.
         cs = e.get("citation_state")
         if e["confidence"] == "EXTRACTED" and cs != "present_relevant":
-            out.rejects.append(
-                Reject(e, "EXTRACTED requires a directly-supporting passage"))
+            out.rejects.append(Reject(e, "EXTRACTED requires a directly-supporting passage"))
             continue
         if cs in ("present_weak", "anchor_unavailable") and e["score"] > 0.75:
             e["score"] = 0.75
@@ -147,8 +150,10 @@ def validate(fragment: dict, known_keys: set[str] | None = None) -> Validated:
             out.demotions.append(f"{e.get('src_key')}->{e.get('dst_key')}: wrong source")
 
         if e["relation"] == "requires" and not all(
-                types.get(k, "Concept") == "Concept"
-                for k in (e.get("src_key"), e.get("dst_key")) if k in types):
+            types.get(k, "Concept") == "Concept"
+            for k in (e.get("src_key"), e.get("dst_key"))
+            if k in types
+        ):
             out.rejects.append(Reject(e, "requires is Concept->Concept only"))
             continue
         if e.get("src_key") == e.get("dst_key"):

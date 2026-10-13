@@ -13,6 +13,7 @@ into a naming convention.
 stdlib only. This is a real surface, not a framework choice; swapping in
 FastAPI later changes the transport and nothing else.
 """
+
 from __future__ import annotations
 
 import json
@@ -35,13 +36,19 @@ from .tenancy import GraphCache
 # that is not the signed-in human.
 BUNDLES = {
     "reader": frozenset({Cap.READ_STRUCTURE, Cap.READ_FRONTIER}),
-    "grounder": frozenset({Cap.READ_STRUCTURE, Cap.READ_CONTENT,
-                           Cap.READ_FRONTIER, Cap.PROPOSE}),
-    "critic": frozenset({Cap.READ_STRUCTURE, Cap.READ_TIMELINE,
-                         Cap.VERIFY_SPAN, Cap.PROPOSE}),
-    "human": frozenset({Cap.READ_STRUCTURE, Cap.READ_CONTENT,
-                        Cap.READ_FRONTIER, Cap.READ_TIMELINE, Cap.PROPOSE,
-                        Cap.VALIDATE, Cap.RETRACT}),
+    "grounder": frozenset({Cap.READ_STRUCTURE, Cap.READ_CONTENT, Cap.READ_FRONTIER, Cap.PROPOSE}),
+    "critic": frozenset({Cap.READ_STRUCTURE, Cap.READ_TIMELINE, Cap.VERIFY_SPAN, Cap.PROPOSE}),
+    "human": frozenset(
+        {
+            Cap.READ_STRUCTURE,
+            Cap.READ_CONTENT,
+            Cap.READ_FRONTIER,
+            Cap.READ_TIMELINE,
+            Cap.PROPOSE,
+            Cap.VALIDATE,
+            Cap.RETRACT,
+        }
+    ),
 }
 
 
@@ -65,6 +72,7 @@ class TokenStore:
     A token is an opaque lookup key. Nothing about it is decoded — so a
     forged one is not a weaker token, it is no token.
     """
+
     _by_secret: dict[str, Token] = field(default_factory=dict)
 
     def mint(self, user: str, bundle: str) -> str:
@@ -92,6 +100,7 @@ def require(token: Token, *caps: Cap) -> None:
 @dataclass
 class Api:
     """The routes. Deliberately transport-free so they are testable directly."""
+
     root: str = "users"
     tokens: TokenStore = field(default_factory=TokenStore)
     cache: GraphCache | None = None
@@ -112,6 +121,7 @@ class Api:
         if self.agent is not None:
             return self.agent
         from .adapters import from_env
+
         agent, embedder, _ = from_env()
         if agent is not None and self.embedder is None:
             self.embedder = embedder
@@ -123,10 +133,12 @@ class Api:
 
     def _labels(self, s: Session) -> dict:
         from .cli import _labels
+
         return _labels(s)
 
-    def handle(self, route: str, params: dict, secret: str | None,
-               body: dict | None = None) -> dict:
+    def handle(
+        self, route: str, params: dict, secret: str | None, body: dict | None = None
+    ) -> dict:
         tok = self.tokens.resolve(secret)
         fn = ROUTES.get(route)
         if fn is None:
@@ -140,6 +152,7 @@ class Api:
 
 # ── READ ────────────────────────────────────────────────────────────────────
 
+
 def _query(api, s, tok, p, _b):
     """⭐ Text search requires READ_CONTENT, and that is not an oversight.
 
@@ -151,13 +164,19 @@ def _query(api, s, tok, p, _b):
     """
     require(tok, Cap.READ_STRUCTURE, Cap.READ_CONTENT)
     labels = api._labels(s)
-    res = query(s.state(), p.get("q", ""), labels,
-                lens=p.get("lens"), k=int(p.get("k", 25)))
-    return {"results": [{"id": r.id, "score": r.score, "hops": r.hops,
-                         "path": r.path,
-                         **({"label": labels.get(r.id)}
-                            if Cap.READ_CONTENT in tok.caps else {})}
-                        for r in res]}
+    res = query(s.state(), p.get("q", ""), labels, lens=p.get("lens"), k=int(p.get("k", 25)))
+    return {
+        "results": [
+            {
+                "id": r.id,
+                "score": r.score,
+                "hops": r.hops,
+                "path": r.path,
+                **({"label": labels.get(r.id)} if Cap.READ_CONTENT in tok.caps else {}),
+            }
+            for r in res
+        ]
+    }
 
 
 def _explain(api, s, tok, p, _b):
@@ -172,21 +191,28 @@ def _path(api, s, tok, p, _b):
 
 def _frontier(api, s, tok, p, _b):
     require(tok, Cap.READ_FRONTIER)
-    return {"actions": [{"id": a.id, "kind": a.kind, "why": a.why,
-                         "priority": a.priority}
-                        for a in frontier(s.state(), limit=int(p.get("k", 3)))]}
+    return {
+        "actions": [
+            {"id": a.id, "kind": a.kind, "why": a.why, "priority": a.priority}
+            for a in frontier(s.state(), limit=int(p.get("k", 3)))
+        ]
+    }
 
 
 def _contradictions(api, s, tok, p, _b):
     require(tok, Cap.READ_FRONTIER)
-    return {"tensions": [{"a": t.a, "b": t.b, "kind": t.kind,
-                          "level": t.level, "framing": t.framing}
-                         for t in tensions(s.state())]}
+    return {
+        "tensions": [
+            {"a": t.a, "b": t.b, "kind": t.kind, "level": t.level, "framing": t.framing}
+            for t in tensions(s.state())
+        ]
+    }
 
 
 def _timeline(api, s, tok, p, _b):
     require(tok, Cap.READ_TIMELINE)
     from .retrieve import timeline
+
     g = timeline(None, s.ledger, int(p["at"]))
     return {"nodes": len(g.nodes), "edges": len(g.edges), "at": int(p["at"])}
 
@@ -194,6 +220,7 @@ def _timeline(api, s, tok, p, _b):
 def _stats(api, s, tok, _p, _b):
     require(tok, Cap.READ_STRUCTURE)
     from .graph import stats
+
     return stats(s.state())
 
 
@@ -215,6 +242,7 @@ def _map(api, s, tok, p, _b):
     require(tok, Cap.READ_STRUCTURE)
     from .retrieve import cap as cap_results
     from .retrieve import expand, rank
+
     st = s.state()
     focus = p.get("focus")
     seeds = [focus] if focus and focus in st.nodes else []
@@ -234,21 +262,33 @@ def _map(api, s, tok, p, _b):
     nodes = []
     for r in results:
         n = st.nodes[r.id]
-        nodes.append({
-            "id": r.id, "type": str(n.type).split(".")[-1],
-            "kind": n.kind, "support": str(n.support).split(".")[-1],
-            "strength": str(n.strength).split(".")[-1],
-            "corroboration": n.corroboration,
-            "single_method": n.single_method,
-            "score": r.score, "hops": r.hops,
-            **({"label": labels.get(r.id)} if labels else {}),
-        })
-    edges = [{"src": e.src, "dst": e.dst,
-              "relation": str(e.relation).split(".")[-1]}
-             for e in st.edges.values() if e.src in keep and e.dst in keep]
-    return {"nodes": nodes, "edges": edges,
-            "total": len(st.nodes), "held": max(0, len(st.nodes) - len(keep)),
-            "seeds": seeds, "cap": k}
+        nodes.append(
+            {
+                "id": r.id,
+                "type": str(n.type).split(".")[-1],
+                "kind": n.kind,
+                "support": str(n.support).split(".")[-1],
+                "strength": str(n.strength).split(".")[-1],
+                "corroboration": n.corroboration,
+                "single_method": n.single_method,
+                "score": r.score,
+                "hops": r.hops,
+                **({"label": labels.get(r.id)} if labels else {}),
+            }
+        )
+    edges = [
+        {"src": e.src, "dst": e.dst, "relation": str(e.relation).split(".")[-1]}
+        for e in st.edges.values()
+        if e.src in keep and e.dst in keep
+    ]
+    return {
+        "nodes": nodes,
+        "edges": edges,
+        "total": len(st.nodes),
+        "held": max(0, len(st.nodes) - len(keep)),
+        "seeds": seeds,
+        "cap": k,
+    }
 
 
 def _portable(api, s, tok, p, _b):
@@ -264,11 +304,15 @@ def _portable(api, s, tok, p, _b):
     """
     require(tok, Cap.READ_STRUCTURE)
     from .portable import to_portable
+
     labels = api._labels(s) if Cap.READ_CONTENT in tok.caps else None
     focus = p.get("focus")
     st = s.state()
-    seeds = [focus] if focus and focus in st.nodes else \
-        [a.id for a in frontier(st, limit=5) if a.id in st.nodes]
+    seeds = (
+        [focus]
+        if focus and focus in st.nodes
+        else [a.id for a in frontier(st, limit=5) if a.id in st.nodes]
+    )
     return to_portable(st, seeds=seeds, labels=labels, lens=p.get("lens"))
 
 
@@ -281,21 +325,25 @@ def _companion(api, s, tok, p, _b):
     """
     require(tok, Cap.READ_STRUCTURE)
     from .companion import bias, impact, recall_failures, transfer
+
     st = s.state()
     labels = api._labels(s) if Cap.READ_CONTENT in tok.caps else {}
     out: dict = {}
 
-    if (nid := p.get("id")):
+    if nid := p.get("id"):
         im = impact(st, nid)
         out["impact"] = {
-            "id": im.id, "direct": im.direct, "cascade": im.cascade,
+            "id": im.id,
+            "direct": im.direct,
+            "cascade": im.cascade,
             "unsupported_after": im.unsupported_after,
             "load_bearing": im.load_bearing,
         }
-    if (text := p.get("q")):
-        out["recall"] = [{"id": r.id, "label": r.label, "reason": r.reason,
-                          "overlap": r.overlap, "kind": r.kind}
-                         for r in recall_failures(st, text, labels)]
+    if text := p.get("q"):
+        out["recall"] = [
+            {"id": r.id, "label": r.label, "reason": r.reason, "overlap": r.overlap, "kind": r.kind}
+            for r in recall_failures(st, text, labels)
+        ]
 
     arts = []
     for aid, n in st.nodes.items():
@@ -305,9 +353,17 @@ def _companion(api, s, tok, p, _b):
             arts.append(show(s, aid))
         except Exception:
             continue
-    out["bias"] = [{"quantity": b.quantity, "n": b.n, "matched": b.matched,
-                    "direction": b.direction, "median_error": b.median_error,
-                    "advice": b.advice} for b in bias(arts)]
+    out["bias"] = [
+        {
+            "quantity": b.quantity,
+            "n": b.n,
+            "matched": b.matched,
+            "direction": b.direction,
+            "median_error": b.median_error,
+            "advice": b.advice,
+        }
+        for b in bias(arts)
+    ]
     out["transfer"] = transfer(st, labels)
     return out
 
@@ -327,6 +383,7 @@ def _log(api, s, tok, p, _b):
     """
     require(tok, Cap.READ_STRUCTURE, Cap.READ_TIMELINE)
     from .events import EventType
+
     st = s.state()
     labels = api._labels(s) if Cap.READ_CONTENT in tok.caps else {}
 
@@ -343,18 +400,28 @@ def _log(api, s, tok, p, _b):
         # ⚠️ `target` is where a retraction names its subject. Missing it made
         # the one entry type that most needs a label — the withdrawal — render
         # as "0 items", which is the opposite of failures staying visible.
-        ids += [x for x in (e.structural.get("artifact_id"),
-                            e.structural.get("id"),
-                            e.structural.get("target")) if x]
-        entries.append({
-            "seq": e.seq, "ts": e.ts, "type": str(e.type).split(".")[-1],
-            "ids": ids,
-            # ⚠️ labels only when the caller may read content — a shared page
-            # minted with a reader token gets the SHAPE of the work and none
-            # of the words, which is the intended degradation, not a bug.
-            "labels": [labels[i] for i in ids if i in labels],
-            "retracted": e.type is EventType.RETRACTED,
-        })
+        ids += [
+            x
+            for x in (
+                e.structural.get("artifact_id"),
+                e.structural.get("id"),
+                e.structural.get("target"),
+            )
+            if x
+        ]
+        entries.append(
+            {
+                "seq": e.seq,
+                "ts": e.ts,
+                "type": str(e.type).split(".")[-1],
+                "ids": ids,
+                # ⚠️ labels only when the caller may read content — a shared page
+                # minted with a reader token gets the SHAPE of the work and none
+                # of the words, which is the intended degradation, not a bug.
+                "labels": [labels[i] for i in ids if i in labels],
+                "retracted": e.type is EventType.RETRACTED,
+            }
+        )
 
     arts = []
     for nid, n in st.nodes.items():
@@ -374,8 +441,11 @@ def _log(api, s, tok, p, _b):
     arts.sort(key=lambda a: a.get("id", ""))
 
     seq, head = s.ledger.head()
-    return {"entries": entries, "artifacts": arts,
-            "head": {"seq": seq, "hash": head, "verified": s.ledger.verify_chain()}}
+    return {
+        "entries": entries,
+        "artifacts": arts,
+        "head": {"seq": seq, "hash": head, "verified": s.ledger.verify_chain()},
+    }
 
 
 def _export(api, s, tok, _p, _b):
@@ -384,6 +454,7 @@ def _export(api, s, tok, _p, _b):
 
 
 # ── WRITE ───────────────────────────────────────────────────────────────────
+
 
 def _turn(api, s, tok, p, body):
     """The turn protocol over HTTP — `ask`, the product's main verb.
@@ -407,20 +478,31 @@ def _turn(api, s, tok, p, body):
 
     agent = api._agent()
     if agent is None:
-        raise ApiError(503, "no model endpoint configured — set MG_ENDPOINT "
-                            "and MG_API_KEY. Every other route is "
-                            "deterministic and needs neither.")
+        raise ApiError(
+            503,
+            "no model endpoint configured — set MG_ENDPOINT "
+            "and MG_API_KEY. Every other route is "
+            "deterministic and needs neither.",
+        )
 
     from .agents import run_turn
+
     g, labels = s.state(), api._labels(s)
     vecs = s.vectors().all() if api.embedder else None
     k = int(body.get("k", 12))
     hits = query(g, question, labels, k=k, embedder=api.embedder, vectors=vecs)
     budget = body.get("budget_usd", api.budget_usd)
-    t = run_turn(g, question, [r.id for r in hits], agent, labels=labels,
-                 budget_usd=float(budget) if budget is not None else None)
+    t = run_turn(
+        g,
+        question,
+        [r.id for r in hits],
+        agent,
+        labels=labels,
+        budget_usd=float(budget) if budget is not None else None,
+    )
 
     from .evaluation import cost_per_accepted
+
     return {
         "question": question,
         "answer": t.answer,
@@ -443,44 +525,60 @@ def _propose(api, s, tok, _p, body):
     """⚠️ A proposal is not a write. It becomes structure only via the gate."""
     require(tok, Cap.PROPOSE)
     from .events import EventType
+
     if not body.get("basis"):
         raise ApiError(400, "no basis — an unjustified claim is rejected")
-    seq = s.ledger.append(tok.user, EventType.PROPOSED,
-                          {"edges": body.get("edges", []),
-                           "basis": sorted(body["basis"])})
+    seq = s.ledger.append(
+        tok.user,
+        EventType.PROPOSED,
+        {"edges": body.get("edges", []), "basis": sorted(body["basis"])},
+    )
     return {"proposal_seq": seq, "status": "pending"}
 
 
 # ── HUMAN-ONLY ──────────────────────────────────────────────────────────────
 
+
 def _validate(api, s, tok, _p, body):
     """⭐⭐ If AI could write "this worked", the record of what worked becomes
     fiction — and that record is the entire asset."""
     require(tok, Cap.VALIDATE)
-    return measure(s, body["artifact_id"], value=body.get("value"),
-                   unit=body.get("unit"), raw_ref=body.get("raw_ref"))
+    return measure(
+        s,
+        body["artifact_id"],
+        value=body.get("value"),
+        unit=body.get("unit"),
+        raw_ref=body.get("raw_ref"),
+    )
 
 
 def _predict(api, s, tok, _p, body):
     require(tok, Cap.VALIDATE)
-    aid = predict(s, label=body["label"], quantity=body["quantity"],
-                  low=float(body["low"]), high=float(body["high"]),
-                  unit=body["unit"], supports=body.get("supports", []),
-                  method=body.get("method"))
+    aid = predict(
+        s,
+        label=body["label"],
+        quantity=body["quantity"],
+        low=float(body["low"]),
+        high=float(body["high"]),
+        unit=body["unit"],
+        supports=body.get("supports", []),
+        method=body.get("method"),
+    )
     return show(s, aid)
 
 
 def _retract(api, s, tok, _p, body):
     require(tok, Cap.RETRACT)
     from .events import EventType
-    seq = s.ledger.append(tok.user, EventType.RETRACTED,
-                          {"target": body["target"]})
+
+    seq = s.ledger.append(tok.user, EventType.RETRACTED, {"target": body["target"]})
     return {"seq": seq}
 
 
 def _neighbors(api, s, tok, p, _b):
     require(tok, Cap.READ_STRUCTURE)
     from .graph import neighbors
+
     return {"nodes": sorted(neighbors(s.state(), p["id"], int(p.get("hops", 1))))}
 
 
@@ -489,12 +587,14 @@ def _review(api, s, tok, _p, _b):
     already in the graph, flagged and reversible."""
     require(tok, Cap.READ_STRUCTURE)
     from .proposals import pending_review
+
     return {"pending": pending_review(s)}
 
 
 def _decide(api, s, tok, _p, body):
     require(tok, Cap.PROPOSE)
     from .proposals import decide
+
     n = decide(s, body.get("ids", []), accept=bool(body.get("accept")))
     return {"decided": n}
 
@@ -505,6 +605,7 @@ def _ingest(api, s, tok, _p, body):
     require(tok, Cap.PROPOSE, Cap.READ_CONTENT)
     from .extract import FakeLLM, ingest_text
     from .proposals import ingest
+
     rep = ingest(s, ingest_text(body["name"], body.get("text", ""), FakeLLM()))
     return rep.as_dict()
 
@@ -512,15 +613,21 @@ def _ingest(api, s, tok, _p, body):
 def _nudge(api, s, tok, _p, _b):
     require(tok, Cap.READ_STRUCTURE)
     from .curation import structuring_nudge
+
     n = structuring_nudge(s.state())
-    return {"triggered": n.triggered, "ratio": n.ratio,
-            "outstanding": len(n.outstanding), "reason": n.reason}
+    return {
+        "triggered": n.triggered,
+        "ratio": n.ratio,
+        "outstanding": len(n.outstanding),
+        "reason": n.reason,
+    }
 
 
 def _calibration(api, s, tok, _p, _b):
     """Structural only — survives erasure by construction."""
     require(tok, Cap.READ_STRUCTURE)
     from .artifact import calibration
+
     return calibration(s)
 
 
@@ -529,35 +636,51 @@ def _analyze(api, s, tok, _p, _b):
     path in production; synchronous here because the demo is small."""
     require(tok, Cap.READ_STRUCTURE)
     from .analyzer import analyze
+
     return analyze(s.state()).as_dict()
 
 
 def _resurrections(api, s, tok, _p, _b):
     require(tok, Cap.READ_FRONTIER)
     from .frontier import resurrected
+
     return {"resurrected": resurrected(s.state())}
 
 
 def _start(api, s, tok, _p, body):
     """Cold start. ⭐ The graph is never empty."""
-    require(tok, Cap.VALIDATE)          # it is the human's project to create
+    require(tok, Cap.VALIDATE)  # it is the human's project to create
     from .coldstart import seed_project
-    return seed_project(s, body["question"],
-                        transcript=body.get("transcript", "")).as_dict()
+
+    return seed_project(s, body["question"], transcript=body.get("transcript", "")).as_dict()
 
 
 ROUTES = {
-    "query": _query, "explain": _explain, "path": _path,
+    "query": _query,
+    "explain": _explain,
+    "path": _path,
     "neighbors": _neighbors,
-    "frontier": _frontier, "contradictions": _contradictions,
+    "frontier": _frontier,
+    "contradictions": _contradictions,
     "resurrections": _resurrections,
-    "timeline": _timeline, "stats": _stats, "export": _export, "log": _log,
-    "map": _map, "portable": _portable, "companion": _companion,
-    "review": _review, "nudge": _nudge, "calibration": _calibration,
+    "timeline": _timeline,
+    "stats": _stats,
+    "export": _export,
+    "log": _log,
+    "map": _map,
+    "portable": _portable,
+    "companion": _companion,
+    "review": _review,
+    "nudge": _nudge,
+    "calibration": _calibration,
     "analyze": _analyze,
     "turn": _turn,
-    "propose": _propose, "decide": _decide, "ingest": _ingest,
-    "predict": _predict, "validate": _validate, "retract": _retract,
+    "propose": _propose,
+    "decide": _decide,
+    "ingest": _ingest,
+    "predict": _predict,
+    "validate": _validate,
+    "retract": _retract,
     "start": _start,
 }
 
@@ -575,11 +698,16 @@ ROUTES = {
 # list covers the dev ports this repo actually uses (the static demo server,
 # Vite dev, Vite preview). Override with MG_CORS_ORIGINS (comma-separated) for
 # anything else — never with `*`.
-DEFAULT_CORS_ORIGINS = frozenset({
-    "http://127.0.0.1:8899", "http://localhost:8899",   # demo static server
-    "http://127.0.0.1:5173", "http://localhost:5173",   # vite dev
-    "http://127.0.0.1:3000", "http://localhost:3000",   # vite preview
-})
+DEFAULT_CORS_ORIGINS = frozenset(
+    {
+        "http://127.0.0.1:8899",
+        "http://localhost:8899",  # demo static server
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",  # vite dev
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",  # vite preview
+    }
+)
 
 
 def _cors_origins() -> frozenset[str]:
@@ -612,10 +740,10 @@ def make_handler(api: Api):
             u = urlparse(self.path)
             params = {k: v[0] for k, v in parse_qs(u.query).items()}
             secret = (self.headers.get("Authorization") or "").removeprefix(
-                "Bearer ").strip() or None
+                "Bearer "
+            ).strip() or None
             try:
-                self._send(200, api.handle(u.path.strip("/"), params, secret,
-                                           body))
+                self._send(200, api.handle(u.path.strip("/"), params, secret, body))
             except ApiError as exc:
                 self._send(exc.status, {"error": str(exc)})
             except (KeyError, ValueError) as exc:
@@ -638,7 +766,7 @@ def make_handler(api: Api):
                 return self._send(400, {"error": "body is not JSON"})
             self._route(body)
 
-        def log_message(self, *a):    # quiet by default
+        def log_message(self, *a):  # quiet by default
             pass
 
     return Handler

@@ -1,4 +1,5 @@
 """Phase 7 — auth, tenancy, backup, restore, concurrency. Backend/07 §4."""
+
 from __future__ import annotations
 
 import pytest
@@ -29,6 +30,7 @@ def _populate(root, user):
 
 
 # ── isolation is a path check ───────────────────────────────────────────────
+
 
 @pytest.mark.parametrize("bad", ["../etc", "a/b", "", "..", "x" * 80, "a b"])
 def test_illegal_user_ids_are_refused(tmp_path, bad):
@@ -61,6 +63,7 @@ def test_two_users_cannot_see_each_other(tmp_path):
 
 
 # ── backup and restore ──────────────────────────────────────────────────────
+
 
 def test_restore_is_a_replay_not_a_snapshot_copy(tmp_path):
     """⭐ A restored snapshot could disagree with the ledger; a replayed one
@@ -99,17 +102,20 @@ def test_a_tampered_backup_is_refused(tmp_path):
 
 # ── erasure ─────────────────────────────────────────────────────────────────
 
+
 def test_erase_destroys_the_key_and_records_it(tmp_path):
     provision(tmp_path, "u1")
     _populate(tmp_path, "u1")
     ks = keystore(tmp_path)
     from mindgraph.crypto import encrypt
+
     blob = encrypt(ks, "u1", {"measured": "47.2"})
 
     erase(tmp_path, "u1")
     assert not keystore(tmp_path).exists("u1")
     with pytest.raises(KeyDestroyed):
         from mindgraph.crypto import decrypt
+
         decrypt(keystore(tmp_path), "u1", blob)
 
     led = Ledger(user_dir(tmp_path, "u1") / "ledger.db")
@@ -128,6 +134,7 @@ def test_health_reports_shredded_users(tmp_path):
 
 # ── concurrency: the constraint the load test found ────────────────────────
 
+
 def test_the_cache_evicts_by_lru(tmp_path):
     """⭐ CPU was never the limit — memory was. 144-240 MB per live graph."""
     for u in ("u1", "u2", "u3"):
@@ -136,7 +143,7 @@ def test_the_cache_evicts_by_lru(tmp_path):
     c = GraphCache(tmp_path, capacity=2)
     c.get("u1")
     c.get("u2")
-    c.get("u1")     # u2 is now least-recent
+    c.get("u1")  # u2 is now least-recent
     c.get("u3")
     assert c.resident == 2 and c.evictions == 1
 

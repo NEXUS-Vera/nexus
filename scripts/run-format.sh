@@ -7,7 +7,7 @@ cd "$ROOT"
 FORMAT_CHECK="${FORMAT_CHECK:-0}"
 
 has_python_sources() {
-  find agents packages tools scripts -type f -name '*.py' 2>/dev/null | grep -q .
+  find agents packages tools scripts -type f -name '*.py' -print -quit 2>/dev/null | grep -q .
 }
 
 if has_python_sources; then

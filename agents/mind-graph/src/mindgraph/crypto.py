@@ -8,6 +8,7 @@ on erasure, destroy the key. The ciphertext stays in place but is noise.
 both, crypto-shredding is defeated by your own disaster recovery and the
 erasure guarantee was fictional (Backend/07 §4.2).
 """
+
 from __future__ import annotations
 
 import json
@@ -30,13 +31,13 @@ class KeyStore:
         self.path = Path(path) if path else None
         self._mem: dict[str, bytes] = {}
         if self.path and self.path.exists():
-            self._mem = {u: k.encode()
-                         for u, k in json.loads(self.path.read_text()).items()}
+            self._mem = {u: k.encode() for u, k in json.loads(self.path.read_text()).items()}
 
     def _flush(self) -> None:
         if self.path:
-            self.path.write_text(json.dumps(
-                {u: k.decode() for u, k in self._mem.items()}, sort_keys=True))
+            self.path.write_text(
+                json.dumps({u: k.decode() for u, k in self._mem.items()}, sort_keys=True)
+            )
             os.chmod(self.path, 0o600)
 
     def create(self, user: str) -> bytes:

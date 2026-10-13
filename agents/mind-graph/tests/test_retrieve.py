@@ -1,4 +1,5 @@
 """Phase 3 — retrieval, ranking, the Graph API. Backend/01 §6, Backend/07 §5."""
+
 from __future__ import annotations
 
 import pytest
@@ -24,31 +25,41 @@ from mindgraph.retrieve import (
 @pytest.fixture
 def g_and_labels(led):
     """A small embedded-systems graph with a prerequisite chain."""
-    accept(led, [
-        node("imp", "Concept", project_id="p1"),
-        node("cap", "Concept", project_id="p1"),
-        node("ind", "Concept", project_id="p1"),
-        node("bio", "Concept", project_id="p1"),
-        node("noise", "Concept", project_id="p1"),
-        node("R1", "Artifact", kind="run"),
-        node("C1"),
-    ], [
-        edge("cap", "requires", "imp"),
-        edge("ind", "requires", "imp"),
-        edge("imp", "requires", "bio"),
-        edge("R1", "supports", "C1"),
-        edge("C1", "relates_to", "imp"),
-        edge("noise", "relates_to", "imp"),
-    ])
+    accept(
+        led,
+        [
+            node("imp", "Concept", project_id="p1"),
+            node("cap", "Concept", project_id="p1"),
+            node("ind", "Concept", project_id="p1"),
+            node("bio", "Concept", project_id="p1"),
+            node("noise", "Concept", project_id="p1"),
+            node("R1", "Artifact", kind="run"),
+            node("C1"),
+        ],
+        [
+            edge("cap", "requires", "imp"),
+            edge("ind", "requires", "imp"),
+            edge("imp", "requires", "bio"),
+            edge("R1", "supports", "C1"),
+            edge("C1", "relates_to", "imp"),
+            edge("noise", "relates_to", "imp"),
+        ],
+    )
     val_event(led, "R1", ["C1"])
-    labels = {"imp": "skin impedance", "cap": "capacitance",
-              "ind": "inductance", "bio": "bioimpedance",
-              "noise": "electronic noise", "R1": "forearm sweep",
-              "C1": "hydration claim"}
+    labels = {
+        "imp": "skin impedance",
+        "cap": "capacitance",
+        "ind": "inductance",
+        "bio": "bioimpedance",
+        "noise": "electronic noise",
+        "R1": "forearm sweep",
+        "C1": "hydration claim",
+    }
     return project(led.read()), labels, led
 
 
 # ── ① seed ──────────────────────────────────────────────────────────────────
+
 
 def test_lexical_seeding_finds_the_obvious_node(g_and_labels):
     g, labels, _ = g_and_labels
@@ -69,13 +80,14 @@ def test_unmatched_query_returns_nothing_rather_than_noise(g_and_labels):
 
 # ── ② expand ────────────────────────────────────────────────────────────────
 
+
 def test_expansion_reaches_beyond_the_seed(g_and_labels):
     """The whole argument for PPR: things CONNECTED to the hit, including
     those whose wording shares nothing with the query."""
     g, labels, _ = g_and_labels
     ids = {r.id for r in query(g, "skin impedance", labels)}
     assert "imp" in ids
-    assert {"cap", "ind"} & ids            # reached by structure, not by text
+    assert {"cap", "ind"} & ids  # reached by structure, not by text
 
 
 def test_every_result_carries_a_printable_path(g_and_labels):
@@ -86,6 +98,7 @@ def test_every_result_carries_a_printable_path(g_and_labels):
 
 
 # ── ③ rank ──────────────────────────────────────────────────────────────────
+
 
 def test_weights_ramp_with_graph_age(g_and_labels):
     """On day one salience and outcome are empty, so weighting them weights
@@ -105,9 +118,8 @@ def test_weights_ramp_with_graph_age(g_and_labels):
 def test_known_set_requires_established_not_merely_supported(g_and_labels):
     """One lucky measurement must not mark something learned."""
     g, _, led = g_and_labels
-    assert known_set(g) == set()                 # C1 has corroboration 1
-    accept(led, [node("R2", "Artifact", kind="run")],
-           [edge("R2", "supports", "C1")])
+    assert known_set(g) == set()  # C1 has corroboration 1
+    accept(led, [node("R2", "Artifact", kind="run")], [edge("R2", "supports", "C1")])
     val_event(led, "R2", ["C1"])
     assert "C1" in known_set(project(led.read()))
 
@@ -115,7 +127,7 @@ def test_known_set_requires_established_not_merely_supported(g_and_labels):
 def test_learnability_tracks_the_outer_fringe(g_and_labels):
     g, labels, _ = g_and_labels
     scores = {r.id: r.doi["learnability"] for r in query(g, "impedance", labels)}
-    assert scores.get("bio", 0) == 0.0     # requires imp, which is undemonstrated
+    assert scores.get("bio", 0) == 0.0  # requires imp, which is undemonstrated
 
 
 def test_staleness_penalises(g_and_labels):
@@ -129,7 +141,7 @@ def test_staleness_penalises(g_and_labels):
 def test_outcome_rewards_things_that_worked(g_and_labels):
     g, labels, _ = g_and_labels
     r = next(x for x in query(g, "hydration claim", labels) if x.id == "C1")
-    assert r.doi["outcome"] == 1.0          # its artifact matched
+    assert r.doi["outcome"] == 1.0  # its artifact matched
 
 
 def test_ranking_is_deterministic(g_and_labels):
@@ -140,6 +152,7 @@ def test_ranking_is_deterministic(g_and_labels):
 
 
 # ── ④ cap ───────────────────────────────────────────────────────────────────
+
 
 def test_cold_start_caps_tighter(g_and_labels):
     g, _, _ = g_and_labels
@@ -160,20 +173,29 @@ def test_lenses_change_the_answer(led):
     The lens has to act on a node whose out-edges are a MIX of relations —
     see test_a_lens_cancels_where_relations_are_uniform for why.
     """
-    accept(led, [node("hub", "Concept", project_id="p1"),
-                 node("prereq", "Concept", project_id="p1"),
-                 node("paper", "Source", kind="paper"),
-                 node("bench", "Artifact", kind="run")],
-           [edge("hub", "requires", "prereq"),      # the `learn` lens boosts this
-            edge("hub", "cites", "paper"),          # `writeup` boosts this
-            edge("hub", "measured_by", "bench")])   # `debug` boosts this
+    accept(
+        led,
+        [
+            node("hub", "Concept", project_id="p1"),
+            node("prereq", "Concept", project_id="p1"),
+            node("paper", "Source", kind="paper"),
+            node("bench", "Artifact", kind="run"),
+        ],
+        [
+            edge("hub", "requires", "prereq"),  # the `learn` lens boosts this
+            edge("hub", "cites", "paper"),  # `writeup` boosts this
+            edge("hub", "measured_by", "bench"),
+        ],
+    )  # `debug` boosts this
     g = project(led.read())
-    labels = {"hub": "skin impedance", "prereq": "capacitance",
-              "paper": "Chen 2019", "bench": "forearm sweep"}
-    learn = [(r.id, r.score) for r in query(g, "skin impedance", labels,
-                                            lens="learn")]
-    debug = [(r.id, r.score) for r in query(g, "skin impedance", labels,
-                                            lens="debug")]
+    labels = {
+        "hub": "skin impedance",
+        "prereq": "capacitance",
+        "paper": "Chen 2019",
+        "bench": "forearm sweep",
+    }
+    learn = [(r.id, r.score) for r in query(g, "skin impedance", labels, lens="learn")]
+    debug = [(r.id, r.score) for r in query(g, "skin impedance", labels, lens="debug")]
     assert learn and debug and learn != debug
 
 
@@ -186,10 +208,15 @@ def test_a_lens_cancels_where_relations_are_uniform(led):
     relation presence: in a region that is all `requires` edges, every lens
     returns the same ranking.
     """
-    accept(led, [node("a", "Concept", project_id="p1"),
-                 node("b", "Concept", project_id="p1"),
-                 node("c", "Concept", project_id="p1")],
-           [edge("a", "requires", "b"), edge("b", "requires", "c")])
+    accept(
+        led,
+        [
+            node("a", "Concept", project_id="p1"),
+            node("b", "Concept", project_id="p1"),
+            node("c", "Concept", project_id="p1"),
+        ],
+        [edge("a", "requires", "b"), edge("b", "requires", "c")],
+    )
     g = project(led.read())
     labels = {"a": "capacitance", "b": "impedance", "c": "bioimpedance"}
     learn = [(r.id, r.score) for r in query(g, "impedance", labels, lens="learn")]
@@ -198,6 +225,7 @@ def test_a_lens_cancels_where_relations_are_uniform(led):
 
 
 # ── the Graph API ───────────────────────────────────────────────────────────
+
 
 def test_explain_answers_why_do_i_believe_this(g_and_labels):
     g, _, _ = g_and_labels
@@ -210,6 +238,7 @@ def test_explain_separates_retracted_support(g_and_labels):
     """⭐ A conclusion that LOST its evidence is not the same as one that never
     had any, and explain() has to say which."""
     from mindgraph.cascade import cascade_retract
+
     g, _, _ = g_and_labels
     cascade_retract(g, "R1", seq=99)
     e = explain(g, "C1")
@@ -228,5 +257,5 @@ def test_timeline_rebuilds_a_past_graph(g_and_labels):
     g, _, led = g_and_labels
     early = timeline(None, led, at_seq=1)
     assert "C1" in early.nodes
-    assert early.nodes["C1"].corroboration == 0     # before the validation
+    assert early.nodes["C1"].corroboration == 0  # before the validation
     assert g.nodes["C1"].corroboration == 1

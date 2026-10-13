@@ -13,6 +13,7 @@ bug someone has already written somewhere:
   4. Unknown event types RAISE, never silently skip.
   5. last_seq guards replay, so applying an event twice is a no-op.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -49,9 +50,9 @@ class GraphState:
     alias: dict[str, str] = field(default_factory=dict)
     merged_into: dict[str, str] = field(default_factory=dict)
     justified_by: dict[str, set[str]] = field(default_factory=dict)
-    edge_key: dict[tuple, str] = field(default_factory=dict)   # (src,rel,dst)->id
+    edge_key: dict[tuple, str] = field(default_factory=dict)  # (src,rel,dst)->id
     dead_ends: dict[str, dict] = field(default_factory=dict)
-    access: dict[str, list[int]] = field(default_factory=dict)   # salience
+    access: dict[str, list[int]] = field(default_factory=dict)  # salience
     last_seq: int = 0
 
 
@@ -66,6 +67,7 @@ def resolve(state: GraphState, nid: str) -> str:
 
 # ── evidence ────────────────────────────────────────────────────────────────
 
+
 def _reaches(state: GraphState, src: str, dst: str, via: Relation) -> bool:
     """Is `dst` reachable from `src` following only live `via` edges?"""
     if src == dst:
@@ -74,8 +76,7 @@ def _reaches(state: GraphState, src: str, dst: str, via: Relation) -> bool:
     while queue:
         cur = queue.popleft()
         for e in state.edges.values():
-            if (e.relation is via and e.src == cur
-                    and e.rank is not Rank.DEPRECATED):
+            if e.relation is via and e.src == cur and e.rank is not Rank.DEPRECATED:
                 if e.dst == dst:
                     return True
                 if e.dst not in seen:
@@ -100,9 +101,7 @@ def independent_weight(state: GraphState, edge: Edge) -> int:
     if len(srcs) <= 1:
         return max(1, edge.weight)
     derivative = {
-        b for b in srcs
-        for a in srcs
-        if a != b and _reaches(state, b, a, via=Relation.CITES)
+        b for b in srcs for a in srcs if a != b and _reaches(state, b, a, via=Relation.CITES)
     }
     return max(1, len(srcs - derivative))
 
@@ -145,8 +144,7 @@ def _recompute_support(state: GraphState, node_ids: Iterable[str]) -> None:
     for nid in sorted(set(node_ids)):
         if (n := state.nodes.get(nid)) is None:
             continue
-        live = [e for e in state.edges.values()
-                if e.dst == nid and e.rank is not Rank.DEPRECATED]
+        live = [e for e in state.edges.values() if e.dst == nid and e.rank is not Rank.DEPRECATED]
         pos = [e for e in live if e.relation in SUPPORTING]
         neg = [e for e in live if e.relation in OPPOSING]
 
@@ -158,13 +156,15 @@ def _recompute_support(state: GraphState, node_ids: Iterable[str]) -> None:
             n.support = Support.SUPPORTED
             # Strength depends on CORROBORATION (independent results), never on
             # edge weight (how many sources assert the link).
-            n.strength = (Strength.ESTABLISHED
-                          if n.corroboration >= MIN_CORROBORATION
-                          else Strength.TENTATIVE)
+            n.strength = (
+                Strength.ESTABLISHED if n.corroboration >= MIN_CORROBORATION else Strength.TENTATIVE
+            )
         elif neg:
             n.support, n.strength = Support.UNSUPPORTED, Strength.TENTATIVE
-        elif any(e.dst == nid and e.relation in SUPPORTING
-                 and e.rank is Rank.DEPRECATED for e in state.edges.values()):
+        elif any(
+            e.dst == nid and e.relation in SUPPORTING and e.rank is Rank.DEPRECATED
+            for e in state.edges.values()
+        ):
             # ⭐ It HAD support and lost it. That is not the same state as a
             # fresh hypothesis that never had any, and the difference is the
             # whole point of "conclusions lose support, not truth" — a claim
@@ -181,8 +181,7 @@ def _recompute_support(state: GraphState, node_ids: Iterable[str]) -> None:
         # Q12 — corroborated, but every result came from ONE method. Flags,
         # never blocks: same-method replication is a legitimate reproducibility
         # check, it just isn't independent evidence.
-        n.single_method = (n.corroboration >= MIN_CORROBORATION
-                           and len(n.corroborating_methods) == 1)
+        n.single_method = n.corroboration >= MIN_CORROBORATION and len(n.corroborating_methods) == 1
 
         pm, nm = evidence_mass(state, pos), evidence_mass(state, neg)
         n.evidence_mass = round(pm, 4)
@@ -216,6 +215,7 @@ def _rebuild_edge_keys(state: GraphState) -> None:
 
 # ── handlers ────────────────────────────────────────────────────────────────
 
+
 def _accepted(state: GraphState, p: dict, seq: int) -> None:
     for nd in sorted(p.get("nodes", []), key=lambda d: d["id"]):
         node = Node(**{**nd, "created_seq": seq})
@@ -231,19 +231,19 @@ def _accepted(state: GraphState, p: dict, seq: int) -> None:
         edge = Edge(**{**ed, "created_seq": seq})
         edge.src, edge.dst = resolve(state, edge.src), resolve(state, edge.dst)
         if edge.src == edge.dst:
-            continue                                  # self-loop after a merge
+            continue  # self-loop after a merge
 
         key = (edge.src, edge.relation, edge.dst)
         if (existing_id := state.edge_key.get(key)) is not None:
             # Re-assertion increments weight rather than duplicating the edge.
             ex = state.edges[existing_id]
-            if seq not in ex.weight_sources:           # distinct sources only
+            if seq not in ex.weight_sources:  # distinct sources only
                 ex.weight += 1
                 ex.weight_sources = sorted(set(ex.weight_sources) | {seq})
                 ex.weight_source_nodes = sorted(
-                    set(ex.weight_source_nodes)
-                    | set(edge.weight_source_nodes or [edge.src]))
-            ex.score = max(ex.score, edge.score)       # best evidence wins
+                    set(ex.weight_source_nodes) | set(edge.weight_source_nodes or [edge.src])
+                )
+            ex.score = max(ex.score, edge.score)  # best evidence wins
             ex.justification = sorted(set(ex.justification) | set(edge.justification))
             edge_id = existing_id
         else:
@@ -281,10 +281,10 @@ def _validated(state: GraphState, p: dict, seq: int) -> None:
         return
     art.labels_at = {**art.labels_at, "outcome": p["agreement"]}
     if p["agreement"] == "matched":
-        m = _method_of(state, aid)                     # Q12 — may be None
+        m = _method_of(state, aid)  # Q12 — may be None
         for cid in sorted(p.get("validates", [])):
-            if (c := state.nodes.get(resolve(state, cid))):
-                c.corroboration += 1                   # a distinct RESULT
+            if c := state.nodes.get(resolve(state, cid)):
+                c.corroboration += 1  # a distinct RESULT
                 if m and m not in c.corroborating_methods:
                     c.corroborating_methods = sorted(c.corroborating_methods + [m])
                 _recompute_support(state, [c.id])
@@ -297,8 +297,11 @@ def _method_of(state: GraphState, artifact_id: str) -> str | None:
     """
     for eid in sorted(state.edges):
         e = state.edges[eid]
-        if (e.src == artifact_id and e.relation is Relation.USES_METHOD_IN
-                and e.rank is not Rank.DEPRECATED):
+        if (
+            e.src == artifact_id
+            and e.relation is Relation.USES_METHOD_IN
+            and e.rank is not Rank.DEPRECATED
+        ):
             return e.dst
     return None
 
@@ -306,8 +309,10 @@ def _method_of(state: GraphState, artifact_id: str) -> str | None:
 def _dead_end(state: GraphState, p: dict, seq: int) -> None:
     """What was tried, why it failed, and what would make it worth revisiting."""
     state.dead_ends[p["id"]] = {
-        "question": p["question"], "nodes": sorted(p.get("nodes", [])),
-        "seq": seq, "resurrect_if": sorted(p.get("resurrect_if", [])),
+        "question": p["question"],
+        "nodes": sorted(p.get("nodes", [])),
+        "seq": seq,
+        "resurrect_if": sorted(p.get("resurrect_if", [])),
     }
 
 
@@ -343,19 +348,20 @@ def _merged(state: GraphState, p: dict, seq: int) -> None:
     a = state.nodes.pop(absorbed, None)
     if a and kept in state.nodes:
         k = state.nodes[kept]
-        k.aliases = sorted(set(k.aliases) | set(a.aliases)
-                           | ({a.label} if a.label else set()))
-        k.corroboration += a.corroboration              # counts survive a merge
-        k.corroborating_methods = sorted(set(k.corroborating_methods)
-                                         | set(a.corroborating_methods))   # Q12
+        k.aliases = sorted(set(k.aliases) | set(a.aliases) | ({a.label} if a.label else set()))
+        k.corroboration += a.corroboration  # counts survive a merge
+        k.corroborating_methods = sorted(
+            set(k.corroborating_methods) | set(a.corroborating_methods)
+        )  # Q12
         for s in k.aliases:
             state.alias[s] = kept
-    _rebuild_edge_keys(state)                           # endpoints changed
+    _rebuild_edge_keys(state)  # endpoints changed
     _recompute_support(state, [kept])
 
 
 def _retracted(state: GraphState, p: dict, seq: int) -> None:
     from .cascade import cascade_retract
+
     cascade_retract(state, resolve(state, p["target"]), seq)
 
 
@@ -404,12 +410,11 @@ def project(events: Iterable[Event], state: GraphState | None = None) -> GraphSt
     state = state if state is not None else GraphState()
     for e in events:
         if e.seq <= state.last_seq:
-            continue                                   # idempotent replay
+            continue  # idempotent replay
         payload = upcast(e.structural, e.schema_version)
         handler = HANDLERS.get(e.type)
         if handler is None:
-            raise UnknownEventType(
-                f"no handler for {e.type!r} at seq {e.seq} — refusing to skip")
+            raise UnknownEventType(f"no handler for {e.type!r} at seq {e.seq} — refusing to skip")
         handler(state, payload, e.seq)
         state.last_seq = e.seq
     return state
@@ -424,8 +429,11 @@ def state_hash(state: GraphState) -> str:
     """
     h = hashlib.sha256()
     for nid in sorted(state.nodes):
-        h.update(canonical(state.nodes[nid].model_dump(
-            mode="json", exclude={"label", "aliases", "body_ref"})).encode())
+        h.update(
+            canonical(
+                state.nodes[nid].model_dump(mode="json", exclude={"label", "aliases", "body_ref"})
+            ).encode()
+        )
     for eid in sorted(state.edges):
         h.update(canonical(state.edges[eid].model_dump(mode="json")).encode())
     for hid in sorted(state.hyper):

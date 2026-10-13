@@ -39,6 +39,7 @@ Format is graphology's serialised shape (`{attributes, nodes, edges}`) so the
 client can `Graph.from(payload)` directly and get a real graph object for
 traversal, not a bag of dictionaries.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -64,8 +65,9 @@ from .retrieve import (
 DISTANCE_PENALTY = 0.05
 
 
-def doi_parts(state: GraphState, nid: str, known: set[str],
-              ppr: dict[str, float], top: float) -> dict[str, float]:
+def doi_parts(
+    state: GraphState, nid: str, known: set[str], ppr: dict[str, float], top: float
+) -> dict[str, float]:
     """The six components, exactly as `retrieve.rank` computes them.
 
     ⚠️ This function must stay the single source of these numbers. If `rank`
@@ -82,9 +84,12 @@ def doi_parts(state: GraphState, nid: str, known: set[str],
     }
 
 
-def to_portable(state: GraphState, seeds: list[str] | None = None,
-                labels: dict[str, str] | None = None,
-                lens: str | None = None) -> dict[str, Any]:
+def to_portable(
+    state: GraphState,
+    seeds: list[str] | None = None,
+    labels: dict[str, str] | None = None,
+    lens: str | None = None,
+) -> dict[str, Any]:
     """Serialise the graph plus everything needed to re-rank it client-side.
 
     `seeds` only sets the *initial* distances. The client can re-seed on any
@@ -102,7 +107,8 @@ def to_portable(state: GraphState, seeds: list[str] | None = None,
         for s in seeds:
             if s in und:
                 for nid, d in nx.single_source_shortest_path_length(
-                        und, s, cutoff=MAX_HOPS).items():
+                    und, s, cutoff=MAX_HOPS
+                ).items():
                     dist[nid] = min(dist.get(nid, 99), d)
 
     nodes = []
@@ -122,10 +128,16 @@ def to_portable(state: GraphState, seeds: list[str] | None = None,
             attrs["label"] = labels[nid]
         nodes.append({"key": nid, "attributes": attrs})
 
-    edges = [{"key": eid, "source": e.src, "target": e.dst,
-              "attributes": {"relation": str(e.relation).split(".")[-1]}}
-             for eid, e in state.edges.items()
-             if e.src in state.nodes and e.dst in state.nodes]
+    edges = [
+        {
+            "key": eid,
+            "source": e.src,
+            "target": e.dst,
+            "attributes": {"relation": str(e.relation).split(".")[-1]},
+        }
+        for eid, e in state.edges.items()
+        if e.src in state.nodes and e.dst in state.nodes
+    ]
 
     return {
         # graphology's serialised shape — `Graph.from(payload)` consumes this

@@ -6,6 +6,7 @@
 ⚠️ Wide-open CORS and an in-memory token store: correct for a localhost demo,
 wrong for anything reachable.
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,19 +31,29 @@ def seed() -> None:
         if s.ledger.head()[0] > 0:
             return
         seed_project(s, Q)
-        ingest(s, ingest_text("lab_notes_wk27.md",
-                              "skin impedance drops when hydrated\n"
-                              "electrode drift dominates below 1 kHz\n"
-                              "dry electrodes add contact impedance over gel\n",
-                              FakeLLM()))
-        ingest(s, ingest_text("sweep_0314.csv",
-                              "freq_hz,impedance_kohm,temp_c\n50000,47.2,22.4\n", FakeLLM()))
-        for lo, hi, val, label in ((45, 50, 47.2, "Forearm sweep, dry electrodes"),
-                                   (45, 50, 46.5, "Forearm sweep, repeat"),
-                                   (30, 40, 33.0, "Gel-electrode control"),
-                                   (0, 5, 11.4, "Motion-artifact rejection")):
-            aid = predict(s, label=label, quantity="impedance", low=lo, high=hi,
-                          unit="kOhm")
+        ingest(
+            s,
+            ingest_text(
+                "lab_notes_wk27.md",
+                "skin impedance drops when hydrated\n"
+                "electrode drift dominates below 1 kHz\n"
+                "dry electrodes add contact impedance over gel\n",
+                FakeLLM(),
+            ),
+        )
+        ingest(
+            s,
+            ingest_text(
+                "sweep_0314.csv", "freq_hz,impedance_kohm,temp_c\n50000,47.2,22.4\n", FakeLLM()
+            ),
+        )
+        for lo, hi, val, label in (
+            (45, 50, 47.2, "Forearm sweep, dry electrodes"),
+            (45, 50, 46.5, "Forearm sweep, repeat"),
+            (30, 40, 33.0, "Gel-electrode control"),
+            (0, 5, 11.4, "Motion-artifact rejection"),
+        ):
+            aid = predict(s, label=label, quantity="impedance", low=lo, high=hi, unit="kOhm")
             measure(s, aid, value=val)
     finally:
         s.close()
@@ -62,20 +73,37 @@ class ScriptedAgent:
 
     def run(self, role, payload, question):
         n = len(payload.get("nodes", []))
-        out = {"tokens_in": 400 + 20 * n, "tokens_out": 120, "proposals": [],
-               "answer": (f"[scripted demo answer — no model was called] "
-                          f"{role.name} saw {n} node(s) for: {question}")}
+        out = {
+            "tokens_in": 400 + 20 * n,
+            "tokens_out": 120,
+            "proposals": [],
+            "answer": (
+                f"[scripted demo answer — no model was called] "
+                f"{role.name} saw {n} node(s) for: {question}"
+            ),
+        }
         if role.name == "grounder":
             ids = [x.get("id") for x in payload.get("nodes", [])][:2]
             if len(ids) == 2:
                 out["proposals"] = [
-                    {"id": "demo-1", "subject": ids[0], "relation": "supports",
-                     "object": ids[1], "confidence": "EXTRACTED",
-                     "basis": [ids[1]], "span": "lab_notes_wk27.md:1"},
+                    {
+                        "id": "demo-1",
+                        "subject": ids[0],
+                        "relation": "supports",
+                        "object": ids[1],
+                        "confidence": "EXTRACTED",
+                        "basis": [ids[1]],
+                        "span": "lab_notes_wk27.md:1",
+                    },
                     # deliberately ungated so the pane has a rejection to show
-                    {"id": "demo-2", "subject": ids[0], "relation": "supports",
-                     "object": ids[1], "confidence": "EXTRACTED",
-                     "basis": [ids[1]]},
+                    {
+                        "id": "demo-2",
+                        "subject": ids[0],
+                        "relation": "supports",
+                        "object": ids[1],
+                        "confidence": "EXTRACTED",
+                        "basis": [ids[1]],
+                    },
                 ]
         return out
 
@@ -85,8 +113,7 @@ def main() -> int:
     fake = "--fake-agent" in sys.argv
     api = Api(root=str(ROOT_DIR), agent=ScriptedAgent() if fake else None)
     if fake:
-        print("\n  ⚠️  --fake-agent: `turn` returns SCRIPTED text. Not a model.",
-              flush=True)
+        print("\n  ⚠️  --fake-agent: `turn` returns SCRIPTED text. Not a model.", flush=True)
     token = api.tokens.mint("local", "human")
     (ROOT_DIR / "token.txt").write_text(token)
     print("\n  Graph API on http://127.0.0.1:8787", flush=True)

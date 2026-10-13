@@ -8,6 +8,7 @@ and it is what makes the frontier computable on day one.
 ⭐ Curated concepts are GLOBAL by construction (Q4): they carry no project_id
 and never need promoting. Only LLM-extracted concepts start project-scoped.
 """
+
 from __future__ import annotations
 
 import re
@@ -18,20 +19,62 @@ from pathlib import Path
 # Short tokens that are also ordinary English. A concept alias made of one of
 # these only counts when the student wrote it in caps — otherwise "CAN bus"
 # matches every sentence beginning "Can I…".
-_AMBIGUOUS_SHORT = frozenset({
-    "can", "may", "was", "are", "has", "had", "did", "let", "set", "get",
-    "put", "run", "use", "add", "end", "top", "low", "few", "all", "any",
-    "one", "two", "new", "old", "big", "bad", "eis", "elm", "ram", "rom",
-    "led", "map", "arm", "bus", "bit", "pin", "pid", "adc", "dac",
-})
+_AMBIGUOUS_SHORT = frozenset(
+    {
+        "can",
+        "may",
+        "was",
+        "are",
+        "has",
+        "had",
+        "did",
+        "let",
+        "set",
+        "get",
+        "put",
+        "run",
+        "use",
+        "add",
+        "end",
+        "top",
+        "low",
+        "few",
+        "all",
+        "any",
+        "one",
+        "two",
+        "new",
+        "old",
+        "big",
+        "bad",
+        "eis",
+        "elm",
+        "ram",
+        "rom",
+        "led",
+        "map",
+        "arm",
+        "bus",
+        "bit",
+        "pin",
+        "pid",
+        "adc",
+        "dac",
+    }
+)
 
 ROW = re.compile(r"^- \{(.+)\}\s*$", re.M)
 FIELD = re.compile(r'(\w+):\s*(\[[^\]]*\]|"[^"]*"|[^,\]]+)')
 
 # Lives under docs/ (not agents/) because repo policy only allows markdown
 # there; this file is both the design doc and the only copy of the seed data.
-DEFAULT_PATH = (Path(__file__).resolve().parents[4]
-                / "docs" / "architecture" / "mind-graph" / "11_Concept_Skeleton.md")
+DEFAULT_PATH = (
+    Path(__file__).resolve().parents[4]
+    / "docs"
+    / "architecture"
+    / "mind-graph"
+    / "11_Concept_Skeleton.md"
+)
 
 
 @dataclass(frozen=True)
@@ -64,8 +107,7 @@ class Skeleton:
         for _ in range(levels):
             nxt: set[str] = set()
             for cid in frontier_:
-                nxt |= {p for p in self.concepts[cid].requires
-                        if p in self.concepts}
+                nxt |= {p for p in self.concepts[cid].requires if p in self.concepts}
             nxt -= out
             if not nxt:
                 break
@@ -74,16 +116,46 @@ class Skeleton:
         return out
 
     # Words that carry no discriminating power in a concept label.
-    _STOP = frozenset({"and", "or", "the", "a", "an", "of", "to", "in", "for",
-                       "with", "basics", "basic", "control", "analysis",
-                       "design", "processing", "techniques", "technique",
-                       "methods", "method", "systems", "system",
-                       # ⚠️ generic verbs and nouns. "build" matched *Makefiles*
-                       # for "I want to BUILD a robot arm", which is the kind of
-                       # confident-but-useless seed that makes a cold start feel
-                       # broken rather than empty.
-                       "build", "make", "test", "check", "code", "data",
-                       "model", "safety", "selection", "sizing"})
+    _STOP = frozenset(
+        {
+            "and",
+            "or",
+            "the",
+            "a",
+            "an",
+            "of",
+            "to",
+            "in",
+            "for",
+            "with",
+            "basics",
+            "basic",
+            "control",
+            "analysis",
+            "design",
+            "processing",
+            "techniques",
+            "technique",
+            "methods",
+            "method",
+            "systems",
+            "system",
+            # ⚠️ generic verbs and nouns. "build" matched *Makefiles*
+            # for "I want to BUILD a robot arm", which is the kind of
+            # confident-but-useless seed that makes a cold start feel
+            # broken rather than empty.
+            "build",
+            "make",
+            "test",
+            "check",
+            "code",
+            "data",
+            "model",
+            "safety",
+            "selection",
+            "sizing",
+        }
+    )
 
     @cached_property
     def _token_df(self) -> dict[str, int]:
@@ -95,6 +167,7 @@ class Skeleton:
         seeded with half the curriculum.
         """
         from .resolve import normalise
+
         df: dict[str, int] = {}
         for c in self.concepts.values():
             seen = set()
@@ -119,6 +192,7 @@ class Skeleton:
         identifying on its own; a common one (`control`, `basics`) never is.
         """
         from .resolve import normalise, trigrams
+
         hay_words = set(normalise(text).split())
         hay = f" {normalise(text)} "
         qg = trigrams(text)
@@ -132,7 +206,7 @@ class Skeleton:
         hits: list[tuple[str, float]] = []
 
         def usable(t: str) -> bool:
-            if len(t) < 3:                       # "I/O" → "i", matches anything
+            if len(t) < 3:  # "I/O" → "i", matches anything
                 return False
             if len(t) <= 4 and t in _AMBIGUOUS_SHORT:
                 return t.upper() in raw_caps
@@ -140,8 +214,7 @@ class Skeleton:
 
         for cid, c in self.concepts.items():
             names = [c.label, *c.aliases]
-            if any(f" {normalise(n)} " in hay for n in names
-                   if len(normalise(n)) > 2):
+            if any(f" {normalise(n)} " in hay for n in names if len(normalise(n)) > 2):
                 hits.append((cid, 1.0))
                 continue
 
@@ -156,15 +229,15 @@ class Skeleton:
                 cover = len(present) / len(toks)
                 # rarest present token drives the score — one distinctive word
                 # is worth more than three generic ones
-                rarity = max((1.0 - (df.get(t, total) - 1) / total)
-                             for t in present)
+                rarity = max((1.0 - (df.get(t, total) - 1) / total) for t in present)
                 # ⚠️ A single distinctive token can carry a match (an acronym
                 # IS the concept), but a single generic token cannot.
                 if cover >= 0.5 or rarity >= 0.985:
                     best = max(best, min(0.99, 0.55 * cover + 0.45 * rarity))
             if best == 0.0:
-                best = max((len(qg & trigrams(n)) / max(1, len(trigrams(n)))
-                            for n in names), default=0.0)
+                best = max(
+                    (len(qg & trigrams(n)) / max(1, len(trigrams(n))) for n in names), default=0.0
+                )
                 if best < 0.6:
                     best = 0.0
             if best:
@@ -178,16 +251,22 @@ def parse(text: str) -> Skeleton:
         d: dict = {}
         for k, v in FIELD.findall(raw):
             v = v.strip()
-            d[k] = ([x.strip() for x in v[1:-1].split(",") if x.strip()]
-                    if v.startswith("[") else v.strip('"'))
+            d[k] = (
+                [x.strip() for x in v[1:-1].split(",") if x.strip()]
+                if v.startswith("[")
+                else v.strip('"')
+            )
         if "id" not in d:
             continue
         sk.concepts[d["id"]] = Concept(
-            id=d["id"], label=d.get("label", d["id"]),
-            tier=int(d.get("tier", 0)), domain=d.get("domain", "unknown"),
+            id=d["id"],
+            label=d.get("label", d["id"]),
+            tier=int(d.get("tier", 0)),
+            domain=d.get("domain", "unknown"),
             requires=tuple(d.get("requires", [])),
             aliases=tuple(d.get("aliases", [])),
-            verify=d.get("verify") or None)
+            verify=d.get("verify") or None,
+        )
     return sk
 
 

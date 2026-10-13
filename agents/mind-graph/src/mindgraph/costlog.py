@@ -4,6 +4,7 @@ Nobody in this field has published real cost or curation data (Research/06
 §1.1). This table is how we get to be the ones who can — so it goes in from
 day one rather than being added once the numbers would be interesting.
 """
+
 from __future__ import annotations
 
 import json
@@ -65,17 +66,17 @@ class CostLog:
         self.db.executescript(SCHEMA_SQL)
 
     def write(self, rec: dict) -> None:
-        tags = {k: v for k, v in rec.items()
-                if k not in ("op_type", "wall_ms", "cpu_ms")}
+        tags = {k: v for k, v in rec.items() if k not in ("op_type", "wall_ms", "cpu_ms")}
         with self.db:
             self.db.execute(
                 "INSERT INTO ops (op_type, wall_ms, cpu_ms, tags) VALUES (?,?,?,?)",
-                (rec["op_type"], rec["wall_ms"], rec["cpu_ms"],
-                 json.dumps(tags, sort_keys=True)))
+                (rec["op_type"], rec["wall_ms"], rec["cpu_ms"], json.dumps(tags, sort_keys=True)),
+            )
 
     def rows(self) -> list[tuple]:
         return self.db.execute(
-            "SELECT op_type, wall_ms, cpu_ms, tags FROM ops ORDER BY id").fetchall()
+            "SELECT op_type, wall_ms, cpu_ms, tags FROM ops ORDER BY id"
+        ).fetchall()
 
     @contextmanager
     def measure(self, op_type: str, **tags):

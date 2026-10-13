@@ -4,6 +4,7 @@ A sidecar: derived, disposable, recomputable. Deleting it costs an embedding
 backfill, never data — so it lives beside the graph snapshot and is never
 backed up.
 """
+
 from __future__ import annotations
 
 import json
@@ -34,12 +35,16 @@ class VectorStore:
 
     def put(self, node_id: str, vec: list[float], model: str) -> None:
         with self.db:
-            self.db.execute("INSERT OR REPLACE INTO vectors VALUES (?,?,?,?)",
-                            (node_id, model, len(vec), json.dumps(vec)))
+            self.db.execute(
+                "INSERT OR REPLACE INTO vectors VALUES (?,?,?,?)",
+                (node_id, model, len(vec), json.dumps(vec)),
+            )
 
     def all(self) -> dict[str, list[float]]:
-        return {nid: json.loads(v) for nid, v in self.db.execute(
-            "SELECT node_id, vec FROM vectors ORDER BY node_id")}
+        return {
+            nid: json.loads(v)
+            for nid, v in self.db.execute("SELECT node_id, vec FROM vectors ORDER BY node_id")
+        }
 
     def missing(self, node_ids) -> list[str]:
         have = {r[0] for r in self.db.execute("SELECT node_id FROM vectors")}
@@ -52,8 +57,9 @@ class VectorStore:
         for nid in self.missing(sorted(labels)):
             if not labels.get(nid):
                 continue
-            self.put(nid, embedder.embed(labels[nid]),
-                     model or getattr(embedder, "model", "unknown"))
+            self.put(
+                nid, embedder.embed(labels[nid]), model or getattr(embedder, "model", "unknown")
+            )
             done += 1
         return done
 

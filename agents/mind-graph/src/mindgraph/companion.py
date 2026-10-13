@@ -18,6 +18,7 @@ None of these are model calls. They are graph and arithmetic over outcomes the
 student produced, which is exactly why a competitor with a better model cannot
 copy them.
 """
+
 from __future__ import annotations
 
 import re
@@ -32,6 +33,7 @@ from .schema import Relation, Support
 @dataclass
 class Impact:
     """What rests on a node, and what would lose its footing without it."""
+
     id: str
     direct: list[str] = field(default_factory=list)
     cascade: list[str] = field(default_factory=list)
@@ -71,7 +73,7 @@ def impact(state: GraphState, node_id: str) -> Impact:
         for nid in frontier_:
             remaining = supports_of.get(nid, set()) - lost
             if remaining:
-                continue                       # still standing on something
+                continue  # still standing on something
             out.unsupported_after.append(nid)
             lost.add(nid)
             for d, srcs in supports_of.items():
@@ -92,14 +94,39 @@ def impact(state: GraphState, node_id: str) -> Impact:
 # ── ② recall — the immune-memory move ───────────────────────────────────────
 
 _WORD = re.compile(r"[a-z0-9]+")
-_NOISE = frozenset({"the", "a", "an", "of", "to", "in", "on", "for", "with",
-                    "and", "or", "is", "it", "at", "my", "this", "that",
-                    "was", "not", "but", "from", "by", "as", "we", "i"})
+_NOISE = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "of",
+        "to",
+        "in",
+        "on",
+        "for",
+        "with",
+        "and",
+        "or",
+        "is",
+        "it",
+        "at",
+        "my",
+        "this",
+        "that",
+        "was",
+        "not",
+        "but",
+        "from",
+        "by",
+        "as",
+        "we",
+        "i",
+    }
+)
 
 
 def _shape(text: str) -> set[str]:
-    return {w for w in _WORD.findall((text or "").lower())
-            if w not in _NOISE and len(w) > 2}
+    return {w for w in _WORD.findall((text or "").lower()) if w not in _NOISE and len(w) > 2}
 
 
 @dataclass
@@ -111,9 +138,13 @@ class Recall:
     kind: str
 
 
-def recall_failures(state: GraphState, text: str, labels: dict[str, str],
-                    reasons: dict[str, str] | None = None,
-                    limit: int = 3) -> list[Recall]:
+def recall_failures(
+    state: GraphState,
+    text: str,
+    labels: dict[str, str],
+    reasons: dict[str, str] | None = None,
+    limit: int = 3,
+) -> list[Recall]:
     """⭐ "You have hit this shape of problem before."
 
     An immune system does not store every pathogen; it stores the *shape* of
@@ -140,15 +171,20 @@ def recall_failures(state: GraphState, text: str, labels: dict[str, str],
     # object.
     for did, d in state.dead_ends.items():
         why = d.get("question", "")
-        blob = _shape(why) | {t for nid in d.get("nodes", [])
-                              for t in _shape(labels.get(nid, ""))}
+        blob = _shape(why) | {t for nid in d.get("nodes", []) for t in _shape(labels.get(nid, ""))}
         if not blob:
             continue
         overlap = len(q & blob) / len(q | blob)
         if overlap >= 0.12:
-            out.append(Recall(
-                id=did, label=labels.get(did, why[:60] or did), reason=why,
-                overlap=round(overlap, 3), kind="dead_end"))
+            out.append(
+                Recall(
+                    id=did,
+                    label=labels.get(did, why[:60] or did),
+                    reason=why,
+                    overlap=round(overlap, 3),
+                    kind="dead_end",
+                )
+            )
 
     # Retractions are the other half: not "this did not work" but "this lost
     # its footing", and a student about to repeat an un-supported measurement
@@ -165,8 +201,15 @@ def recall_failures(state: GraphState, text: str, labels: dict[str, str],
             continue
         overlap = len(q & blob) / len(q | blob)
         if overlap >= 0.12:
-            out.append(Recall(id=nid, label=labels.get(nid, nid), reason=why,
-                              overlap=round(overlap, 3), kind="unsupported"))
+            out.append(
+                Recall(
+                    id=nid,
+                    label=labels.get(nid, nid),
+                    reason=why,
+                    overlap=round(overlap, 3),
+                    kind="unsupported",
+                )
+            )
 
     out.sort(key=lambda r: (-r.overlap, r.id))
     return out[:limit]
@@ -180,7 +223,7 @@ class Bias:
     quantity: str
     n: int
     matched: int
-    direction: str            # "optimistic" | "pessimistic" | "calibrated"
+    direction: str  # "optimistic" | "pessimistic" | "calibrated"
     median_error: float | None
     advice: str
 
@@ -235,27 +278,43 @@ def bias(artifacts: list[dict], min_n: int = 3) -> list[Bias]:
         errs.sort()
         med = errs[len(errs) // 2]
         if matched / len(items) >= 0.7 or abs(med) < 0.25:
-            direction, advice = "calibrated", (
-                f"Your {q} predictions are holding — {matched} of {len(items)}.")
+            direction, advice = (
+                "calibrated",
+                (f"Your {q} predictions are holding — {matched} of {len(items)}."),
+            )
         elif med > 0:
-            direction, advice = "optimistic", (
-                f"Your {q} predictions run LOW — the real value landed above "
-                f"your interval in most misses. Consider widening upward.")
+            direction, advice = (
+                "optimistic",
+                (
+                    f"Your {q} predictions run LOW — the real value landed above "
+                    f"your interval in most misses. Consider widening upward."
+                ),
+            )
         else:
-            direction, advice = "pessimistic", (
-                f"Your {q} predictions run HIGH — the real value landed below "
-                f"your interval in most misses. You may be over-padding.")
-        out.append(Bias(quantity=q, n=len(items), matched=matched,
-                        direction=direction, median_error=round(med, 3),
-                        advice=advice))
+            direction, advice = (
+                "pessimistic",
+                (
+                    f"Your {q} predictions run HIGH — the real value landed below "
+                    f"your interval in most misses. You may be over-padding."
+                ),
+            )
+        out.append(
+            Bias(
+                quantity=q,
+                n=len(items),
+                matched=matched,
+                direction=direction,
+                median_error=round(med, 3),
+                advice=advice,
+            )
+        )
     return out
 
 
 # ── ④ transfer — the most supervisor-like sentence in the product ───────────
 
 
-def transfer(state: GraphState, labels: dict[str, str],
-             limit: int = 3) -> list[dict]:
+def transfer(state: GraphState, labels: dict[str, str], limit: int = 3) -> list[dict]:
     """⭐ "The noise problem in your lidar build is the same shape as the
     contact-drift problem in your impedance rig."
 
@@ -274,7 +333,7 @@ def transfer(state: GraphState, labels: dict[str, str],
     out = []
     projects = sorted(by_project)
     for i, pa in enumerate(projects):
-        for pb in projects[i + 1:]:
+        for pb in projects[i + 1 :]:
             for a in by_project[pa]:
                 sa = _shape(labels.get(a, ""))
                 if len(sa) < 2:
@@ -285,8 +344,15 @@ def transfer(state: GraphState, labels: dict[str, str],
                         continue
                     ov = len(sa & sb) / len(sa | sb)
                     if ov >= 0.3:
-                        out.append({"a": a, "b": b, "a_project": pa,
-                                    "b_project": pb, "overlap": round(ov, 3),
-                                    "shared": sorted(sa & sb)})
+                        out.append(
+                            {
+                                "a": a,
+                                "b": b,
+                                "a_project": pa,
+                                "b_project": pb,
+                                "overlap": round(ov, 3),
+                                "shared": sorted(sa & sb),
+                            }
+                        )
     out.sort(key=lambda d: (-d["overlap"], d["a"]))
     return out[:limit]
