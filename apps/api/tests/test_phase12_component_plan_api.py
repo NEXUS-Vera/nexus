@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api.config import settings
 from nexus_api.main import app
 
 GREENHOUSE = (
@@ -11,11 +12,15 @@ GREENHOUSE = (
     "humidity, soil moisture, and light, and reports the readings remotely."
 )
 
+AUTH_HEADERS = {"Authorization": f"Bearer {settings.session_token}"}
+
 
 @pytest.mark.asyncio
 async def test_phase12_component_plan_init_get_and_approve() -> None:
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
         created = await client.post(
             "/v1/projects/initialize",
             json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
@@ -37,9 +42,7 @@ async def test_phase12_component_plan_init_get_and_approve() -> None:
 
         board = await client.get(f"/v1/projects/{project_id}/board")
         assert board.status_code == 200
-        summaries = {
-            s["artifactType"]: s for s in board.json()["artifactSummaries"]
-        }
+        summaries = {s["artifactType"]: s for s in board.json()["artifactSummaries"]}
         assert "component-plan" in summaries
         cp_summary = summaries["component-plan"]
         assert cp_summary.get("roleCount", 0) >= 1
@@ -63,9 +66,9 @@ async def test_phase12_component_plan_init_get_and_approve() -> None:
         # Role IDs preserved across selective update when architecture unchanged.
         old_role_ids = {r["componentRoleId"] for r in component["content"]["componentRoles"]}
         new_role_ids = {r["componentRoleId"] for r in updated_cp["content"]["componentRoles"]}
-        assert old_role_ids.intersection(new_role_ids) or updated_cp["content"][
-            "selectionConstraints"
-        ]
+        assert (
+            old_role_ids.intersection(new_role_ids) or updated_cp["content"]["selectionConstraints"]
+        )
 
         # If candidates exist (or after alternatives request), approval path works.
         alt = await client.post(
