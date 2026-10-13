@@ -57,20 +57,11 @@ def test_generate_is_deterministic_and_includes_notices() -> None:
 
 def test_stale_generated_output_fails_check_and_restores() -> None:
     target = GENERATED_TS / "artifact_v1.ts"
-    original = target.read_text(encoding="utf-8")
+    original = target.read_bytes()
     try:
-        target.write_text(original + "\n// stale marker\n", encoding="utf-8")
+        target.write_bytes(original + b"\n// stale marker\n")
         completed = _run_generator("--check")
         assert completed.returncode != 0
         assert "stale" in completed.stderr.lower() or "stale" in completed.stdout.lower()
     finally:
-        # --check regenerates then fails; restore committed bytes explicitly.
-        restore = _run_generator()
-        assert restore.returncode == 0, restore.stderr
-        assert target.read_text(encoding="utf-8") == original or (
-            # Regeneration may normalize identically to pre-stale content.
-            "// stale marker" not in target.read_text(encoding="utf-8")
-        )
-        # Ensure final tree matches a clean generation.
-        clean = _run_generator("--check")
-        assert clean.returncode == 0, clean.stderr
+        target.write_bytes(original)

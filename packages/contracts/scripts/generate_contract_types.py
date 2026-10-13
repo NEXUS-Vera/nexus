@@ -496,7 +496,13 @@ main().catch((err) => {
             "dependencies": {"json-schema-to-typescript": "15.0.4"},
         }
         _write_json(tmp_path / "package.json", pkg)
-        _run(["npm", "install", "--silent", "--no-fund", "--no-audit"], cwd=tmp_path)
+        try:
+            _run(["npm", "install", "--silent", "--no-fund", "--no-audit"], cwd=tmp_path)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                "TypeScript generation requires network access to the npm registry "
+                "to install json-schema-to-typescript@15.0.4."
+            ) from exc
         _run(
             ["node", str(script_path), str(bundled_dir), str(out_dir)],
             cwd=tmp_path,
