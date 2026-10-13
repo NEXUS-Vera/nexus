@@ -89,14 +89,16 @@ Every event carries `schema_version: int`. The projector folds an old event forw
 CURRENT_VERSION = 3
 
 UPCASTERS: dict[int, Callable[[dict], dict]] = {
-    1: _v1_to_v2,   # split `body` into `body_ref` + blob
-    2: _v2_to_v3,   # relation `related_to` -> `relates_to`
+    1: _v1_to_v2,  # split `body` into `body_ref` + blob
+    2: _v2_to_v3,  # relation `related_to` -> `relates_to`
 }
+
 
 def upcast(payload: dict, from_v: int) -> dict:
     for v in range(from_v, CURRENT_VERSION):
         payload = UPCASTERS[v](payload)
     return payload
+
 
 def apply(state, event):
     payload = upcast(event.structural, event.schema_version)

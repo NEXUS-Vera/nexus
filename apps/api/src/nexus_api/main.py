@@ -635,9 +635,7 @@ async def list_project_executions(
         return invalid
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
-        items, next_cursor = _kernel.executions.list_runs(
-            project_id, limit=limit, cursor=cursor
-        )
+        items, next_cursor = _kernel.executions.list_runs(project_id, limit=limit, cursor=cursor)
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,
@@ -666,9 +664,7 @@ async def list_project_events(
         return invalid
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
-        items, next_cursor = _kernel.ledger.list_events(
-            project_id, limit=limit, cursor=cursor
-        )
+        items, next_cursor = _kernel.ledger.list_events(project_id, limit=limit, cursor=cursor)
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,

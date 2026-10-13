@@ -79,6 +79,23 @@ pythonVersion = "3.11"
 typeCheckingMode = "basic"
 include = ["agents", "apps", "packages", "tools", "scripts"]
 exclude = ["**/__pycache__", "**/.venv", "**/node_modules", "packages/contracts/generated"]
+# Import roots for the src-layout packages (mirrors PYTHON_PATH in the Makefile).
+extraPaths = [
+  "apps/api/src",
+  "agents/embedded-systems/src",
+  "agents/mind-graph/src",
+  "agents/vera/src",
+  "packages/agent-runtime/src",
+  "packages/board/src",
+  "packages/contracts/src",
+  "packages/contracts/generated/python",
+  "packages/memory/src",
+  "packages/model-gateway/src",
+  "packages/observability/src",
+  "packages/persistence/src",
+  "packages/retrieval/src",
+  "packages/testing/src",
+]
 
 [tool.mypy]
 python_version = "3.11"

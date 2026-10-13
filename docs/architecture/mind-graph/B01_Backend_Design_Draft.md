@@ -321,11 +321,24 @@ Edge:
 
 ```python
 Relation = Literal[
-  "contains", "part_of",                                    # structural
-  "supports", "contradicts", "refutes", "confirms", "extends",   # epistemic (CiTO)
-  "evidence_for", "measured_by", "cites", "uses_method_in",      # evidential
-  "requires", "relates_to", "same_as",                           # conceptual
-  "answers", "raises", "supersedes", "derived_from",             # process
+    "contains",
+    "part_of",  # structural
+    "supports",
+    "contradicts",
+    "refutes",
+    "confirms",
+    "extends",  # epistemic (CiTO)
+    "evidence_for",
+    "measured_by",
+    "cites",
+    "uses_method_in",  # evidential
+    "requires",
+    "relates_to",
+    "same_as",  # conceptual
+    "answers",
+    "raises",
+    "supersedes",
+    "derived_from",  # process
 ]
 ```
 
@@ -392,12 +405,19 @@ Event:
 
 ```python
 EventType = Literal[
-  "observed", "proposed", "accepted", "rejected",
-  "validated",    # ⭐ outcome recorded
-  "retracted", "merged", "split", "annotated", "accessed",
-  "dead_end",     # ⭐ NEW — this approach failed
-  "correction",   # ⭐ NEW — user fixed something; a learning signal
-  "shredded",
+    "observed",
+    "proposed",
+    "accepted",
+    "rejected",
+    "validated",  # ⭐ outcome recorded
+    "retracted",
+    "merged",
+    "split",
+    "annotated",
+    "accessed",
+    "dead_end",  # ⭐ NEW — this approach failed
+    "correction",  # ⭐ NEW — user fixed something; a learning signal
+    "shredded",
 ]
 ```
 
@@ -564,15 +584,20 @@ def crossover_score(state, u, v, edge) -> tuple[int, list[str]]:
     if edge.confidence != "EXTRACTED":
         why.append("not explicitly stated in any source")
     if discipline(u) != discipline(v):
-        score += 3; why.append(f"crosses {discipline(u)} ↔ {discipline(v)}")
+        score += 3
+        why.append(f"crosses {discipline(u)} ↔ {discipline(v)}")
     if project_of(u) != project_of(v):
-        score += 2; why.append("connects two of your projects")
+        score += 2
+        why.append("connects two of your projects")
     if abs(age_days(u) - age_days(v)) > 30:
-        score += 1; why.append("links work weeks apart")
+        score += 1
+        why.append("links work weeks apart")
     if {klass(u), klass(v)} == {"Source", "Artifact"}:
-        score += 3; why.append("connects a published claim to your own measurement")
+        score += 3
+        why.append("connects a published claim to your own measurement")
     if min(deg(u), deg(v)) <= 2 and max(deg(u), deg(v)) >= 5:
-        score += 1; why.append("peripheral node unexpectedly reaches a hub")
+        score += 1
+        why.append("peripheral node unexpectedly reaches a hub")
     # suppression: label-matched INFERRED edges are resolver pollution, not insight
     if edge.confidence == "INFERRED" and edge.provenance.get("method") == "label_match":
         score = min(score, 2)
