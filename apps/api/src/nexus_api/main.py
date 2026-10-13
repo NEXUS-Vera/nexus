@@ -715,7 +715,7 @@ async def get_project_graph(
                     "truncated": False,
                     "cycleDetected": False,
                 }
-            root = nodes[0]["nodeId"]
+            root = str(nodes[0]["nodeId"])
         return _kernel.graph.reader.get_subgraph(
             project_id,
             root,

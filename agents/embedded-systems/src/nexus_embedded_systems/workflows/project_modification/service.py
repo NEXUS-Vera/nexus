@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, Literal
 
+from nexus_contracts.validation.semantic_validators import SemanticValidationError
+
 from nexus_embedded_systems.workflows.project_initialization.materializer import (
     initialization_dict_to_package_bundle,
 )
@@ -390,14 +392,10 @@ class ModificationService:
         for art in new_revisions:
             if art.get("sourceTurnId") != turn_id or art.get("workflowRunId") != run_id:
                 blocking.append(
-                    type(
-                        "E",
-                        (),
-                        {
-                            "code": "MOD_REVISION_TURN_MISMATCH",
-                            "message": "New revision must reference the modification turn.",
-                        },
-                    )()
+                    SemanticValidationError(
+                        code="MOD_REVISION_TURN_MISMATCH",
+                        message="New revision must reference the modification turn.",
+                    )
                 )
                 break
         if blocking:
