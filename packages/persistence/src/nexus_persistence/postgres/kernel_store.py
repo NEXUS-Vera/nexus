@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from nexus_persistence.errors import (
     ArtifactVersionConflictError,
     ExecutionNotFoundError,
+    FirmwarePatchNotFoundError,
     LedgerImmutableError,
     ProjectNotFoundError,
     ProjectPersistenceError,
@@ -25,6 +26,7 @@ from nexus_persistence.postgres.models import (
     ExecutionJobRow,
     ExecutionLogChunkRow,
     ExecutionRunRow,
+    FirmwarePatchProposalRow,
     ProducedOutputRow,
     ProjectBoardProjectionRow,
     ProjectEventRow,
@@ -365,6 +367,40 @@ class PostgresKernelStore:
             row = session.get(ArtifactProposalRow, proposal_id)
             if row is None:
                 raise ProposalNotFoundError(f"Proposal not found: {proposal_id}")
+            row.payload = proposal
+            row.status = proposal["status"]
+            session.commit()
+
+    def create_firmware_patch_proposal(self, proposal: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            session.add(
+                FirmwarePatchProposalRow(
+                    proposal_id=proposal["proposalId"],
+                    project_id=proposal["projectId"],
+                    workspace_id=proposal["workspaceId"],
+                    status=proposal["status"],
+                    payload=proposal,
+                    requested_at=_parse_dt(proposal["requestedAt"]),
+                )
+            )
+            session.commit()
+
+    def get_firmware_patch_proposal(self, proposal_id: str) -> dict[str, Any]:
+        with self._session_factory() as session:
+            row = session.get(FirmwarePatchProposalRow, proposal_id)
+            if row is None:
+                raise FirmwarePatchNotFoundError(
+                    f"Firmware patch proposal not found: {proposal_id}"
+                )
+            return dict(row.payload)
+
+    def update_firmware_patch_proposal(self, proposal_id: str, proposal: dict[str, Any]) -> None:
+        with self._session_factory() as session:
+            row = session.get(FirmwarePatchProposalRow, proposal_id)
+            if row is None:
+                raise FirmwarePatchNotFoundError(
+                    f"Firmware patch proposal not found: {proposal_id}"
+                )
             row.payload = proposal
             row.status = proposal["status"]
             session.commit()

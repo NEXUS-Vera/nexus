@@ -15,6 +15,7 @@ class ProjectGraphNodeV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     createdAt: str

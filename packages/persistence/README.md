@@ -57,6 +57,10 @@ Phase 14C adds reference-aware GC helpers on the kernel store
 `reclaim_snapshot`, `delete_execution_log_chunks`, and global list helpers).
 No new migration is required for 14C retention metadata.
 
+Phase 15C adds `firmware_patch_proposals` in migration
+`0005_phase15c_firmware_patches`. Firmware patch create/get/update operations
+share the same persistence protocol across memory, SQLite and PostgreSQL.
+
 `accept_proposal_transaction` atomically validates concurrency, inserts a new
 artifact revision, advances `currentStateVersion`, appends events, updates
 graph edges, and upserts the board projection.

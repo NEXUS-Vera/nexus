@@ -70,3 +70,15 @@ promoted. Retention protects referenced snapshots and reclaims orphan blobs.
 The process runtime has limited isolation; use the container runtime for its
 stronger filesystem/network/resource boundaries. Live Docker/Postgres acceptance
 tests require explicit configuration and do not substitute process runs.
+
+## Firmware workspace
+
+The `firmware` artifact exposes deterministic ESP32 Arduino scaffolding, patch
+proposals pinned to immutable snapshots, guarded patch application, history and
+compile/test operations through `kernel.workspace_runtime`. Compile consumes a
+pre-compile snapshot and promotes only declared successful outputs.
+
+`NEXUS_FIRMWARE_USE_STUB=1` (the current default) runs offline fixtures; their
+outputs are not real build or device evidence. Set it to `0` to run PlatformIO
+and configure the execution runtime/image for the preinstalled toolchain.
+Live toolchain/container acceptance tests require explicit opt-in.

@@ -289,3 +289,14 @@ class ProjectGraphEdgeRow(Base):
     target_node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     edge_type: Mapped[str] = mapped_column(String(64), nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
+
+
+class FirmwarePatchProposalRow(Base):
+    __tablename__ = "firmware_patch_proposals"
+
+    proposal_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    workspace_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

@@ -14,6 +14,7 @@ class Input(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     initialContent: NotRequired[dict[str, Any]]
 

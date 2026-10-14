@@ -38,6 +38,7 @@ export type { ArtifactProposal } from './artifact-proposal_v1';
 export type { WorkspaceDescriptor } from './workspace-descriptor_v1';
 export type { WorkspaceSnapshot } from './workspace-snapshot_v1';
 export type { WorkspaceDraftState } from './workspace-draft-state_v1';
+export type { FirmwarePatchProposal } from './firmware-patch-proposal_v1';
 export type { WorkspaceFile } from './workspace-file_v1';
 export type { ExecutionRequest } from './execution-request_v1';
 export type { ExecutionRun } from './execution-run_v1';

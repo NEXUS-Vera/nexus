@@ -21,7 +21,8 @@ export type LiveArtifactType =
   | 'requirement-set'
   | 'functional-architecture'
   | 'next-action'
-  | 'component-plan';
+  | 'component-plan'
+  | 'firmware';
 
 export type ChangeIndicator = 'Updated' | 'Regenerated' | 'Unchanged' | 'Affected' | 'Stale' | 'Current';
 

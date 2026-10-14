@@ -14,6 +14,7 @@ class ReasonByArtifactItem(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     reason: str
 
@@ -26,6 +27,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     changed: list[
@@ -36,6 +38,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     reasonByArtifact: list[ReasonByArtifactItem]
@@ -47,6 +50,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -58,6 +62,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     unchanged: list[
@@ -68,6 +73,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
 
@@ -78,6 +84,7 @@ ArtifactType: TypeAlias = Literal[
     'next-action',
     'component-plan',
     'code-scratch',
+    'firmware',
 ]
 
 ArtifactTypeList: TypeAlias = list[
@@ -88,5 +95,6 @@ ArtifactTypeList: TypeAlias = list[
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
 ]

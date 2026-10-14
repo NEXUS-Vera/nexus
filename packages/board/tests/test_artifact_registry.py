@@ -20,6 +20,7 @@ def test_default_registry_has_runtime_artifacts() -> None:
         "next-action",
         "component-plan",
         "code-scratch",
+        "firmware",
     }
 
 

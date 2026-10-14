@@ -95,3 +95,33 @@ class WorkspaceWritePolicyError(BoardError):
 
 class WorkspaceNotFilesystemError(BoardError):
     code = "WORKSPACE_NOT_FILESYSTEM"
+
+
+class WorkspaceScaffoldConflictError(BoardError):
+    """Scaffold target path exists and does not match the deterministic template."""
+
+    code = "WORKSPACE_SCAFFOLD_CONFLICT"
+
+
+class FirmwarePatchValidationError(BoardError):
+    code = "FIRMWARE_PATCH_VALIDATION_FAILED"
+
+
+class FirmwarePatchStaleError(BoardError):
+    code = "FIRMWARE_PATCH_STALE"
+
+
+class FirmwarePatchNotFoundError(BoardError):
+    code = "FIRMWARE_PATCH_NOT_FOUND"
+
+
+class FirmwarePatchGenerationError(BoardError):
+    code = "FIRMWARE_PATCH_GENERATION_FAILED"
+
+
+class FirmwareToolchainValidationError(BoardError):
+    code = "FIRMWARE_TOOLCHAIN_VALIDATION_FAILED"
+
+
+class FirmwareTestNotConfiguredError(BoardError):
+    code = "FIRMWARE_TEST_NOT_CONFIGURED"

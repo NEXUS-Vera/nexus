@@ -2,7 +2,13 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type Artifact = ArtifactEnvelope | ArtifactEnvelope1 | ArtifactEnvelope2 | ArtifactEnvelope3 | ArtifactEnvelope4;
 export type ComponentCategory =
   | 'sensor'
@@ -28,31 +34,109 @@ export type ComponentCategory1 =
   | 'supporting-electronics';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 export type ArtifactType1 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType2 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType3 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType4 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType5 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType6 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType7 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType8 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType9 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType10 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType11 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType12 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType13 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 
 /**
  * Canonical response for a project-modification turn: the resulting current state together with the interpreted intent, the propagation analysis, and which artifact types were actually changed or regenerated.

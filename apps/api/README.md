@@ -154,3 +154,15 @@ All routes retain session-token authentication.
 workspace and execution bounds are configured through `NEXUS_EXEC_*`,
 `NEXUS_WORKSPACE_*`, `NEXUS_EXECUTION_RUNTIME`,
 `NEXUS_EXECUTION_CONTAINER_IMAGE` and `NEXUS_FILE_STORE_ROOT`.
+
+## Firmware operations
+
+The Firmware workspace adds `/workspace/scaffold`, `/workspace/patch/propose`,
+`/workspace/patch/apply`, `/workspace/patch/discard`, `/workspace/compile`,
+`/workspace/test` and immutable snapshot file previews. All require the session
+token. Patch apply checks the lease, draft and base revisions; compile/test run
+against immutable snapshots. Firmware restore first creates a safety snapshot.
+
+Compile responses report `toolchainProfile.executionMode`: `fixture` denotes
+the offline stub and `platformio` denotes a real toolchain invocation. A build
+result does not establish device execution or requirement verification.

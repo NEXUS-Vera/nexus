@@ -98,14 +98,14 @@ export const ARTIFACT_REGISTRY: Record<ArtifactRouteKey, ArtifactDefinition> = {
   },
   'firmware-scaffold': {
     routeKey: 'firmware-scaffold',
-    artifactType: null,
+    artifactType: 'firmware',
     phase: 'BUILD',
     label: 'Firmware',
     shortLabel: 'Firmware',
     icon: Code2,
-    availability: 'placeholder',
+    availability: 'live',
     dependencyLabels: ['Architecture', 'Components'],
-    supportedActions: ['select'],
+    supportedActions: ['select', 'inspect', 'view-history'],
     placeholderTitle: 'Firmware scaffold unavailable',
     placeholderBody:
       'No firmware files have been generated. A file tree, editor, and runtime panel will replace this shell when scaffold generation exists.',
