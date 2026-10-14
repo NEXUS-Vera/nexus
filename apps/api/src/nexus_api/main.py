@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import secrets
@@ -1832,12 +1833,21 @@ async def propose_artifact_workspace_patch(
             message="Body must be an object.",
             request_id=request_id,
         )
+    requested_change = body.get("requestedChange")
+    if not isinstance(requested_change, str) or not requested_change.strip():
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="requestedChange must be a nonempty string.",
+            request_id=request_id,
+        )
     try:
-        result = _kernel.workspace_runtime.propose_firmware_patch(
+        result = await asyncio.to_thread(
+            _kernel.workspace_runtime.propose_firmware_patch,
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
-            requested_change=str(body["requestedChange"]),
+            requested_change=requested_change,
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {

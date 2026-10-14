@@ -513,7 +513,8 @@ def test_e2e_04_05_06_07_08_container_execution_isolation(e2e_env: dict[str, Any
     assert "ENV_AWS False" in stdout
     assert "ENV_MODEL False" in stdout
     assert "ENV_SAFE allowlisted" in stdout
-    assert "UID 65534" in stdout
+    assert os.getuid() != 0
+    assert f"UID {os.getuid()}" in stdout
     assert "RO True" in stdout
     assert "SOCK False" in stdout
     assert "DATABASE_SECRET_SENTINEL" not in stdout

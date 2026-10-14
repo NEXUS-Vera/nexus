@@ -91,7 +91,12 @@ def materialize_filesystem_snapshot(
                 raise SnapshotMaterializationError(f"Blob hash mismatch for snapshot path {path}")
             if len(data) != size_bytes:
                 raise SnapshotMaterializationError(f"Blob size mismatch for snapshot path {path}")
-            target = (root / path).resolve()
+            raw_target = root / path
+            if raw_target.is_symlink() or any(
+                p.is_symlink() for p in raw_target.parents if p != root and root in p.parents
+            ):
+                raise SnapshotMaterializationError("Refusing to write through symlink")
+            target = raw_target.resolve()
             if not str(target).startswith(str(root) + os.sep) and target != root:
                 raise SnapshotMaterializationError("Materialized path escaped execution root")
             target.parent.mkdir(parents=True, exist_ok=True)

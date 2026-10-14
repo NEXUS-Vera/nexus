@@ -202,33 +202,17 @@ class ProcessRuntime:
                         truncated = True
                     else:
                         buf.extend(chunk)
-                if proc.poll() is not None and not ready:
-                    # Drain remaining.
-                    for fh in list(streams.keys()):
-                        name, buf, limit = streams[fh]
-                        while True:
-                            chunk = os.read(fh.fileno(), 4096)
-                            if not chunk:
-                                streams.pop(fh, None)
-                                break
-                            remaining = limit - len(buf)
-                            if remaining <= 0:
-                                truncated = True
-                                streams.pop(fh, None)
-                                break
-                            if len(chunk) > remaining:
-                                buf.extend(chunk[:remaining])
-                                truncated = True
-                                streams.pop(fh, None)
-                                break
-                            buf.extend(chunk)
-                    break
             try:
                 exit_code = proc.wait(timeout=1)
             except subprocess.TimeoutExpired:
                 _kill_process_group(proc)
                 exit_code = proc.wait(timeout=2)
         finally:
+            _kill_process_group(proc)
+            if proc.stdout is not None:
+                proc.stdout.close()
+            if proc.stderr is not None:
+                proc.stderr.close()
             with self._lock:
                 self._processes.pop(request.job_id, None)
 
@@ -305,14 +289,20 @@ def collect_declared_outputs(
         target = (root / path).resolve()
         if not str(target).startswith(str(root) + os.sep) and target != root:
             raise OutputCollectionError("OUTPUT_PATH_INVALID", f"Output path escaped root: {path}")
-        if target.is_symlink() or any(
-            p.is_symlink() for p in target.parents if str(p).startswith(str(root))
+        raw_target = root / path
+        if raw_target.is_symlink() or any(
+            p.is_symlink() for p in raw_target.parents if p != root and root in p.parents
         ):
             raise OutputCollectionError("OUTPUT_SYMLINK_REJECTED", f"Symlink rejected: {path}")
         if not target.is_file():
             # Declared outputs that are missing are skipped.
             continue
-        data = target.read_bytes()
+        remaining = limits.produced_output_bytes - total
+        if target.stat().st_size > remaining:
+            raise OutputCollectionError("OUTPUT_BYTES_EXCEEDED", "Produced outputs exceed limit")
+        # Bound the read too: a file can grow after stat.
+        with target.open("rb") as stream:
+            data = stream.read(remaining + 1)
         total += len(data)
         if total > limits.produced_output_bytes:
             raise OutputCollectionError("OUTPUT_BYTES_EXCEEDED", "Produced outputs exceed limit")
@@ -328,8 +318,6 @@ def collect_declared_outputs(
 
 
 def _kill_process_group(proc: subprocess.Popen[bytes]) -> None:
-    if proc.poll() is not None:
-        return
     try:
         os.killpg(proc.pid, signal.SIGKILL)
     except ProcessLookupError:

@@ -258,8 +258,8 @@ class FilesystemWorkspaceService:
         renamed["updatedBy"] = actor
         if renamed["origin"] in {"GENERATED", "SYSTEM", "RUNTIME_OUTPUT"}:
             renamed["modifiedByUser"] = True
-        self._kernel.delete_workspace_file(workspace_id, source)
         self._kernel.upsert_workspace_file(renamed)
+        self._kernel.delete_workspace_file(workspace_id, source)
         return self._bump_draft(
             workspace=workspace, draft=draft, actor=actor, now=now, file=renamed
         )
@@ -316,7 +316,23 @@ class FilesystemWorkspaceService:
         actor: dict[str, Any],
     ) -> list[dict[str, Any]]:
         """Replace mutable file index with snapshot manifest (lease already asserted)."""
+        self._require_filesystem(workspace_id)
         entries = list(manifest.get("entries") or [])
+        if len(entries) > self._limits.max_file_count:
+            raise WorkspaceQuotaExceededError(
+                f"Snapshot exceeds max_file_count ({self._limits.max_file_count})"
+            )
+        seen_paths: set[str] = set()
+        for entry in entries:
+            path = normalize_workspace_path(entry["path"])
+            if path in seen_paths:
+                raise CommandValidationError(f"Duplicate path in manifest: {path}")
+            seen_paths.add(path)
+            size = int(entry["sizeBytes"])
+            if size < 0 or size > self._limits.max_file_bytes:
+                raise WorkspaceQuotaExceededError(f"Snapshot file exceeds max_file_bytes: {path}")
+        if sum(int(entry["sizeBytes"]) for entry in entries) > self._limits.max_workspace_bytes:
+            raise WorkspaceQuotaExceededError("Snapshot exceeds max_workspace_bytes")
         now = utc_now_iso()
         restored: list[dict[str, Any]] = []
         for entry in entries:
@@ -344,15 +360,6 @@ class FilesystemWorkspaceService:
             if entry.get("mediaType"):
                 record["mediaType"] = entry["mediaType"]
             restored.append(record)
-        if len(restored) > self._limits.max_file_count:
-            raise WorkspaceQuotaExceededError(
-                f"Snapshot exceeds max_file_count ({self._limits.max_file_count})"
-            )
-        total = sum(int(item["sizeBytes"]) for item in restored)
-        if total > self._limits.max_workspace_bytes:
-            raise WorkspaceQuotaExceededError(
-                f"Snapshot exceeds max_workspace_bytes ({self._limits.max_workspace_bytes})"
-            )
         self._kernel.replace_workspace_files(workspace_id, restored)
         return restored
 

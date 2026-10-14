@@ -28,19 +28,21 @@ class _ModelGateway(Protocol):
     ) -> Any: ...
 
 
-def _run_sync(coro: Any) -> Any:
+def _run_sync(coro: Any, *, timeout_seconds: float = 120.0) -> Any:
     result_q: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
 
     def _runner() -> None:
         try:
-            result_q.put((True, asyncio.run(coro)))
-        except Exception as exc:  # noqa: BLE001
+            result_q.put((True, asyncio.run(asyncio.wait_for(coro, timeout_seconds))))
+        except BaseException as exc:  # noqa: BLE001
             result_q.put((False, exc))
 
     thread = threading.Thread(target=_runner, daemon=True)
     thread.start()
-    thread.join()
-    ok, value = result_q.get()
+    try:
+        ok, value = result_q.get(timeout=timeout_seconds + 1.0)
+    except queue.Empty as exc:
+        raise TimeoutError("Firmware model generation timed out") from exc
     if ok:
         return value
     raise value

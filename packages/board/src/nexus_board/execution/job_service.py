@@ -287,8 +287,19 @@ class ExecutionJobService:
             "logTruncated": False,
         }
         self._kernel.create_execution_job(job)
+        run = dict(run)
+        run["executionJobId"] = job_id
+        run["runtimeIdentity"] = runtime_identity
+        run["status"] = "queued"
+        self._kernel.update_execution_status(run["executionRunId"], run)
+
+        def persist_queue_position(position: int) -> None:
+            queued = dict(job)
+            queued["queuePosition"] = position
+            self._kernel.update_execution_job(queued)
+
         try:
-            position = self._scheduler.enqueue(job_id, run["projectId"])
+            self._scheduler.enqueue(job_id, run["projectId"], on_enqueued=persist_queue_position)
         except BoardError as exc:
             job = dict(job)
             job["status"] = "failed"
@@ -306,15 +317,9 @@ class ExecutionJobService:
             run["completedAt"] = job["completedAt"]
             self._kernel.update_execution_status(run["executionRunId"], run)
             raise
-        job = dict(job)
-        job["queuePosition"] = position
-        self._kernel.update_execution_job(job)
-
-        run = dict(run)
-        run["executionJobId"] = job_id
-        run["runtimeIdentity"] = runtime_identity
-        run["status"] = "queued"
-        self._kernel.update_execution_status(run["executionRunId"], run)
+        # Never write stale queued state after notifying the worker.
+        job = self._kernel.get_execution_job(job_id)
+        run = self._kernel.get_execution_run(run["executionRunId"])
         return {"executionJob": job, "executionRun": run}
 
     def cancel(
@@ -331,7 +336,7 @@ class ExecutionJobService:
         if status == "queued":
             self._scheduler.mark_queued_cancelled(job["executionJobId"])
             job = self._transition_job(job, "cancelled", completed=True)
-            run = self._sync_run_from_job(run, job)
+            run = self._finalize_run(run=run, job=job, outputs=[])
             return {"executionJob": job, "executionRun": run}
         if status in {"starting", "running", "cancelling"}:
             self._cancel_flags[job["executionJobId"]] = True
@@ -374,7 +379,6 @@ class ExecutionJobService:
         job = self._kernel.get_execution_job(job_id)
         handle = dict(job.get("runtimeHandle") or {})
         self._runtime.cleanup(job_id, handle=handle)
-        self._runtime.cleanup(job_id, handle=handle)
 
     def _dispatch_job(self, job_id: str) -> None:
         job = self._kernel.get_execution_job(job_id)
@@ -382,7 +386,7 @@ class ExecutionJobService:
         if self._scheduler.is_cancel_requested(job_id) or job["status"] == "cancelled":
             if job["status"] == "queued":
                 job = self._transition_job(job, "cancelled", completed=True)
-                self._sync_run_from_job(run, job)
+                self._finalize_run(run=run, job=job, outputs=[])
             return
 
         limits = ExecutionLimits.from_mapping(job.get("limits"))
@@ -427,7 +431,7 @@ class ExecutionJobService:
             if self._cancel_flags.get(job_id):
                 job = self._transition_job(job, "cancelling")
                 job = self._transition_job(job, "cancelled", completed=True)
-                self._sync_run_from_job(run, job)
+                self._finalize_run(run=run, job=job, outputs=[])
                 return
 
             job = self._transition_job(job, "running")
@@ -532,7 +536,6 @@ class ExecutionJobService:
                         self._kernel.update_execution_job(latest)
                 except Exception:  # noqa: BLE001
                     pass
-            cleanup_materialization(materialization)
             cleanup_materialization(materialization)
             self._cancel_flags.pop(job_id, None)
             self._log_bytes.pop(job_id, None)

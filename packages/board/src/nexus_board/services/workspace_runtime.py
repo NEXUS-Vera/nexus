@@ -166,7 +166,6 @@ class WorkspaceRuntimeService:
         Workspaces are keyed by ``(projectId, artifactType)`` and survive
         accepted artifact revision changes. They are not recreated per revision.
         """
-        del actor  # reserved for future authn; binding itself is deterministic
         try:
             definition = self._types.get(artifact_type)
         except RegistryError as exc:
@@ -188,7 +187,7 @@ class WorkspaceRuntimeService:
             created = self._workspaces.create_if_missing(
                 project_id=project_id,
                 artifact_type=artifact_type,
-                actor=_actor_or_system(None),
+                actor=_actor_or_system(actor),
             )
             workspace = created["workspace"]
             draft = created["draft"]
@@ -986,6 +985,8 @@ class WorkspaceRuntimeService:
 
         if proposal.get("projectId") != project_id:
             raise FirmwarePatchNotFoundError("Patch proposal not found for project")
+        if proposal.get("workspaceId") != binding["workspaceId"]:
+            raise FirmwarePatchValidationError("Patch proposal belongs to another workspace")
         if proposal.get("status") != "proposed":
             raise FirmwarePatchValidationError(
                 f"Patch proposal is not in proposed status: {proposal.get('status')}"

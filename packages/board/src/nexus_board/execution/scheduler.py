@@ -76,15 +76,24 @@ class InProcessExecutionScheduler:
         if wait and self._worker is not None:
             self._worker.join(timeout=5)
 
-    def enqueue(self, job_id: str, project_id: str) -> int:
+    def enqueue(
+        self,
+        job_id: str,
+        project_id: str,
+        *,
+        on_enqueued: Callable[[int], None] | None = None,
+    ) -> int:
         with self._cv:
             if len(self._queue) >= self._config.max_queued:
                 self._rejected_jobs += 1
                 raise ExecutionQueueFullError(
                     f"Execution queue is full (maxQueued={self._config.max_queued})"
                 )
+            position = len(self._queue)
+            # Persist queue metadata before the job becomes dispatchable.
+            if on_enqueued is not None:
+                on_enqueued(position)
             self._queue.append((job_id, project_id))
-            position = len(self._queue) - 1
             self._cv.notify()
             return position
 

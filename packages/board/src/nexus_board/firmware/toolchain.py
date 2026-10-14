@@ -7,6 +7,7 @@ ExecutionCommandSpec values. Never exposes arbitrary shell commands to callers.
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -62,7 +63,11 @@ def firmware_toolchain_profile() -> dict[str, Any]:
 
 
 def _use_platformio_stub() -> bool:
-    raw = os.environ.get("NEXUS_FIRMWARE_USE_STUB", "1").strip().lower()
+    raw = (
+        os.environ.get("NEXUS_FIRMWARE_USE_STUB", "0" if shutil.which("pio") else "1")
+        .strip()
+        .lower()
+    )
     return raw in {"1", "true", "yes", "on"}
 
 
