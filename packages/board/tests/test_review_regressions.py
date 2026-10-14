@@ -10,7 +10,7 @@ import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, call
 
 import pytest
 from helpers import actor, build_test_kernel
@@ -88,6 +88,26 @@ def test_f01_materialization_rejects_existing_symlink(
         materialize_filesystem_snapshot(
             kernel_store=store, file_store=files, snapshot_id="snap", workspace_bytes_limit=100
         )
+
+
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_n32_1_cleanup_removes_tracked_container(
+    monkeypatch: pytest.MonkeyPatch, returncode: int
+) -> None:
+    runtime = LocalContainerRuntime()
+    runtime._containers["job"] = "cid"
+    docker = Mock(return_value=subprocess.CompletedProcess([], returncode, "", ""))
+    monkeypatch.setattr(runtime, "_docker_run", docker)
+
+    runtime.cleanup("job")
+
+    assert docker.call_args_list == [
+        call(["kill", "cid"], timeout=10),
+        call(["rm", "-f", "cid"], timeout=10),
+    ]
+    assert "job" not in runtime._containers
+    runtime.cleanup("job")
+    assert docker.call_count == 2
 
 
 @pytest.mark.parametrize("cancel", [False, True])

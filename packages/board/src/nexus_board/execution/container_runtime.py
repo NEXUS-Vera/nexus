@@ -145,7 +145,9 @@ class LocalContainerRuntime:
         del handle
         self.cancel(job_id)
         with self._lock:
-            self._containers.pop(job_id, None)
+            container_id = self._containers.pop(job_id, None)
+        if container_id:
+            self._docker_run(["rm", "-f", container_id], timeout=10)
 
     def reconcile_handle(self, handle: dict[str, Any]) -> str | None:
         container_id = handle.get("containerId")

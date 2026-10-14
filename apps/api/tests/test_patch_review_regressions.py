@@ -37,7 +37,7 @@ async def test_f09_model_generation_does_not_block_loop(monkeypatch: pytest.Monk
 
     def generate(**kwargs: object) -> dict:
         started.set()
-        release.wait(1)
+        release.wait(5)
         return {"status": "proposed"}
 
     monkeypatch.setattr(main._kernel.workspace_runtime, "propose_firmware_patch", generate)
