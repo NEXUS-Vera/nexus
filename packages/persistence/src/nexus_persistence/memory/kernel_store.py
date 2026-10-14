@@ -28,6 +28,7 @@ class InMemoryKernelStore:
         self._workspaces: dict[str, dict[str, Any]] = {}
         self._workspace_by_project_type: dict[tuple[str, str], str] = {}
         self._drafts: dict[str, dict[str, Any]] = {}
+        self._workspace_files: dict[tuple[str, str], dict[str, Any]] = {}
         self._snapshots: dict[str, dict[str, Any]] = {}
         self._snapshots_by_workspace: dict[str, list[str]] = {}
         self._proposals: dict[str, dict[str, Any]] = {}
@@ -35,6 +36,9 @@ class InMemoryKernelStore:
         self._command_runs: dict[str, dict[str, Any]] = {}
         self._execution_runs: dict[str, dict[str, Any]] = {}
         self._executions_by_project: dict[str, list[str]] = {}
+        self._execution_jobs: dict[str, dict[str, Any]] = {}
+        self._execution_jobs_by_run: dict[str, str] = {}
+        self._execution_log_chunks: dict[str, list[dict[str, Any]]] = {}
         self._outputs: dict[str, dict[str, Any]] = {}
         self._outputs_by_project: dict[str, list[str]] = {}
         self._events: dict[str, dict[str, Any]] = {}
@@ -96,6 +100,68 @@ class InMemoryKernelStore:
                 raise WorkspaceNotFoundError(f"Draft not found for workspace: {ws_id}")
             self._drafts[ws_id] = copy.deepcopy(draft)
 
+    # --- workspace files ---
+    def upsert_workspace_file(self, file_record: dict[str, Any]) -> None:
+        with self._lock:
+            key = (file_record["workspaceId"], file_record["path"])
+            self._workspace_files[key] = copy.deepcopy(file_record)
+
+    def get_workspace_file(self, workspace_id: str, path: str) -> dict[str, Any] | None:
+        with self._lock:
+            record = self._workspace_files.get((workspace_id, path))
+            return copy.deepcopy(record) if record is not None else None
+
+    def list_workspace_files(self, workspace_id: str) -> list[dict[str, Any]]:
+        with self._lock:
+            items = [
+                copy.deepcopy(record)
+                for (ws_id, _), record in self._workspace_files.items()
+                if ws_id == workspace_id
+            ]
+            items.sort(key=lambda item: item["path"])
+            return items
+
+    def delete_workspace_file(self, workspace_id: str, path: str) -> None:
+        with self._lock:
+            self._workspace_files.pop((workspace_id, path), None)
+
+    def replace_workspace_files(self, workspace_id: str, files: list[dict[str, Any]]) -> None:
+        with self._lock:
+            for key in [k for k in self._workspace_files if k[0] == workspace_id]:
+                del self._workspace_files[key]
+            for record in files:
+                if record["workspaceId"] != workspace_id:
+                    raise ProjectPersistenceError("File workspaceId mismatch on replace")
+                key = (workspace_id, record["path"])
+                self._workspace_files[key] = copy.deepcopy(record)
+
+    def list_referenced_content_hashes(self) -> set[str]:
+        with self._lock:
+            hashes: set[str] = set()
+            for record in self._workspace_files.values():
+                content_hash = record.get("contentHash")
+                if isinstance(content_hash, str):
+                    hashes.add(content_hash)
+            for snapshot in self._snapshots.values():
+                content = snapshot.get("content") or {}
+                if content.get("kind") != "filesystem":
+                    continue
+                manifest = content.get("filesystemManifest") or {}
+                for entry in manifest.get("entries") or []:
+                    content_hash = entry.get("contentHash")
+                    if isinstance(content_hash, str):
+                        hashes.add(content_hash)
+            for output in self._outputs.values():
+                content = output.get("content") or {}
+                if content.get("kind") != "storage-reference":
+                    continue
+                if content.get("storageKind") != "file-store":
+                    continue
+                uri = content.get("uri")
+                if isinstance(uri, str) and uri.startswith("sha256:"):
+                    hashes.add(uri)
+            return hashes
+
     # --- snapshots ---
     def create_snapshot(self, snapshot: dict[str, Any]) -> None:
         with self._lock:
@@ -122,6 +188,54 @@ class InMemoryKernelStore:
 
     def delete_snapshot(self, snapshot_id: str) -> None:
         raise SnapshotImmutableError("Snapshots are immutable.")
+
+    def reclaim_snapshot(self, snapshot_id: str) -> None:
+        """GC-only reclaim of an unreferenced snapshot. Callers must verify protection."""
+        with self._lock:
+            snap = self._snapshots.pop(snapshot_id, None)
+            if snap is None:
+                raise SnapshotNotFoundError(f"Snapshot not found: {snapshot_id}")
+            ws_id = snap["workspaceId"]
+            ids = self._snapshots_by_workspace.get(ws_id, [])
+            self._snapshots_by_workspace[ws_id] = [i for i in ids if i != snapshot_id]
+
+    def list_all_snapshots(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [copy.deepcopy(s) for s in self._snapshots.values()]
+
+    def list_all_workspaces(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [copy.deepcopy(w) for w in self._workspaces.values()]
+
+    def list_all_proposals(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [copy.deepcopy(p) for p in self._proposals.values()]
+
+    def list_all_execution_runs(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [copy.deepcopy(r) for r in self._execution_runs.values()]
+
+    def list_all_execution_jobs(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [copy.deepcopy(j) for j in self._execution_jobs.values()]
+
+    def list_nonterminal_execution_jobs(self) -> list[dict[str, Any]]:
+        terminal = {"succeeded", "failed", "timed-out", "cancelled"}
+        with self._lock:
+            return [
+                copy.deepcopy(j)
+                for j in self._execution_jobs.values()
+                if j.get("status") not in terminal
+            ]
+
+    def list_all_produced_outputs(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [copy.deepcopy(o) for o in self._outputs.values()]
+
+    def delete_execution_log_chunks(self, execution_job_id: str) -> int:
+        with self._lock:
+            chunks = self._execution_log_chunks.pop(execution_job_id, [])
+            return len(chunks)
 
     # --- proposals ---
     def create_proposal(self, proposal: dict[str, Any]) -> None:
@@ -196,12 +310,68 @@ class InMemoryKernelStore:
             next_cursor = page[-1] if len(ids) > limit else None
             return items, next_cursor
 
+    # --- execution jobs / logs ---
+    def create_execution_job(self, job: dict[str, Any]) -> None:
+        with self._lock:
+            job_id = job["executionJobId"]
+            self._execution_jobs[job_id] = copy.deepcopy(job)
+            self._execution_jobs_by_run[job["executionRunId"]] = job_id
+            self._execution_log_chunks.setdefault(job_id, [])
+
+    def update_execution_job(self, job: dict[str, Any]) -> None:
+        with self._lock:
+            job_id = job["executionJobId"]
+            if job_id not in self._execution_jobs:
+                raise ExecutionNotFoundError(f"Execution job not found: {job_id}")
+            self._execution_jobs[job_id] = copy.deepcopy(job)
+            self._execution_jobs_by_run[job["executionRunId"]] = job_id
+
+    def get_execution_job(self, execution_job_id: str) -> dict[str, Any]:
+        with self._lock:
+            job = self._execution_jobs.get(execution_job_id)
+            if job is None:
+                raise ExecutionNotFoundError(f"Execution job not found: {execution_job_id}")
+            return copy.deepcopy(job)
+
+    def get_execution_job_by_run(self, execution_run_id: str) -> dict[str, Any] | None:
+        with self._lock:
+            job_id = self._execution_jobs_by_run.get(execution_run_id)
+            if job_id is None:
+                return None
+            return copy.deepcopy(self._execution_jobs[job_id])
+
+    def append_execution_log_chunk(self, chunk: dict[str, Any]) -> None:
+        with self._lock:
+            job_id = chunk["executionJobId"]
+            if job_id not in self._execution_jobs:
+                raise ExecutionNotFoundError(f"Execution job not found: {job_id}")
+            self._execution_log_chunks.setdefault(job_id, []).append(copy.deepcopy(chunk))
+
+    def list_execution_log_chunks(
+        self,
+        execution_job_id: str,
+        *,
+        after_sequence: int = 0,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        with self._lock:
+            chunks = self._execution_log_chunks.get(execution_job_id, [])
+            filtered = [c for c in chunks if int(c["sequence"]) > after_sequence]
+            return copy.deepcopy(filtered[:limit])
+
     # --- outputs ---
     def create_produced_output(self, output: dict[str, Any]) -> None:
         with self._lock:
             oid = output["outputId"]
             self._outputs[oid] = copy.deepcopy(output)
             self._outputs_by_project.setdefault(output["projectId"], []).append(oid)
+
+    def get_produced_output(self, output_id: str) -> dict[str, Any]:
+        with self._lock:
+            output = self._outputs.get(output_id)
+            if output is None:
+                raise ExecutionNotFoundError(f"Produced output not found: {output_id}")
+            return copy.deepcopy(output)
 
     def list_produced_outputs(self, project_id: str) -> list[dict[str, Any]]:
         with self._lock:
@@ -377,6 +547,9 @@ class InMemoryKernelStore:
             "command_runs": copy.deepcopy(self._command_runs),
             "execution_runs": copy.deepcopy(self._execution_runs),
             "executions_by_project": copy.deepcopy(self._executions_by_project),
+            "execution_jobs": copy.deepcopy(self._execution_jobs),
+            "execution_jobs_by_run": copy.deepcopy(self._execution_jobs_by_run),
+            "execution_log_chunks": copy.deepcopy(self._execution_log_chunks),
             "outputs": copy.deepcopy(self._outputs),
             "outputs_by_project": copy.deepcopy(self._outputs_by_project),
             "events": copy.deepcopy(self._events),
@@ -400,6 +573,9 @@ class InMemoryKernelStore:
         self._command_runs = snapshot["command_runs"]
         self._execution_runs = snapshot["execution_runs"]
         self._executions_by_project = snapshot["executions_by_project"]
+        self._execution_jobs = snapshot.get("execution_jobs", {})
+        self._execution_jobs_by_run = snapshot.get("execution_jobs_by_run", {})
+        self._execution_log_chunks = snapshot.get("execution_log_chunks", {})
         self._outputs = snapshot["outputs"]
         self._outputs_by_project = snapshot["outputs_by_project"]
         self._events = snapshot["events"]

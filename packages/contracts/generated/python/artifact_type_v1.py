@@ -10,4 +10,5 @@ ArtifactTypeV1: TypeAlias = Literal[
     'functional-architecture',
     'next-action',
     'component-plan',
+    'code-scratch',
 ]

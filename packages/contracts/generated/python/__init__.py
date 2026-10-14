@@ -23,6 +23,9 @@ from .component_plan_v1 import *  # noqa: F403
 from .component_role_v1 import *  # noqa: F403
 from .consequence_level_v1 import *  # noqa: F403
 from .evidence_reference_v1 import *  # noqa: F403
+from .execution_command_spec_v1 import *  # noqa: F403
+from .execution_job_v1 import *  # noqa: F403
+from .execution_log_chunk_v1 import *  # noqa: F403
 from .execution_request_v1 import *  # noqa: F403
 from .execution_result_v1 import *  # noqa: F403
 from .execution_run_v1 import *  # noqa: F403
@@ -57,6 +60,7 @@ from .vera_response_v1 import *  # noqa: F403
 from .workflow_run_v1 import *  # noqa: F403
 from .workspace_descriptor_v1 import *  # noqa: F403
 from .workspace_draft_state_v1 import *  # noqa: F403
+from .workspace_file_v1 import *  # noqa: F403
 from .workspace_snapshot_v1 import *  # noqa: F403
 
 __all__ = [
@@ -81,6 +85,9 @@ __all__ = [
     "component_role_v1",
     "consequence_level_v1",
     "evidence_reference_v1",
+    "execution_command_spec_v1",
+    "execution_job_v1",
+    "execution_log_chunk_v1",
     "execution_request_v1",
     "execution_result_v1",
     "execution_run_v1",
@@ -115,5 +122,6 @@ __all__ = [
     "workflow_run_v1",
     "workspace_descriptor_v1",
     "workspace_draft_state_v1",
+    "workspace_file_v1",
     "workspace_snapshot_v1",
 ]

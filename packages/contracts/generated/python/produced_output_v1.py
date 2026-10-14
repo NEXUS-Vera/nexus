@@ -2,7 +2,7 @@
 # Do not edit manually. Re-run: make generate-contract-types
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Literal, NotRequired
 
 from typing_extensions import TypedDict
 
@@ -48,6 +48,7 @@ class ProducedOutputV1(TypedDict, closed=True):
         'test-report',
     ]
     projectId: str
+    providerId: NotRequired[str]
     schemaVersion: Literal['1.0.0']
     supports: list[Support]
     workspaceId: str

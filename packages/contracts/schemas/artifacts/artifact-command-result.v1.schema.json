@@ -133,6 +133,9 @@
           "minLength": 1
         }
       }
+    },
+    "resultPayload": {
+      "type": "object"
     }
   }
 }

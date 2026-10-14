@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "1.0.0",
+  "executable": "python3",
+  "arguments": [
+    "-c",
+    "print('NEXUS_RUNTIME_READY'); open('result.txt','w').write('ok')"
+  ],
+  "workingDirectory": "",
+  "environment": [
+    {
+      "name": "NEXUS_JOB",
+      "value": "fixture"
+    }
+  ],
+  "declaredOutputs": [
+    {
+      "path": "result.txt",
+      "kind": "result"
+    }
+  ]
+}

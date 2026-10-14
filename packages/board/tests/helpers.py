@@ -187,7 +187,10 @@ def minimal_package(project_id: str | None = None) -> dict[str, Any]:
 
 
 def build_test_kernel(
-    *, autonomy_mode: str = "collaborate"
+    *,
+    autonomy_mode: str = "collaborate",
+    capability_executors: dict[str, Any] | None = None,
+    **kernel_kwargs: Any,
 ) -> tuple[Any, InMemoryProjectStore, InMemoryKernelStore, str]:
     project_store = InMemoryProjectStore()
     kernel_store = InMemoryKernelStore(project_store=project_store)
@@ -195,7 +198,12 @@ def build_test_kernel(
     package["project"]["autonomyMode"] = autonomy_mode
     project_store.save_initialization_package(copy.deepcopy(package))
     project_id = package["project"]["projectId"]
-    kernel = build_project_kernel(kernel_store, project_store=project_store)
+    kernel = build_project_kernel(
+        kernel_store,
+        project_store=project_store,
+        capability_executors=capability_executors,
+        **kernel_kwargs,
+    )
     return kernel, project_store, kernel_store, project_id
 
 
@@ -225,3 +233,30 @@ def cmd(
     if workspace_id is not None:
         body["workspaceId"] = workspace_id
     return body
+
+
+def acquire_edit_lease(
+    kernel: Any,
+    *,
+    project_id: str,
+    artifact_id: str,
+    workspace_id: str,
+    requested_by: dict[str, Any] | None = None,
+    ttl_seconds: int | None = None,
+) -> dict[str, Any]:
+    """Acquire a draft edit lease for subsequent update-draft calls."""
+    editor = requested_by or actor()
+    input_data: dict[str, Any] = {}
+    if ttl_seconds is not None:
+        input_data["ttlSeconds"] = ttl_seconds
+    result: dict[str, Any] = kernel.dispatch(
+        cmd(
+            command_type="workspace.acquire-edit-lease",
+            project_id=project_id,
+            artifact_id=artifact_id,
+            workspace_id=workspace_id,
+            input_data=input_data,
+            requested_by=editor,
+        )
+    )
+    return result

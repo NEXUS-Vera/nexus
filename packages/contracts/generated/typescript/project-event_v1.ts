@@ -2,7 +2,7 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 
 export interface ProjectEvent {
   actor: ActorReference;
@@ -51,7 +51,8 @@ export interface ProjectEvent {
       | 'embedded-build'
       | 'python-kernel'
       | 'circuit-simulation'
-      | 'architecture-export';
+      | 'architecture-export'
+      | 'sandbox-execution';
     decisionId?: string;
     evidenceId?: string;
     evidenceStatus?: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';

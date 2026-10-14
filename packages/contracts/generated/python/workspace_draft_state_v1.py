@@ -6,6 +6,18 @@ from typing import Any, Literal, NotRequired
 
 from typing_extensions import TypedDict
 
+class EditLease(TypedDict, closed=True):
+    acquiredAt: str
+    baseDraftVersion: int
+    expiresAt: str
+    leaseId: str
+    leaseToken: str
+    ownerActorId: str
+    ownerActorType: Literal[
+        'user', 'vera', 'embedded-systems-agent', 'shared', 'system'
+    ]
+    ownerDisplayName: NotRequired[str]
+
 class UpdatedBy(TypedDict, closed=True):
     actorId: str
     actorType: Literal['user', 'vera', 'embedded-systems-agent', 'shared', 'system']
@@ -18,6 +30,7 @@ class WorkspaceDraftStateV1(TypedDict, closed=True):
     content: dict[str, Any]
     createdAt: str
     draftVersion: int
+    editLease: NotRequired[EditLease]
     schemaVersion: Literal['1.0.0']
     updatedAt: str
     updatedBy: UpdatedBy

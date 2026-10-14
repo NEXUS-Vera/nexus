@@ -1,0 +1,278 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/execution-job.v1.schema.json",
+  "title": "ExecutionJob",
+  "description": "Infrastructure-only record for Nexus-owned sandboxed compute. Not a second user-facing execution history.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "executionJobId",
+    "executionRunId",
+    "projectId",
+    "workspaceSnapshotId",
+    "status",
+    "runtimeKind",
+    "runtimeIdentity",
+    "commandSpec",
+    "limits",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "executionJobId": {
+      "type": "string",
+      "pattern": "^execjob_[A-Za-z0-9]{16,}$"
+    },
+    "executionRunId": {
+      "type": "string",
+      "pattern": "^exec_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "workspaceSnapshotId": {
+      "type": "string",
+      "pattern": "^snap_[A-Za-z0-9]{16,}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "starting",
+        "running",
+        "cancelling",
+        "succeeded",
+        "failed",
+        "timed-out",
+        "cancelled"
+      ]
+    },
+    "runtimeKind": {
+      "type": "string",
+      "enum": ["process", "container"]
+    },
+    "runtimeIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runtimeKind",
+        "runtimeVersion",
+        "workspaceSnapshotId",
+        "workspaceManifestDigest",
+        "commandSpecVersion",
+        "limits"
+      ],
+      "properties": {
+        "runtimeKind": {
+          "type": "string",
+          "enum": ["process", "container"]
+        },
+        "runtimeVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "workspaceSnapshotId": {
+          "type": "string",
+          "pattern": "^snap_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceManifestDigest": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "commandSpecVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "wallTimeMs",
+            "stdoutBytes",
+            "stderrBytes",
+            "totalLogBytes",
+            "producedOutputBytes",
+            "outputFileCount",
+            "workspaceBytes"
+          ],
+          "properties": {
+            "wallTimeMs": { "type": "integer", "minimum": 1, "maximum": 300000 },
+            "stdoutBytes": { "type": "integer", "minimum": 1 },
+            "stderrBytes": { "type": "integer", "minimum": 1 },
+            "totalLogBytes": { "type": "integer", "minimum": 1 },
+            "producedOutputBytes": { "type": "integer", "minimum": 1 },
+            "outputFileCount": { "type": "integer", "minimum": 1 },
+            "workspaceBytes": { "type": "integer", "minimum": 1 },
+            "memoryBytes": { "type": "integer", "minimum": 1 },
+            "cpuMillis": { "type": "integer", "minimum": 1 },
+            "processCount": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "imageReference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "imageDigest": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "executableFingerprint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "isolationGuarantees": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "isolationLimitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "securityLevel": {
+          "type": "string",
+          "enum": ["limited", "isolated"]
+        },
+        "networkPolicy": {
+          "type": "string",
+          "enum": ["none", "restricted"]
+        }
+      }
+    },
+    "commandSpec": {
+      "$ref": "https://nexus.local/schemas/executions/execution-command-spec.v1.schema.json"
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wallTimeMs",
+        "stdoutBytes",
+        "stderrBytes",
+        "totalLogBytes",
+        "producedOutputBytes",
+        "outputFileCount",
+        "workspaceBytes"
+      ],
+      "properties": {
+        "wallTimeMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300000
+        },
+        "stdoutBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "stderrBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "totalLogBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "producedOutputBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "outputFileCount": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "workspaceBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "memoryBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cpuMillis": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "processCount": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exitCode": {
+      "type": "integer"
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "logTruncated": {
+      "type": "boolean"
+    },
+    "queuePosition": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "runtimeHandle": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Opaque runtime ownership handle for crash recovery (container id, etc.).",
+      "properties": {
+        "containerId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "pid": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "cleanupWarning": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Infrastructure cleanup warning that must not rewrite a successful engineering result into failed."
+    }
+  }
+}

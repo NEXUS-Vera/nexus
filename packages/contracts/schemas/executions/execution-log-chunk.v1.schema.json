@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/execution-log-chunk.v1.schema.json",
+  "title": "ExecutionLogChunk",
+  "description": "Append-only infrastructure log chunk for an ExecutionJob. Not a Project Ledger event.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "executionJobId",
+    "sequence",
+    "stream",
+    "timestamp",
+    "content"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "executionJobId": {
+      "type": "string",
+      "pattern": "^execjob_[A-Za-z0-9]{16,}$"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "stream": {
+      "type": "string",
+      "enum": ["stdout", "stderr", "system"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "content": {
+      "type": "string",
+      "maxLength": 65536
+    },
+    "truncated": {
+      "type": "boolean"
+    }
+  }
+}

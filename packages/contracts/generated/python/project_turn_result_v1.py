@@ -750,6 +750,7 @@ class Dependency(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     targetArtifactId: NotRequired[str]
     targetArtifactType: Literal[
@@ -758,6 +759,7 @@ class Dependency(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
 
 class RequestedFrom(TypedDict, closed=True):
@@ -795,6 +797,7 @@ class CurrentArtifactReference(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -915,6 +918,7 @@ class CreatedArtifactReference(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -927,6 +931,7 @@ class NextActionArtifactReference(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -964,6 +969,7 @@ class OutputArtifactReference(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -1020,6 +1026,7 @@ class ReasonByArtifactItem(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     reason: str
 
@@ -1031,6 +1038,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     changed: list[
@@ -1040,6 +1048,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     reasonByArtifact: list[ReasonByArtifactItem]
@@ -1050,6 +1059,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -1060,6 +1070,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     unchanged: list[
@@ -1069,6 +1080,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
 
@@ -1081,6 +1093,7 @@ class ProjectTurnResultV1(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     currentState: CurrentState
@@ -1092,6 +1105,7 @@ class ProjectTurnResultV1(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -1102,6 +1116,7 @@ ArtifactType: TypeAlias = Literal[
     'functional-architecture',
     'next-action',
     'component-plan',
+    'code-scratch',
 ]
 
 ArtifactTypeList: TypeAlias = list[
@@ -1111,5 +1126,6 @@ ArtifactTypeList: TypeAlias = list[
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
 ]

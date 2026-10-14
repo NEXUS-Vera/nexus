@@ -13,6 +13,23 @@ export interface WorkspaceSnapshot {
         };
       }
     | {
+        filesystemManifest: {
+          entries: {
+            contentHash: string;
+            contentReference: string;
+            generatedFrom?: string;
+            mediaType?: string;
+            modifiedByUser: boolean;
+            origin: 'USER' | 'GENERATED' | 'SYSTEM' | 'RUNTIME_OUTPUT';
+            path: string;
+            sizeBytes: number;
+            writePolicy: 'USER_EDITABLE' | 'REGENERATION_MANAGED' | 'READ_ONLY' | 'EPHEMERAL';
+          }[];
+          manifestDigest: string;
+        };
+        kind: 'filesystem';
+      }
+    | {
         contentDigest: string;
         kind: 'storage-reference';
         storageKind: 'postgres-jsonb' | 'object-store' | 'file-store';

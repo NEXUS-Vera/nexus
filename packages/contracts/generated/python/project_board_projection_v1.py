@@ -22,6 +22,7 @@ class ArtifactSummary(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
     awaitingApprovalCount: NotRequired[int]
@@ -129,6 +130,7 @@ class RecentExecutionSummary(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     capability: Literal[

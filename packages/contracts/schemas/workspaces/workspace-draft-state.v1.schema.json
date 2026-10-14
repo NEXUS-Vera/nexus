@@ -59,6 +59,53 @@
     },
     "updatedBy": {
       "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "editLease": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leaseId",
+        "ownerActorId",
+        "ownerActorType",
+        "acquiredAt",
+        "expiresAt",
+        "leaseToken",
+        "baseDraftVersion"
+      ],
+      "properties": {
+        "leaseId": {
+          "type": "string",
+          "pattern": "^lease_[A-Za-z0-9]{16,}$"
+        },
+        "ownerActorId": {
+          "type": "string",
+          "pattern": "^actor_[A-Za-z0-9]{16,}$"
+        },
+        "ownerActorType": {
+          "type": "string",
+          "enum": ["user", "vera", "embedded-systems-agent", "shared", "system"]
+        },
+        "ownerDisplayName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "acquiredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "leaseToken": {
+          "type": "string",
+          "minLength": 1
+        },
+        "baseDraftVersion": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
     }
   }
 }

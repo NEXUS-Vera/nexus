@@ -76,6 +76,101 @@
           "additionalProperties": false,
           "required": [
             "kind",
+            "filesystemManifest"
+          ],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "filesystem"
+            },
+            "filesystemManifest": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "manifestDigest",
+                "entries"
+              ],
+              "properties": {
+                "manifestDigest": {
+                  "type": "string",
+                  "pattern": "^sha256:[a-f0-9]{64}$"
+                },
+                "entries": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "path",
+                      "contentHash",
+                      "contentReference",
+                      "sizeBytes",
+                      "origin",
+                      "writePolicy",
+                      "modifiedByUser"
+                    ],
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1024
+                      },
+                      "contentHash": {
+                        "type": "string",
+                        "pattern": "^sha256:[a-f0-9]{64}$"
+                      },
+                      "contentReference": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "sizeBytes": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "USER",
+                          "GENERATED",
+                          "SYSTEM",
+                          "RUNTIME_OUTPUT"
+                        ]
+                      },
+                      "writePolicy": {
+                        "type": "string",
+                        "enum": [
+                          "USER_EDITABLE",
+                          "REGENERATION_MANAGED",
+                          "READ_ONLY",
+                          "EPHEMERAL"
+                        ]
+                      },
+                      "modifiedByUser": {
+                        "type": "boolean"
+                      },
+                      "generatedFrom": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      },
+                      "mediaType": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 256
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
             "storageKind",
             "uri",
             "contentDigest"

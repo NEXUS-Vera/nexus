@@ -23,6 +23,7 @@ from nexus_board.governance.policy import (
 )
 from nexus_board.ids import new_id, utc_now_iso
 from nexus_board.registries.artifact_types import ArtifactTypeRegistry
+from nexus_board.services.draft_lease import DEFAULT_LEASE_TTL_SECONDS
 from nexus_board.services.execution_service import ExecutionService
 from nexus_board.services.graph_service import ProjectGraphService
 from nexus_board.services.ledger_service import ProjectLedgerService
@@ -33,6 +34,9 @@ COMMAND_ID_RE = re.compile(r"^cmd_[A-Za-z0-9]{16,}$")
 COMMAND_TYPES = {
     "workspace.create",
     "workspace.update-draft",
+    "workspace.acquire-edit-lease",
+    "workspace.release-edit-lease",
+    "workspace.discard-draft",
     "workspace.create-snapshot",
     "workspace.restore-snapshot",
     "artifact.validate-draft",
@@ -80,6 +84,8 @@ class _ProjectStore(Protocol):
         version: int | None = None,
     ) -> dict[str, Any]: ...
 
+    def get_artifacts(self, project_id: str) -> list[dict[str, Any]]: ...
+
 
 class ArtifactCommandService:
     def __init__(
@@ -114,6 +120,9 @@ class ArtifactCommandService:
         handlers = {
             "workspace.create": self._workspace_create,
             "workspace.update-draft": self._update_draft,
+            "workspace.acquire-edit-lease": self._acquire_edit_lease,
+            "workspace.release-edit-lease": self._release_edit_lease,
+            "workspace.discard-draft": self._discard_draft,
             "workspace.create-snapshot": self._create_snapshot,
             "workspace.restore-snapshot": self._restore_snapshot,
             "artifact.validate-draft": self._validate_draft,
@@ -206,6 +215,48 @@ class ArtifactCommandService:
         return {
             "workspace_id": updated["workspace"]["workspaceId"],
             "artifact_id": updated["workspace"]["artifactId"],
+        }
+
+    def _acquire_edit_lease(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
+        del actor_kind
+        ttl = command["input"].get("ttlSeconds")
+        acquired = self._workspaces.acquire_edit_lease(
+            workspace_id=command["workspaceId"],
+            actor=command["requestedBy"],
+            ttl_seconds=int(ttl) if ttl is not None else DEFAULT_LEASE_TTL_SECONDS,
+        )
+        return {
+            "workspace_id": acquired["workspace"]["workspaceId"],
+            "artifact_id": acquired["workspace"]["artifactId"],
+            "result_payload": {"editLease": acquired["draft"].get("editLease")},
+        }
+
+    def _release_edit_lease(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
+        del actor_kind
+        released = self._workspaces.release_edit_lease(
+            workspace_id=command["workspaceId"],
+            actor=command["requestedBy"],
+            lease_token=command["input"].get("leaseToken"),
+        )
+        return {
+            "workspace_id": released["workspace"]["workspaceId"],
+            "artifact_id": released["workspace"]["artifactId"],
+        }
+
+    def _discard_draft(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
+        del actor_kind
+        refresh = command["input"].get("refreshLease")
+        discarded = self._workspaces.discard_draft(
+            workspace_id=command["workspaceId"],
+            expected_draft_version=int(command["input"]["expectedDraftVersion"]),
+            actor=command["requestedBy"],
+            base_artifact_version=int(command["baseArtifactVersion"]),
+            base_project_state_version=int(command["baseProjectStateVersion"]),
+            refresh_lease=True if refresh is None else bool(refresh),
+        )
+        return {
+            "workspace_id": discarded["workspace"]["workspaceId"],
+            "artifact_id": discarded["workspace"]["artifactId"],
         }
 
     def _create_snapshot(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
@@ -313,7 +364,10 @@ class ArtifactCommandService:
                 **command,
                 "commandType": "artifact.accept-revision",
                 "commandId": new_id("cmd"),
-                "input": {"proposalId": proposal["proposalId"], "reason": "auto-accept"},
+                "input": {
+                    "proposalId": proposal["proposalId"],
+                    "reason": "auto-accept",
+                },
             }
             accepted = self._accept_revision(accept_cmd, "user")
             return {
@@ -326,7 +380,7 @@ class ArtifactCommandService:
             "artifact_id": workspace["artifactId"],
             "snapshot_id": proposal["snapshotId"],
             "proposal_id": proposal["proposalId"],
-            "_status": "completed" if status == "proposed" else "completed-with-warnings",
+            "_status": ("completed" if status == "proposed" else "completed-with-warnings"),
         }
 
     def _accept_revision(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
@@ -384,7 +438,7 @@ class ArtifactCommandService:
             "contentSchemaVersion": "1.0.0",
             "lifecycleStatus": "ready",
             "evidenceStatus": "unverified",
-            "approvalStatus": "user-approved" if actor_kind == "user" else "agent-decided",
+            "approvalStatus": ("user-approved" if actor_kind == "user" else "agent-decided"),
             "createdBy": command["requestedBy"],
             "createdAt": now,
             "updatedAt": now,
@@ -403,7 +457,10 @@ class ArtifactCommandService:
             "eventType": "artifact.revision-accepted",
             "occurredAt": now,
             "actor": command["requestedBy"],
-            "subject": {"subjectType": "artifact", "subjectId": new_artifact["artifactId"]},
+            "subject": {
+                "subjectType": "artifact",
+                "subjectId": new_artifact["artifactId"],
+            },
             "causationId": command["commandId"],
             "correlationId": command["commandId"],
             "payload": {
@@ -576,14 +633,30 @@ class ArtifactCommandService:
             base_project_state_version=int(command["baseProjectStateVersion"]),
             causation_id=command["commandId"],
             max_duration_ms=command["input"].get("maxDurationMs"),
+            options={
+                key: command["input"][key]
+                for key in (
+                    "maxOutputBytes",
+                    "commandSpec",
+                )
+                if key in command["input"]
+            },
         )
         return {
             "workspace_id": workspace["workspaceId"],
             "artifact_id": workspace["artifactId"],
             "snapshot_id": command["input"]["snapshotId"],
             "execution_run_id": result["executionRun"]["executionRunId"],
-            "output_references": [o["outputId"] for o in result["outputs"]],
+            "output_references": [o["outputId"] for o in result.get("outputs") or []],
             "evidence_references": result["executionRun"].get("evidenceReferences") or [],
+            "result_payload": (
+                {
+                    "executionJobId": result["executionJob"]["executionJobId"],
+                    "accepted": True,
+                }
+                if result.get("executionJob")
+                else None
+            ),
         }
 
     def _result(
@@ -601,6 +674,7 @@ class ArtifactCommandService:
         output_references: list[str] | None = None,
         evidence_references: list[str] | None = None,
         error: dict[str, Any] | None = None,
+        result_payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         completed = utc_now_iso()
         result: dict[str, Any] = {
@@ -627,4 +701,6 @@ class ArtifactCommandService:
             result["producedArtifactReference"] = produced_artifact_reference
         if error:
             result["error"] = error
+        if result_payload is not None:
+            result["resultPayload"] = result_payload
         return result
