@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/workspaces/firmware-patch-proposal.v1.schema.json",
+  "title": "FirmwarePatchProposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "proposalId",
+    "projectId",
+    "artifactId",
+    "artifactType",
+    "workspaceId",
+    "baseSnapshotId",
+    "requestedChange",
+    "generatorId",
+    "generatorVersion",
+    "inputArtifactReferences",
+    "operations",
+    "status",
+    "requestedBy",
+    "requestedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "proposalId": {
+      "type": "string",
+      "pattern": "^fwpatch_[A-Za-z0-9]{16,}$"
+    },
+    "projectId": {
+      "type": "string",
+      "pattern": "^proj_[A-Za-z0-9]{16,}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_[A-Za-z0-9]{16,}$"
+    },
+    "artifactType": {
+      "type": "string",
+      "const": "firmware"
+    },
+    "workspaceId": {
+      "type": "string",
+      "pattern": "^ws_[A-Za-z0-9]{16,}$"
+    },
+    "baseSnapshotId": {
+      "type": "string",
+      "pattern": "^snap_[A-Za-z0-9]{16,}$"
+    },
+    "requestedChange": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "generatorId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatorVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "inputArtifactReferences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifactType", "artifactVersion"],
+        "properties": {
+          "artifactType": {
+            "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+          },
+          "artifactVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "artifactId": {
+            "type": "string",
+            "pattern": "^art_[A-Za-z0-9]{16,}$"
+          }
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operationType", "path", "content", "contentHash"],
+            "properties": {
+              "operationType": { "type": "string", "const": "create-file" },
+              "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "content": { "type": "string" },
+              "contentHash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operationType",
+              "path",
+              "expectedBaseHash",
+              "content",
+              "contentHash"
+            ],
+            "properties": {
+              "operationType": { "type": "string", "const": "replace-file" },
+              "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "expectedBaseHash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              },
+              "content": { "type": "string" },
+              "contentHash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["operationType", "path", "expectedBaseHash"],
+            "properties": {
+              "operationType": { "type": "string", "const": "delete-file" },
+              "path": { "type": "string", "minLength": 1, "maxLength": 1024 },
+              "expectedBaseHash": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]{64}$"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["proposed", "applied", "discarded"]
+    },
+    "requestedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "requestedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decidedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "decidedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    }
+  }
+}

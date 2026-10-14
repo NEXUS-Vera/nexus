@@ -13,7 +13,36 @@ from typing import Any, Protocol
 from nexus_board.errors import (
     BoardError,
     CommandValidationError,
+    FirmwarePatchGenerationError,
+    FirmwarePatchNotFoundError,
+    FirmwarePatchValidationError,
     RegistryError,
+    WorkspaceScaffoldConflictError,
+)
+from nexus_board.firmware.patch import (
+    FIRMWARE_PATCH_GENERATOR_ID,
+    FIRMWARE_PATCH_GENERATOR_VERSION,
+    assemble_firmware_generation_context,
+    check_patch_apply_staleness,
+    generate_firmware_patch_operations,
+    read_snapshot_file_text,
+    snapshot_manifest_index,
+    validate_firmware_patch_proposal,
+)
+from nexus_board.firmware.scaffold import (
+    DEFAULT_FIRMWARE_SCAFFOLD_PROFILE_ID,
+    get_firmware_scaffold_profile,
+)
+from nexus_board.firmware.toolchain import (
+    FIRMWARE_COMPILE_OPERATION,
+    FIRMWARE_TEST_OPERATION,
+    SNAPSHOT_REASON_BEFORE_RESTORE,
+    SNAPSHOT_REASON_MANUAL,
+    SNAPSHOT_REASON_PATCH_BASE,
+    build_firmware_command_spec,
+    firmware_toolchain_profile,
+    snapshot_reason_for_operation,
+    validate_firmware_snapshot_for_toolchain,
 )
 from nexus_board.ids import new_id, utc_now_iso
 from nexus_board.registries.artifact_types import ArtifactTypeRegistry
@@ -24,6 +53,8 @@ from nexus_board.services.filesystem_service import (
 )
 from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.workspace_service import WorkspaceService
+
+FIRMWARE_ARTIFACT_TYPE = "firmware"
 
 CAPABILITY_FILESYSTEM = "file-workspace"
 CAPABILITY_SANDBOX = "sandbox-execution"
@@ -54,6 +85,23 @@ class _KernelStore(Protocol):
     def get_workspace_file(self, workspace_id: str, path: str) -> dict[str, Any] | None: ...
 
     def list_workspace_files(self, workspace_id: str) -> list[dict[str, Any]]: ...
+
+    def create_firmware_patch_proposal(self, proposal: dict[str, Any]) -> None: ...
+
+    def get_firmware_patch_proposal(self, proposal_id: str) -> dict[str, Any]: ...
+
+    def update_firmware_patch_proposal(
+        self, proposal_id: str, proposal: dict[str, Any]
+    ) -> None: ...
+
+
+class _FirmwarePatchGenerator(Protocol):
+    def generate(
+        self,
+        *,
+        context: dict[str, Any],
+        base_snapshot: dict[str, Any],
+    ) -> dict[str, Any]: ...
 
 
 class _ProjectStore(Protocol):
@@ -92,6 +140,7 @@ class WorkspaceRuntimeService:
         filesystem: FilesystemWorkspaceService,
         executions: ExecutionService,
         ledger: ProjectLedgerService | None = None,
+        firmware_patch_generator: _FirmwarePatchGenerator | None = None,
     ) -> None:
         self._kernel = kernel_store
         self._projects = project_store
@@ -100,6 +149,7 @@ class WorkspaceRuntimeService:
         self._filesystem = filesystem
         self._executions = executions
         self._ledger = ledger
+        self._firmware_patch_generator = firmware_patch_generator
 
     # --- binding / capabilities -------------------------------------------------
 
@@ -410,6 +460,792 @@ class WorkspaceRuntimeService:
         for output_id in run.get("outputReferences") or []:
             outputs.append(self._executions.get_output(output_id))
         return {"executionRunId": execution_run_id, "outputs": outputs}
+
+    def generate_firmware_scaffold(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        actor: dict[str, Any],
+        expected_draft_version: int,
+        base_artifact_version: int,
+        base_project_state_version: int,
+        profile_id: str | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Materialize the deterministic Firmware scaffold when safe.
+
+        Never silently overwrites existing scaffold target paths. Unrelated
+        workspace files are preserved. Exact matching content is a no-op.
+        """
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                "Firmware scaffold generation is only available for artifact type firmware"
+            )
+        binding = self._require_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            capability="filesystem",
+        )
+        try:
+            profile = get_firmware_scaffold_profile(
+                profile_id or DEFAULT_FIRMWARE_SCAFFOLD_PROFILE_ID
+            )
+        except KeyError as exc:
+            raise CommandValidationError(str(exc)) from exc
+
+        workspace_id = binding["workspaceId"]
+        existing_by_path: dict[str, dict[str, Any]] = {}
+        matching = 0
+        conflicts: list[str] = []
+        for spec in profile.files:
+            record = self._kernel.get_workspace_file(workspace_id, spec.path)
+            if record is None:
+                continue
+            existing_by_path[spec.path] = record
+            if record.get("contentHash") == spec.content_hash:
+                matching += 1
+            else:
+                conflicts.append(spec.path)
+
+        if conflicts:
+            raise WorkspaceScaffoldConflictError(
+                "Firmware scaffold target path already exists: " + ", ".join(conflicts)
+            )
+        if matching == len(profile.files):
+            return {
+                "binding": _public_binding(binding),
+                "status": "already-generated",
+                "generationId": None,
+                "generationKind": "scaffold",
+                "profile": profile.as_public_dict(),
+                "generatedFiles": [
+                    {
+                        "path": spec.path,
+                        "contentHash": existing_by_path[spec.path]["contentHash"],
+                        "sizeBytes": existing_by_path[spec.path]["sizeBytes"],
+                        "origin": existing_by_path[spec.path].get("origin"),
+                        "writePolicy": existing_by_path[spec.path].get("writePolicy"),
+                        "generatedFrom": existing_by_path[spec.path].get("generatedFrom"),
+                    }
+                    for spec in profile.files
+                ],
+                "draft": self._kernel.get_draft(workspace_id),
+                "workspace": self._kernel.get_workspace(workspace_id),
+                "primaryPath": profile.files[-1].path if profile.files else None,
+            }
+        if matching > 0:
+            # Partial scaffold (some targets match, others missing) — refuse.
+            missing = [spec.path for spec in profile.files if spec.path not in existing_by_path]
+            raise WorkspaceScaffoldConflictError(
+                "Partial firmware scaffold already present; refusing unsafe generation. "
+                f"Existing={sorted(existing_by_path)}; missing={missing}"
+            )
+
+        draft_version = expected_draft_version
+        written: list[dict[str, Any]] = []
+        last_workspace = binding["workspace"]
+        last_draft = self._kernel.get_draft(workspace_id)
+        for spec in profile.files:
+            result = self._filesystem.write_file(
+                workspace_id=workspace_id,
+                path=spec.path,
+                content=spec.content,
+                actor=actor,
+                expected_draft_version=draft_version,
+                base_artifact_version=base_artifact_version,
+                base_project_state_version=base_project_state_version,
+                origin="GENERATED",
+                write_policy="REGENERATION_MANAGED",
+                generated_from=profile.generated_from,
+                media_type=spec.media_type,
+            )
+            file_record = result["file"]
+            if file_record.get("contentHash") != spec.content_hash:
+                raise BoardError(
+                    f"Scaffold write produced unexpected hash for {spec.path}",
+                    code="WORKSPACE_SCAFFOLD_HASH_MISMATCH",
+                )
+            written.append(file_record)
+            last_draft = result["draft"]
+            last_workspace = result["workspace"]
+            draft_version = int(last_draft["draftVersion"])
+
+        generation_id = new_id("gen")
+        event = None
+        if self._ledger is not None:
+            event = self._ledger.append(
+                project_id=project_id,
+                event_type="workspace.scaffold-generated",
+                actor=actor,
+                subject_type="workspace",
+                subject_id=workspace_id,
+                payload={
+                    "workspaceId": workspace_id,
+                    "artifactId": binding["artifactId"],
+                    "artifactType": artifact_type,
+                    "artifactVersion": base_artifact_version,
+                    "generationId": generation_id,
+                    "generationKind": "scaffold",
+                    "scaffoldProfileId": profile.profile_id,
+                    "scaffoldProfileVersion": profile.profile_version,
+                    "baseProjectStateVersion": base_project_state_version,
+                    "generatedFiles": [
+                        {"path": item["path"], "contentHash": item["contentHash"]}
+                        for item in written
+                    ],
+                    "summary": (
+                        f"Generated {profile.display_name} scaffold ({len(written)} files)"
+                    ),
+                },
+                causation_id=causation_id,
+                correlation_id=causation_id or generation_id,
+                occurred_at=utc_now_iso(),
+            )
+
+        refreshed = self.resolve_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            create_if_missing=False,
+        )
+        return {
+            "binding": _public_binding(refreshed),
+            "status": "generated",
+            "generationId": generation_id,
+            "generationKind": "scaffold",
+            "profile": profile.as_public_dict(),
+            "generatedFiles": [
+                {
+                    "path": item["path"],
+                    "contentHash": item["contentHash"],
+                    "sizeBytes": item["sizeBytes"],
+                    "origin": item.get("origin"),
+                    "writePolicy": item.get("writePolicy"),
+                    "generatedFrom": item.get("generatedFrom"),
+                }
+                for item in written
+            ],
+            "draft": last_draft,
+            "workspace": last_workspace,
+            "event": event,
+            "primaryPath": profile.files[-1].path if profile.files else None,
+        }
+
+    def propose_firmware_patch(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        actor: dict[str, Any],
+        requested_change: str,
+        causation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Generate a validated patch proposal against an immutable base snapshot.
+
+        Does not mutate workspace files. The generator never writes directly.
+        """
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                "Firmware patch generation is only available for artifact type firmware"
+            )
+        if not isinstance(requested_change, str) or not requested_change.strip():
+            raise CommandValidationError("requestedChange is required")
+
+        binding = self._require_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            capability="filesystem",
+        )
+        workspace_id = binding["workspaceId"]
+
+        snapshot_result = self.create_snapshot(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+            reason=SNAPSHOT_REASON_PATCH_BASE,
+        )
+        base_snapshot_id = snapshot_result["snapshotId"]
+        base_snapshot = self._kernel.get_snapshot(base_snapshot_id)
+
+        context = assemble_firmware_generation_context(
+            project_store=self._projects,
+            project_id=project_id,
+            base_snapshot=base_snapshot,
+            requested_change=requested_change.strip(),
+            file_store=self._filesystem.file_store,
+        )
+        generator_id = FIRMWARE_PATCH_GENERATOR_ID
+        generator_version = FIRMWARE_PATCH_GENERATOR_VERSION
+        generator_metadata: dict[str, Any] | None = None
+        if self._firmware_patch_generator is not None:
+            generated = self._firmware_patch_generator.generate(
+                context=context,
+                base_snapshot=base_snapshot,
+            )
+            operations = generated.get("operations")
+            if not isinstance(operations, list) or not operations:
+                raise FirmwarePatchGenerationError("Patch generator returned no operations")
+            maybe_id = generated.get("generatorId")
+            if isinstance(maybe_id, str) and maybe_id.strip():
+                generator_id = maybe_id.strip()
+            maybe_version = generated.get("generatorVersion")
+            if isinstance(maybe_version, str) and maybe_version.strip():
+                generator_version = maybe_version.strip()
+            metadata = generated.get("generatorMetadata")
+            if isinstance(metadata, dict):
+                generator_metadata = metadata
+        else:
+            operations = generate_firmware_patch_operations(
+                requested_change=requested_change.strip(),
+                base_snapshot=base_snapshot,
+                file_store=self._filesystem.file_store,
+                context=context,
+            )
+
+        now = utc_now_iso()
+        proposal_id = new_id("fwpatch")
+        proposal = {
+            "schemaVersion": "1.0.0",
+            "proposalId": proposal_id,
+            "projectId": project_id,
+            "artifactId": binding["artifactId"],
+            "artifactType": artifact_type,
+            "workspaceId": workspace_id,
+            "baseSnapshotId": base_snapshot_id,
+            "requestedChange": requested_change.strip(),
+            "generatorId": generator_id,
+            "generatorVersion": generator_version,
+            "inputArtifactReferences": context["inputArtifactReferences"],
+            "operations": operations,
+            "status": "proposed",
+            "requestedBy": actor,
+            "requestedAt": now,
+        }
+        if generator_metadata:
+            proposal["generatorMetadata"] = generator_metadata
+        validate_firmware_patch_proposal(
+            proposal,
+            base_snapshot=base_snapshot,
+            limits=self._filesystem.limits,
+        )
+        self._kernel.create_firmware_patch_proposal(proposal)
+
+        event = None
+        if self._ledger is not None:
+            event = self._ledger.append(
+                project_id=project_id,
+                event_type="workspace.patch-proposed",
+                actor=actor,
+                subject_type="workspace",
+                subject_id=workspace_id,
+                payload={
+                    "workspaceId": workspace_id,
+                    "artifactId": binding["artifactId"],
+                    "artifactType": artifact_type,
+                    "patchProposalId": proposal_id,
+                    "baseSnapshotId": base_snapshot_id,
+                    "requestedChange": requested_change.strip(),
+                    "generatorId": generator_id,
+                    "generatorVersion": generator_version,
+                    "generationKind": "patch",
+                    "inputArtifactReferences": context["inputArtifactReferences"],
+                    "patchOperations": [
+                        {
+                            "operationType": op["operationType"],
+                            "path": op["path"],
+                            **(
+                                {"expectedBaseHash": op["expectedBaseHash"]}
+                                if "expectedBaseHash" in op
+                                else {}
+                            ),
+                            **({"contentHash": op["contentHash"]} if "contentHash" in op else {}),
+                        }
+                        for op in operations
+                    ],
+                    "summary": (
+                        f"Proposed firmware patch ({len(operations)} file"
+                        f"{'' if len(operations) == 1 else 's'})"
+                    ),
+                },
+                causation_id=causation_id,
+                correlation_id=causation_id or proposal_id,
+                occurred_at=now,
+            )
+
+        return {
+            "binding": _public_binding(binding),
+            "status": "proposed",
+            "proposal": proposal,
+            "baseSnapshot": base_snapshot,
+            "generationContext": context,
+            "event": event,
+        }
+
+    def apply_firmware_patch(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        proposal_id: str,
+        actor: dict[str, Any],
+        expected_draft_version: int,
+        base_artifact_version: int,
+        base_project_state_version: int,
+        causation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Apply a previously proposed patch through the Phase 14 filesystem boundary.
+
+        Multi-file patches apply sequentially; partial application is possible if a
+        later operation fails after earlier writes succeeded.
+        """
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                "Firmware patch apply is only available for artifact type firmware"
+            )
+        binding = self._require_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            capability="filesystem",
+        )
+        workspace_id = binding["workspaceId"]
+        try:
+            proposal = self._kernel.get_firmware_patch_proposal(proposal_id)
+        except Exception as exc:  # noqa: BLE001
+            from nexus_persistence.errors import FirmwarePatchNotFoundError as StoreNotFound
+
+            if isinstance(exc, StoreNotFound):
+                raise FirmwarePatchNotFoundError(str(exc)) from exc
+            raise
+
+        if proposal.get("status") != "proposed":
+            raise FirmwarePatchValidationError(
+                f"Patch proposal is not in proposed status: {proposal.get('status')}"
+            )
+        if proposal.get("projectId") != project_id:
+            raise FirmwarePatchNotFoundError("Patch proposal not found for project")
+        if proposal.get("workspaceId") != workspace_id:
+            raise FirmwarePatchValidationError("Patch proposal workspace mismatch")
+
+        base_snapshot = self._kernel.get_snapshot(proposal["baseSnapshotId"])
+        validate_firmware_patch_proposal(
+            proposal,
+            base_snapshot=base_snapshot,
+            limits=self._filesystem.limits,
+        )
+
+        def _current_file(path: str) -> dict[str, Any] | None:
+            return self._kernel.get_workspace_file(workspace_id, path)
+
+        check_patch_apply_staleness(proposal=proposal, get_current_file=_current_file)
+
+        generated_from = f"{proposal['generatorId']}@{proposal['generatorVersion']}"
+        draft_version = expected_draft_version
+        applied_files: list[dict[str, Any]] = []
+        last_draft = self._kernel.get_draft(workspace_id)
+        last_workspace = binding["workspace"]
+
+        for operation in proposal["operations"]:
+            op_type = operation["operationType"]
+            path = operation["path"]
+            if op_type in {"create-file", "replace-file"}:
+                content = operation["content"].encode("utf-8")
+                result = self._filesystem.write_file(
+                    workspace_id=workspace_id,
+                    path=path,
+                    content=content,
+                    actor=actor,
+                    expected_draft_version=draft_version,
+                    base_artifact_version=base_artifact_version,
+                    base_project_state_version=base_project_state_version,
+                    origin="GENERATED",
+                    write_policy="REGENERATION_MANAGED",
+                    generated_from=generated_from,
+                    media_type="text/plain",
+                )
+                file_record = result["file"]
+                if file_record.get("contentHash") != operation["contentHash"]:
+                    raise BoardError(
+                        f"Patch apply produced unexpected hash for {path}",
+                        code="FIRMWARE_PATCH_APPLY_HASH_MISMATCH",
+                    )
+                applied_files.append(file_record)
+                last_draft = result["draft"]
+                last_workspace = result["workspace"]
+                draft_version = int(last_draft["draftVersion"])
+            elif op_type == "delete-file":
+                result = self._filesystem.delete_file(
+                    workspace_id=workspace_id,
+                    path=path,
+                    actor=actor,
+                    expected_draft_version=draft_version,
+                    base_artifact_version=base_artifact_version,
+                    base_project_state_version=base_project_state_version,
+                )
+                applied_files.append({"path": path, "deleted": True})
+                last_draft = result["draft"]
+                last_workspace = result["workspace"]
+                draft_version = int(last_draft["draftVersion"])
+
+        now = utc_now_iso()
+        updated = dict(proposal)
+        updated["status"] = "applied"
+        updated["decidedAt"] = now
+        updated["decidedBy"] = actor
+        self._kernel.update_firmware_patch_proposal(proposal_id, updated)
+
+        event = None
+        if self._ledger is not None:
+            event = self._ledger.append(
+                project_id=project_id,
+                event_type="workspace.patch-applied",
+                actor=actor,
+                subject_type="workspace",
+                subject_id=workspace_id,
+                payload={
+                    "workspaceId": workspace_id,
+                    "artifactId": binding["artifactId"],
+                    "artifactType": artifact_type,
+                    "patchProposalId": proposal_id,
+                    "baseSnapshotId": proposal["baseSnapshotId"],
+                    "requestedChange": proposal["requestedChange"],
+                    "generatorId": proposal["generatorId"],
+                    "generatorVersion": proposal["generatorVersion"],
+                    "generationKind": "patch",
+                    "inputArtifactReferences": proposal.get("inputArtifactReferences") or [],
+                    "patchOperations": [
+                        {
+                            "operationType": op["operationType"],
+                            "path": op["path"],
+                            **(
+                                {"expectedBaseHash": op["expectedBaseHash"]}
+                                if "expectedBaseHash" in op
+                                else {}
+                            ),
+                            **({"contentHash": op["contentHash"]} if "contentHash" in op else {}),
+                        }
+                        for op in proposal["operations"]
+                    ],
+                    "generatedFiles": [
+                        {
+                            "path": item["path"],
+                            "contentHash": item.get("contentHash"),
+                        }
+                        for item in applied_files
+                        if not item.get("deleted")
+                    ],
+                    "summary": f"Applied firmware patch ({len(proposal['operations'])} operations)",
+                },
+                causation_id=causation_id,
+                correlation_id=causation_id or proposal_id,
+                occurred_at=now,
+            )
+
+        refreshed = self.resolve_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            create_if_missing=False,
+        )
+        return {
+            "binding": _public_binding(refreshed),
+            "status": "applied",
+            "proposal": updated,
+            "appliedFiles": applied_files,
+            "draft": last_draft,
+            "workspace": last_workspace,
+            "event": event,
+            "applySemantics": "sequential-non-atomic",
+        }
+
+    def discard_firmware_patch(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        proposal_id: str,
+        actor: dict[str, Any],
+        causation_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Discard a proposed patch without mutating workspace files."""
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                "Firmware patch discard is only available for artifact type firmware"
+            )
+        binding = self._require_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            capability="filesystem",
+        )
+        try:
+            proposal = self._kernel.get_firmware_patch_proposal(proposal_id)
+        except Exception as exc:  # noqa: BLE001
+            from nexus_persistence.errors import FirmwarePatchNotFoundError as StoreNotFound
+
+            if isinstance(exc, StoreNotFound):
+                raise FirmwarePatchNotFoundError(str(exc)) from exc
+            raise
+
+        if proposal.get("projectId") != project_id:
+            raise FirmwarePatchNotFoundError("Patch proposal not found for project")
+        if proposal.get("status") != "proposed":
+            raise FirmwarePatchValidationError(
+                f"Patch proposal is not in proposed status: {proposal.get('status')}"
+            )
+
+        now = utc_now_iso()
+        updated = dict(proposal)
+        updated["status"] = "discarded"
+        updated["decidedAt"] = now
+        updated["decidedBy"] = actor
+        self._kernel.update_firmware_patch_proposal(proposal_id, updated)
+
+        event = None
+        if self._ledger is not None:
+            event = self._ledger.append(
+                project_id=project_id,
+                event_type="workspace.patch-discarded",
+                actor=actor,
+                subject_type="workspace",
+                subject_id=binding["workspaceId"],
+                payload={
+                    "workspaceId": binding["workspaceId"],
+                    "artifactId": binding["artifactId"],
+                    "artifactType": artifact_type,
+                    "patchProposalId": proposal_id,
+                    "baseSnapshotId": proposal["baseSnapshotId"],
+                    "requestedChange": proposal["requestedChange"],
+                    "generatorId": proposal["generatorId"],
+                    "generatorVersion": proposal["generatorVersion"],
+                    "generationKind": "patch",
+                    "summary": "Discarded firmware patch proposal",
+                },
+                causation_id=causation_id,
+                correlation_id=causation_id or proposal_id,
+                occurred_at=now,
+            )
+
+        return {
+            "binding": _public_binding(binding),
+            "status": "discarded",
+            "proposal": updated,
+            "event": event,
+        }
+
+    def create_firmware_snapshot(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        actor: dict[str, Any],
+        reason: str | None = None,
+    ) -> dict[str, Any]:
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                "Manual firmware snapshots are only available for artifact type firmware"
+            )
+        label = (reason or SNAPSHOT_REASON_MANUAL).strip()
+        if not label:
+            raise CommandValidationError("Snapshot reason must not be empty")
+        return self.create_snapshot(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+            reason=label,
+        )
+
+    def restore_firmware_snapshot(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        snapshot_id: str,
+        actor: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Restore a snapshot after creating a before-restore safety snapshot."""
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                "Firmware snapshot restore is only available for artifact type firmware"
+            )
+        binding = self._require_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            capability="snapshots",
+        )
+        safety = self.create_snapshot(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+            reason=SNAPSHOT_REASON_BEFORE_RESTORE,
+        )
+        result = self._workspaces.restore_snapshot(
+            workspace_id=binding["workspaceId"],
+            snapshot_id=snapshot_id,
+            actor=actor,
+        )
+        return {
+            "binding": _public_binding(binding),
+            "beforeRestoreSnapshotId": safety["snapshotId"],
+            **result,
+        }
+
+    def read_firmware_snapshot_file(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        snapshot_id: str,
+        path: str,
+    ) -> dict[str, Any]:
+        """Read-only preview of a file from an immutable filesystem snapshot."""
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                "Firmware snapshot preview is only available for artifact type firmware"
+            )
+        binding = self._require_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            capability="snapshots",
+        )
+        snapshot = self._kernel.get_snapshot(snapshot_id)
+        if snapshot.get("workspaceId") != binding["workspaceId"]:
+            raise CommandValidationError("Snapshot does not belong to firmware workspace")
+        manifest = snapshot_manifest_index(snapshot)
+        entry = manifest.get(path)
+        if entry is None:
+            raise BoardError(
+                f"Snapshot file not found: {path}",
+                code="WORKSPACE_FILE_NOT_FOUND",
+            )
+        content = read_snapshot_file_text(
+            file_store=self._filesystem.file_store,
+            entry=entry,
+            path=path,
+        )
+        return {
+            "binding": _public_binding(binding),
+            "snapshotId": snapshot_id,
+            "path": path,
+            "encoding": "utf-8",
+            "content": content,
+            "sizeBytes": len(content.encode("utf-8")),
+            "contentHash": entry.get("contentHash"),
+        }
+
+    def compile_firmware(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        actor: dict[str, Any],
+        base_artifact_version: int | None = None,
+        base_project_state_version: int | None = None,
+        max_duration_ms: int | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._start_firmware_toolchain_execution(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+            operation="compile",
+            product_operation=FIRMWARE_COMPILE_OPERATION,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
+            max_duration_ms=max_duration_ms,
+            causation_id=causation_id,
+        )
+
+    def test_firmware(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        actor: dict[str, Any],
+        base_artifact_version: int | None = None,
+        base_project_state_version: int | None = None,
+        max_duration_ms: int | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any]:
+        return self._start_firmware_toolchain_execution(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+            operation="test",
+            product_operation=FIRMWARE_TEST_OPERATION,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
+            max_duration_ms=max_duration_ms,
+            causation_id=causation_id,
+        )
+
+    def _start_firmware_toolchain_execution(
+        self,
+        *,
+        project_id: str,
+        artifact_type: str,
+        actor: dict[str, Any],
+        operation: str,
+        product_operation: str,
+        base_artifact_version: int | None,
+        base_project_state_version: int | None,
+        max_duration_ms: int | None,
+        causation_id: str | None,
+    ) -> dict[str, Any]:
+        if artifact_type != FIRMWARE_ARTIFACT_TYPE:
+            raise WorkspaceRuntimeCapabilityError(
+                f"{product_operation} is only available for artifact type firmware"
+            )
+        binding = self._require_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            capability="execution",
+        )
+        snapshot_result = self.create_snapshot(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+            reason=snapshot_reason_for_operation(operation),
+        )
+        snapshot_id = snapshot_result["snapshotId"]
+        base_snapshot = self._kernel.get_snapshot(snapshot_id)
+        validate_firmware_snapshot_for_toolchain(
+            base_snapshot,
+            file_store=self._filesystem.file_store,
+            operation=operation,
+        )
+        command_spec = build_firmware_command_spec(operation)
+        workspace = binding["workspace"]
+        project = self._projects.get_project(project_id)
+        exec_result = self._executions.execute(
+            project_id=project_id,
+            artifact_id=workspace["artifactId"],
+            artifact_type=artifact_type,
+            workspace_id=workspace["workspaceId"],
+            snapshot_id=snapshot_id,
+            capability=CAPABILITY_SANDBOX,
+            actor=actor,
+            base_artifact_version=int(
+                base_artifact_version
+                if base_artifact_version is not None
+                else workspace["baseArtifactVersion"]
+            ),
+            base_project_state_version=int(
+                base_project_state_version
+                if base_project_state_version is not None
+                else project["currentStateVersion"]
+            ),
+            causation_id=causation_id or new_id("cmd"),
+            max_duration_ms=max_duration_ms,
+            options={"commandSpec": command_spec, "productOperation": product_operation},
+        )
+        return {
+            "binding": _public_binding(binding),
+            "operation": product_operation,
+            "toolchainProfile": firmware_toolchain_profile(),
+            "executionSnapshotId": snapshot_id,
+            "executionRun": exec_result["executionRun"],
+            "executionJob": exec_result.get("executionJob"),
+            "accepted": exec_result.get("accepted", True),
+            "startedAt": utc_now_iso(),
+        }
 
 
 def _public_binding(binding: dict[str, Any]) -> dict[str, Any]:

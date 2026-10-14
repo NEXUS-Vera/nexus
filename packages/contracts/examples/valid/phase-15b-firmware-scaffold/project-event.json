@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "eventId": "evt_02PHASE15BEVT000000000001",
+  "projectId": "proj_02PHASE15BPROJ00000000001",
+  "eventType": "workspace.scaffold-generated",
+  "occurredAt": "2026-08-11T00:00:00Z",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02USERACTOR000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "subject": {
+    "subjectType": "workspace",
+    "subjectId": "ws_02PHASE15BWORK000000000001"
+  },
+  "causationId": "cmd_02PHASE15BCMD0000000000001",
+  "correlationId": "gen_02PHASE15BGEN000000000001",
+  "payload": {
+    "workspaceId": "ws_02PHASE15BWORK000000000001",
+    "artifactId": "art_02PHASE15BART000000000001",
+    "artifactType": "firmware",
+    "artifactVersion": 1,
+    "generationId": "gen_02PHASE15BGEN000000000001",
+    "generationKind": "scaffold",
+    "scaffoldProfileId": "platformio-arduino-esp32-v1",
+    "scaffoldProfileVersion": "1.0.0",
+    "baseProjectStateVersion": 1,
+    "generatedFiles": [
+      {
+        "path": "platformio.ini",
+        "contentHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      {
+        "path": "src/main.cpp",
+        "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    ],
+    "summary": "Generated PlatformIO · ESP32 · Arduino scaffold (2 files)"
+  }
+}

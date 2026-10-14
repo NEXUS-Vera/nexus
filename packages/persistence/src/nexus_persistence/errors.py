@@ -63,3 +63,7 @@ class ArtifactVersionConflictError(PersistenceError):
 
 class ProjectStateConflictError(PersistenceError):
     code = "PROJECT_STATE_CONFLICT"
+
+
+class FirmwarePatchNotFoundError(PersistenceError):
+    code = "FIRMWARE_PATCH_NOT_FOUND"

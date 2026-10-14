@@ -206,7 +206,13 @@ export type ArtifactCommand =
       workspaceId: string;
     };
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 
 export interface ActorReference {

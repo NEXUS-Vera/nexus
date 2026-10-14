@@ -472,3 +472,29 @@ def test_cross_project_isolation(stores: Any) -> None:
         kernel_store.get_board_projection(p1["project"]["projectId"])["projectId"]
         != kernel_store.get_board_projection(p2["project"]["projectId"])["projectId"]
     )
+
+
+def test_firmware_patch_proposal_persistence(stores: Any) -> None:
+    from nexus_persistence.errors import FirmwarePatchNotFoundError
+
+    _, store = stores
+    proposal = {
+        "proposalId": "firmware-patch-contract",
+        "projectId": "project-contract",
+        "workspaceId": "workspace-contract",
+        "status": "proposed",
+        "requestedAt": "2026-10-14T00:00:00Z",
+        "files": [{"path": "src/main.cpp"}],
+    }
+    store.create_firmware_patch_proposal(proposal)
+    fetched = store.get_firmware_patch_proposal(proposal["proposalId"])
+    assert fetched == proposal
+    fetched["files"][0]["path"] = "mutated.cpp"
+    assert store.get_firmware_patch_proposal(proposal["proposalId"]) == proposal
+    proposal["status"] = "applied"
+    store.update_firmware_patch_proposal(proposal["proposalId"], proposal)
+    assert store.get_firmware_patch_proposal(proposal["proposalId"]) == proposal
+    with pytest.raises(FirmwarePatchNotFoundError):
+        store.get_firmware_patch_proposal("missing")
+    with pytest.raises(FirmwarePatchNotFoundError):
+        store.update_firmware_patch_proposal("missing", proposal)

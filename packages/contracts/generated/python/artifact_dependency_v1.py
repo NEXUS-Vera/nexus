@@ -23,6 +23,7 @@ class ArtifactDependencyV1(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     targetArtifactId: NotRequired[str]
     targetArtifactType: Literal[
@@ -32,6 +33,7 @@ class ArtifactDependencyV1(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
 
 ArtifactType: TypeAlias = Literal[
@@ -41,4 +43,5 @@ ArtifactType: TypeAlias = Literal[
     'next-action',
     'component-plan',
     'code-scratch',
+    'firmware',
 ]

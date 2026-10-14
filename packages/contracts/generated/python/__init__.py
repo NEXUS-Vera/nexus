@@ -30,6 +30,7 @@ from .execution_request_v1 import *  # noqa: F403
 from .execution_result_v1 import *  # noqa: F403
 from .execution_run_v1 import *  # noqa: F403
 from .external_workspace_reference_v1 import *  # noqa: F403
+from .firmware_patch_proposal_v1 import *  # noqa: F403
 from .functional_architecture_v1 import *  # noqa: F403
 from .graph_traversal_result_v1 import *  # noqa: F403
 from .next_action_v1 import *  # noqa: F403
@@ -92,6 +93,7 @@ __all__ = [
     "execution_result_v1",
     "execution_run_v1",
     "external_workspace_reference_v1",
+    "firmware_patch_proposal_v1",
     "functional_architecture_v1",
     "graph_traversal_result_v1",
     "next_action_v1",

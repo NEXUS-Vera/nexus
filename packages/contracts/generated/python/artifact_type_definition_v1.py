@@ -14,6 +14,7 @@ class Dependency(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     relationship: Literal['depends-on', 'derives-from', 'constrains', 'covers']
     required: NotRequired[bool]
@@ -27,6 +28,7 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     boardVisibility: Literal['primary', 'global', 'hidden']
     dependencies: list[Dependency]

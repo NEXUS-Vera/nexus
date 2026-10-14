@@ -18,6 +18,7 @@ class CurrentArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

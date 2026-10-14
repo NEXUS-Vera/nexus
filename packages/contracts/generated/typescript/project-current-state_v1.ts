@@ -26,17 +26,53 @@ export type ComponentCategory1 =
   | 'supporting-electronics';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType1 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType2 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType3 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType4 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 export type ArtifactType5 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 
 /**
  * Canonical current-state package for a persisted embedded project. This is the contract returned when reading a project, and it carries the current artifact heads plus the turn that produced them.

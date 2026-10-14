@@ -751,6 +751,7 @@ class Dependency(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     targetArtifactId: NotRequired[str]
     targetArtifactType: Literal[
@@ -760,6 +761,7 @@ class Dependency(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
 
 class RequestedFrom(TypedDict, closed=True):
@@ -798,6 +800,7 @@ class CurrentArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -919,6 +922,7 @@ class CreatedArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -932,6 +936,7 @@ class NextActionArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -970,6 +975,7 @@ class OutputArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -1027,6 +1033,7 @@ class ReasonByArtifactItem(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     reason: str
 
@@ -1039,6 +1046,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     changed: list[
@@ -1049,6 +1057,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     reasonByArtifact: list[ReasonByArtifactItem]
@@ -1060,6 +1069,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -1071,6 +1081,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     unchanged: list[
@@ -1081,6 +1092,7 @@ class ImpactAnalysis(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
 
@@ -1094,6 +1106,7 @@ class ProjectTurnResultV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     currentState: CurrentState
@@ -1106,6 +1119,7 @@ class ProjectTurnResultV1(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -1117,6 +1131,7 @@ ArtifactType: TypeAlias = Literal[
     'next-action',
     'component-plan',
     'code-scratch',
+    'firmware',
 ]
 
 ArtifactTypeList: TypeAlias = list[
@@ -1127,5 +1142,6 @@ ArtifactTypeList: TypeAlias = list[
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
 ]

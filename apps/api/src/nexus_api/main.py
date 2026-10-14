@@ -16,6 +16,7 @@ from nexus_board.errors import BoardError
 from nexus_board.execution.limits import ExecutionLimits
 from nexus_board.execution.runtime_factory import build_execution_runtime
 from nexus_board.execution.scheduler import SchedulerConfig
+from nexus_board.firmware.live_patch_generator import LiveFirmwarePatchGenerator
 from nexus_board.ids import new_id
 from nexus_board.services.filesystem_limits import WorkspaceFilesystemLimits
 from nexus_board.services.retention import RetentionPolicy
@@ -33,6 +34,7 @@ from nexus_embedded_systems.workflows.project_modification import (
     ModificationError,
     ModificationService,
 )
+from nexus_model_gateway import AnthropicGateway, ModelPolicy, OpenAICompatibleGateway
 from nexus_persistence import (
     ArtifactNotFoundError,
     ArtifactVersionNotFoundError,
@@ -61,6 +63,7 @@ ARTIFACT_TYPES = {
     "next-action",
     "component-plan",
     "code-scratch",
+    "firmware",
 }
 COMMAND_ID_RE = re.compile(r"^cmd_[A-Za-z0-9]{16,}$")
 
@@ -73,6 +76,37 @@ _store, _kernel_store = build_stores(
 _file_store = (
     LocalFileStore(settings.file_store_root) if settings.file_store_root else InMemoryFileStore()
 )
+
+
+def _build_firmware_patch_generator() -> LiveFirmwarePatchGenerator | None:
+    mode = settings.initialization_provider
+    if mode not in {"llm", "shadow"}:
+        return None
+    credential = settings.model_credential.strip()
+    if not credential:
+        return None
+    provider = settings.model_provider.strip().lower()
+    gateway: Any
+    if provider in {"anthropic", "claude"}:
+        gateway = AnthropicGateway(
+            model_credential=credential,
+            base_url=settings.model_base_url,
+        )
+    else:
+        gateway = OpenAICompatibleGateway(
+            model_credential=credential,
+            base_url=settings.model_base_url,
+        )
+    policy = ModelPolicy(
+        provider=provider,
+        model=settings.model_name,
+        timeout_seconds=settings.model_timeout_seconds,
+    )
+    return LiveFirmwarePatchGenerator(gateway=gateway, model_policy=policy)
+
+
+_firmware_patch_generator = _build_firmware_patch_generator()
+
 _kernel = build_project_kernel(
     _kernel_store,
     project_store=_store,
@@ -102,6 +136,7 @@ _kernel = build_project_kernel(
         container_image=settings.execution_container_image,
     ),
     retention_policy=RetentionPolicy.from_environ(),
+    firmware_patch_generator=_firmware_patch_generator,
 )
 
 
@@ -1109,7 +1144,12 @@ async def create_artifact_workspace_snapshot(
     if not isinstance(body, dict):
         body = {}
     try:
-        return _kernel.workspace_runtime.create_snapshot(
+        create = (
+            _kernel.workspace_runtime.create_firmware_snapshot
+            if artifact_type == "firmware"
+            else _kernel.workspace_runtime.create_snapshot
+        )
+        return create(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
@@ -1141,7 +1181,12 @@ async def restore_artifact_workspace_snapshot(
     if not isinstance(body, dict):
         body = {}
     try:
-        return _kernel.workspace_runtime.restore_snapshot(
+        restore = (
+            _kernel.workspace_runtime.restore_firmware_snapshot
+            if artifact_type == "firmware"
+            else _kernel.workspace_runtime.restore_snapshot
+        )
+        return restore(
             project_id=project_id,
             artifact_type=artifact_type,
             snapshot_id=snapshot_id,
@@ -1689,3 +1734,370 @@ async def get_project_output(
             message="Produced output not found.",
             request_id=request_id,
         )
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/scaffold", response_model=None
+)
+async def generate_artifact_workspace_scaffold(
+    project_id: str, artifact_type: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Generate the deterministic Firmware scaffold (Phase 15B)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        actor = _workspace_runtime_actor(body)
+        result = _kernel.workspace_runtime.generate_firmware_scaffold(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+            profile_id=body.get("profileId"),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "status": result["status"],
+            "generationId": result.get("generationId"),
+            "generationKind": result.get("generationKind"),
+            "profile": result.get("profile"),
+            "generatedFiles": result.get("generatedFiles"),
+            "primaryPath": result.get("primaryPath"),
+            "binding": result.get("binding"),
+            "draft": result.get("draft"),
+            "workspace": result.get("workspace"),
+        }
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        if exc.code == "WORKSPACE_SCAFFOLD_CONFLICT":
+            status = 409
+        elif "NOT_FOUND" in exc.code:
+            status = 404
+        else:
+            status = 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/patch/propose",
+    response_model=None,
+)
+async def propose_artifact_workspace_patch(
+    project_id: str, artifact_type: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Generate a firmware patch proposal against an immutable base snapshot (Phase 15C)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        result = _kernel.workspace_runtime.propose_firmware_patch(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=_workspace_runtime_actor(body),
+            requested_change=str(body["requestedChange"]),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "status": result["status"],
+            "proposal": result.get("proposal"),
+            "baseSnapshotId": result.get("proposal", {}).get("baseSnapshotId"),
+            "binding": result.get("binding"),
+        }
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        if exc.code in {"FIRMWARE_PATCH_STALE"}:
+            status = 409
+        elif "NOT_FOUND" in exc.code:
+            status = 404
+        else:
+            status = 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/patch/apply", response_model=None
+)
+async def apply_artifact_workspace_patch(
+    project_id: str, artifact_type: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Apply a previously proposed firmware patch (Phase 15C)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        result = _kernel.workspace_runtime.apply_firmware_patch(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            proposal_id=str(body["proposalId"]),
+            actor=_workspace_runtime_actor(body),
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "status": result["status"],
+            "proposal": result.get("proposal"),
+            "appliedFiles": result.get("appliedFiles"),
+            "applySemantics": result.get("applySemantics"),
+            "binding": result.get("binding"),
+            "draft": result.get("draft"),
+            "workspace": result.get("workspace"),
+        }
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        if exc.code in {"FIRMWARE_PATCH_STALE"}:
+            status = 409
+        elif "NOT_FOUND" in exc.code:
+            status = 404
+        else:
+            status = 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/patch/discard",
+    response_model=None,
+)
+async def discard_artifact_workspace_patch(
+    project_id: str, artifact_type: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Discard a proposed firmware patch without workspace mutation (Phase 15C)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        result = _kernel.workspace_runtime.discard_firmware_patch(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            proposal_id=str(body["proposalId"]),
+            actor=_workspace_runtime_actor(body),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "status": result["status"],
+            "proposal": result.get("proposal"),
+            "binding": result.get("binding"),
+        }
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/snapshots/{snapshot_id}/file",
+    response_model=None,
+)
+async def read_artifact_workspace_snapshot_file(
+    project_id: str, artifact_type: str, snapshot_id: str, request: Request, path: str = ""
+) -> dict[str, Any] | JSONResponse:
+    """Read-only preview of a file from an immutable filesystem snapshot (Phase 15D)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    if not path.strip():
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="path query parameter is required.",
+            request_id=request_id,
+        )
+    try:
+        return _kernel.workspace_runtime.read_firmware_snapshot_file(
+            project_id=project_id, artifact_type=artifact_type, snapshot_id=snapshot_id, path=path
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/compile", response_model=None
+)
+async def compile_artifact_firmware(
+    project_id: str, artifact_type: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Compile firmware against an immutable pre-compile snapshot (Phase 15E)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        result = _kernel.workspace_runtime.compile_firmware(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=_workspace_runtime_actor(body),
+            base_artifact_version=body.get("baseArtifactVersion"),
+            base_project_state_version=body.get("baseProjectStateVersion"),
+            max_duration_ms=body.get("maxDurationMs"),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "operation": result.get("operation"),
+            "executionSnapshotId": result.get("executionSnapshotId"),
+            "executionRun": result.get("executionRun"),
+            "executionJob": result.get("executionJob"),
+            "toolchainProfile": result.get("toolchainProfile"),
+            "binding": result.get("binding"),
+            "accepted": result.get("accepted"),
+            "startedAt": result.get("startedAt"),
+        }
+    except BoardError as exc:
+        status = 422
+        if exc.code == "FIRMWARE_TOOLCHAIN_VALIDATION_FAILED":
+            status = 422
+        elif "NOT_FOUND" in exc.code:
+            status = 404
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post("/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/test", response_model=None)
+async def test_artifact_firmware(
+    project_id: str, artifact_type: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Run firmware tests against an immutable pre-test snapshot (Phase 15E)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        result = _kernel.workspace_runtime.test_firmware(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=_workspace_runtime_actor(body),
+            base_artifact_version=body.get("baseArtifactVersion"),
+            base_project_state_version=body.get("baseProjectStateVersion"),
+            max_duration_ms=body.get("maxDurationMs"),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "operation": result.get("operation"),
+            "executionSnapshotId": result.get("executionSnapshotId"),
+            "executionRun": result.get("executionRun"),
+            "executionJob": result.get("executionJob"),
+            "toolchainProfile": result.get("toolchainProfile"),
+            "binding": result.get("binding"),
+            "accepted": result.get("accepted"),
+            "startedAt": result.get("startedAt"),
+        }
+    except BoardError as exc:
+        status = 422
+        if exc.code == "FIRMWARE_TEST_NOT_CONFIGURED":
+            status = 422
+        elif "NOT_FOUND" in exc.code:
+            status = 404
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)

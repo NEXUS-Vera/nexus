@@ -96,9 +96,9 @@ function parseProjectPackage(payload: unknown): import('@nexus/contracts').Proje
   if (
     !Array.isArray(payload.artifacts) ||
     payload.artifacts.length < 4 ||
-    payload.artifacts.length > 5
+    payload.artifacts.length > 6
   ) {
-    throw new Error('Project response must include four or five artifacts');
+    throw new Error('Project response must include four to six artifacts');
   }
   const types = new Set(
     payload.artifacts
@@ -514,4 +514,107 @@ export async function getProducedOutput(
   return (await requestJson(
     `/v1/projects/${projectId}/outputs/${encodeURIComponent(outputId)}`,
   )) as import('@nexus/contracts').ProducedOutput;
+}
+
+
+export async function generateFirmwareScaffold(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/scaffold`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function proposeFirmwarePatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/patch/propose`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function applyFirmwarePatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/patch/apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function discardFirmwarePatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/patch/discard`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function readWorkspaceSnapshotFile(
+  projectId: string,
+  artifactType: string,
+  snapshotId: string,
+  path: string,
+): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams({ path });
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots/${snapshotId}/file?${q}`,
+  )) as Record<string, unknown>;
+}
+
+
+export async function compileFirmware(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/compile`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function testFirmware(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/firmware/workspace/test`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
 }

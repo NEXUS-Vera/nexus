@@ -43,9 +43,9 @@ describe('workspace renderer registry', () => {
   });
 
   it('returns undefined for unsupported keys and resolves safely to UnavailableWorkspace', () => {
-    expect(getWorkspaceRenderer('firmware-scaffold')).toBeUndefined();
+    expect(getWorkspaceRenderer('firmware-scaffold')).toBeDefined();
     expect(getWorkspaceRenderer('not-a-real-artifact')).toBeUndefined();
-    expect(resolveWorkspaceRenderer('firmware-scaffold')).toBe(UnavailableWorkspace);
+    expect(resolveWorkspaceRenderer('firmware-scaffold')).not.toBe(UnavailableWorkspace);
   });
 
   it('renders unsupported workspace honestly', () => {
