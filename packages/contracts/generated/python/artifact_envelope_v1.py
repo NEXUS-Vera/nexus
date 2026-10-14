@@ -537,6 +537,7 @@ class ArtifactEnvelopeV1(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
     content: Content | Content1 | Content2 | Content3 | Content4

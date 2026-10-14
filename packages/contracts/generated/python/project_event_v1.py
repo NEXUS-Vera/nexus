@@ -21,6 +21,7 @@ class Payload(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     artifactVersion: NotRequired[int]
@@ -33,6 +34,7 @@ class Payload(TypedDict, closed=True):
             'python-kernel',
             'circuit-simulation',
             'architecture-export',
+            'sandbox-execution',
         ]
     ]
     decisionId: NotRequired[str]

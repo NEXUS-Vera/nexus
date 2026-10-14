@@ -9,6 +9,16 @@ export interface WorkspaceDraftState {
   };
   createdAt: string;
   draftVersion: number;
+  editLease?: {
+    acquiredAt: string;
+    baseDraftVersion: number;
+    expiresAt: string;
+    leaseId: string;
+    leaseToken: string;
+    ownerActorId: string;
+    ownerActorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+    ownerDisplayName?: string;
+  };
   schemaVersion: '1.0.0';
   updatedAt: string;
   updatedBy: ActorReference;

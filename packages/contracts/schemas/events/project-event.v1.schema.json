@@ -164,7 +164,8 @@
             "embedded-build",
             "python-kernel",
             "circuit-simulation",
-            "architecture-export"
+            "architecture-export",
+            "sandbox-execution"
           ]
         },
         "summary": {

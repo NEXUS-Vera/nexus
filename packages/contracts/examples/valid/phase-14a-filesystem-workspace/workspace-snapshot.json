@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0.0",
+  "snapshotId": "snap_FILESNAP0000000001",
+  "workspaceId": "ws_FILEWORKSPACE00001",
+  "projectId": "proj_FILEPROJECT0000001",
+  "artifactId": "art_FILEARTIFACT000001",
+  "snapshotVersion": 1,
+  "baseArtifactVersion": 1,
+  "baseProjectStateVersion": 1,
+  "content": {
+    "kind": "filesystem",
+    "filesystemManifest": {
+      "manifestDigest": "sha256:6ce13e4c5fadf866902d6f0664cab5f43de27b798eff57f0cb23d2ae5b591b32",
+      "entries": [
+        {
+          "path": "src/main.cpp",
+          "contentHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "contentReference": "cas:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": 0,
+          "origin": "USER",
+          "writePolicy": "USER_EDITABLE",
+          "modifiedByUser": false
+        }
+      ]
+    }
+  },
+  "contentDigest": "sha256:6ce13e4c5fadf866902d6f0664cab5f43de27b798eff57f0cb23d2ae5b591b32",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_FILEACTOR000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "createdAt": "2026-08-10T00:00:00Z",
+  "reason": "Filesystem checkpoint"
+}

@@ -13,7 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from nexus_board import build_project_kernel
 from nexus_board.errors import BoardError
+from nexus_board.execution.limits import ExecutionLimits
+from nexus_board.execution.runtime_factory import build_execution_runtime
+from nexus_board.execution.scheduler import SchedulerConfig
 from nexus_board.ids import new_id
+from nexus_board.services.filesystem_limits import WorkspaceFilesystemLimits
+from nexus_board.services.retention import RetentionPolicy
 from nexus_embedded_systems.workflows.project_initialization import (
     InitializationProviderError,
     InitializationRoutingError,
@@ -31,9 +36,13 @@ from nexus_embedded_systems.workflows.project_modification import (
 from nexus_persistence import (
     ArtifactNotFoundError,
     ArtifactVersionNotFoundError,
+    ExecutionNotFoundError,
+    InMemoryFileStore,
+    LocalFileStore,
     ProjectNotFoundError,
     ProjectPersistenceError,
     ProjectRetrievalError,
+    WorkspaceNotFoundError,
     build_stores,
 )
 from project_initialization_result_v1 import ProjectInitializationResultV1
@@ -51,6 +60,7 @@ ARTIFACT_TYPES = {
     "functional-architecture",
     "next-action",
     "component-plan",
+    "code-scratch",
 }
 COMMAND_ID_RE = re.compile(r"^cmd_[A-Za-z0-9]{16,}$")
 
@@ -60,7 +70,39 @@ _store, _kernel_store = build_stores(
     backend=settings.storage_backend,
     database_url=settings.database_url,
 )
-_kernel = build_project_kernel(_kernel_store, project_store=_store)
+_file_store = (
+    LocalFileStore(settings.file_store_root) if settings.file_store_root else InMemoryFileStore()
+)
+_kernel = build_project_kernel(
+    _kernel_store,
+    project_store=_store,
+    file_store=_file_store,
+    filesystem_limits=WorkspaceFilesystemLimits(
+        max_file_bytes=settings.workspace_max_file_bytes,
+        max_workspace_bytes=settings.workspace_max_bytes,
+        max_file_count=settings.workspace_max_file_count,
+    ),
+    execution_limits=ExecutionLimits(
+        wall_time_ms=settings.execution_wall_time_ms,
+        stdout_bytes=settings.execution_stdout_bytes,
+        stderr_bytes=settings.execution_stderr_bytes,
+        total_log_bytes=settings.execution_total_log_bytes,
+        produced_output_bytes=settings.execution_produced_output_bytes,
+        memory_bytes=settings.execution_memory_bytes,
+        cpu_millis=settings.execution_cpu_millis,
+        process_count=settings.execution_process_count,
+    ),
+    scheduler_config=SchedulerConfig(
+        max_running_global=settings.execution_max_running_global,
+        max_running_per_project=settings.execution_max_running_per_project,
+        max_queued=settings.execution_max_queued,
+    ),
+    execution_runtime=build_execution_runtime(
+        settings.execution_runtime,
+        container_image=settings.execution_container_image,
+    ),
+    retention_policy=RetentionPolicy.from_environ(),
+)
 
 
 def _build_init_service() -> InitializationService:
@@ -159,7 +201,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "X-Request-Id", "Authorization"],
 )
 
@@ -450,19 +492,43 @@ async def get_artifact_workspace(
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
         existing = _kernel.workspaces.get_or_none(project_id, artifact_type)
-        if existing is None:
-            return _error(
-                404,
-                code="WORKSPACE_NOT_FOUND",
-                message="Workspace not found.",
-                request_id=request_id,
-            )
-        return existing
+        if existing is not None:
+            return existing
+        # Lazily create workspace state for existing artifacts so editable
+        # surfaces do not leave the UI on a permanent WORKSPACE_NOT_FOUND 404.
+        actor = {
+            "schemaVersion": "1.0.0",
+            "actorId": new_id("actor"),
+            "actorType": "user",
+            "displayName": "User",
+        }
+        return _kernel.workspaces.create_if_missing(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=actor,
+        )
     except ProjectNotFoundError:
         return _error(
             404,
             code="PROJECT_NOT_FOUND",
             message="Project not found.",
+            request_id=request_id,
+        )
+    except ArtifactNotFoundError:
+        return _error(
+            404,
+            code="ARTIFACT_NOT_FOUND",
+            message="Artifact type not found for this project.",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("workspace_resolve_failed request_id=%s", request_id)
+        return _error(
+            500,
+            code="WORKSPACE_CREATE_FAILED",
+            message="Failed to resolve workspace.",
             request_id=request_id,
         )
 
@@ -566,6 +632,9 @@ async def dispatch_artifact_command(
     if command.get("commandType") not in {
         "workspace.create",
         "workspace.update-draft",
+        "workspace.acquire-edit-lease",
+        "workspace.release-edit-lease",
+        "workspace.discard-draft",
         "workspace.create-snapshot",
         "workspace.restore-snapshot",
         "artifact.validate-draft",
@@ -635,9 +704,7 @@ async def list_project_executions(
         return invalid
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
-        items, next_cursor = _kernel.executions.list_runs(
-            project_id, limit=limit, cursor=cursor
-        )
+        items, next_cursor = _kernel.executions.list_runs(project_id, limit=limit, cursor=cursor)
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,
@@ -666,9 +733,7 @@ async def list_project_events(
         return invalid
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
-        items, next_cursor = _kernel.ledger.list_events(
-            project_id, limit=limit, cursor=cursor
-        )
+        items, next_cursor = _kernel.ledger.list_events(project_id, limit=limit, cursor=cursor)
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,
@@ -737,3 +802,890 @@ async def get_project_graph(
         )
     except BoardError as exc:
         return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get("/v1/runtime/health", response_model=None)
+async def runtime_health(request: Request) -> dict[str, Any] | JSONResponse:
+    """Internal/dev scheduler + runtime availability (not a product dashboard)."""
+    request_id = _request_id(request)
+    try:
+        return {
+            "requestId": request_id,
+            **_kernel.jobs.health(),
+            "executionRuntimeConfigured": settings.execution_runtime,
+        }
+    except Exception as exc:  # noqa: BLE001
+        return _error(
+            500,
+            code="RUNTIME_HEALTH_FAILED",
+            message=str(exc)[:300],
+            request_id=request_id,
+        )
+
+
+@app.post("/v1/admin/retention/gc", response_model=None)
+async def admin_retention_gc(
+    request: Request,
+    dry_run: bool = Query(default=True),
+) -> dict[str, Any] | JSONResponse:
+    """Dev/admin reference-aware GC. Defaults to dry-run; never deletes protected refs."""
+    request_id = _request_id(request)
+    try:
+        plan = _kernel.retention.plan()
+        result = _kernel.retention.apply(plan, dry_run=dry_run)
+        return {"requestId": request_id, **result}
+    except Exception as exc:  # noqa: BLE001
+        return _error(
+            500,
+            code="RETENTION_GC_FAILED",
+            message=str(exc)[:300],
+            request_id=request_id,
+        )
+
+
+def _workspace_runtime_actor(body: dict[str, Any] | None) -> dict[str, Any]:
+    raw = (body or {}).get("requestedBy")
+    if isinstance(raw, dict) and raw.get("actorId"):
+        return raw
+    return {
+        "schemaVersion": "1.0.0",
+        "actorId": new_id("actor"),
+        "actorType": "user",
+        "displayName": "User",
+    }
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/runtime",
+    response_model=None,
+)
+async def get_workspace_runtime_binding(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Phase 14D: resolve artifact ↔ filesystem-workspace binding + capabilities."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        binding = _kernel.workspace_runtime.resolve_binding(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            create_if_missing=True,
+        )
+        return {
+            "binding": {
+                key: binding[key]
+                for key in (
+                    "schemaVersion",
+                    "projectId",
+                    "artifactId",
+                    "artifactType",
+                    "workspaceId",
+                    "workspaceType",
+                    "baseArtifactVersion",
+                    "baseProjectStateVersion",
+                    "currentSnapshotId",
+                    "capabilities",
+                    "requiredCapabilities",
+                    "filesystemEnabled",
+                )
+            },
+            "draft": binding["draft"],
+        }
+    except ProjectNotFoundError:
+        return _error(
+            404, code="PROJECT_NOT_FOUND", message="Project not found.", request_id=request_id
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/files",
+    response_model=None,
+)
+async def list_artifact_workspace_files(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        return _kernel.workspace_runtime.list_files(
+            project_id=project_id, artifact_type=artifact_type
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/file",
+    response_model=None,
+)
+async def read_artifact_workspace_file(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+    path: str = Query(..., min_length=1),
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        result = _kernel.workspace_runtime.read_file(
+            project_id=project_id, artifact_type=artifact_type, path=path
+        )
+        payload = _encode_file_content(result["content"])
+        return {"binding": result["binding"], "file": result["file"], **payload}
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.put(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/file",
+    response_model=None,
+)
+async def write_artifact_workspace_file(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    content, content_error = _decode_file_content(body)
+    if content_error is not None or content is None:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=content_error or "Invalid file content.",
+            request_id=request_id,
+        )
+    try:
+        actor = _workspace_runtime_actor(body)
+        return _kernel.workspace_runtime.write_file(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            path=str(body.get("path") or ""),
+            content=content,
+            actor=actor,
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+            origin=body.get("origin"),
+            write_policy=body.get("writePolicy"),
+            generated_from=body.get("generatedFrom"),
+            media_type=body.get("mediaType"),
+        )
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.delete(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/file",
+    response_model=None,
+)
+async def delete_artifact_workspace_file(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+    path: str = Query(..., min_length=1),
+    expectedDraftVersion: int = Query(...),
+    baseArtifactVersion: int = Query(...),
+    baseProjectStateVersion: int = Query(...),
+    actorId: str | None = Query(default=None),
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body: dict[str, Any] = {}
+        try:
+            raw = await request.json()
+            if isinstance(raw, dict):
+                body = raw
+        except Exception:  # noqa: BLE001
+            body = {}
+        actor_body = body
+        if actorId and not isinstance(body.get("requestedBy"), dict):
+            actor_body = {
+                **body,
+                "requestedBy": {
+                    "schemaVersion": "1.0.0",
+                    "actorId": actorId,
+                    "actorType": "user",
+                    "displayName": "User",
+                },
+            }
+        return _kernel.workspace_runtime.delete_file(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            path=path,
+            actor=_workspace_runtime_actor(actor_body),
+            expected_draft_version=expectedDraftVersion,
+            base_artifact_version=baseArtifactVersion,
+            base_project_state_version=baseProjectStateVersion,
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/snapshots",
+    response_model=None,
+)
+async def list_artifact_workspace_snapshots(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        return _kernel.workspace_runtime.list_snapshots(
+            project_id=project_id, artifact_type=artifact_type
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/snapshots",
+    response_model=None,
+)
+async def create_artifact_workspace_snapshot(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        return _kernel.workspace_runtime.create_snapshot(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=_workspace_runtime_actor(body),
+            reason=body.get("reason"),
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/snapshots/{snapshot_id}/restore",
+    response_model=None,
+)
+async def restore_artifact_workspace_snapshot(
+    project_id: str,
+    artifact_type: str,
+    snapshot_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        return _kernel.workspace_runtime.restore_snapshot(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            snapshot_id=snapshot_id,
+            actor=_workspace_runtime_actor(body),
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/executions",
+    response_model=None,
+)
+async def start_artifact_workspace_execution(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Start validated sandbox execution (not an unrestricted remote shell)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        return _kernel.workspace_runtime.start_execution(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            snapshot_id=str(body["snapshotId"]),
+            actor=_workspace_runtime_actor(body),
+            command_spec=body["commandSpec"],
+            base_artifact_version=(
+                int(body["baseArtifactVersion"])
+                if body.get("baseArtifactVersion") is not None
+                else None
+            ),
+            base_project_state_version=(
+                int(body["baseProjectStateVersion"])
+                if body.get("baseProjectStateVersion") is not None
+                else None
+            ),
+            max_duration_ms=(
+                int(body["maxDurationMs"]) if body.get("maxDurationMs") is not None else None
+            ),
+            execution_kind=str(body.get("executionKind") or "sandbox-execution"),
+        )
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+def _decode_file_content(body: dict[str, Any]) -> tuple[bytes | None, str | None]:
+    """Return (content, error_message)."""
+    encoding = str(body.get("encoding") or "utf-8")
+    if body.get("contentBase64") is not None:
+        import base64
+
+        try:
+            return base64.b64decode(str(body["contentBase64"]), validate=True), None
+        except Exception:  # noqa: BLE001
+            return None, "Invalid contentBase64 payload."
+    if body.get("content") is None:
+        return None, "File content is required."
+    text = body["content"]
+    if not isinstance(text, str):
+        return None, "Text content must be a string."
+    if encoding not in {"utf-8", "utf8"}:
+        return None, "Unsupported text encoding."
+    return text.encode("utf-8"), None
+
+
+def _encode_file_content(content: bytes) -> dict[str, Any]:
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        import base64
+
+        return {
+            "encoding": "base64",
+            "contentBase64": base64.b64encode(content).decode("ascii"),
+            "sizeBytes": len(content),
+        }
+    return {"encoding": "utf-8", "content": text, "sizeBytes": len(content)}
+
+
+@app.get("/v1/projects/{project_id}/workspaces/{workspace_id}/files", response_model=None)
+async def list_workspace_files(
+    project_id: str,
+    workspace_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        workspace = _kernel.kernel_store.get_workspace(workspace_id)
+        if workspace["projectId"] != project_id:
+            return _error(
+                404,
+                code="WORKSPACE_NOT_FOUND",
+                message="Workspace not found.",
+                request_id=request_id,
+            )
+        files = _kernel.filesystem.list_files(workspace_id)
+        return {"workspaceId": workspace_id, "files": files}
+    except WorkspaceNotFoundError:
+        return _error(
+            404, code="WORKSPACE_NOT_FOUND", message="Workspace not found.", request_id=request_id
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get("/v1/projects/{project_id}/workspaces/{workspace_id}/file", response_model=None)
+async def read_workspace_file(
+    project_id: str,
+    workspace_id: str,
+    request: Request,
+    path: str = Query(..., min_length=1),
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        workspace = _kernel.kernel_store.get_workspace(workspace_id)
+        if workspace["projectId"] != project_id:
+            return _error(
+                404,
+                code="WORKSPACE_NOT_FOUND",
+                message="Workspace not found.",
+                request_id=request_id,
+            )
+        result = _kernel.filesystem.read_file(workspace_id, path)
+        payload = _encode_file_content(result["content"])
+        return {"file": result["file"], **payload}
+    except WorkspaceNotFoundError:
+        return _error(
+            404, code="WORKSPACE_NOT_FOUND", message="Workspace not found.", request_id=request_id
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.put("/v1/projects/{project_id}/workspaces/{workspace_id}/file", response_model=None)
+async def write_workspace_file(
+    project_id: str,
+    workspace_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    content, content_error = _decode_file_content(body)
+    if content_error is not None or content is None:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=content_error or "Invalid file content.",
+            request_id=request_id,
+        )
+    try:
+        workspace = _kernel.kernel_store.get_workspace(workspace_id)
+        if workspace["projectId"] != project_id:
+            return _error(
+                404,
+                code="WORKSPACE_NOT_FOUND",
+                message="Workspace not found.",
+                request_id=request_id,
+            )
+        result = _kernel.filesystem.write_file(
+            workspace_id=workspace_id,
+            path=str(body.get("path") or ""),
+            content=content,
+            actor=body["requestedBy"],
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+            origin=body.get("origin"),
+            write_policy=body.get("writePolicy"),
+            generated_from=body.get("generatedFrom"),
+            media_type=body.get("mediaType"),
+        )
+        return result
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except WorkspaceNotFoundError:
+        return _error(
+            404, code="WORKSPACE_NOT_FOUND", message="Workspace not found.", request_id=request_id
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/workspaces/{workspace_id}/files/rename",
+    response_model=None,
+)
+async def rename_workspace_file(
+    project_id: str,
+    workspace_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        workspace = _kernel.kernel_store.get_workspace(workspace_id)
+        if workspace["projectId"] != project_id:
+            return _error(
+                404,
+                code="WORKSPACE_NOT_FOUND",
+                message="Workspace not found.",
+                request_id=request_id,
+            )
+        return _kernel.filesystem.rename_file(
+            workspace_id=workspace_id,
+            from_path=str(body.get("fromPath") or ""),
+            to_path=str(body.get("toPath") or ""),
+            actor=body["requestedBy"],
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+        )
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except WorkspaceNotFoundError:
+        return _error(
+            404, code="WORKSPACE_NOT_FOUND", message="Workspace not found.", request_id=request_id
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.delete("/v1/projects/{project_id}/workspaces/{workspace_id}/file", response_model=None)
+async def delete_workspace_file(
+    project_id: str,
+    workspace_id: str,
+    request: Request,
+    path: str = Query(..., min_length=1),
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        workspace = _kernel.kernel_store.get_workspace(workspace_id)
+        if workspace["projectId"] != project_id:
+            return _error(
+                404,
+                code="WORKSPACE_NOT_FOUND",
+                message="Workspace not found.",
+                request_id=request_id,
+            )
+        return _kernel.filesystem.delete_file(
+            workspace_id=workspace_id,
+            path=path,
+            actor=body["requestedBy"],
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+        )
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except WorkspaceNotFoundError:
+        return _error(
+            404, code="WORKSPACE_NOT_FOUND", message="Workspace not found.", request_id=request_id
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get("/v1/projects/{project_id}/executions/{execution_run_id}", response_model=None)
+async def get_project_execution(
+    project_id: str,
+    execution_run_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        run = _kernel.executions.get_run(execution_run_id)
+        if run.get("projectId") != project_id:
+            raise ExecutionNotFoundError(execution_run_id)
+        job = _kernel.jobs.get_job_for_run(execution_run_id)
+        return {
+            "schemaVersion": "1.0.0",
+            "executionRun": run,
+            "executionJob": job,
+        }
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+    except ExecutionNotFoundError:
+        return _error(
+            404,
+            code="EXECUTION_NOT_FOUND",
+            message="Execution run not found.",
+            request_id=request_id,
+        )
+
+
+@app.get("/v1/projects/{project_id}/executions/{execution_run_id}/logs", response_model=None)
+async def get_project_execution_logs(
+    project_id: str,
+    execution_run_id: str,
+    request: Request,
+    after: int = Query(default=0, ge=0, alias="after"),
+    limit: int = Query(default=100, ge=1, le=500),
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        run = _kernel.executions.get_run(execution_run_id)
+        if run.get("projectId") != project_id:
+            raise ExecutionNotFoundError(execution_run_id)
+        return _kernel.executions.list_logs(
+            execution_run_id,
+            after_sequence=after,
+            limit=limit,
+        )
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+    except ExecutionNotFoundError:
+        return _error(
+            404,
+            code="EXECUTION_NOT_FOUND",
+            message="Execution run not found.",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        return _error(
+            422,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+
+
+@app.post("/v1/projects/{project_id}/executions/{execution_run_id}/cancel", response_model=None)
+async def cancel_project_execution(
+    project_id: str,
+    execution_run_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        run = _kernel.executions.get_run(execution_run_id)
+        if run.get("projectId") != project_id:
+            raise ExecutionNotFoundError(execution_run_id)
+        actor = body.get("requestedBy") if isinstance(body, dict) else None
+        result = _kernel.executions.cancel(execution_run_id, actor=actor)
+        return {
+            "schemaVersion": "1.0.0",
+            "executionRun": result["executionRun"],
+            "executionJob": result["executionJob"],
+        }
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+    except ExecutionNotFoundError:
+        return _error(
+            404,
+            code="EXECUTION_NOT_FOUND",
+            message="Execution run not found.",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        return _error(
+            422,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+
+
+@app.get("/v1/projects/{project_id}/outputs", response_model=None)
+async def list_project_outputs(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "items": _kernel.executions.list_outputs(project_id),
+        }
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+
+
+@app.get("/v1/projects/{project_id}/outputs/{output_id}", response_model=None)
+async def get_project_output(
+    project_id: str,
+    output_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        output = _kernel.executions.get_output(output_id)
+        if output.get("projectId") != project_id:
+            raise ExecutionNotFoundError(f"Produced output not found: {output_id}")
+        return output
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+    except ExecutionNotFoundError:
+        return _error(
+            404,
+            code="OUTPUT_NOT_FOUND",
+            message="Produced output not found.",
+            request_id=request_id,
+        )

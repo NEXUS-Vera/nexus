@@ -65,5 +65,33 @@ class CommandValidationError(BoardError):
     code = "COMMAND_VALIDATION_FAILED"
 
 
+class DraftEditLeaseHeldError(BoardError):
+    code = "DRAFT_EDIT_LEASE_HELD"
+
+
+class DraftEditLeaseRequiredError(BoardError):
+    code = "DRAFT_EDIT_LEASE_REQUIRED"
+
+
 class GraphBoundExceededError(BoardError):
     code = "GRAPH_BOUND_EXCEEDED"
+
+
+class WorkspacePathError(BoardError):
+    code = "WORKSPACE_PATH_INVALID"
+
+
+class WorkspaceQuotaExceededError(BoardError):
+    code = "WORKSPACE_QUOTA_EXCEEDED"
+
+
+class WorkspaceFileNotFoundError(BoardError):
+    code = "WORKSPACE_FILE_NOT_FOUND"
+
+
+class WorkspaceWritePolicyError(BoardError):
+    code = "WORKSPACE_WRITE_POLICY_DENIED"
+
+
+class WorkspaceNotFilesystemError(BoardError):
+    code = "WORKSPACE_NOT_FILESYSTEM"

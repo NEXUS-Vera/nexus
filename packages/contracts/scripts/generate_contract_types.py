@@ -67,9 +67,13 @@ PUBLIC_SCHEMA_STEMS = [
     "workspace-descriptor.v1",
     "workspace-snapshot.v1",
     "workspace-draft-state.v1",
+    "workspace-file.v1",
     "execution-request.v1",
     "execution-run.v1",
     "execution-result.v1",
+    "execution-command-spec.v1",
+    "execution-job.v1",
+    "execution-log-chunk.v1",
     "produced-output.v1",
     "runtime-capability.v1",
     "external-workspace-reference.v1",
@@ -522,9 +526,13 @@ async function main() {
     "export type { WorkspaceDescriptor } from './workspace-descriptor_v1';",
     "export type { WorkspaceSnapshot } from './workspace-snapshot_v1';",
     "export type { WorkspaceDraftState } from './workspace-draft-state_v1';",
+    "export type { WorkspaceFile } from './workspace-file_v1';",
     "export type { ExecutionRequest } from './execution-request_v1';",
     "export type { ExecutionRun } from './execution-run_v1';",
     "export type { ExecutionResult } from './execution-result_v1';",
+    "export type { ExecutionCommandSpec } from './execution-command-spec_v1';",
+    "export type { ExecutionJob } from './execution-job_v1';",
+    "export type { ExecutionLogChunk } from './execution-log-chunk_v1';",
     "export type { ProducedOutput } from './produced-output_v1';",
     "export type { RuntimeCapability } from './runtime-capability_v1';",
     "export type { ExternalWorkspaceReference } from './external-workspace-reference_v1';",
@@ -556,7 +564,13 @@ main().catch((err) => {
             "dependencies": {"json-schema-to-typescript": "15.0.4"},
         }
         _write_json(tmp_path / "package.json", pkg)
-        _run(["npm", "install", "--silent", "--no-fund", "--no-audit"], cwd=tmp_path)
+        try:
+            _run(["npm", "install", "--silent", "--no-fund", "--no-audit"], cwd=tmp_path)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                "TypeScript generation requires network access to the npm registry "
+                "to install json-schema-to-typescript@15.0.4."
+            ) from exc
         _run(
             ["node", str(script_path), str(bundled_dir), str(out_dir)],
             cwd=tmp_path,

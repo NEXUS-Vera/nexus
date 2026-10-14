@@ -2,7 +2,7 @@
 # Do not edit manually. Re-run: make generate-contract-types
 from __future__ import annotations
 
-from typing import Literal, NotRequired
+from typing import Any, Literal, NotRequired
 
 from typing_extensions import TypedDict
 
@@ -18,6 +18,7 @@ class ProducedArtifactReference(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
 
@@ -34,6 +35,7 @@ class ArtifactCommandResultV1(TypedDict, closed=True):
     producedArtifactReference: NotRequired[ProducedArtifactReference]
     projectId: str
     proposalId: NotRequired[str]
+    resultPayload: NotRequired[dict[str, Any]]
     schemaVersion: Literal['1.0.0']
     snapshotId: NotRequired[str]
     startedAt: str

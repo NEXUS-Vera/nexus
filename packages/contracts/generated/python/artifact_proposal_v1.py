@@ -35,6 +35,7 @@ class ArtifactProposalV1(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     baseArtifactVersion: int
     baseProjectStateVersion: int

@@ -39,6 +39,7 @@ class Node(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     createdAt: str

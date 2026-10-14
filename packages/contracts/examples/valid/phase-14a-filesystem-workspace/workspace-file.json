@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "workspaceId": "ws_FILEWORKSPACE00001",
+  "path": "src/main.cpp",
+  "contentHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "contentReference": "cas:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sizeBytes": 0,
+  "origin": "USER",
+  "writePolicy": "USER_EDITABLE",
+  "modifiedByUser": false,
+  "createdAt": "2026-08-10T00:00:00Z",
+  "updatedAt": "2026-08-10T00:00:00Z"
+}
