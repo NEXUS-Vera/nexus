@@ -637,26 +637,6 @@ export async function startWorkspaceRuntimeExecution(
   )) as Record<string, unknown>;
 }
 
-export async function listProducedOutputs(
-  projectId: string,
-): Promise<import('@nexus/contracts').ProducedOutput[]> {
-  const json = await requestJson(`/v1/projects/${projectId}/outputs`);
-  if (isRecord(json) && Array.isArray(json.items)) {
-    return json.items as import('@nexus/contracts').ProducedOutput[];
-  }
-  throw new Error('Outputs response must include an items array');
-}
-
-export async function getProducedOutput(
-  projectId: string,
-  outputId: string,
-): Promise<import('@nexus/contracts').ProducedOutput> {
-  return (await requestJson(
-    `/v1/projects/${projectId}/outputs/${encodeURIComponent(outputId)}`,
-  )) as import('@nexus/contracts').ProducedOutput;
-}
-
-
 export async function generateFirmwareScaffold(
   projectId: string,
   body: Record<string, unknown>,
