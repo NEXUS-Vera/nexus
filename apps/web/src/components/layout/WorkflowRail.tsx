@@ -15,7 +15,6 @@ import {
 } from '../../artifacts/registry';
 import type { ArtifactRouteKey } from '../../artifacts/types';
 import { LIFECYCLE_DOT, themeColors } from '../../lib/theme';
-import { selectArtifactByType } from '../../artifacts';
 
 type WorkflowRailProps = {
   selectedArtifact: ArtifactRouteKey;
@@ -56,7 +55,7 @@ function railStatusFor(
   if (def.availability === 'placeholder' || !def.artifactType) {
     return { status: 'unavailable' };
   }
-  const live = selectArtifactByType(artifacts, def.artifactType);
+  const live = artifacts.find((artifact) => artifact.artifactType === def.artifactType);
   if (!live) {
     return {
       status: def.availability === 'proof' ? 'drafted' : 'unavailable',
