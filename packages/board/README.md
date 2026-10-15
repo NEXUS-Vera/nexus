@@ -82,3 +82,11 @@ pre-compile snapshot and promotes only declared successful outputs.
 outputs are not real build or device evidence. Set it to `0` to run PlatformIO
 and configure the execution runtime/image for the preinstalled toolchain.
 Live toolchain/container acceptance tests require explicit opt-in.
+
+## Layered architecture
+
+Electrical and Physical Architecture use graph workspaces with deterministic
+validation, semantic editing, and functional-node deletion impact inspection.
+Accepted revisions materialize graph entities and update board projections.
+Electrical execution delegates to an injected `circuit-simulation` executor;
+provider translation and invocation belong to `packages/circuit-simulation`.

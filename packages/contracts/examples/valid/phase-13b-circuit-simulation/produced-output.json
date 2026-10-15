@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0.0",
+  "outputId": "out_02PHASE13BOUT0000000000001",
+  "projectId": "proj_02PHASE13BPROJ00000000001",
+  "artifactId": "art_02PHASE13BELEC00000000001",
+  "workspaceId": "ws_02PHASE13BWORK00000000001",
+  "executionRunId": "exec_02PHASE13BRUN00000000001",
+  "providerId": "provider-neutral-simulator",
+  "provenance": {
+    "schemaVersion": "1.0.0",
+    "sourceType": "external-provider",
+    "sourceReference": "provider-neutral-simulator"
+  },
+  "entityReferences": [
+    {
+      "schemaVersion": "1.0.0",
+      "artifactId": "art_02PHASE13BELEC00000000001",
+      "artifactVersion": 2,
+      "artifactType": "electrical-architecture",
+      "entityType": "electrical-node",
+      "entityId": "node_mcu",
+      "displayLabel": "Microcontroller"
+    }
+  ],
+  "outputType": "structured-result",
+  "name": "circuit-simulation-result",
+  "mediaType": "application/json",
+  "content": {
+    "kind": "inline-structured",
+    "structuredResult": {
+      "completed": true
+    }
+  },
+  "contentDigest": "sha256:phase13b-simulation-output",
+  "createdAt": "2026-08-08T07:32:00Z",
+  "evidenceStatus": "unverified",
+  "supports": [
+    {
+      "supportKind": "architecture-node",
+      "targetId": "node_mcu"
+    }
+  ]
+}

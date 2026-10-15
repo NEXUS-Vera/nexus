@@ -15,6 +15,7 @@ class ArtifactSummary(TypedDict, closed=True):
         'agent-decided',
         'rejected',
     ]
+    approvedImplementationCount: NotRequired[int]
     artifactId: str
     artifactType: Literal[
         'project-brief',
@@ -24,6 +25,8 @@ class ArtifactSummary(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     artifactVersion: int
     awaitingApprovalCount: NotRequired[int]
@@ -66,10 +69,15 @@ class ArtifactSummary(TypedDict, closed=True):
             'validated',
         ]
     ]
+    nodeCount: NotRequired[int]
     openQuestionCount: int
+    provisionalImplementationCount: NotRequired[int]
+    provisionalRelationshipCount: NotRequired[int]
     roleCount: NotRequired[int]
     selectedCount: NotRequired[int]
     unresolvedCompatibilityCheckCount: NotRequired[int]
+    unresolvedConnectionCount: NotRequired[int]
+    unresolvedPlacementCount: NotRequired[int]
     workspaceStatus: Literal[
         'none', 'creating', 'ready', 'dirty', 'validating', 'blocked', 'archived'
     ]
@@ -133,6 +141,8 @@ class RecentExecutionSummary(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     capability: Literal[

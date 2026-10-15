@@ -9,12 +9,14 @@ from .artifact_authority_v1 import *  # noqa: F403
 from .artifact_command_result_v1 import *  # noqa: F403
 from .artifact_command_v1 import *  # noqa: F403
 from .artifact_dependency_v1 import *  # noqa: F403
+from .artifact_entity_reference_v1 import *  # noqa: F403
 from .artifact_envelope_v1 import *  # noqa: F403
 from .artifact_proposal_v1 import *  # noqa: F403
 from .artifact_status_v1 import *  # noqa: F403
 from .artifact_type_definition_v1 import *  # noqa: F403
 from .artifact_type_v1 import *  # noqa: F403
 from .artifact_v1 import *  # noqa: F403
+from .circuit_simulation_support_assessment_v1 import *  # noqa: F403
 from .compatibility_check_v1 import *  # noqa: F403
 from .component_candidate_v1 import *  # noqa: F403
 from .component_category_v1 import *  # noqa: F403
@@ -22,6 +24,8 @@ from .component_plan_coverage_summary_v1 import *  # noqa: F403
 from .component_plan_v1 import *  # noqa: F403
 from .component_role_v1 import *  # noqa: F403
 from .consequence_level_v1 import *  # noqa: F403
+from .derived_fact_provenance_v1 import *  # noqa: F403
+from .electrical_architecture_v1 import *  # noqa: F403
 from .evidence_reference_v1 import *  # noqa: F403
 from .execution_command_spec_v1 import *  # noqa: F403
 from .execution_job_v1 import *  # noqa: F403
@@ -36,6 +40,7 @@ from .graph_traversal_result_v1 import *  # noqa: F403
 from .next_action_v1 import *  # noqa: F403
 from .open_question_reference_v1 import *  # noqa: F403
 from .open_question_v1 import *  # noqa: F403
+from .physical_architecture_v1 import *  # noqa: F403
 from .produced_output_v1 import *  # noqa: F403
 from .project_board_projection_v1 import *  # noqa: F403
 from .project_brief_v1 import *  # noqa: F403
@@ -72,12 +77,14 @@ __all__ = [
     "artifact_command_result_v1",
     "artifact_command_v1",
     "artifact_dependency_v1",
+    "artifact_entity_reference_v1",
     "artifact_envelope_v1",
     "artifact_proposal_v1",
     "artifact_status_v1",
     "artifact_type_definition_v1",
     "artifact_type_v1",
     "artifact_v1",
+    "circuit_simulation_support_assessment_v1",
     "compatibility_check_v1",
     "component_candidate_v1",
     "component_category_v1",
@@ -85,6 +92,8 @@ __all__ = [
     "component_plan_v1",
     "component_role_v1",
     "consequence_level_v1",
+    "derived_fact_provenance_v1",
+    "electrical_architecture_v1",
     "evidence_reference_v1",
     "execution_command_spec_v1",
     "execution_job_v1",
@@ -99,6 +108,7 @@ __all__ = [
     "next_action_v1",
     "open_question_reference_v1",
     "open_question_v1",
+    "physical_architecture_v1",
     "produced_output_v1",
     "project_board_projection_v1",
     "project_brief_v1",

@@ -45,6 +45,19 @@
       "type": "string",
       "pattern": "^exec_[A-Za-z0-9]{16,}$"
     },
+    "providerId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "$ref": "https://nexus.local/schemas/common/derived-fact-provenance.v1.schema.json"
+    },
+    "entityReferences": {
+      "type": "array",
+      "items": {
+        "$ref": "https://nexus.local/schemas/common/artifact-entity-reference.v1.schema.json"
+      }
+    },
     "outputType": {
       "type": "string",
       "enum": [

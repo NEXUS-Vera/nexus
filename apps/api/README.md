@@ -166,3 +166,16 @@ against immutable snapshots. Firmware restore first creates a safety snapshot.
 Compile responses report `toolchainProfile.executionMode`: `fixture` denotes
 the offline stub and `platformio` denotes a real toolchain invocation. A build
 result does not establish device execution or requirement verification.
+
+## Electrical architecture and simulation
+
+`POST /v1/projects/{projectId}/ensure-layered-architecture` adds missing
+Electrical and Physical Architecture artifacts to existing projects. Electrical
+Architecture exposes `/circuit-simulation/support`, `/preview`, `/validate`, and
+`/export` under its artifact route. Execution uses the `circuit-simulation`
+capability; support and preview remain available without a live provider.
+
+Configure `NEXUS_WOKWI_CLI`, `WOKWI_CLI_TOKEN`, and
+`NEXUS_WOKWI_FIRMWARE_ELF` for live execution. Missing provider credentials or
+firmware are reported as availability gaps. Surrogate simulation output does
+not establish real component compatibility or requirement verification.

@@ -55,6 +55,8 @@ FULL_SUCCESS_STEP_TYPES: tuple[str, ...] = (
     "propose-preferred-selections",
     "validate-component-plan",
     "materialize-component-plan",
+    "compose-electrical-architecture",
+    "compose-physical-architecture",
     "derive-next-action",
     "compose-vera-response",
     "assemble-result",

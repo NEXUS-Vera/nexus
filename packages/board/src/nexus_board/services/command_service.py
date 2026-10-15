@@ -23,6 +23,11 @@ from nexus_board.governance.policy import (
 )
 from nexus_board.ids import new_id, utc_now_iso
 from nexus_board.registries.artifact_types import ArtifactTypeRegistry
+from nexus_board.services.architecture_graph import (
+    materialize_layered_architecture_graph,
+    should_materialize_for_artifact_type,
+)
+from nexus_board.services.deletion_impact import inspect_functional_node_deletion_impact
 from nexus_board.services.draft_lease import DEFAULT_LEASE_TTL_SECONDS
 from nexus_board.services.execution_service import ExecutionService
 from nexus_board.services.graph_service import ProjectGraphService
@@ -44,6 +49,7 @@ COMMAND_TYPES = {
     "artifact.accept-revision",
     "artifact.reject-revision",
     "artifact.execute",
+    "artifact.inspect-deletion-impact",
 }
 
 
@@ -130,6 +136,7 @@ class ArtifactCommandService:
             "artifact.accept-revision": self._accept_revision,
             "artifact.reject-revision": self._reject_revision,
             "artifact.execute": self._execute,
+            "artifact.inspect-deletion-impact": self._inspect_deletion_impact,
         }
         try:
             result_body = handlers[command_type](command, actor_kind)
@@ -570,6 +577,18 @@ class ArtifactCommandService:
         draft["updatedAt"] = now
         self._kernel.update_draft(draft)
 
+        if should_materialize_for_artifact_type(proposal["artifactType"]):
+            try:
+                current_artifacts = self._projects.get_artifacts(command["projectId"])
+            except Exception:  # noqa: BLE001
+                current_artifacts = [new_artifact]
+            materialize_layered_architecture_graph(
+                self._kernel,  # type: ignore[arg-type]
+                command["projectId"],
+                current_artifacts,
+                accept_event["eventId"],
+            )
+
         self._projection.update_after_write(command["projectId"])
         return {
             "workspace_id": proposal["workspaceId"],
@@ -638,6 +657,9 @@ class ArtifactCommandService:
                 for key in (
                     "maxOutputBytes",
                     "commandSpec",
+                    "executionMode",
+                    "expectedText",
+                    "requestedOutputs",
                 )
                 if key in command["input"]
             },
@@ -657,6 +679,37 @@ class ArtifactCommandService:
                 if result.get("executionJob")
                 else None
             ),
+        }
+
+    def _inspect_deletion_impact(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
+        del actor_kind
+        entity_type = command["input"]["entityType"]
+        entity_id = command["input"]["entityId"]
+        if entity_type != "functional-node":
+            raise CommandValidationError(f"Unsupported deletion entityType: {entity_type}")
+
+        def _content(artifact_type: str) -> dict[str, Any] | None:
+            try:
+                artifact = self._projects.get_artifact(command["projectId"], artifact_type)
+            except Exception:  # noqa: BLE001
+                return None
+            content = artifact.get("content")
+            return content if isinstance(content, dict) else None
+
+        functional = _content("functional-architecture")
+        if functional is None:
+            raise CommandValidationError("functional-architecture artifact is required.")
+        impact = inspect_functional_node_deletion_impact(
+            node_id=entity_id,
+            functional_content=functional,
+            component_plan_content=_content("component-plan"),
+            electrical_content=_content("electrical-architecture"),
+            physical_content=_content("physical-architecture"),
+        )
+        return {
+            "workspace_id": command.get("workspaceId"),
+            "artifact_id": command.get("artifactId"),
+            "result_payload": impact,
         }
 
     def _result(

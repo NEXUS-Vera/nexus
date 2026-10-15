@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/common/derived-fact-provenance.v1.schema.json",
+  "title": "DerivedFactProvenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "sourceType"],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "sourceType": {
+      "type": "string",
+      "enum": [
+        "fixture",
+        "component-plan",
+        "user",
+        "llm-derived",
+        "manufacturer-datasheet",
+        "external-provider",
+        "runtime-output",
+        "derived",
+        "unknown"
+      ]
+    },
+    "sourceReference": {
+      "oneOf": [
+        {
+          "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "derivedFromIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "notes": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

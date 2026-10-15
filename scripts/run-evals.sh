@@ -21,7 +21,7 @@ else
   PYTHON="python3"
 fi
 
-export PYTHONPATH="apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src"
+export PYTHONPATH="apps/api/src:agents/embedded-systems/src:packages/board/src:packages/persistence/src:packages/circuit-simulation/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src"
 
 # `make check` only runs the embedded-project-initialization eval suite in
 # fake mode: it exercises the real provider pipeline against a scripted

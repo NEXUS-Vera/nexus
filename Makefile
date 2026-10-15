@@ -5,11 +5,11 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 .DEFAULT_GOAL := check
 
-.PHONY: setup format lint typecheck test test-unit test-integration eval eval-embedded-initialization contracts policy check build clean generate-contract-types dev dev-api dev-web dev-db db-migrate db-reset-local test-e2e
+.PHONY: setup format lint typecheck test test-unit test-integration test-wokwi-smoke eval eval-embedded-initialization contracts policy check build clean generate-contract-types dev dev-api dev-web dev-db db-migrate db-reset-local test-e2e
 
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 export PYTHON ?= $(shell if [ -x "$(CURDIR)/.venv/bin/python" ]; then printf '%s\n' "$(CURDIR)/.venv/bin/python"; else command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3; fi)
-PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/board/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
+PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/board/src:packages/circuit-simulation/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
 
 setup:
 	@./scripts/setup.sh
@@ -32,6 +32,10 @@ test-unit:
 
 test-integration:
 	@./scripts/run-tests.sh integration
+
+test-wokwi-smoke:
+	@PYTHONPATH="$(PYTHON_PATH)" $(PYTHON) -m pytest agents/embedded-systems/tests/integration/test_wokwi_smoke.py -q
+
 
 eval:
 	@./scripts/run-evals.sh

@@ -1,0 +1,18 @@
+[project]
+name = "nexus-circuit-simulation"
+version = "0.0.0"
+description = "Provider-neutral circuit simulation materialization and execution for Nexus"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -15,6 +15,8 @@ class ReasonByArtifactItem(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     reason: str
 
@@ -28,6 +30,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     changed: list[
@@ -39,6 +43,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     reasonByArtifact: list[ReasonByArtifactItem]
@@ -51,6 +57,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -63,6 +71,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     unchanged: list[
@@ -74,6 +84,8 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
 
@@ -85,6 +97,8 @@ ArtifactType: TypeAlias = Literal[
     'component-plan',
     'code-scratch',
     'firmware',
+    'electrical-architecture',
+    'physical-architecture',
 ]
 
 ArtifactTypeList: TypeAlias = list[
@@ -96,5 +110,7 @@ ArtifactTypeList: TypeAlias = list[
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
 ]

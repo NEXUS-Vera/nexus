@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/circuit-simulation-support-assessment.v1.schema.json",
+  "title": "CircuitSimulationSupportAssessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "providerId",
+    "capabilityId",
+    "findings",
+    "firmwareRequired",
+    "surrogateUsed"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUPPORTED",
+        "PARTIALLY_SUPPORTED",
+        "UNSUPPORTED",
+        "SURROGATE_REQUIRED",
+        "FIRMWARE_REQUIRED"
+      ]
+    },
+    "providerId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "capabilityId": {
+      "type": "string",
+      "const": "circuit-simulation"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "findingId",
+          "reasonCode",
+          "message",
+          "mappingType"
+        ],
+        "properties": {
+          "findingId": {
+            "type": "string",
+            "pattern": "^finding_[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+          },
+          "entityReference": {
+            "$ref": "https://nexus.local/schemas/common/artifact-entity-reference.v1.schema.json"
+          },
+          "reasonCode": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]{0,127}$"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "mappingType": {
+            "type": "string",
+            "enum": [
+              "exact",
+              "equivalent",
+              "surrogate",
+              "unsupported"
+            ]
+          }
+        }
+      }
+    },
+    "firmwareRequired": {
+      "type": "boolean"
+    },
+    "surrogateUsed": {
+      "type": "boolean"
+    }
+  }
+}

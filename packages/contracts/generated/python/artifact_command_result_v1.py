@@ -20,6 +20,8 @@ class ProducedArtifactReference(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     artifactVersion: int
 

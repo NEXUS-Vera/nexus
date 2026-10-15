@@ -50,6 +50,8 @@ PUBLIC_SCHEMA_STEMS = [
     "project-brief.v1",
     "requirement-set.v1",
     "functional-architecture.v1",
+    "electrical-architecture.v1",
+    "physical-architecture.v1",
     "next-action.v1",
     "component-plan.v1",
     "component-category.v1",
@@ -76,6 +78,7 @@ PUBLIC_SCHEMA_STEMS = [
     "execution-job.v1",
     "execution-log-chunk.v1",
     "produced-output.v1",
+    "circuit-simulation-support-assessment.v1",
     "runtime-capability.v1",
     "external-workspace-reference.v1",
     "project-event.v1",
@@ -102,6 +105,8 @@ PUBLIC_SCHEMA_STEMS = [
     "approval-record.v1",
     "artifact-status.v1",
     "open-question-reference.v1",
+    "artifact-entity-reference.v1",
+    "derived-fact-provenance.v1",
 ]
 
 
@@ -508,6 +513,8 @@ async function main() {
     "export type { ProjectBriefContent } from './project-brief_v1';",
     "export type { RequirementSetContent } from './requirement-set_v1';",
     "export type { FunctionalArchitectureContent } from './functional-architecture_v1';",
+    "export type { ElectricalArchitectureContent } from './electrical-architecture_v1';",
+    "export type { PhysicalArchitectureContent } from './physical-architecture_v1';",
     "export type { NextActionContent } from './next-action_v1';",
     "export type { ComponentPlanContent } from './component-plan_v1';",
     "export type { ComponentCategory } from './component-category_v1';",
@@ -536,6 +543,8 @@ async function main() {
     "export type { ExecutionJob } from './execution-job_v1';",
     "export type { ExecutionLogChunk } from './execution-log-chunk_v1';",
     "export type { ProducedOutput } from './produced-output_v1';",
+    "export type { CircuitSimulationSupportAssessment } " +
+    "from './circuit-simulation-support-assessment_v1';",
     "export type { RuntimeCapability } from './runtime-capability_v1';",
     "export type { ExternalWorkspaceReference } from './external-workspace-reference_v1';",
     "export type { ProjectEvent } from './project-event_v1';",

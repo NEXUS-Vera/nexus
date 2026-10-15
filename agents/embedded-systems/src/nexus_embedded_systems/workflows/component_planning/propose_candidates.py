@@ -143,6 +143,54 @@ _FIXTURE_CANDIDATES: dict[str, list[dict[str, Any]]] = {
             "limitations": ["Capacity tradeoffs not grounded"],
         },
     ],
+    "actuation": [
+        {
+            "manufacturer": "Fixture Motion",
+            "partNumber": "FX-DRV-1",
+            "displayName": "Fixture actuator driver class",
+            "specifications": [
+                {"specKey": "interface", "value": "PWM", "operator": "eq"},
+                {"specKey": "supply-voltage", "value": 5.0, "unit": "V", "operator": "eq"},
+            ],
+            "advantages": ["Covers early actuation prototypes"],
+            "limitations": ["Torque and thermal limits not grounded"],
+        },
+        {
+            "manufacturer": "Fixture Motion",
+            "partNumber": "FX-SERVO-9G",
+            "displayName": "Fixture hobby servo class",
+            "specifications": [
+                {"specKey": "interface", "value": "PWM", "operator": "eq"},
+                {"specKey": "supply-voltage", "value": 5.0, "unit": "V", "operator": "eq"},
+            ],
+            "advantages": ["Simple position actuation"],
+            "limitations": ["Precision and duty cycle unverified"],
+        },
+    ],
+    "interface": [
+        {
+            "manufacturer": "Fixture UI",
+            "partNumber": "FX-BTN-1",
+            "displayName": "Fixture button/HMI class",
+            "specifications": [
+                {"specKey": "interface", "value": "GPIO", "operator": "eq"},
+                {"specKey": "logic-voltage", "value": 3.3, "unit": "V", "operator": "eq"},
+            ],
+            "advantages": ["Simple user input"],
+            "limitations": ["Debounce and durability not grounded"],
+        },
+        {
+            "manufacturer": "Fixture UI",
+            "partNumber": "FX-OLED-1",
+            "displayName": "Fixture OLED display class",
+            "specifications": [
+                {"specKey": "interface", "value": "I2C", "operator": "eq"},
+                {"specKey": "supply-voltage", "value": 3.3, "unit": "V", "operator": "eq"},
+            ],
+            "advantages": ["Local status display"],
+            "limitations": ["Power and readability not grounded"],
+        },
+    ],
 }
 
 

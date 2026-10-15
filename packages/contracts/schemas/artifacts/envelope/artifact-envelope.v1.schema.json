@@ -97,6 +97,12 @@
         },
         {
           "$ref": "https://nexus.local/schemas/artifacts/content/component-plan.v1.schema.json"
+        },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/content/electrical-architecture.v1.schema.json"
+        },
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/content/physical-architecture.v1.schema.json"
         }
       ]
     }

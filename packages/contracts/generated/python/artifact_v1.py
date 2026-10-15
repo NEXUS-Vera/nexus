@@ -696,6 +696,481 @@ class ArtifactV15(TypedDict, closed=True):
     updatedAt: str
     workflowRunId: str
 
+class SourceReference1(TypedDict, closed=True):
+    attribution: NotRequired[Attribution]
+    evidenceId: str
+    evidenceStrength: Literal['direct', 'supporting', 'inferred', 'contradicting']
+    schemaVersion: Literal['1.0.0']
+    sourceId: str
+    sourceLocator: NotRequired[str]
+    sourceType: Literal[
+        'user-turn',
+        'project-policy',
+        'document',
+        'external-source',
+        'calculation',
+        'test-result',
+        'agent-inference',
+    ]
+    supportedClaim: NotRequired[str]
+
+class Provenance(TypedDict, closed=True):
+    derivedFromIds: NotRequired[list[str]]
+    notes: NotRequired[str]
+    schemaVersion: Literal['1.0.0']
+    sourceReference: NotRequired[SourceReference1 | str]
+    sourceType: Literal[
+        'fixture',
+        'component-plan',
+        'user',
+        'llm-derived',
+        'manufacturer-datasheet',
+        'external-provider',
+        'runtime-output',
+        'derived',
+        'unknown',
+    ]
+
+class Connection(TypedDict, closed=True):
+    connectionId: str
+    connectionType: Literal[
+        'signal', 'bus', 'power', 'ground', 'communication', 'control', 'other'
+    ]
+    description: NotRequired[str]
+    fromInterfaceId: NotRequired[str]
+    fromNodeId: str
+    functionalArchitectureEdgeIds: NotRequired[list[str]]
+    interfaceType: Literal[
+        'analog',
+        'gpio',
+        'i2c',
+        'spi',
+        'uart',
+        'can',
+        'usb',
+        'ethernet',
+        'pwm',
+        'power',
+        'ground',
+        'other',
+        'unknown',
+    ]
+    provenance: NotRequired[Provenance]
+    provisionalReason: NotRequired[str]
+    status: Literal['resolved', 'provisional', 'unresolved', 'needs-resolution']
+    toInterfaceId: NotRequired[str]
+    toNodeId: str
+
+class CoverageSummary1(TypedDict, closed=True):
+    approvedImplementationCount: int
+    coveredFunctionalNodes: int
+    preferredImplementationCount: int
+    totalFunctionalNodes: int
+    uncoveredFunctionalNodeIds: list[str]
+    unresolvedConnectionCount: int
+    unresolvedImplementationCount: int
+
+class SourceReference2(TypedDict, closed=True):
+    attribution: NotRequired[Attribution]
+    evidenceId: str
+    evidenceStrength: Literal['direct', 'supporting', 'inferred', 'contradicting']
+    schemaVersion: Literal['1.0.0']
+    sourceId: str
+    sourceLocator: NotRequired[str]
+    sourceType: Literal[
+        'user-turn',
+        'project-policy',
+        'document',
+        'external-source',
+        'calculation',
+        'test-result',
+        'agent-inference',
+    ]
+    supportedClaim: NotRequired[str]
+
+class Provenance1(TypedDict, closed=True):
+    derivedFromIds: NotRequired[list[str]]
+    notes: NotRequired[str]
+    schemaVersion: Literal['1.0.0']
+    sourceReference: NotRequired[SourceReference2 | str]
+    sourceType: Literal[
+        'fixture',
+        'component-plan',
+        'user',
+        'llm-derived',
+        'manufacturer-datasheet',
+        'external-provider',
+        'runtime-output',
+        'derived',
+        'unknown',
+    ]
+
+class Voltage(TypedDict, closed=True):
+    schemaVersion: Literal['1.0.0']
+    unit: str
+    value: float
+
+class Interface(TypedDict, closed=True):
+    direction: Literal['in', 'out', 'bidirectional', 'unknown']
+    interfaceId: str
+    interfaceType: Literal[
+        'analog',
+        'gpio',
+        'i2c',
+        'spi',
+        'uart',
+        'can',
+        'usb',
+        'ethernet',
+        'pwm',
+        'power',
+        'ground',
+        'other',
+        'unknown',
+    ]
+    label: NotRequired[str]
+    notes: NotRequired[str]
+    provenance: NotRequired[Provenance1]
+    status: Literal['resolved', 'unresolved', 'unknown', 'needs-resolution']
+    voltage: NotRequired[Voltage]
+
+class Node1(TypedDict, closed=True):
+    assumptions: NotRequired[list[str]]
+    componentCandidateId: NotRequired[str]
+    componentRoleIds: list[str]
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    functionalArchitectureNodeIds: list[str]
+    implementationStatus: Literal[
+        'unresolved', 'preferred', 'approved', 'provisional', 'unsupported'
+    ]
+    interfaces: NotRequired[list[Interface]]
+    name: str
+    nodeId: str
+    nodeType: Literal[
+        'component',
+        'power-source',
+        'power-regulator',
+        'connector',
+        'protection',
+        'supporting-electronics',
+        'external-interface',
+        'junction',
+    ]
+    notes: NotRequired[str]
+    requirementIds: NotRequired[list[str]]
+    selectionState: NotRequired[Literal['preferred', 'approved', 'unresolved', 'none']]
+
+class NominalVoltage(TypedDict, closed=True):
+    schemaVersion: Literal['1.0.0']
+    unit: str
+    value: float
+
+class SourceReference3(TypedDict, closed=True):
+    attribution: NotRequired[Attribution]
+    evidenceId: str
+    evidenceStrength: Literal['direct', 'supporting', 'inferred', 'contradicting']
+    schemaVersion: Literal['1.0.0']
+    sourceId: str
+    sourceLocator: NotRequired[str]
+    sourceType: Literal[
+        'user-turn',
+        'project-policy',
+        'document',
+        'external-source',
+        'calculation',
+        'test-result',
+        'agent-inference',
+    ]
+    supportedClaim: NotRequired[str]
+
+class Provenance2(TypedDict, closed=True):
+    derivedFromIds: NotRequired[list[str]]
+    notes: NotRequired[str]
+    schemaVersion: Literal['1.0.0']
+    sourceReference: NotRequired[SourceReference3 | str]
+    sourceType: Literal[
+        'fixture',
+        'component-plan',
+        'user',
+        'llm-derived',
+        'manufacturer-datasheet',
+        'external-provider',
+        'runtime-output',
+        'derived',
+        'unknown',
+    ]
+
+class PowerDomain(TypedDict, closed=True):
+    memberNodeIds: NotRequired[list[str]]
+    name: str
+    nominalVoltage: NotRequired[NominalVoltage]
+    notes: NotRequired[str]
+    powerDomainId: str
+    provenance: NotRequired[Provenance2]
+    status: Literal['known', 'unknown', 'needs-resolution']
+
+class Warning(TypedDict, closed=True):
+    code: str
+    message: str
+    relatedNodeIds: NotRequired[list[str]]
+    severity: Literal['info', 'warning', 'blocking']
+
+class Content5(TypedDict, closed=True):
+    architectureId: str
+    assumptions: list[Assumption]
+    connections: list[Connection]
+    coverageSummary: CoverageSummary1
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    maturity: Literal['provisional', 'drafted', 'reviewed', 'approved']
+    nodes: list[Node1]
+    powerDomains: list[PowerDomain]
+    selectionBasisSummary: str
+    summary: str
+    unresolvedDecisions: list[UnresolvedDecision]
+    warnings: list[Warning]
+
+class ArtifactV16(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    artifactId: str
+    artifactType: Literal['electrical-architecture']
+    artifactVersion: int
+    content: Content5
+    contentSchemaVersion: Literal['1.0.0']
+    createdAt: str
+    createdBy: CreatedBy
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    lifecycleStatus: Literal[
+        'drafted', 'ready', 'affected', 'stale', 'blocked', 'superseded', 'archived'
+    ]
+    projectId: str
+    schemaVersion: Literal['1.0.0']
+    sourceTurnId: str
+    supersedesArtifactId: NotRequired[str]
+    supersedesArtifactVersion: NotRequired[int]
+    updatedAt: str
+    workflowRunId: str
+
+class CoverageSummary2(TypedDict, closed=True):
+    coveredElectricalNodes: int
+    provisionalRelationshipCount: int
+    totalElectricalNodes: int
+    uncoveredElectricalNodeIds: list[str]
+    unresolvedPlacementCount: int
+
+class SourceReference4(TypedDict, closed=True):
+    attribution: NotRequired[Attribution]
+    evidenceId: str
+    evidenceStrength: Literal['direct', 'supporting', 'inferred', 'contradicting']
+    schemaVersion: Literal['1.0.0']
+    sourceId: str
+    sourceLocator: NotRequired[str]
+    sourceType: Literal[
+        'user-turn',
+        'project-policy',
+        'document',
+        'external-source',
+        'calculation',
+        'test-result',
+        'agent-inference',
+    ]
+    supportedClaim: NotRequired[str]
+
+class Provenance3(TypedDict, closed=True):
+    derivedFromIds: NotRequired[list[str]]
+    notes: NotRequired[str]
+    schemaVersion: Literal['1.0.0']
+    sourceReference: NotRequired[SourceReference4 | str]
+    sourceType: Literal[
+        'fixture',
+        'component-plan',
+        'user',
+        'llm-derived',
+        'manufacturer-datasheet',
+        'external-provider',
+        'runtime-output',
+        'derived',
+        'unknown',
+    ]
+
+class Node2(TypedDict, closed=True):
+    constraints: NotRequired[list[str]]
+    electricalNodeIds: list[str]
+    name: str
+    nodeId: str
+    nodeType: Literal[
+        'assembly',
+        'board',
+        'module',
+        'sensor',
+        'actuator',
+        'power-source',
+        'connector',
+        'enclosure',
+        'mount',
+        'external-system',
+        'zone',
+    ]
+    notes: NotRequired[str]
+    placementStatus: Literal['placed', 'unresolved', 'provisional', 'unknown']
+    provenance: NotRequired[Provenance3]
+    qualitativePlacement: NotRequired[str]
+    zoneId: NotRequired[str]
+
+class SourceReference5(TypedDict, closed=True):
+    attribution: NotRequired[Attribution]
+    evidenceId: str
+    evidenceStrength: Literal['direct', 'supporting', 'inferred', 'contradicting']
+    schemaVersion: Literal['1.0.0']
+    sourceId: str
+    sourceLocator: NotRequired[str]
+    sourceType: Literal[
+        'user-turn',
+        'project-policy',
+        'document',
+        'external-source',
+        'calculation',
+        'test-result',
+        'agent-inference',
+    ]
+    supportedClaim: NotRequired[str]
+
+class Provenance4(TypedDict, closed=True):
+    derivedFromIds: NotRequired[list[str]]
+    notes: NotRequired[str]
+    schemaVersion: Literal['1.0.0']
+    sourceReference: NotRequired[SourceReference5 | str]
+    sourceType: Literal[
+        'fixture',
+        'component-plan',
+        'user',
+        'llm-derived',
+        'manufacturer-datasheet',
+        'external-provider',
+        'runtime-output',
+        'derived',
+        'unknown',
+    ]
+
+class Relationship(TypedDict, closed=True):
+    fromNodeId: str
+    provenance: NotRequired[Provenance4]
+    relationshipId: str
+    relationshipType: Literal[
+        'mounted-on',
+        'inside',
+        'attached-to',
+        'adjacent-to',
+        'connected-to',
+        'exposed-to',
+        'isolated-from',
+    ]
+    status: Literal['resolved', 'provisional', 'unresolved']
+    toNodeId: str
+
+class Zone(TypedDict, closed=True):
+    memberNodeIds: NotRequired[list[str]]
+    name: str
+    notes: NotRequired[str]
+    zoneId: str
+    zoneKind: Literal[
+        'enclosure',
+        'chassis',
+        'external-sensing',
+        'power',
+        'user-interface',
+        'other',
+        'unknown',
+    ]
+
+class Content6(TypedDict, closed=True):
+    architectureId: str
+    assumptions: list[Assumption]
+    coverageSummary: CoverageSummary2
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    maturity: Literal['provisional', 'drafted', 'reviewed', 'approved']
+    nodes: list[Node2]
+    relationships: list[Relationship]
+    summary: str
+    unresolvedDecisions: list[UnresolvedDecision]
+    warnings: list[Warning]
+    zones: list[Zone]
+
+class ArtifactV17(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    artifactId: str
+    artifactType: Literal['physical-architecture']
+    artifactVersion: int
+    content: Content6
+    contentSchemaVersion: Literal['1.0.0']
+    createdAt: str
+    createdBy: CreatedBy
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    lifecycleStatus: Literal[
+        'drafted', 'ready', 'affected', 'stale', 'blocked', 'superseded', 'archived'
+    ]
+    projectId: str
+    schemaVersion: Literal['1.0.0']
+    sourceTurnId: str
+    supersedesArtifactId: NotRequired[str]
+    supersedesArtifactVersion: NotRequired[int]
+    updatedAt: str
+    workflowRunId: str
+
 ArtifactV1: TypeAlias = (
-    ArtifactV11 | ArtifactV12 | ArtifactV13 | ArtifactV14 | ArtifactV15
+    ArtifactV11
+    | ArtifactV12
+    | ArtifactV13
+    | ArtifactV14
+    | ArtifactV15
+    | ArtifactV16
+    | ArtifactV17
 )

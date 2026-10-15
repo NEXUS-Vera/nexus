@@ -35,6 +35,11 @@ from nexus_embedded_systems.workflows.project_initialization.fixture_router impo
             "so it can detect objects in front of it and react before it hits them.",
             "robot-obstacle-detection-module",
         ),
+        (
+            "I want a golden Nexus circuit simulation project with an ESP32-class MCU "
+            "and an IMU motion sensor for Wokwi surrogate simulation.",
+            "esp32-imu-circuit-simulation",
+        ),
     ],
 )
 def test_fixture_router_maps_each_family(message: str, family: str) -> None:

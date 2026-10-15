@@ -75,6 +75,68 @@ function sessionToken(): string {
   );
 }
 
+export type CircuitSimulationProviderAvailability = {
+  providerId: string;
+  status: string;
+  available: boolean;
+  lintAvailable: boolean;
+  message?: string;
+};
+
+export type CircuitSimulationMapping = {
+  mappingType?: 'exact' | 'equivalent' | 'surrogate' | 'unsupported';
+  message?: string;
+  sourceEntityId?: string;
+  providerEntityId?: string;
+  [key: string]: unknown;
+};
+
+export type CircuitSimulationSupportResponse = {
+  schemaVersion: string;
+  projectId: string;
+  artifactId: string;
+  providerAvailability: CircuitSimulationProviderAvailability;
+  assessment: import('@nexus/contracts').CircuitSimulationSupportAssessment & {
+    mappings?: CircuitSimulationMapping[];
+  };
+};
+
+export type CircuitSimulationValidationResponse = {
+  ok: boolean;
+  findings: import('@nexus/contracts').CircuitSimulationSupportAssessment['findings'];
+  outputs?: import('@nexus/contracts').ProducedOutput[];
+  workspaceDigest?: string;
+};
+
+export type CircuitSimulationPreviewResponse = {
+  schemaVersion: string;
+  providerId: string;
+  status: string;
+  surrogateUsed: boolean;
+  workspaceDigest?: string;
+  mappings: Array<{
+    providerPartId: string;
+    providerPartType: string;
+    mappingType?: string;
+    pinProfile?: Array<{ sourcePin?: string; providerPin?: string }>;
+    sourceReferences?: Array<{
+      entityId?: string;
+      entityType?: string;
+      displayLabel?: string;
+      artifactType?: string;
+    }>;
+  }>;
+  connections: Array<{
+    id?: string;
+    sourcePartId?: string;
+    targetPartId?: string;
+    sourcePin?: string;
+    targetPin?: string;
+    label?: string;
+  }>;
+  findings: Array<{ findingId?: string; message?: string; mappingType?: string }>;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -93,12 +155,8 @@ function parseProjectPackage(payload: unknown): import('@nexus/contracts').Proje
   if (payload.schemaVersion !== '1.0.0') {
     throw new Error('Unexpected project schemaVersion');
   }
-  if (
-    !Array.isArray(payload.artifacts) ||
-    payload.artifacts.length < 4 ||
-    payload.artifacts.length > 6
-  ) {
-    throw new Error('Project response must include four to six artifacts');
+  if (!Array.isArray(payload.artifacts) || payload.artifacts.length < 4) {
+    throw new Error('Project response must include at least four artifacts');
   }
   const types = new Set(
     payload.artifacts
@@ -268,6 +326,27 @@ export async function createWorkspace(
   })) as import('@nexus/contracts').WorkspaceDescriptor;
 }
 
+export async function ensureLayeredArchitecture(
+  projectId: string,
+  body?: Record<string, unknown>,
+): Promise<{
+  schemaVersion: string;
+  projectId: string;
+  createdArtifactTypes: string[];
+  currentState: import('@nexus/contracts').ProjectCurrentState;
+}> {
+  return (await requestJson(`/v1/projects/${projectId}/ensure-layered-architecture`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body ?? {}),
+  })) as {
+    schemaVersion: string;
+    projectId: string;
+    createdArtifactTypes: string[];
+    currentState: import('@nexus/contracts').ProjectCurrentState;
+  };
+}
+
 export async function submitArtifactCommand(
   projectId: string,
   command: import('@nexus/contracts').ArtifactCommand,
@@ -289,7 +368,65 @@ export async function listExecutions(
   if (isRecord(json) && Array.isArray(json.executions)) {
     return json.executions as import('@nexus/contracts').ExecutionRun[];
   }
-  throw new Error('Executions response must be an array or { executions }');
+  if (isRecord(json) && Array.isArray(json.items)) {
+    return json.items as import('@nexus/contracts').ExecutionRun[];
+  }
+  throw new Error('Executions response must include an items array');
+}
+
+export async function listProducedOutputs(
+  projectId: string,
+): Promise<import('@nexus/contracts').ProducedOutput[]> {
+  const json = await requestJson(`/v1/projects/${projectId}/outputs`);
+  if (isRecord(json) && Array.isArray(json.items)) {
+    return json.items as import('@nexus/contracts').ProducedOutput[];
+  }
+  throw new Error('Outputs response must include an items array');
+}
+
+const CIRCUIT_SIMULATION_PATH =
+  'artifacts/electrical-architecture/circuit-simulation';
+
+export async function getCircuitSimulationSupport(
+  projectId: string,
+): Promise<CircuitSimulationSupportResponse> {
+  return (await requestJson(
+    `/v1/projects/${encodeURIComponent(projectId)}/${CIRCUIT_SIMULATION_PATH}/support`,
+  )) as CircuitSimulationSupportResponse;
+}
+
+export async function getCircuitSimulationPreview(
+  projectId: string,
+): Promise<CircuitSimulationPreviewResponse> {
+  return (await requestJson(
+    `/v1/projects/${encodeURIComponent(projectId)}/${CIRCUIT_SIMULATION_PATH}/preview`,
+  )) as CircuitSimulationPreviewResponse;
+}
+
+export async function validateCircuitSimulation(
+  projectId: string,
+): Promise<CircuitSimulationValidationResponse> {
+  return (await requestJson(
+    `/v1/projects/${encodeURIComponent(projectId)}/${CIRCUIT_SIMULATION_PATH}/validate`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    },
+  )) as CircuitSimulationValidationResponse;
+}
+
+export function getCircuitSimulationExportUrl(projectId: string): string {
+  return `${apiBaseUrl()}/v1/projects/${encodeURIComponent(projectId)}/${CIRCUIT_SIMULATION_PATH}/export`;
+}
+
+export async function getProducedOutput(
+  projectId: string,
+  outputId: string,
+): Promise<import('@nexus/contracts').ProducedOutput> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/outputs/${encodeURIComponent(outputId)}`,
+  )) as import('@nexus/contracts').ProducedOutput;
 }
 
 export async function listEvents(
@@ -302,7 +439,10 @@ export async function listEvents(
   if (isRecord(json) && Array.isArray(json.events)) {
     return json.events as import('@nexus/contracts').ProjectEvent[];
   }
-  throw new Error('Events response must be an array or { events }');
+  if (isRecord(json) && Array.isArray(json.items)) {
+    return json.items as import('@nexus/contracts').ProjectEvent[];
+  }
+  throw new Error('Events response must include an items array');
 }
 
 export async function getProjectGraph(

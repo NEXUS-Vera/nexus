@@ -582,6 +582,26 @@ class ExecutionService:
             output["providerId"] = provider_id
             output["mediaType"] = str(item.get("mediaType") or "application/json")
             output["evidenceStatus"] = str(item.get("evidenceStatus") or "unverified")
+            entity_references = item.get("entityReferences")
+            if isinstance(entity_references, list):
+                output["entityReferences"] = entity_references
+            provenance = item.get("provenance")
+            if isinstance(provenance, dict):
+                output["provenance"] = provenance
+            else:
+                output["provenance"] = {
+                    "schemaVersion": "1.0.0",
+                    "sourceType": "external-provider",
+                    "sourceReference": provider_id,
+                    "derivedFromIds": [
+                        run["artifactId"],
+                        run["inputSnapshotId"],
+                    ],
+                    "notes": (
+                        "Provider representation or runtime observation; "
+                        "not proof of real component compatibility."
+                    ),
+                }
             normalized.append(output)
         return normalized
 

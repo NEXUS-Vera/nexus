@@ -15,6 +15,8 @@ class Input(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     initialContent: NotRequired[dict[str, Any]]
 
@@ -179,8 +181,20 @@ class Input8(TypedDict, closed=True):
         'architecture-export',
     ]
     commandSpec: NotRequired[CommandSpec]
+    executionMode: NotRequired[Literal['validate', 'simulate']]
+    expectedText: NotRequired[str]
     maxDurationMs: NotRequired[int]
     maxOutputBytes: NotRequired[int]
+    requestedOutputs: NotRequired[
+        list[
+            Literal[
+                'serial-log',
+                'logic-trace',
+                'simulation-screenshot',
+                'provider-workspace',
+            ]
+        ]
+    ]
     snapshotId: str
 
 class ArtifactCommandV19(TypedDict, closed=True):
@@ -245,6 +259,23 @@ class ArtifactCommandV112(TypedDict, closed=True):
     schemaVersion: Literal['1.0.0']
     workspaceId: str
 
+class Input12(TypedDict, closed=True):
+    entityId: str
+    entityType: Literal['functional-node']
+
+class ArtifactCommandV113(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['artifact.inspect-deletion-impact']
+    input: Input12
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: NotRequired[str]
+
 ArtifactCommandV1: TypeAlias = (
     ArtifactCommandV11
     | ArtifactCommandV12
@@ -258,4 +289,5 @@ ArtifactCommandV1: TypeAlias = (
     | ArtifactCommandV110
     | ArtifactCommandV111
     | ArtifactCommandV112
+    | ArtifactCommandV113
 )

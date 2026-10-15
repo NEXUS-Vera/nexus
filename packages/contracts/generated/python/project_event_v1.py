@@ -26,6 +26,8 @@ class InputArtifactReference(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     artifactVersion: int
 
@@ -46,6 +48,8 @@ class Payload(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
         ]
     ]
     artifactVersion: NotRequired[int]

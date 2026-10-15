@@ -19,6 +19,8 @@ class OutputArtifactReference(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -63,6 +65,8 @@ class ArtifactReference(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

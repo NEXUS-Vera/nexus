@@ -29,6 +29,8 @@ WORKFLOW_STEPS: tuple[str, ...] = (
     "select-fixture-family",
     "create-project-context",
     "materialize-fixture-package",
+    "compose-electrical-architecture",
+    "compose-physical-architecture",
     "validate-schema",
     "validate-project-package",
     "build-result",
@@ -65,6 +67,8 @@ async def test_successful_workflow_is_chronological_and_complete() -> None:
     for step in steps:
         if step["stepType"] in {
             "materialize-fixture-package",
+            "compose-electrical-architecture",
+            "compose-physical-architecture",
             "build-result",
             "complete-workflow",
         }:

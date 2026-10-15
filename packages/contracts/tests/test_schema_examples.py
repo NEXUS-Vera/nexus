@@ -75,6 +75,10 @@ RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
     "produced-output.json": (
         "https://nexus.local/schemas/executions/produced-output.v1.schema.json"
     ),
+    "circuit-simulation-support-assessment.json": (
+        "https://nexus.local/schemas/executions/"
+        "circuit-simulation-support-assessment.v1.schema.json"
+    ),
     "runtime-capability.json": (
         "https://nexus.local/schemas/executions/runtime-capability.v1.schema.json"
     ),

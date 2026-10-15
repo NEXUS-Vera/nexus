@@ -61,6 +61,10 @@ PROMPTS = {
         "I want to build an obstacle-detection module for a small indoor robot "
         "so it can detect objects in front of it and react before it hits them."
     ),
+    "esp32-imu-circuit-simulation": (
+        "I want a golden Nexus circuit simulation project with an ESP32-class MCU "
+        "and an IMU motion sensor for Wokwi surrogate simulation."
+    ),
 }
 
 
