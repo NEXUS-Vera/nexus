@@ -253,7 +253,10 @@ export type ArtifactType =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 
 export interface ActorReference {

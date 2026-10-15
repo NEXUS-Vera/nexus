@@ -22,6 +22,9 @@ class ProducedArtifactReference(TypedDict, closed=True):
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     artifactVersion: int
 

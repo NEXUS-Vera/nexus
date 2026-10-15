@@ -8,7 +8,9 @@ export type Artifact =
   | ArtifactEnvelope3
   | ArtifactEnvelope4
   | ArtifactEnvelope5
-  | ArtifactEnvelope6;
+  | ArtifactEnvelope6
+  | ArtifactEnvelope7
+  | ArtifactEnvelope8;
 export type ComponentCategory =
   | 'sensor'
   | 'compute'
@@ -41,7 +43,10 @@ export type ArtifactType =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -51,7 +56,10 @@ export type ArtifactType1 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType2 =
   | 'project-brief'
   | 'requirement-set'
@@ -61,7 +69,10 @@ export type ArtifactType2 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType3 =
   | 'project-brief'
   | 'requirement-set'
@@ -71,7 +82,10 @@ export type ArtifactType3 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 /**
  * Canonical wrapper for a successful fixture-backed embedded project initialization package.
@@ -79,12 +93,30 @@ export type ArtifactType3 =
 export interface ProjectInitializationResult {
   /**
    * @minItems 5
-   * @maxItems 7
+   * @maxItems 12
    */
   artifacts:
     | [Artifact, Artifact, Artifact, Artifact, Artifact]
     | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact]
-    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact];
+    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact]
+    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact]
+    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact]
+    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact]
+    | [Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact, Artifact]
+    | [
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact,
+        Artifact
+      ];
   openQuestions: OpenQuestion[];
   project: Project;
   schemaVersion: '1.0.0';
@@ -1152,6 +1184,267 @@ export interface ActorReference18 {
   displayName?: string;
   schemaVersion: '1.0.0';
 }
+export interface ArtifactEnvelope7 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'test-plan';
+  artifactVersion: number;
+  content: TestPlanContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference20;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
+export interface TestPlanContent {
+  coverageSummary: {
+    blockedRequirements: number;
+    coveredRequirements: number;
+    failedRequirements: number;
+    totalRequirements: number;
+    uncoveredRequirements: number;
+    unverifiedRequirements: number;
+    verifiedRequirements: number;
+  };
+  provenance?: {
+    generatedBy?: 'fixture' | 'llm' | 'user' | 'derived';
+    notes?: string;
+  };
+  schemaVersion: '1.0.0';
+  summary?: string;
+  /**
+   * @minItems 1
+   */
+  testCases: [
+    {
+      actualResult?: string;
+      assessment?: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+      assessmentAuthority?: 'deterministic-code' | 'manual' | 'none';
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: any;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
+      description?: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference9[];
+      executionRunId?: string;
+      expectedResult: string;
+      finding?: string;
+      inputs?: string[];
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds: string[];
+      preconditions?: string[];
+      procedure?: string[];
+      producedOutputIds?: string[];
+      status: 'planned' | 'ready' | 'running' | 'passed' | 'failed' | 'blocked' | 'inconclusive';
+      testId: string;
+      title: string;
+      verificationMethod: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
+    },
+    ...{
+      actualResult?: string;
+      assessment?: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
+      assessmentAuthority?: 'deterministic-code' | 'manual' | 'none';
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: any;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
+      description?: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference9[];
+      executionRunId?: string;
+      expectedResult: string;
+      finding?: string;
+      inputs?: string[];
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds: string[];
+      preconditions?: string[];
+      procedure?: string[];
+      producedOutputIds?: string[];
+      status: 'planned' | 'ready' | 'running' | 'passed' | 'failed' | 'blocked' | 'inconclusive';
+      testId: string;
+      title: string;
+      verificationMethod: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
+    }[]
+  ];
+  testPlanId: string;
+  title?: string;
+}
+export interface EvidenceReference9 {
+  attribution?: ActorReference19;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference19 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference20 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ArtifactEnvelope8 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'risk-register';
+  artifactVersion: number;
+  content: RiskRegisterContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference22;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
+export interface RiskRegisterContent {
+  provenance?: {
+    generatedBy?: 'fixture' | 'llm' | 'user' | 'derived';
+    notes?: string;
+  };
+  riskRegisterId: string;
+  /**
+   * @minItems 1
+   */
+  risks: [
+    {
+      category:
+        | 'electrical'
+        | 'firmware'
+        | 'communication'
+        | 'power'
+        | 'thermal'
+        | 'mechanical'
+        | 'integration'
+        | 'performance'
+        | 'data-quality'
+        | 'safety';
+      description: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference10[];
+      likelihood: 'rare' | 'unlikely' | 'possible' | 'likely';
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds?: string[];
+      linkedTestIds?: string[];
+      mitigation: string;
+      priorityScore: number;
+      residualRisk?: string;
+      riskId: string;
+      severity: 'low' | 'medium' | 'high' | 'critical';
+      status: 'open' | 'mitigating' | 'mitigated' | 'accepted' | 'monitoring';
+      title: string;
+      verificationTestIds?: string[];
+    },
+    ...{
+      category:
+        | 'electrical'
+        | 'firmware'
+        | 'communication'
+        | 'power'
+        | 'thermal'
+        | 'mechanical'
+        | 'integration'
+        | 'performance'
+        | 'data-quality'
+        | 'safety';
+      description: string;
+      displayId: string;
+      evidenceReferences?: EvidenceReference10[];
+      likelihood: 'rare' | 'unlikely' | 'possible' | 'likely';
+      linkedArchitectureRefs?: string[];
+      linkedComponentIds?: string[];
+      linkedRequirementIds?: string[];
+      linkedTestIds?: string[];
+      mitigation: string;
+      priorityScore: number;
+      residualRisk?: string;
+      riskId: string;
+      severity: 'low' | 'medium' | 'high' | 'critical';
+      status: 'open' | 'mitigating' | 'mitigated' | 'accepted' | 'monitoring';
+      title: string;
+      verificationTestIds?: string[];
+    }[]
+  ];
+  schemaVersion: '1.0.0';
+  summary: {
+    highOrCritical: number;
+    mitigated: number;
+    openRisks: number;
+    totalRisks: number;
+    unverifiedMitigations: number;
+  };
+  title?: string;
+}
+export interface EvidenceReference10 {
+  attribution?: ActorReference21;
+  evidenceId: string;
+  evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
+  schemaVersion: '1.0.0';
+  sourceId: string;
+  sourceLocator?: string;
+  sourceType:
+    'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
+  supportedClaim?: string;
+}
+export interface ActorReference21 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference22 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
 export interface OpenQuestion {
   blocks: string[];
   createdAt: string;
@@ -1159,7 +1452,7 @@ export interface OpenQuestion {
   question: string;
   questionId: string;
   reason: string;
-  requestedFrom: ActorReference19;
+  requestedFrom: ActorReference23;
   schemaVersion: '1.0.0';
   /**
    * @minItems 1
@@ -1179,7 +1472,7 @@ export interface OpenQuestion {
   status: 'open' | 'answered' | 'resolved' | 'dismissed';
   updatedAt: string;
 }
-export interface ActorReference19 {
+export interface ActorReference23 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -1244,8 +1537,8 @@ export interface TurnRoute {
   unsupportedReason?: string;
 }
 export interface UserTurn {
-  actor: ActorReference20;
-  attachmentReferences?: EvidenceReference9[];
+  actor: ActorReference24;
+  attachmentReferences?: EvidenceReference11[];
   parentTurnId?: string;
   projectId: string;
   rawUserMessage: string;
@@ -1253,14 +1546,14 @@ export interface UserTurn {
   timestamp: string;
   turnId: string;
 }
-export interface ActorReference20 {
+export interface ActorReference24 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
   schemaVersion: '1.0.0';
 }
-export interface EvidenceReference9 {
-  attribution?: ActorReference21;
+export interface EvidenceReference11 {
+  attribution?: ActorReference25;
   evidenceId: string;
   evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
   schemaVersion: '1.0.0';
@@ -1270,7 +1563,7 @@ export interface EvidenceReference9 {
     'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
   supportedClaim?: string;
 }
-export interface ActorReference21 {
+export interface ActorReference25 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;

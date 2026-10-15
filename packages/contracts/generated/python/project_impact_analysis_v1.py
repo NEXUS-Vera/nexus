@@ -17,6 +17,9 @@ class ReasonByArtifactItem(TypedDict, closed=True):
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     reason: str
 
@@ -32,6 +35,9 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'firmware',
             'electrical-architecture',
             'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     changed: list[
@@ -45,6 +51,9 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'firmware',
             'electrical-architecture',
             'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     reasonByArtifact: list[ReasonByArtifactItem]
@@ -59,6 +68,9 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'firmware',
             'electrical-architecture',
             'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -73,6 +85,9 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'firmware',
             'electrical-architecture',
             'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     unchanged: list[
@@ -86,6 +101,9 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'firmware',
             'electrical-architecture',
             'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
 
@@ -99,6 +117,9 @@ ArtifactType: TypeAlias = Literal[
     'firmware',
     'electrical-architecture',
     'physical-architecture',
+    'analysis',
+    'test-plan',
+    'risk-register',
 ]
 
 ArtifactTypeList: TypeAlias = list[
@@ -112,5 +133,8 @@ ArtifactTypeList: TypeAlias = list[
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
 ]

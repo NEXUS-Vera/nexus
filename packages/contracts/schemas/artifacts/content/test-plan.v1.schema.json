@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json",
+  "title": "TestPlanContent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "testPlanId", "testCases", "coverageSummary"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "testPlanId": {
+      "type": "string",
+      "pattern": "^tplan_[A-Za-z0-9]{16,}$"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "summary": { "type": "string" },
+    "testCases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/testCase" }
+    },
+    "coverageSummary": { "$ref": "#/$defs/coverageSummary" },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generatedBy": { "type": "string", "enum": ["fixture", "llm", "user", "derived"] },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "verificationMethod": {
+      "type": "string",
+      "enum": [
+        "inspection",
+        "simulation",
+        "firmware-test",
+        "analysis",
+        "execution-output",
+        "manual"
+      ]
+    },
+    "testStatus": {
+      "type": "string",
+      "enum": [
+        "planned",
+        "ready",
+        "running",
+        "passed",
+        "failed",
+        "blocked",
+        "inconclusive"
+      ]
+    },
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["criterionType"],
+      "properties": {
+        "criterionType": {
+          "type": "string",
+          "enum": [
+            "numeric-comparison",
+            "exact-match",
+            "contains",
+            "existence",
+            "structural-mapping",
+            "range"
+          ]
+        },
+        "metricId": { "type": "string" },
+        "operator": {
+          "type": "string",
+          "enum": ["<", "<=", ">", ">=", "==", "!="]
+        },
+        "expectedValue": {},
+        "unit": { "type": "string" },
+        "marker": { "type": "string" },
+        "outputName": { "type": "string" },
+        "signal": { "type": "string" },
+        "expectedMapping": { "type": "string" },
+        "minValue": { "type": "number" },
+        "maxValue": { "type": "number" },
+        "tolerance": { "type": "number" },
+        "toleranceUnit": { "type": "string", "enum": ["absolute", "percent"] }
+      }
+    },
+    "testCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "testId",
+        "displayId",
+        "title",
+        "linkedRequirementIds",
+        "verificationMethod",
+        "expectedResult",
+        "status"
+      ],
+      "properties": {
+        "testId": {
+          "type": "string",
+          "pattern": "^test_[A-Za-z0-9]{16,}$"
+        },
+        "displayId": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string" },
+        "linkedRequirementIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linkedComponentIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linkedArchitectureRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "verificationMethod": { "$ref": "#/$defs/verificationMethod" },
+        "preconditions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "inputs": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "procedure": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "expectedResult": { "type": "string", "minLength": 1 },
+        "criterion": { "$ref": "#/$defs/criterion" },
+        "status": { "$ref": "#/$defs/testStatus" },
+        "assessment": {
+          "type": "string",
+          "enum": ["PASS", "FAIL", "INCONCLUSIVE"]
+        },
+        "assessmentAuthority": {
+          "type": "string",
+          "enum": ["deterministic-code", "manual", "none"]
+        },
+        "actualResult": { "type": "string" },
+        "finding": { "type": "string" },
+        "evidenceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json"
+          }
+        },
+        "executionRunId": { "type": "string" },
+        "producedOutputIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "coverageSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalRequirements",
+        "coveredRequirements",
+        "verifiedRequirements",
+        "failedRequirements",
+        "blockedRequirements",
+        "unverifiedRequirements",
+        "uncoveredRequirements"
+      ],
+      "properties": {
+        "totalRequirements": { "type": "integer", "minimum": 0 },
+        "coveredRequirements": { "type": "integer", "minimum": 0 },
+        "verifiedRequirements": { "type": "integer", "minimum": 0 },
+        "failedRequirements": { "type": "integer", "minimum": 0 },
+        "blockedRequirements": { "type": "integer", "minimum": 0 },
+        "unverifiedRequirements": { "type": "integer", "minimum": 0 },
+        "uncoveredRequirements": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

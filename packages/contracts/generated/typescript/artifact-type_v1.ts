@@ -10,4 +10,7 @@ export type ArtifactType =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';

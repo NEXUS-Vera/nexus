@@ -40,6 +40,15 @@ def test_generate_is_deterministic_and_includes_notices() -> None:
     assert before_py == after_py
     assert before_ts == after_ts
 
+    for stem in [
+        "analysis-investigation",
+        "analysis-patch-proposal",
+        "analysis-verification-assessment",
+        "test-plan",
+        "risk-register",
+    ]:
+        assert (GENERATED_TS / f"{stem}_v1.ts").is_file()
+        assert (GENERATED_PY / f"{stem.replace('-', '_')}_v1.py").is_file()
     py_sample = next(GENERATED_PY.glob("*.py"))
     ts_sample = next(GENERATED_TS.glob("*.ts"))
     assert "Do not edit manually" in py_sample.read_text(encoding="utf-8")

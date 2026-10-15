@@ -83,7 +83,9 @@ export function useWorkspaceUrl() {
   const viewParam = searchParams.get('view');
   const globalView = parseGlobalView(viewParam);
   const architectureViewFromParam = parseArchitectureView(viewParam);
-  const artifactParam = searchParams.get('artifact');
+  const artifactParamRaw = searchParams.get('artifact');
+  // Legacy Phase 14/16 placeholder routes → live workspaces.
+  const artifactParam = artifactParamRaw === 'analysis-notebook' ? 'analysis' : artifactParamRaw;
   const selectedArtifact: ArtifactRouteKey = isArtifactRouteKey(artifactParam)
     ? artifactParam
     : DEFAULT_ARTIFACT;
@@ -220,6 +222,32 @@ export function useWorkspaceUrl() {
     [patchParams],
   );
 
+  const setSelectedTest = useCallback(
+    (id: string | null) => {
+      patchParams({
+        view: null,
+        artifact: 'test-plan',
+        test: id,
+        sel: id ? 'test' : null,
+        selId: id,
+      });
+    },
+    [patchParams],
+  );
+
+  const setSelectedRisk = useCallback(
+    (id: string | null) => {
+      patchParams({
+        view: null,
+        artifact: 'risk-register',
+        risk: id,
+        sel: id ? 'risk' : null,
+        selId: id,
+      });
+    },
+    [patchParams],
+  );
+
   const setInspectorSelection = useCallback(
     (next: InspectorSelection) => {
       if (next.kind === 'none') {
@@ -295,6 +323,8 @@ export function useWorkspaceUrl() {
     setSelectedRequirement,
     setSelectedArchNode,
     setSelectedComponentRole,
+    setSelectedTest,
+    setSelectedRisk,
     setInspectorSelection,
     setHistoryOpen,
     setInspectorPanel,

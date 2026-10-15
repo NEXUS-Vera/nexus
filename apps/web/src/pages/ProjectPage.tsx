@@ -37,6 +37,7 @@ import { useWorkspaceUrl } from '../hooks/use-workspace-url';
 import { themeColors } from '../lib/theme';
 import { MindGraphWorkspace } from '../views/MindGraphWorkspace';
 import { ProjectOverview } from '../views/ProjectOverview';
+import { EvidenceExplorer } from '../views/EvidenceExplorer';
 import { ARTIFACT_REGISTRY } from '../artifacts/registry';
 
 async function loadOptional<T>(loader: () => Promise<T>): Promise<T | null> {
@@ -73,6 +74,7 @@ export function ProjectPage() {
   const [inspectorCollapsed, setInspectorCollapsed] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [showNextAction, setShowNextAction] = useState(false);
+  const [showEvidence, setShowEvidence] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -329,11 +331,15 @@ export function ProjectPage() {
           selectedRequirementId={url.selectedRequirement}
           selectedNodeId={url.selectedArchNode}
           selectedRoleId={url.selectedComponentRole}
+          selectedTestId={url.selectedTest}
+          selectedRiskId={url.selectedRisk}
           architectureViewId={url.selectedArchitectureView}
           electricalMode={url.electricalMode}
           onSelectRequirement={url.setSelectedRequirement}
           onSelectNode={url.setSelectedArchNode}
           onSelectRole={url.setSelectedComponentRole}
+          onSelectTest={url.setSelectedTest}
+          onSelectRisk={url.setSelectedRisk}
           onSelectItem={url.setInspectorSelection}
           onChangeArchitectureView={url.setArchitectureView}
           onChangeElectricalMode={url.setElectricalMode}
@@ -390,6 +396,25 @@ export function ProjectPage() {
         />
       );
     }
+    if (showEvidence) {
+      return (
+        <EvidenceExplorer
+          projectId={projectId}
+          isDark={isDark}
+          onOpenTestPlan={(testId) => {
+            setShowEvidence(false);
+            setShowNextAction(false);
+            url.setSelectedArtifact('test-plan');
+            url.setSelectedTest(testId);
+          }}
+          onOpenAnalysis={() => {
+            setShowEvidence(false);
+            setShowNextAction(false);
+            url.setSelectedArtifact('analysis');
+          }}
+        />
+      );
+    }
     if (showNextAction) {
       return renderRegisteredWorkspace('next-action');
     }
@@ -398,6 +423,7 @@ export function ProjectPage() {
 
   function selectArtifact(key: ArtifactRouteKey) {
     setShowNextAction(false);
+    setShowEvidence(false);
     url.setSelectedArtifact(key);
   }
 
@@ -450,10 +476,17 @@ export function ProjectPage() {
               changeByType={changeByType}
               onOpenNextAction={() => {
                 setShowNextAction(true);
+                setShowEvidence(false);
                 url.setGlobalView('workspace');
                 url.setInspectorSelection({ kind: 'next-action' });
               }}
               onOpenHistory={() => url.setHistoryOpen(true)}
+              onOpenEvidence={() => {
+                setShowNextAction(false);
+                setShowEvidence(true);
+                url.setGlobalView('workspace');
+              }}
+              evidenceOpen={showEvidence}
             />
           </Panel>
 

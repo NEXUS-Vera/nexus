@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import fixture from '../../../packages/contracts/examples/valid/project-initialization-result/project-initialization-result.json';
-import { ARTIFACT_ORDER, ARTIFACT_REGISTRY } from './artifacts/registry';
+import { ARTIFACT_ORDER, ARTIFACT_REGISTRY, WORKFLOW_GROUPS } from './artifacts/registry';
 
 function renderApp(path = '/') {
   return render(
@@ -260,5 +260,16 @@ describe('Nexus web routing and project workspace', () => {
       expect(ARTIFACT_REGISTRY[key].routeKey).toBe(key);
     }
     expect(ARTIFACT_ORDER).toHaveLength(8);
+  });
+  it('exposes exactly one Analysis entry in BUILD workflow navigation', () => {
+    const build = WORKFLOW_GROUPS.find((g) => g.label === 'BUILD');
+    expect(build).toBeDefined();
+    const analysisLabeled = build!.artifacts.filter(
+      (key) => ARTIFACT_REGISTRY[key].label === 'Analysis',
+    );
+    expect(analysisLabeled).toEqual(['analysis']);
+    expect(ARTIFACT_REGISTRY.analysis.availability).toBe('live');
+    expect(ARTIFACT_REGISTRY.analysis.artifactType).toBe('analysis');
+    expect(ARTIFACT_ORDER.filter((key) => key === 'analysis')).toHaveLength(1);
   });
 });

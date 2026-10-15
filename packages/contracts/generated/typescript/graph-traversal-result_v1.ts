@@ -10,7 +10,10 @@ export type ArtifactType =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export interface GraphTraversalResult {
   direction: 'upstream' | 'downstream' | 'neighbors' | 'subgraph';

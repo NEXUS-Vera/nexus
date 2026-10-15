@@ -10,7 +10,10 @@ export type ArtifactType =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -20,7 +23,10 @@ export type ArtifactType1 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType2 =
   | 'project-brief'
   | 'requirement-set'
@@ -30,7 +36,10 @@ export type ArtifactType2 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType3 =
   | 'project-brief'
   | 'requirement-set'
@@ -40,7 +49,10 @@ export type ArtifactType3 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType4 =
   | 'project-brief'
   | 'requirement-set'
@@ -50,7 +62,10 @@ export type ArtifactType4 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType5 =
   | 'project-brief'
   | 'requirement-set'
@@ -60,7 +75,10 @@ export type ArtifactType5 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 /**
  * Deterministic classification of how a project change propagates across artifact types. Every non-unchanged classification must carry an explicit reason so downstream regeneration is auditable.

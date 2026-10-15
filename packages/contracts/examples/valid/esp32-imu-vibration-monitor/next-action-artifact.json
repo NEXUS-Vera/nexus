@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_16GOLDENNEXT00000000000001",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "artifactType": "next-action",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENVERA00000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z",
+  "sourceTurnId": "turn_16GOLDENUSER000000000000001",
+  "workflowRunId": "run_16GOLDENRUN00000000000000001",
+  "content": {
+    "actionId": "act_16GOLDENNEXTACTION0000000001",
+    "title": "Compile firmware and run Analysis R7 verification",
+    "description": "Apply Firmware and Analysis workspace patches for the ESP32 IMU vibration monitor, compile firmware, execute Analysis against the stationary dataset, and confirm deterministic R7 PASS.",
+    "rationale": "Cross-artifact consistency for GPIO21/22, 115200 baud, telemetry schema, and R7 threshold must be proven before treating outputs as Evidence-eligible.",
+    "owner": "vera",
+    "priority": "high",
+    "prerequisites": [],
+    "blocks": [],
+    "completionCondition": {
+      "conditionType": "unknowns-resolved",
+      "completionCriteria": "Firmware compiles and Analysis summary.json assessment is PASS for R7 with authority deterministic-code."
+    },
+    "sourceIssueIds": [],
+    "sourceQuestionIds": []
+  }
+}

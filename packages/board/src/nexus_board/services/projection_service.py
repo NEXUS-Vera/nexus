@@ -203,6 +203,10 @@ class ProjectBoardProjectionService:
             return ProjectBoardProjectionService._electrical_summary_fields(art)
         if artifact_type == "physical-architecture":
             return ProjectBoardProjectionService._physical_summary_fields(art)
+        if artifact_type == "test-plan":
+            return ProjectBoardProjectionService._test_plan_summary_fields(art)
+        if artifact_type == "risk-register":
+            return ProjectBoardProjectionService._risk_register_summary_fields(art)
         return {}
 
     @staticmethod
@@ -274,6 +278,37 @@ class ProjectBoardProjectionService:
             "nodeCount": len(nodes) if isinstance(nodes, list) else 0,
             "unresolvedPlacementCount": int(coverage.get("unresolvedPlacementCount") or 0),
             "provisionalRelationshipCount": int(coverage.get("provisionalRelationshipCount") or 0),
+        }
+
+    @staticmethod
+    def _test_plan_summary_fields(art: dict[str, Any]) -> dict[str, Any]:
+        content = art.get("content") or {}
+        if not isinstance(content, dict):
+            return {}
+        coverage = content.get("coverageSummary") or {}
+        cases = content.get("testCases") or []
+        return {
+            "testCaseCount": len(cases) if isinstance(cases, list) else 0,
+            "coveredRequirements": int(coverage.get("coveredRequirements") or 0),
+            "totalRequirements": int(coverage.get("totalRequirements") or 0),
+            "verifiedRequirements": int(coverage.get("verifiedRequirements") or 0),
+            "failedRequirements": int(coverage.get("failedRequirements") or 0),
+            "uncoveredRequirements": int(coverage.get("uncoveredRequirements") or 0),
+        }
+
+    @staticmethod
+    def _risk_register_summary_fields(art: dict[str, Any]) -> dict[str, Any]:
+        content = art.get("content") or {}
+        if not isinstance(content, dict):
+            return {}
+        summary = content.get("summary") or {}
+        risks = content.get("risks") or []
+        return {
+            "riskCount": len(risks) if isinstance(risks, list) else 0,
+            "openRisks": int(summary.get("openRisks") or 0),
+            "highOrCritical": int(summary.get("highOrCritical") or 0),
+            "mitigated": int(summary.get("mitigated") or 0),
+            "unverifiedMitigations": int(summary.get("unverifiedMitigations") or 0),
         }
 
     @staticmethod

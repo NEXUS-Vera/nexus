@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/workspaces/analysis-investigation.v1.schema.json",
+  "title": "AnalysisInvestigation",
+  "description": "Lightweight investigation metadata stored inside an analysis workspace (Phase 16H). Not a primary board artifact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "investigationId",
+    "title",
+    "purpose",
+    "lifecycleStage"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "investigationId": {
+      "type": "string",
+      "pattern": "^ainv_[A-Za-z0-9]+$"
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "purpose": {
+      "type": "string",
+      "enum": ["exploration", "verification"]
+    },
+    "question": { "type": ["string", "null"], "maxLength": 2048 },
+    "linkedRequirementIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 64
+    },
+    "linkedComponentIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 64
+    },
+    "linkedTestPlanIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 64
+    },
+    "linkedEvidenceIds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "maxItems": 64
+    },
+    "lifecycleStage": {
+      "type": "string",
+      "enum": ["INPUTS", "TRANSFORM", "METRICS", "VISUALIZATION", "VERIFY"]
+    },
+    "verificationCriterion": {
+      "type": ["object", "null"],
+      "additionalProperties": true
+    },
+    "stageVocabulary": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["INPUTS", "TRANSFORM", "METRICS", "VISUALIZATION", "VERIFY"]
+      }
+    }
+  }
+}

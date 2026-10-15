@@ -46,6 +46,9 @@ async def test_phase11_kernel_api_flow() -> None:
             "next-action",
             "component-plan",
             "code-scratch",
+            "analysis",
+            "test-plan",
+            "risk-register",
             "firmware",
             "electrical-architecture",
             "physical-architecture",
@@ -185,3 +188,52 @@ async def test_phase11_kernel_api_flow() -> None:
 
         graph = await client.get(f"/v1/projects/{project_id}/graph?direction=both&maxDepth=2")
         assert graph.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_analysis_http_scaffold_patch_and_preview() -> None:
+    """Analysis uses the shared workspace endpoints and retains sidecar auth."""
+    from nexus_api.main import _kernel
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
+        created = await client.post(
+            "/v1/projects/initialize",
+            json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
+        )
+        assert created.status_code == 200, created.text
+        project_id = created.json()["project"]["projectId"]
+        prefix = f"/v1/projects/{project_id}/artifacts/analysis/workspace"
+        response = await client.get(f"{prefix}/runtime")
+        assert response.status_code == 200, response.text
+        binding = response.json()["binding"]
+        user = _actor()
+        _kernel.workspaces.acquire_edit_lease(workspace_id=binding["workspaceId"], actor=user)
+        body = {
+            "requestedBy": user,
+            "expectedDraftVersion": 1,
+            "baseArtifactVersion": binding["baseArtifactVersion"],
+            "baseProjectStateVersion": binding["baseProjectStateVersion"],
+        }
+        scaffold = await client.post(f"{prefix}/scaffold", json=body)
+        assert scaffold.status_code == 200, scaffold.text
+        proposal = await client.post(
+            f"{prefix}/patch/propose",
+            json={"requestedBy": user, "requestedChange": "Document inputs"},
+        )
+        assert proposal.status_code == 200, proposal.text
+        payload = proposal.json()["proposal"]
+        assert payload["artifactType"] == "analysis"
+        discarded = await client.post(
+            f"{prefix}/patch/discard",
+            json={"requestedBy": user, "proposalId": payload["proposalId"]},
+        )
+        assert discarded.status_code == 200, discarded.text
+        assert discarded.json()["proposal"]["status"] == "discarded"
+        preview = await client.get(
+            f"{prefix}/snapshots/{payload['baseSnapshotId']}/file", params={"path": "analysis.py"}
+        )
+        assert preview.status_code == 200, preview.text
+        assert preview.json()["content"]

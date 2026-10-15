@@ -27,6 +27,9 @@ class EntityReference(TypedDict, closed=True):
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     artifactVersion: NotRequired[int]
     displayLabel: NotRequired[str]
