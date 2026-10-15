@@ -125,6 +125,16 @@ def test_stale_execution_not_promoted() -> None:
         actor=actor(),
     )
     ws = created["workspace"]["workspaceId"]
+    updated = kernel.dispatch(
+        cmd(
+            command_type="workspace.update-draft",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"content": {"requirements": []}, "expectedDraftVersion": 1},
+        )
+    )
+    assert updated["status"] == "completed"
     snap = kernel.dispatch(
         cmd(
             command_type="workspace.create-snapshot",
@@ -134,9 +144,27 @@ def test_stale_execution_not_promoted() -> None:
             input_data={"reason": "exec"},
         )
     )
-    project = project_store.get_project(project_id)
-    project["currentStateVersion"] = 2
-    project_store._projects[project_id] = project  # noqa: SLF001
+    proposal = kernel.dispatch(
+        cmd(
+            command_type="artifact.propose-revision",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"snapshotId": snap["snapshotId"]},
+        )
+    )
+    accepted = kernel.dispatch(
+        cmd(
+            command_type="artifact.accept-revision",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"proposalId": proposal["proposalId"]},
+        )
+    )
+    assert accepted["status"] == "completed"
+    head = project_store.get_artifact(project_id, "requirement-set")
+    assert head["artifactVersion"] == 2
 
     result = kernel.dispatch(
         cmd(
@@ -157,4 +185,10 @@ def test_stale_execution_not_promoted() -> None:
     assert runs
     assert runs[-1]["status"] == "stale"
     current = project_store.get_artifact(project_id, "requirement-set")
-    assert current["artifactVersion"] == 1
+    assert current == head
+    assert kernel_store.list_produced_outputs(project_id) == []
+    events, _ = kernel_store.list_project_events(project_id)
+    assert any(
+        e["eventType"] == "execution.failed" and e["payload"]["reason"] == "STALE_EXECUTION_RESULT"
+        for e in events
+    )
