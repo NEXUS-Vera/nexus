@@ -143,8 +143,8 @@ describe('workspace renderer registry', () => {
 
   it('marks firmware as live in the artifact registry', async () => {
     const { ARTIFACT_REGISTRY } = await import('../registry');
-    expect(ARTIFACT_REGISTRY.firmware.availability).toBe('live');
-    expect(ARTIFACT_REGISTRY.firmware.artifactType).toBe('firmware-scaffold');
+    expect(ARTIFACT_REGISTRY['firmware-scaffold'].availability).toBe('live');
+    expect(ARTIFACT_REGISTRY['firmware-scaffold'].artifactType).toBe('firmware-scaffold');
   });
 
   it('renders component-plan through the registry', async () => {

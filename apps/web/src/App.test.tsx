@@ -227,7 +227,7 @@ describe('Nexus web routing and project workspace', () => {
     expect(await screen.findByTestId('workspace-firmware-shell')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: /^Analysis$/i }));
-    expect(screen.getByTestId('artifact-placeholder')).toHaveTextContent(/Analysis notebook unavailable/i);
+    expect(await screen.findByTestId('workspace-analysis-shell')).toBeInTheDocument();
 
     expect(screen.queryByText(/BMI270/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/T-008/i)).not.toBeInTheDocument();
