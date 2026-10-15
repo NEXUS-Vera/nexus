@@ -22,9 +22,10 @@ describe('workspace renderer registry', () => {
         'functional-architecture',
         'next-action',
         'component-plan',
+        'firmware-scaffold',
       ]),
     );
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(6);
 
     const shuffled = [...keys].sort().reverse();
     for (const key of shuffled) {
@@ -46,14 +47,16 @@ describe('workspace renderer registry', () => {
     expect(getWorkspaceRenderer('firmware-scaffold')).toBeDefined();
     expect(getWorkspaceRenderer('not-a-real-artifact')).toBeUndefined();
     expect(resolveWorkspaceRenderer('firmware-scaffold')).not.toBe(UnavailableWorkspace);
+    expect(getWorkspaceRenderer('analysis-notebook')).toBeUndefined();
+    expect(resolveWorkspaceRenderer('analysis-notebook')).toBe(UnavailableWorkspace);
   });
 
   it('renders unsupported workspace honestly', () => {
     render(
-      <UnavailableWorkspace rendererKey="firmware-scaffold" isDark={false} />,
+      <UnavailableWorkspace rendererKey="analysis-notebook" isDark={false} />,
     );
     expect(screen.getByTestId('artifact-placeholder')).toHaveTextContent(
-      /Firmware scaffold unavailable/i,
+      /Analysis notebook unavailable/i,
     );
   });
 
