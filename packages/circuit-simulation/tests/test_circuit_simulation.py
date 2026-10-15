@@ -285,6 +285,9 @@ def test_translation_is_deterministic_and_uses_fixed_provider_coordinates() -> N
     ]
     manifest = json.loads(first.text("mapping-manifest.json"))
     assert manifest["mappings"][0]["pinProfile"] == [
+        {"providerPin": pin, "sourcePin": pin} for pin in ("VCC", "GND", "SDA", "SCL")
+    ]
+    assert manifest["mappings"][1]["pinProfile"] == [
         {"providerPin": "3V3", "sourcePin": "3V3"},
         {"providerPin": "GND.1", "sourcePin": "GND"},
         {"providerPin": "D21", "sourcePin": "21"},
@@ -488,3 +491,103 @@ def test_protocol_independent_orchestration() -> None:
         return provider.execute(ExecutionRequest(workspace)).succeeded
 
     assert orchestrate(FakeCircuitSimulationProvider())
+
+
+def test_safe_runner_rejects_symlink_output(tmp_path: Path) -> None:
+    outside = tmp_path / "outside.txt"
+    outside.write_bytes(b"private host data")
+    result = SafeSubprocessRunner().run(
+        RunnerRequest(
+            executable=Path(sys.executable),
+            arguments=("-c", f"import os; os.symlink({str(outside)!r}, 'serial.log')"),
+            files={},
+            output_filenames=("serial.log",),
+            timeout_seconds=1,
+        )
+    )
+    assert "serial.log" not in result.outputs
+
+
+def test_safe_runner_reads_output_with_bound(monkeypatch: pytest.MonkeyPatch) -> None:
+    def forbidden_read_bytes(self: Path) -> bytes:
+        raise AssertionError("unbounded output read")
+
+    monkeypatch.setattr(Path, "read_bytes", forbidden_read_bytes)
+    result = SafeSubprocessRunner(max_output_bytes=4).run(
+        RunnerRequest(
+            executable=Path(sys.executable),
+            arguments=("-c", "open('serial.log', 'wb').write(b'x' * 1000000)"),
+            files={},
+            output_filenames=("serial.log",),
+            timeout_seconds=1,
+        )
+    )
+    assert result.outputs["serial.log"] == b"xxxx"
+    assert "serial.log" in result.truncated_outputs
+
+
+def test_safe_runner_timeout_recovery_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    import subprocess
+    from unittest.mock import Mock
+
+    process = Mock()
+    process.pid = 12345
+
+    def communicate(*, timeout: float | None = None) -> tuple[bytes, bytes]:
+        assert timeout is not None, "timeout recovery must be bounded"
+        raise subprocess.TimeoutExpired("fake", timeout, output=b"partial")
+
+    process.communicate.side_effect = communicate
+    monkeypatch.setattr("nexus_circuit_simulation.runner.subprocess.Popen", lambda *a, **k: process)
+    monkeypatch.setattr("nexus_circuit_simulation.runner.os.killpg", lambda *a: None)
+    result = SafeSubprocessRunner().run(
+        RunnerRequest(
+            executable=Path(sys.executable),
+            arguments=(),
+            files={},
+            timeout_seconds=0.1,
+        )
+    )
+    assert result.timed_out
+    assert result.stdout == b"partial"
+
+
+def test_execute_redacts_token_from_all_outputs(tmp_path: Path) -> None:
+    firmware = tmp_path / "firmware.elf"
+    firmware.write_bytes(b"ELF")
+    token = "synthetic-private-token"
+    runner = RecordingRunner(
+        RunnerResult(
+            exit_code=0,
+            timed_out=False,
+            stdout=token.encode(),
+            stderr=token.encode(),
+            outputs={
+                "serial.log": token.encode(),
+                "trace.vcd": token.encode(),
+                "screenshot.png": token.encode(),
+            },
+        )
+    )
+    provider = WokwiProvider(
+        token=token, executable=sys.executable, runner=runner, firmware_elf_path=firmware
+    )
+    result = provider.execute(ExecutionRequest(provider.materialize(simulation_request())))
+    assert len(result.outputs) == 5
+    for output in result.outputs:
+        assert token.encode() not in output.content
+        assert b"[REDACTED]" in output.content
+    assert token not in result.diagnostic
+
+
+def test_imu_mapping_defines_correct_sensor_pin_profile() -> None:
+    mapping = find_mapping(
+        source="fixture", manufacturer="Fixture Motion", part_number="FX-IMU-200"
+    )
+    assert mapping is not None
+    assert {p.source_pin: p.provider_pin for p in mapping.pins} == {
+        "VCC": "VCC",
+        "GND": "GND",
+        "SDA": "SDA",
+        "SCL": "SCL",
+    }

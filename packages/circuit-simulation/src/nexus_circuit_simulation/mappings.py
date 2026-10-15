@@ -46,7 +46,7 @@ EXACT_MAPPING_REGISTRY = (
         part_number="FX-IMU-200",
         provider_part="wokwi-mpu6050",
         mapping_type=MappingType.SURROGATE,
-        pins=FIXED_PIN_PROFILE,
+        pins=tuple(PinMapping(pin, pin) for pin in ("VCC", "GND", "SDA", "SCL")),
     ),
 )
 

@@ -594,7 +594,7 @@ async def get_circuit_simulation_preview(
     "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/validate",
     response_model=None,
 )
-async def validate_circuit_simulation(
+def validate_circuit_simulation(
     project_id: str,
     request: Request,
 ) -> dict[str, Any] | JSONResponse:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+import pytest
 from nexus_embedded_systems.workflows.component_planning import (
     apply_component_plan_operation,
     compose_component_plan_content,
@@ -334,3 +335,63 @@ def test_inspect_functional_node_deletion_reports_dependents() -> None:
         if not set(p.get("electricalNodeIds") or []) & set(impact["affectedElectricalNodeIds"])
     }
     assert kept_physical_ids.issubset({n["nodeId"] for n in recomposed_physical["nodes"]})
+
+
+@pytest.mark.parametrize("values", [((3.3, "V"), (3300, "mV")), ((3, "V"), (3.0, "V"))])
+def test_voltage_domain_compatibility_normalizes_units(values) -> None:
+    from nexus_embedded_systems.workflows.layered_architecture.compose_electrical import (
+        _propose_power_domains,
+    )
+    from nexus_embedded_systems.workflows.layered_architecture.validation.electrical_rules import (
+        _VoltageDomainCompatibilityRule,
+    )
+
+    nodes = [
+        {
+            "nodeId": f"node_{i}",
+            "interfaces": [
+                {
+                    "interfaceType": "power",
+                    "voltage": {"value": value, "unit": unit},
+                }
+            ],
+        }
+        for i, (value, unit) in enumerate(values)
+    ]
+    content = {
+        "nodes": nodes,
+        "powerDomains": [
+            {
+                "powerDomainId": "domain",
+                "memberNodeIds": ["node_0", "node_1"],
+            }
+        ],
+    }
+    assert all(r["status"] == "pass" for r in _VoltageDomainCompatibilityRule().evaluate(content))
+    assert len(_propose_power_domains(nodes)) == 1
+    nodes[1]["interfaces"][0]["voltage"] = {"value": 5, "unit": "V"}
+    assert any(
+        r["status"] == "warning" for r in _VoltageDomainCompatibilityRule().evaluate(content)
+    )
+    assert len(_propose_power_domains(nodes)) == 2
+
+
+def test_delete_supporting_node_removes_member_from_power_domains() -> None:
+    from nexus_embedded_systems.workflows.layered_architecture.semantic_ops import (
+        apply_electrical_semantic_op,
+    )
+
+    content = {
+        "nodes": [
+            {"nodeId": "support", "componentRoleIds": []},
+            {"nodeId": "mcu", "componentRoleIds": ["role_mcu"]},
+        ],
+        "connections": [{"fromNodeId": "support", "toNodeId": "mcu"}],
+        "powerDomains": [{"memberNodeIds": ["support", "mcu"]}],
+    }
+    updated = apply_electrical_semantic_op(
+        content, {"type": "delete-supporting-node", "nodeId": "support"}
+    )
+    assert updated["powerDomains"][0]["memberNodeIds"] == ["mcu"]
+    assert updated["connections"] == []
+    assert content["powerDomains"][0]["memberNodeIds"] == ["support", "mcu"]

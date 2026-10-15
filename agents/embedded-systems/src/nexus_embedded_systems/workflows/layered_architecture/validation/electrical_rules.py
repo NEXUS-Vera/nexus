@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
+from nexus_embedded_systems.workflows.layered_architecture.normalize_specs import voltage_domain_key
 from nexus_embedded_systems.workflows.layered_architecture.validation.registry import (
     ElectricalValidationRegistry,
     rule_results_to_warnings,
@@ -112,7 +113,7 @@ class _VoltageDomainCompatibilityRule:
                         voltage.get("value"), int | float
                     ):
                         continue
-                    key = f"{voltage['value']}{voltage.get('unit') or 'V'}"
+                    key = voltage_domain_key(voltage)
                     voltages.setdefault(key, []).append(member_id)
             if len(voltages) <= 1:
                 continue

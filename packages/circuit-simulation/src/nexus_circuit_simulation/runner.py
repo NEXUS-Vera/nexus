@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import signal
+import stat
 import subprocess
 from contextlib import suppress
 from pathlib import Path
@@ -93,7 +94,16 @@ class SafeSubprocessRunner:
                     timed_out = True
                     with suppress(ProcessLookupError):
                         os.killpg(process.pid, signal.SIGKILL)
-                    stdout, stderr = process.communicate()
+                    try:
+                        stdout, stderr = process.communicate(timeout=1.0)
+                    except subprocess.TimeoutExpired as error:
+                        stdout, stderr = error.output or b"", error.stderr or b""
+                        if process.stdout:
+                            process.stdout.close()
+                        if process.stderr:
+                            process.stderr.close()
+                        with suppress(subprocess.TimeoutExpired):
+                            process.wait(timeout=1.0)
             except OSError as error:
                 raise CircuitExecutionError(
                     code="SIMULATOR_START_FAILED",
@@ -105,11 +115,19 @@ class SafeSubprocessRunner:
             truncated: set[str] = set()
             for filename in request.output_filenames:
                 output_path = workspace / filename
-                if output_path.is_file():
-                    content = output_path.read_bytes()
-                    outputs[filename], was_truncated = self._truncate(content)
-                    if was_truncated:
-                        truncated.add(filename)
+                # Reject links and special files before reading. O_NOFOLLOW also
+                # closes the symlink-swap race between inspection and open.
+                try:
+                    descriptor = os.open(output_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                except OSError:
+                    continue
+                with os.fdopen(descriptor, "rb") as stream:
+                    if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
+                        continue
+                    content = stream.read(self.max_output_bytes + 1)
+                outputs[filename], was_truncated = self._truncate(content)
+                if was_truncated:
+                    truncated.add(filename)
             stdout, stdout_truncated = self._truncate(stdout)
             stderr, stderr_truncated = self._truncate(stderr)
             if stdout_truncated:
