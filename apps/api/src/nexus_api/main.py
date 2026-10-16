@@ -2565,16 +2565,23 @@ async def promote_analysis_summary(
             message="summary object is required.",
             request_id=request_id,
         )
+    if not body.get("executionRunId"):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="executionRunId is required.",
+            request_id=request_id,
+        )
     try:
         return _kernel.verification.promote_analysis_summary(
             project_id=project_id,
             summary=body["summary"],
             produced_output_names=list(body.get("producedOutputNames") or []),
             actor=_workspace_runtime_actor(body),
-            execution_run_id=body.get("executionRunId"),
+            execution_run_id=str(body["executionRunId"]),
             accept=bool(body.get("accept", True)),
         )
-    except BoardError as exc:
+    except (BoardError, ExecutionNotFoundError) as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
 
