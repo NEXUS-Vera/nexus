@@ -2,6 +2,7 @@
 # Developer demo: fixture generation, kernel execution and deterministic evidence.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+export PYTHONPATH="${PYTHONPATH-apps/api/src:agents/embedded-systems/src:packages/board/src:packages/circuit-simulation/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src:packages/board/tests}"
 export NEXUS_INITIALIZATION_PROVIDER=fixture
 unset NEXUS_MODEL_API_KEY OPENAI_API_KEY ANTHROPIC_API_KEY
 export NEXUS_EXECUTION_RUNTIME=process
@@ -13,6 +14,6 @@ echo "Real deterministic gate: Python RMS analysis on synthetic CSV, accepted ev
 echo "Live Wokwi: GAP — not executed by this no-key demo."
 echo "Demo artifacts and build logs: $DEMO_DIR"
 "${PYTHON:-python3}" -m pytest packages/board/tests/test_phase16i_golden_e2e.py \
-  -k 'g1_fixture_full_system or local_platformio or golden_prompt' \
+  -k 'g1_fixture_full_system or local_platformio or golden_prompt or telemetry_parses' \
   -q -s --basetemp="$DEMO_DIR"
 echo "Demo assertions passed. Live gaps above remain gaps, not passes."

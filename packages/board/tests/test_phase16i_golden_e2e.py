@@ -906,6 +906,11 @@ def test_golden_local_platformio(tmp_path: Path) -> None:
             text=True,
             timeout=300,
             check=False,
+            env={
+                **os.environ,
+                "PLATFORMIO_CORE_DIR": os.environ.get("PLATFORMIO_CORE_DIR")
+                or str(tmp_path / "platformio-core"),
+            },
         )
     except subprocess.TimeoutExpired:
         pytest.fail("LIVE PlatformIO: FAILED — build timed out after 300 seconds")
@@ -914,3 +919,43 @@ def test_golden_local_platformio(tmp_path: Path) -> None:
     for name in ("firmware.elf", "firmware.bin"):
         assert (tmp_path / ".pio/build/nexus" / name).stat().st_size > 0
     print("LIVE PlatformIO: PASS — real CLI build and ELF/BIN checked")
+
+
+@pytest.mark.parametrize("core_dir", [None, "", "/tmp/nexus-platformio-override"])
+@pytest.mark.parametrize("returncode", [0, 1])
+def test_platformio_harness_core_dir_and_build_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, core_dir: str | None, returncode: int
+) -> None:
+    if core_dir is None:
+        monkeypatch.delenv("PLATFORMIO_CORE_DIR", raising=False)
+    else:
+        monkeypatch.setenv("PLATFORMIO_CORE_DIR", core_dir)
+    monkeypatch.setattr(shutil, "which", lambda _: "/fake/pio")
+
+    def run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        expected = core_dir or str(tmp_path / "platformio-core")
+        assert kwargs["env"]["PLATFORMIO_CORE_DIR"] == expected
+        if not core_dir:
+            Path(expected).mkdir()
+            (Path(expected) / "writable").write_text("ok")
+        build = tmp_path / ".pio/build/nexus"
+        build.mkdir(parents=True)
+        for name in ("firmware.elf", "firmware.bin"):
+            (build / name).write_bytes(b"build output")
+        return subprocess.CompletedProcess(args[0], returncode, "compile output", "")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    if returncode:
+        with pytest.raises(AssertionError, match="compile output"):
+            test_golden_local_platformio(tmp_path)
+    else:
+        test_golden_local_platformio(tmp_path)
+
+
+def test_platformio_harness_missing_cli_is_gap(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(shutil, "which", lambda _: None)
+    with pytest.raises(pytest.skip.Exception, match="GAP: CLI absent"):
+        test_golden_local_platformio(tmp_path)
+    assert "GAP — CLI absent; no live compile pass" in capsys.readouterr().out
