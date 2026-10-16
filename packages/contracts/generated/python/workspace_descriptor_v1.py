@@ -31,6 +31,7 @@ class WorkspaceDescriptorV1(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     baseArtifactVersion: int
     baseProjectStateVersion: int

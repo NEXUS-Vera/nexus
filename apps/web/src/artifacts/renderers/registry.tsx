@@ -4,6 +4,7 @@ import type { InspectorSelection } from '../../lib/inspector-selection';
 import { themeColors } from '../../lib/theme';
 import { PlaceholderWorkspace } from '../../components/layout/PlaceholderWorkspace';
 import { ArchitectureWorkspace } from '../architecture/workspace';
+import { FirmwareWorkspace } from '../firmware/workspace';
 import { ComponentPlanWorkspace } from '../component-plan/workspace';
 import { NextActionWorkspace } from '../next-action/workspace';
 import { ProjectBriefWorkspace } from '../project-brief/workspace';
@@ -18,7 +19,8 @@ export type WorkspaceRendererKey =
   | 'requirement-set'
   | 'functional-architecture'
   | 'next-action'
-  | 'component-plan';
+  | 'component-plan'
+  | 'firmware-scaffold';
 
 export type WorkspaceRenderProps = {
   projectId: string;
@@ -139,6 +141,10 @@ function ComponentPlanRenderer(props: WorkspaceRenderProps) {
   );
 }
 
+function FirmwareRenderer(props: WorkspaceRenderProps) {
+  return <FirmwareWorkspace projectId={props.projectId} isDark={props.isDark} onCommandResult={props.onCommandResult} />;
+}
+
 /**
  * Frontend workspace renderer registry.
  * Lookup is by artifactType / routeKey — never by array position.
@@ -152,6 +158,7 @@ export const WORKSPACE_RENDERER_REGISTRY: Record<
   'functional-architecture': ArchitectureRenderer,
   'next-action': NextActionRenderer,
   'component-plan': ComponentPlanRenderer,
+  'firmware-scaffold': FirmwareRenderer,
 };
 
 export function isWorkspaceRendererKey(value: string): value is WorkspaceRendererKey {
@@ -281,6 +288,7 @@ export function shellMetaFor(
       'requirement-set': 'workspace-requirements-shell',
       'functional-architecture': 'workspace-architecture-shell',
       'component-plan': 'workspace-component-plan-shell',
+      'firmware-scaffold': 'workspace-firmware-shell',
     };
 
     let subtitle: string | undefined;

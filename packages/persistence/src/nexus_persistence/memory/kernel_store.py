@@ -9,6 +9,7 @@ from typing import Any
 from nexus_persistence.errors import (
     ArtifactVersionConflictError,
     ExecutionNotFoundError,
+    FirmwarePatchNotFoundError,
     LedgerImmutableError,
     ProjectNotFoundError,
     ProjectPersistenceError,
@@ -31,6 +32,7 @@ class InMemoryKernelStore:
         self._workspace_files: dict[tuple[str, str], dict[str, Any]] = {}
         self._snapshots: dict[str, dict[str, Any]] = {}
         self._snapshots_by_workspace: dict[str, list[str]] = {}
+        self._firmware_patch_proposals: dict[str, dict[str, Any]] = {}
         self._proposals: dict[str, dict[str, Any]] = {}
         self._proposals_by_project: dict[str, list[str]] = {}
         self._command_runs: dict[str, dict[str, Any]] = {}
@@ -261,6 +263,29 @@ class InMemoryKernelStore:
             if proposal_id not in self._proposals:
                 raise ProposalNotFoundError(f"Proposal not found: {proposal_id}")
             self._proposals[proposal_id] = copy.deepcopy(proposal)
+
+    # --- firmware patch proposals ---
+    def create_firmware_patch_proposal(self, proposal: dict[str, Any]) -> None:
+        with self._lock:
+            pid = proposal["proposalId"]
+            self._firmware_patch_proposals[pid] = copy.deepcopy(proposal)
+
+    def get_firmware_patch_proposal(self, proposal_id: str) -> dict[str, Any]:
+        with self._lock:
+            proposal = self._firmware_patch_proposals.get(proposal_id)
+            if proposal is None:
+                raise FirmwarePatchNotFoundError(
+                    f"Firmware patch proposal not found: {proposal_id}"
+                )
+            return copy.deepcopy(proposal)
+
+    def update_firmware_patch_proposal(self, proposal_id: str, proposal: dict[str, Any]) -> None:
+        with self._lock:
+            if proposal_id not in self._firmware_patch_proposals:
+                raise FirmwarePatchNotFoundError(
+                    f"Firmware patch proposal not found: {proposal_id}"
+                )
+            self._firmware_patch_proposals[proposal_id] = copy.deepcopy(proposal)
 
     # --- command runs ---
     def append_command_run(self, command_run: dict[str, Any]) -> None:

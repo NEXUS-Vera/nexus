@@ -156,6 +156,29 @@ DEFAULT_ARTIFACT_TYPE_DEFINITIONS: list[dict[str, Any]] = [
         executable=True,
         board_visibility="hidden",
     ),
+    _definition(
+        artifact_type="firmware",
+        display_name="Firmware",
+        phase="BUILD",
+        workspace_type="code-workspace",
+        supported_command_types=_EXECUTABLE_COMMANDS,
+        required_capabilities=["file-workspace", "sandbox-execution"],
+        dependencies=[
+            {
+                "artifactType": "functional-architecture",
+                "relationship": "depends-on",
+                "required": False,
+            },
+            {
+                "artifactType": "component-plan",
+                "relationship": "depends-on",
+                "required": False,
+            },
+        ],
+        editable=True,
+        executable=True,
+        board_visibility="primary",
+    ),
 ]
 
 

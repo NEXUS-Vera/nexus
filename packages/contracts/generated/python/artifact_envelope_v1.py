@@ -538,6 +538,7 @@ class ArtifactEnvelopeV1(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     content: Content | Content1 | Content2 | Content3 | Content4

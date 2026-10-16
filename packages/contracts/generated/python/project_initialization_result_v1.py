@@ -735,6 +735,7 @@ class CurrentArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -856,6 +857,7 @@ class CreatedArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -869,6 +871,7 @@ class NextActionArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -907,6 +910,7 @@ class OutputArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

@@ -2,7 +2,13 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware';
 
 /**
  * Lightweight append-only history of a project: the turns that were submitted, the workflow runs they triggered, every artifact revision produced, and the user-facing responses returned.

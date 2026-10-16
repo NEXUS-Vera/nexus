@@ -12,6 +12,29 @@ class Actor(TypedDict, closed=True):
     displayName: NotRequired[str]
     schemaVersion: Literal['1.0.0']
 
+class GeneratedFile(TypedDict, closed=True):
+    contentHash: str
+    path: str
+
+class InputArtifactReference(TypedDict, closed=True):
+    artifactId: NotRequired[str]
+    artifactType: Literal[
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
+        'code-scratch',
+        'firmware',
+    ]
+    artifactVersion: int
+
+class PatchOperation(TypedDict, closed=True):
+    contentHash: NotRequired[str]
+    expectedBaseHash: NotRequired[str]
+    operationType: Literal['create-file', 'replace-file', 'delete-file']
+    path: str
+
 class Payload(TypedDict, closed=True):
     artifactId: NotRequired[str]
     artifactType: NotRequired[
@@ -22,9 +45,12 @@ class Payload(TypedDict, closed=True):
             'next-action',
             'component-plan',
             'code-scratch',
+            'firmware',
         ]
     ]
     artifactVersion: NotRequired[int]
+    baseProjectStateVersion: NotRequired[int]
+    baseSnapshotId: NotRequired[str]
     capability: NotRequired[
         Literal[
             'structured-validation',
@@ -50,6 +76,12 @@ class Payload(TypedDict, closed=True):
         ]
     ]
     executionRunId: NotRequired[str]
+    generatedFiles: NotRequired[list[GeneratedFile]]
+    generationId: NotRequired[str]
+    generationKind: NotRequired[Literal['scaffold', 'patch']]
+    generatorId: NotRequired[str]
+    generatorVersion: NotRequired[str]
+    inputArtifactReferences: NotRequired[list[InputArtifactReference]]
     outputId: NotRequired[str]
     outputType: NotRequired[
         Literal[
@@ -62,11 +94,16 @@ class Payload(TypedDict, closed=True):
             'test-report',
         ]
     ]
+    patchOperations: NotRequired[list[PatchOperation]]
+    patchProposalId: NotRequired[str]
     proposalId: NotRequired[str]
     questionId: NotRequired[str]
     reason: NotRequired[str]
+    requestedChange: NotRequired[str]
     resultingArtifactId: NotRequired[str]
     resultingArtifactVersion: NotRequired[int]
+    scaffoldProfileId: NotRequired[str]
+    scaffoldProfileVersion: NotRequired[str]
     snapshotId: NotRequired[str]
     status: NotRequired[str]
     summary: NotRequired[str]
@@ -122,6 +159,10 @@ class ProjectEventV1(TypedDict, closed=True):
         'compatibility-check.recorded',
         'component-plan.revised',
         'component-plan.marked-stale',
+        'workspace.scaffold-generated',
+        'workspace.patch-proposed',
+        'workspace.patch-applied',
+        'workspace.patch-discarded',
     ]
     occurredAt: str
     payload: Payload

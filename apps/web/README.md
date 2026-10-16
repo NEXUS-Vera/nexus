@@ -61,7 +61,7 @@ Browser refresh reloads live project state from the API.
 | Architecture | Live (`functional-architecture`) |
 | Next Action | Live global (`next-action`) |
 | Components | Live (`component-plan`) |
-| Firmware | Placeholder |
+| Firmware | Live scaffold, patch, and compile workspace (`firmware-scaffold`) |
 | Analysis | Placeholder |
 | Test Plan | Placeholder |
 | Risk Register | Placeholder |

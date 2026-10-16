@@ -19,6 +19,7 @@ class ProducedArtifactReference(TypedDict, closed=True):
         'next-action',
         'component-plan',
         'code-scratch',
+        'firmware',
     ]
     artifactVersion: int
 

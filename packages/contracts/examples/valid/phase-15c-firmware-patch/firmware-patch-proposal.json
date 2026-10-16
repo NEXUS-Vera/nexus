@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "proposalId": "fwpatch_02PHASE15CPROP00000000001",
+  "projectId": "proj_02PHASE15CPROJ00000000001",
+  "artifactId": "art_02PHASE15CART000000000001",
+  "artifactType": "firmware",
+  "workspaceId": "ws_02PHASE15CWORK000000000001",
+  "baseSnapshotId": "snap_02PHASE15CSNAP000000000001",
+  "requestedChange": "Change serial baud to 9600.",
+  "generatorId": "firmware-patch-generator-v1",
+  "generatorVersion": "1.0.0",
+  "inputArtifactReferences": [
+    {
+      "artifactType": "project-brief",
+      "artifactVersion": 1,
+      "artifactId": "art_02PHASE15BRIEF000000000001"
+    },
+    {
+      "artifactType": "requirement-set",
+      "artifactVersion": 1,
+      "artifactId": "art_02PHASE15CREQ000000000001"
+    }
+  ],
+  "operations": [
+    {
+      "operationType": "replace-file",
+      "path": "platformio.ini",
+      "expectedBaseHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "content": "[env:nexus]\nplatform = espressif32\nboard = esp32dev\nframework = arduino\nmonitor_speed = 9600\n",
+      "contentHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "status": "proposed",
+  "requestedBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02USERACTOR000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "requestedAt": "2026-08-11T00:00:00Z"
+}

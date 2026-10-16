@@ -52,6 +52,7 @@ class ProjectKernel:
         scheduler_config: SchedulerConfig | None = None,
         execution_runtime: Any | None = None,
         retention_policy: RetentionPolicy | None = None,
+        firmware_patch_generator: Any | None = None,
         auto_start_scheduler: bool = True,
         recover_jobs_on_start: bool = True,
     ) -> None:
@@ -125,6 +126,7 @@ class ProjectKernel:
             filesystem=self.filesystem,
             executions=self.executions,
             ledger=self.ledger,
+            firmware_patch_generator=firmware_patch_generator,
         )
 
     def list_artifact_types(self) -> list[dict[str, Any]]:
