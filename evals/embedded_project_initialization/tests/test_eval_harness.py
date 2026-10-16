@@ -8,8 +8,10 @@ import sys
 from pathlib import Path
 
 import pytest
+
 from evals.embedded_project_initialization.gates import evaluate_gates
 from evals.embedded_project_initialization.runners.case_loader import (
+    EvalCase,
     load_adversarial_cases,
     load_all_cases,
     load_golden_cases,
@@ -202,3 +204,22 @@ def test_cli_module_is_invocable_via_python_dash_m() -> None:
     )
     assert completed.returncode == 0, completed.stderr
     assert '"passed": true' in completed.stdout
+
+
+async def test_esp32_imu_golden_prompt_passes_fake_provider_quality_gates() -> None:
+    case = EvalCase(
+        id="golden-esp32-imu-vibration-monitor",
+        suite="golden",
+        category="esp32-imu-vibration-monitor",
+        prompt=(
+            "Build an ESP32-based vibration monitor using an MPU6050. "
+            "It should stream acceleration telemetry and analyze stationary sensor noise "
+            "to verify that accel_x RMS noise stays below 0.10 g."
+        ),
+        expected_outcome="supported",
+    )
+    result = await run_case(case)
+    assert result["actualOutcome"] == "supported"
+    assert result["structural"]["passed"] is True
+    assert result["claims"]["passed"] is True
+    assert result["passed"] is True

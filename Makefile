@@ -105,3 +105,9 @@ dev:
 
 test-e2e:
 	@./scripts/run-e2e.sh
+
+.PHONY: seed-wokwi-golden-project
+seed-wokwi-golden-project:
+	@echo "Initialize a project with this prompt (fixture provider):"
+	@echo "I want a golden Nexus circuit simulation project with an ESP32-class MCU and an IMU motion sensor for Wokwi surrogate simulation."
+	@echo "Full demo: docs/architecture/golden-full-demo-execution.md"
