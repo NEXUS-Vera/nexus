@@ -1048,6 +1048,10 @@ class Risk(TypedDict, closed=True):
     linkedRequirementIds: NotRequired[list[str]]
     linkedTestIds: NotRequired[list[str]]
     mitigation: str
+    mitigationVerificationStatus: NotRequired[
+        Literal['proposed', 'evidence-present', 'verified']
+    ]
+    mitigationVerifiedByTests: NotRequired[list[str]]
     priorityScore: int
     residualRisk: NotRequired[str]
     riskId: str

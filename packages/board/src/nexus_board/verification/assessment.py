@@ -90,8 +90,10 @@ def evaluate_criterion(
         if actual is None:
             return "INCONCLUSIVE", "Structural mapping evidence missing."
         expected = str(criterion.get("expectedMapping") or criterion.get("expectedValue") or "")
+        if not expected.strip():
+            return "INCONCLUSIVE", "Expected structural mapping not specified."
         observed = str(actual)
-        ok = observed.upper() == expected.upper() or expected.upper() in observed.upper()
+        ok = observed.strip().upper() == expected.strip().upper()
         signal = criterion.get("signal") or "signal"
         return ("PASS" if ok else "FAIL"), f"{signal}: {observed} (expected {expected})"
 

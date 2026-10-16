@@ -101,10 +101,11 @@ preview. Analysis patch payloads reuse the predecessor's durable patch store;
 `NEXUS_ANALYSIS_USE_STUB=1` selects offline fixtures; set it to `0` for Python
 execution with the configured runtime and preinstalled analysis dependencies.
 
-`kernel.verification` promotes execution evidence into new Test Plan revisions
-and projects requirement coverage separately from verification. Metric criteria
-are assessed by deterministic code. Repeated promotion is idempotent, and the
-Risk Register retains monitoring for risks requiring physical evidence. The API
+`kernel.verification` promotes evidence only from completed execution runs into
+new Test Plan revisions and projects requirement coverage separately from
+verification. Metric criteria are assessed by deterministic code. Repeated promotion is idempotent, and the
+Risk Register retains monitoring for risks requiring physical evidence. Mitigation
+verification requires every declared verification test to exist and pass. The API
 and Evidence Explorer expose the resulting evidence chain.
 
 The golden ESP32/MPU6050 fixture uses `time_s` (seconds) and `accel_*_g`

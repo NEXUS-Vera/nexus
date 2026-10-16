@@ -104,6 +104,14 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 }
         },
+        "mitigationVerificationStatus": {
+          "type": "string",
+          "enum": ["proposed", "evidence-present", "verified"]
+        },
+        "mitigationVerifiedByTests": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
         "status": { "$ref": "#/$defs/riskStatus" },
         "evidenceReferences": {
           "type": "array",

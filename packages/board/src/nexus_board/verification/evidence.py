@@ -6,6 +6,7 @@ Reuse ProducedOutput / ExecutionRun / artifact inspection — no second Evidence
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Any
 
 
@@ -59,11 +60,15 @@ def resolve_existence_evidence(
     required_names: list[str],
     execution_run_id: str | None = None,
 ) -> ResolvedEvidence:
-    missing = [name for name in required_names if not any(name in n for n in produced_output_names)]
+    available = set(produced_output_names)
+    basenames = {PurePosixPath(name).name for name in produced_output_names}
+    missing = [
+        name for name in required_names if name not in (available if "/" in name else basenames)
+    ]
     ok = not missing
     return ResolvedEvidence(
         source="produced-output",
-        actual=",".join(produced_output_names),
+        actual=",".join(sorted(produced_output_names)),
         present=ok,
         detail="all required outputs present" if ok else f"missing: {', '.join(missing)}",
         execution_run_id=execution_run_id,

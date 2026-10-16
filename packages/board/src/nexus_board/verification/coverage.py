@@ -58,6 +58,8 @@ def compute_requirement_coverage(
         rid = req.get("requirementId")
         if isinstance(rid, str) and rid != key:
             linked = [*linked, *by_req.get(rid, [])]
+        # A test may link the same requirement by both UUID and display ID.
+        linked = list({str(c.get("testId") or c.get("displayId")): c for c in linked}.values())
         state = _aggregate(linked)
         rows.append(
             {

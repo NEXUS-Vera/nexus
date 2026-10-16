@@ -158,3 +158,9 @@ Persistence and modification responses reuse the same package shape:
 
 - HTTP APIs use OpenAPI-compatible request models at the edge and return canonical contract payloads.
 - CloudEvents / AsyncAPI remain deferred until message-driven interfaces exist.
+
+## Risk mitigation verification
+
+Risk Register v1 optionally records `mitigationVerificationStatus` (`proposed`,
+`evidence-present`, or `verified`) and `mitigationVerifiedByTests` on each risk.
+These additive fields describe deterministic verification separately from risk status.

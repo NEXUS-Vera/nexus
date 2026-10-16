@@ -125,10 +125,10 @@ def promote_analysis_evidence_into_test_plan(
         if criterion is None:
             cases.append(dict(case))
             continue
-        # Explicit eligibility: analysis method OR analysis criterion types.
+        # Explicit non-analysis methods must retain their own evidence.
         method = str(case.get("verificationMethod") or "")
         ctype = criterion.get("criterionType")
-        analysis_eligible = method == "analysis" or ctype in {
+        analysis_eligible = method in {"analysis", ""} and ctype in {
             "numeric-comparison",
             "range",
             "existence",
@@ -332,7 +332,9 @@ def annotate_risk_mitigation_verification(
             next_risk["mitigationVerificationStatus"] = "proposed"
             risks.append(next_risk)
             continue
-        all_pass = all(c.get("assessment") == "PASS" or c.get("status") == "passed" for c in linked)
+        all_pass = len(linked) == len(vids) and all(
+            c.get("assessment") == "PASS" or c.get("status") == "passed" for c in linked
+        )
         any_evidence = any(c.get("evidenceReferences") for c in linked)
         if all_pass and any_evidence:
             next_risk["mitigationVerificationStatus"] = "verified"
