@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 PYTHON="${PYTHON:-$(command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3)}"
-PYTHON_PATH="apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src:packages/board/src"
+PYTHON_PATH="apps/api/src:agents/embedded-systems/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src:packages/board/src:packages/circuit-simulation/src"
 
 export NEXUS_STORAGE_BACKEND="${NEXUS_STORAGE_BACKEND:-memory}"
 export NEXUS_INITIALIZATION_PROVIDER="${NEXUS_INITIALIZATION_PROVIDER:-fixture}"
