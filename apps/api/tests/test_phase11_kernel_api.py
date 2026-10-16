@@ -161,3 +161,67 @@ async def test_phase11_kernel_api_flow() -> None:
 
         graph = await client.get(f"/v1/projects/{project_id}/graph?direction=both&maxDepth=2")
         assert graph.status_code == 200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("actor_type", ["vera", "embedded-systems-agent", "execution"])
+async def test_api_non_user_acceptance_preserves_head(actor_type: str) -> None:
+    """M4: the HTTP boundary denies non-user approval of a real proposal."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
+        initialized = await client.post("/v1/projects/initialize", json={"message": GREENHOUSE})
+        assert initialized.status_code == 200, initialized.text
+        package = initialized.json()
+        project_id = package["project"]["projectId"]
+        artifact = next(a for a in package["artifacts"] if a["artifactType"] == "requirement-set")
+        prefix = f"/v1/projects/{project_id}"
+        created = await client.post(
+            f"{prefix}/artifacts/requirement-set/workspace", json={"requestedBy": _actor()}
+        )
+        assert created.status_code == 200, created.text
+        base = {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "artifactId": artifact["artifactId"],
+            "workspaceId": created.json()["workspace"]["workspaceId"],
+            "baseArtifactVersion": 1,
+            "baseProjectStateVersion": 1,
+            "requestedBy": _actor(),
+            "requestedAt": "2026-08-04T12:00:00Z",
+        }
+        snapshot = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "workspace.create-snapshot",
+                "input": {"reason": "authority"},
+            },
+        )
+        assert snapshot.status_code == 200, snapshot.text
+        proposal = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "artifact.propose-revision",
+                "input": {"snapshotId": snapshot.json()["snapshotId"]},
+            },
+        )
+        assert proposal.status_code == 200, proposal.text
+        denied = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "artifact.accept-revision",
+                "requestedBy": {**_actor(), "actorType": actor_type},
+                "input": {"proposalId": proposal.json()["proposalId"]},
+            },
+        )
+        assert denied.status_code == 403, denied.text
+        assert denied.json()["error"]["code"] == "GOVERNANCE_REJECTED"
+        current = await client.get(f"{prefix}/artifacts/requirement-set")
+        assert current.status_code == 200, current.text
+        assert current.json() == artifact
