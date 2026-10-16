@@ -237,3 +237,205 @@ async def test_analysis_http_scaffold_patch_and_preview() -> None:
         )
         assert preview.status_code == 200, preview.text
         assert preview.json()["content"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("actor_type", ["vera", "embedded-systems-agent", "execution"])
+async def test_api_non_user_acceptance_preserves_head(actor_type: str) -> None:
+    """M4: the HTTP boundary denies non-user approval of a real proposal."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
+        initialized = await client.post("/v1/projects/initialize", json={"message": GREENHOUSE})
+        assert initialized.status_code == 200, initialized.text
+        package = initialized.json()
+        project_id = package["project"]["projectId"]
+        artifact = next(a for a in package["artifacts"] if a["artifactType"] == "requirement-set")
+        prefix = f"/v1/projects/{project_id}"
+        owner = _actor()
+        created = await client.post(
+            f"{prefix}/artifacts/requirement-set/workspace", json={"requestedBy": owner}
+        )
+        assert created.status_code == 200, created.text
+        base = {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "artifactId": artifact["artifactId"],
+            "workspaceId": created.json()["workspace"]["workspaceId"],
+            "baseArtifactVersion": 1,
+            "baseProjectStateVersion": 1,
+            "requestedBy": owner,
+            "requestedAt": "2026-08-04T12:00:00Z",
+        }
+        lease = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "workspace.acquire-edit-lease",
+                "input": {},
+            },
+        )
+        assert lease.status_code == 200, lease.text
+        snapshot = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "workspace.create-snapshot",
+                "input": {"reason": "authority"},
+            },
+        )
+        assert snapshot.status_code == 200, snapshot.text
+        proposal = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "artifact.propose-revision",
+                "input": {"snapshotId": snapshot.json()["snapshotId"]},
+            },
+        )
+        assert proposal.status_code == 200, proposal.text
+        denied = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "artifact.accept-revision",
+                "requestedBy": {**_actor(), "actorType": actor_type},
+                "input": {"proposalId": proposal.json()["proposalId"]},
+            },
+        )
+        assert denied.status_code == 403, denied.text
+        assert denied.json()["error"]["code"] == "GOVERNANCE_REJECTED"
+        current = await client.get(f"{prefix}/artifacts/requirement-set")
+        assert current.status_code == 200, current.text
+        assert current.json() == artifact
+
+
+@pytest.mark.asyncio
+async def test_api_positive_artifact_lifecycle() -> None:
+    """M1: propose, accept and execute a revision through the HTTP boundary."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
+        initialized = await client.post("/v1/projects/initialize", json={"message": GREENHOUSE})
+        assert initialized.status_code == 200, initialized.text
+        package = initialized.json()
+        project_id = package["project"]["projectId"]
+        artifact = next(a for a in package["artifacts"] if a["artifactType"] == "requirement-set")
+        prefix = f"/v1/projects/{project_id}"
+        owner = _actor()
+        created = await client.post(
+            f"{prefix}/artifacts/requirement-set/workspace", json={"requestedBy": owner}
+        )
+        assert created.status_code == 200, created.text
+        base = {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "artifactId": artifact["artifactId"],
+            "workspaceId": created.json()["workspace"]["workspaceId"],
+            "baseArtifactVersion": 1,
+            "baseProjectStateVersion": 1,
+            "requestedBy": owner,
+            "requestedAt": "2026-08-04T12:00:00Z",
+        }
+        lease = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "workspace.acquire-edit-lease",
+                "input": {},
+            },
+        )
+        assert lease.status_code == 200, lease.text
+        snapshot = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "workspace.create-snapshot",
+                "input": {"reason": "lifecycle input"},
+            },
+        )
+        assert snapshot.status_code == 200, snapshot.text
+        proposal = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "artifact.propose-revision",
+                "input": {"snapshotId": snapshot.json()["snapshotId"]},
+            },
+        )
+        assert proposal.status_code == 200, proposal.text
+        assert proposal.json()["status"] == "completed"
+        accepted = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "artifact.accept-revision",
+                "input": {"proposalId": proposal.json()["proposalId"]},
+            },
+        )
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["status"] == "completed"
+        current = await client.get(f"{prefix}/artifacts/requirement-set")
+        assert current.status_code == 200, current.text
+        head = current.json()
+        assert head["artifactVersion"] == artifact["artifactVersion"] + 1 == 2
+        assert head["artifactId"] != artifact["artifactId"]
+        project = await client.get(prefix)
+        assert project.status_code == 200, project.text
+        assert project.json()["project"]["currentStateVersion"] == 2
+
+        base.update(artifactId=head["artifactId"], baseArtifactVersion=2, baseProjectStateVersion=2)
+        snapshot = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "workspace.create-snapshot",
+                "input": {"reason": "accepted input"},
+            },
+        )
+        assert snapshot.status_code == 200, snapshot.text
+        executed = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "artifact.execute",
+                "input": {
+                    "snapshotId": snapshot.json()["snapshotId"],
+                    "capability": "fake-execution",
+                },
+            },
+        )
+        assert executed.status_code == 200, executed.text
+        assert executed.json()["status"] == "completed"
+        executions = await client.get(f"{prefix}/executions")
+        assert executions.status_code == 200, executions.text
+        [run] = executions.json()["items"]
+        assert run["executionRunId"] == executed.json()["executionRunId"]
+        assert run["status"] == "completed"
+        assert run["artifactId"] == head["artifactId"]
+        assert run["baseArtifactVersion"] == run["baseProjectStateVersion"] == 2
+        assert run["inputSnapshotId"] == snapshot.json()["snapshotId"]
+        assert run["outputReferences"] == executed.json()["outputReferences"]
+        assert run["outputReferences"]
+        events = await client.get(f"{prefix}/events")
+        assert events.status_code == 200, events.text
+        assert {event["eventType"] for event in events.json()["items"]} >= {
+            "artifact.revision-proposed",
+            "artifact.revision-accepted",
+            "artifact.superseded",
+            "execution.queued",
+            "execution.started",
+            "execution.completed",
+            "output.produced",
+            "evidence.attached",
+        }

@@ -192,3 +192,90 @@ def test_stale_execution_not_promoted() -> None:
     assert runs[-1]["status"] == "stale"
     current = project_store.get_artifact(project_id, "requirement-set")
     assert current["artifactVersion"] == 1
+
+
+def test_stale_execution_after_real_accept_not_promoted() -> None:
+    kernel, project_store, kernel_store, project_id = build_test_kernel()
+    art = project_store.get_artifact(project_id, "requirement-set")
+    editor = actor()
+    created = kernel.workspaces.create_workspace(
+        project_id=project_id,
+        artifact_type="requirement-set",
+        actor=editor,
+    )
+    ws = created["workspace"]["workspaceId"]
+    acquire_edit_lease(
+        kernel,
+        project_id=project_id,
+        artifact_id=art["artifactId"],
+        workspace_id=ws,
+        requested_by=editor,
+    )
+    updated = kernel.dispatch(
+        cmd(
+            command_type="workspace.update-draft",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"content": {"requirements": []}, "expectedDraftVersion": 1},
+            requested_by=editor,
+        )
+    )
+    assert updated["status"] == "completed"
+    snap = kernel.dispatch(
+        cmd(
+            command_type="workspace.create-snapshot",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"reason": "exec"},
+            requested_by=editor,
+        )
+    )
+    assert snap["status"] == "completed"
+    proposal = kernel.dispatch(
+        cmd(
+            command_type="artifact.propose-revision",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"snapshotId": snap["snapshotId"]},
+            requested_by=editor,
+        )
+    )
+    accepted = kernel.dispatch(
+        cmd(
+            command_type="artifact.accept-revision",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"proposalId": proposal["proposalId"]},
+            requested_by=actor("user"),
+        )
+    )
+    assert accepted["status"] == "completed"
+    head = project_store.get_artifact(project_id, "requirement-set")
+    assert head["artifactVersion"] == 2
+
+    result = kernel.dispatch(
+        cmd(
+            command_type="artifact.execute",
+            project_id=project_id,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            base_project_state_version=1,
+            input_data={
+                "snapshotId": snap["snapshotId"],
+                "capability": "structured-validation",
+            },
+        )
+    )
+    assert result["status"] == "conflicted"
+    assert result["error"]["code"] == "STALE_EXECUTION_RESULT"
+    # With #71's bounded jobs the stale snapshot is rejected before a run is
+    # recorded; any run that does exist must be marked stale, never promoted.
+    runs, _ = kernel_store.list_execution_runs(project_id)
+    assert all(r["status"] == "stale" for r in runs)
+    current = project_store.get_artifact(project_id, "requirement-set")
+    assert current == head
+    assert kernel_store.list_produced_outputs(project_id) == []
