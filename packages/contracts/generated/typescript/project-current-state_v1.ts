@@ -1403,6 +1403,8 @@ export interface RiskRegisterContent {
       linkedRequirementIds?: string[];
       linkedTestIds?: string[];
       mitigation: string;
+      mitigationVerificationStatus?: 'proposed' | 'evidence-present' | 'verified';
+      mitigationVerifiedByTests?: string[];
       priorityScore: number;
       residualRisk?: string;
       riskId: string;
@@ -1432,6 +1434,8 @@ export interface RiskRegisterContent {
       linkedRequirementIds?: string[];
       linkedTestIds?: string[];
       mitigation: string;
+      mitigationVerificationStatus?: 'proposed' | 'evidence-present' | 'verified';
+      mitigationVerifiedByTests?: string[];
       priorityScore: number;
       residualRisk?: string;
       riskId: string;

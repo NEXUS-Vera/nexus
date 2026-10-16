@@ -32,6 +32,11 @@ RUN apt-get update \
     && python3 -c "import numpy,pandas,matplotlib; print(numpy.__version__, pandas.__version__, matplotlib.__version__)" \
     && mkdir -p /workspace
 
+RUN groupadd -g 10001 nexus \
+    && useradd -u 10001 -g nexus -m -s /bin/bash nexus \
+    && chown nexus:nexus /workspace
+
+USER nexus
 WORKDIR /workspace
 
 CMD ["python3", "--version"]

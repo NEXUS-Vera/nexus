@@ -28,19 +28,24 @@ class _ModelGateway(Protocol):
     ) -> Any: ...
 
 
-def _run_sync(coro: Any) -> Any:
+def _run_sync(coro: Any, *, timeout: float) -> Any:
     result_q: queue.Queue[tuple[bool, Any]] = queue.Queue(maxsize=1)
 
     def _runner() -> None:
         try:
             result_q.put((True, asyncio.run(coro)))
-        except Exception as exc:  # noqa: BLE001
+        except BaseException as exc:  # noqa: BLE001
             result_q.put((False, exc))
 
     thread = threading.Thread(target=_runner, daemon=True)
     thread.start()
-    thread.join()
-    ok, value = result_q.get()
+    thread.join(timeout=timeout)
+    if thread.is_alive():
+        raise AnalysisPatchGenerationError("Model patch generation timed out")
+    try:
+        ok, value = result_q.get_nowait()
+    except queue.Empty as exc:
+        raise AnalysisPatchGenerationError("Model patch generation returned no result") from exc
     if ok:
         return value
     raise value
@@ -128,7 +133,8 @@ class LiveAnalysisPatchGenerator:
                     model_policy=self.model_policy,
                     prompt_id=self.prompt_id,
                     prompt_version=self.prompt_version,
-                )
+                ),
+                timeout=self.model_policy.timeout_seconds + 5.0,
             )
         except ModelGatewayError as exc:
             raise AnalysisPatchGenerationError(

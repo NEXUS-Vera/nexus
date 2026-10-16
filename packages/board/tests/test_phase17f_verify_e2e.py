@@ -11,6 +11,7 @@ import pytest
 from helpers import actor, content_for
 from nexus_board.ids import new_id, utc_now_iso
 from nexus_board.kernel import build_project_kernel
+from nexus_board.services.verification_service import VerificationError
 from nexus_board.verification.close import (
     annotate_risk_mitigation_verification,
     promote_analysis_evidence_into_test_plan,
@@ -442,7 +443,10 @@ def test_evidence_chain_exposes_r7_links() -> None:
     assert r7[0]["evidenceReferences"]
 
 
-def test_g1_product_path_execution_run_promotion() -> None:
+@pytest.mark.parametrize(
+    "run_status", ["completed", "failed", "timed-out", "cancelled", "truncated"]
+)
+def test_g1_product_path_execution_run_promotion(run_status: str) -> None:
     """Analysis ExecutionRun + ProducedOutput → VerificationService (not helper-only)."""
 
     kernel, project_store, project_id, user = _seed()
@@ -480,7 +484,8 @@ def test_g1_product_path_execution_run_promotion() -> None:
             "executionRunId": run_id,
             "projectId": project_id,
             "artifactType": "analysis",
-            "status": "completed",
+            "status": "completed" if run_status == "truncated" else run_status,
+            **({"executionJobId": "execjob_TRUNCATED"} if run_status == "truncated" else {}),
             "createdAt": now,
             "startedAt": now,
             "completedAt": now,
@@ -488,6 +493,29 @@ def test_g1_product_path_execution_run_promotion() -> None:
             "runtimeKind": "process",
         }
     )
+
+    if run_status == "truncated":
+        ks.create_execution_job(
+            {
+                "executionJobId": "execjob_TRUNCATED",
+                "executionRunId": run_id,
+                "projectId": project_id,
+                "status": "succeeded",
+                "logTruncated": True,
+            }
+        )
+
+    if run_status != "completed":
+        before = project_store.get_artifact(project_id, "test-plan")
+        with pytest.raises(VerificationError, match="truncated|completed"):
+            kernel.verification.promote_execution_evidence(
+                project_id=project_id,
+                execution_run_id=run_id,
+                actor=user,
+                accept=True,
+            )
+        assert project_store.get_artifact(project_id, "test-plan") == before
+        return
 
     result = kernel.verification.promote_execution_evidence(
         project_id=project_id,

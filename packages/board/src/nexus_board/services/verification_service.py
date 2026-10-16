@@ -86,6 +86,13 @@ class VerificationService:
         run = self._kernel.get_execution_run(execution_run_id)
         if run.get("projectId") != project_id:
             raise VerificationError("ExecutionRun does not belong to this project.")
+        if run.get("status") != "completed":
+            raise VerificationError("ExecutionRun must be completed before promoting evidence.")
+        job_id = run.get("executionJobId")
+        if job_id:
+            job = self._kernel.get_execution_job(job_id)
+            if job.get("logTruncated"):
+                raise VerificationError("ExecutionRun logs were truncated; evidence is incomplete.")
 
         test_plan = self._projects.get_artifact(project_id, "test-plan")
         requirements = self._load_requirements(project_id)
