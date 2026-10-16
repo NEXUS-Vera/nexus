@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import os
+import re
 import shutil
 import time
 from pathlib import Path
@@ -19,6 +21,7 @@ from helpers import acquire_edit_lease, actor, build_test_kernel
 from nexus_board.analysis.semantics import assess_metric
 from nexus_board.execution.runtime_factory import build_execution_runtime
 from nexus_board.kernel import build_project_kernel
+from nexus_board.services.verification_service import VerificationError
 from nexus_circuit_simulation import MaterializationRequest, assess_support, materialize_workspace
 from nexus_embedded_systems.workflows.layered_architecture import (
     ensure_layered_architecture_artifacts,
@@ -57,8 +60,12 @@ def test_golden_prompt_routes_to_vibration_monitor_family() -> None:
     assert decision.family == FIXTURE_FAMILY
 
 
+@pytest.mark.parametrize("fail_analysis", [False, True])
 def test_golden_g1_fixture_full_system(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, request: pytest.FixtureRequest
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    request: pytest.FixtureRequest,
+    fail_analysis: bool,
 ) -> None:
     """GOLDEN G1 — fixture generation, compile stub, real analysis and VERIFY."""
     monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
@@ -109,6 +116,8 @@ def test_golden_g1_fixture_full_system(
 
     firmware_src = (GOLDEN_DIR / "main.cpp").read_text(encoding="utf-8")
     analysis_src = (GOLDEN_DIR / "analysis.py").read_text(encoding="utf-8")
+    if fail_analysis:
+        analysis_src += "\nraise SystemExit(1)\n"
     findings = validate_golden_consistency(
         artifacts=init_artifacts,
         firmware_source=firmware_src,
@@ -258,6 +267,22 @@ def test_golden_g1_fixture_full_system(
         project_id=project_id, artifact_type="analysis", actor=user
     )
     an_run = _wait_run(kernel, started["executionRun"]["executionRunId"])
+    if fail_analysis:
+        assert an_run["status"] == "failed", an_run
+        before = project_store.get_artifact(project_id, "test-plan")
+        coverage_before = kernel.verification.requirement_verification_projection(project_id)
+        with pytest.raises(VerificationError, match="completed"):
+            kernel.verification.promote_execution_evidence(
+                project_id=project_id,
+                execution_run_id=an_run["executionRunId"],
+                actor=user,
+                accept=True,
+            )
+        assert project_store.get_artifact(project_id, "test-plan") == before
+        assert (
+            kernel.verification.requirement_verification_projection(project_id) == coverage_before
+        )
+        return
     assert an_run["status"] == "completed", an_run
     outputs = kernel.workspace_runtime.list_outputs_for_run(
         project_id=project_id, execution_run_id=an_run["executionRunId"]
@@ -308,11 +333,18 @@ def test_golden_g1_fixture_full_system(
     assert after["artifactVersion"] > before["artifactVersion"]
     rows = kernel.verification.requirement_verification_projection(project_id)
     assert next(r for r in rows if r["displayId"] == "R7")["verificationState"] == "VERIFIED"
+    assert next(r for r in rows if r["displayId"] == "R8")["verificationState"] == "VERIFIED"
     chain = kernel.verification.evidence_chain(project_id)
     r7 = next(r for r in chain if r["requirementId"] == "R7")
     assert r7["assessment"] == "PASS"
     assert r7["assessmentAuthority"] == "deterministic-code"
     assert r7["evidenceReferences"]
+    for requirement_id in ("R7", "R8"):
+        evidence = next(r for r in chain if r["requirementId"] == requirement_id)
+        assert evidence["assessment"] == "PASS"
+        assert any(
+            ref["sourceId"] == an_run["executionRunId"] for ref in evidence["evidenceReferences"]
+        )
     again = kernel.verification.promote_execution_evidence(
         project_id=project_id,
         execution_run_id=an_run["executionRunId"],
@@ -350,6 +382,7 @@ def test_golden_g1_fixture_full_system(
         },
         "consistencyFindings": findings2,
         "evidenceTrace": evidence_gap,
+        "requirementVerification": rows,
         "humanReadable": {
             "title": "NEXUS GOLDEN PROJECT RESULT",
             "stages": {
@@ -505,7 +538,7 @@ def test_golden_g3_live_llm_stub_runtimes(monkeypatch: pytest.MonkeyPatch, tmp_p
         actor=user,
         requested_change=(
             "Implement ESP32 MPU6050 vibration monitor firmware: I2C SDA=GPIO21 SCL=GPIO22, "
-            "Serial 115200, readiness marker, TEL telemetry with time_ms and accel_*_g."
+            "Serial 115200, readiness marker, TEL telemetry with time_s and accel_*_g."
         ),
     )["proposal"]
     assert fw_proposal["operations"], "Live firmware patch generator returned no operations"
@@ -716,3 +749,24 @@ def test_golden_g4_live_llm_analysis(monkeypatch: pytest.MonkeyPatch, tmp_path: 
             "analysisImage": an_image,
         },
     )
+
+
+def test_firmware_telemetry_parses_in_analysis(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from golden.esp32_imu_vibration_monitor import analysis
+    from golden.esp32_imu_vibration_monitor.consistency import TELEMETRY_FIELDS
+
+    firmware = (GOLDEN_DIR / "main.cpp").read_text()
+    header = re.search(r'Serial.println\("(time_s,[^" ]+)"\)', firmware)
+    assert header is not None, "Firmware must emit the CSV header with explicit units"
+    assert tuple(header[1].split(",")) == TELEMETRY_FIELDS == analysis.REQUIRED
+    assert "Serial.print(now / 1000.0, 3)" in firmware
+    dataset = tmp_path / "stationary_imu.csv"
+    dataset.write_text(header[1] + "\n0.020,0.01,0,1\n0.040,-0.01,0,1\n")
+    monkeypatch.setattr(analysis, "DATA", dataset)
+    monkeypatch.setattr(analysis, "OUT", tmp_path / "outputs")
+    analysis.main()
+    with (tmp_path / "outputs/processed.csv").open() as handle:
+        rows = list(csv.DictReader(handle))
+    assert [float(row["time_s"]) for row in rows] == [0.02, 0.04]
