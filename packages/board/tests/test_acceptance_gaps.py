@@ -107,8 +107,8 @@ def test_sqlite_restart_reconstructs_execution_history(tmp_path: Path) -> None:
     outputs = store.list_produced_outputs(project_id)
     assert {o["outputId"] for o in outputs} == set(run["outputReferences"])
     assert outputs
-    events = store.list_project_events(project_id)
-    assert {e["eventType"] for e in events[0]} >= {
+    events, _ = store.list_project_events(project_id)
+    assert {e["eventType"] for e in events} >= {
         "artifact.revision-accepted",
         "execution.completed",
         "evidence.attached",
@@ -132,7 +132,9 @@ def test_sqlite_restart_reconstructs_execution_history(tmp_path: Path) -> None:
     assert store.get_snapshot(run["inputSnapshotId"]) == saved_snapshot
     assert saved_snapshot["content"]["structuredContent"] == {"requirements": []}
     assert store.list_produced_outputs(project_id) == outputs
-    assert store.list_project_events(project_id) == events
+    reopened_events, cursor = store.list_project_events(project_id)
+    assert reopened_events == events
+    assert cursor is None
     assert store.list_graph_nodes(project_id) == nodes
     assert store.list_graph_edges(project_id) == edges
     assert kernel.get_board(project_id) == board
