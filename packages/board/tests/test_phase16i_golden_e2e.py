@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import time
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -35,7 +36,9 @@ from nexus_embedded_systems.workflows.project_initialization.fixture_router impo
 from nexus_embedded_systems.workflows.project_initialization.materializer import (
     materialize_fixture_package,
 )
-from nexus_persistence import InMemoryKernelStore, InMemoryProjectStore
+from nexus_persistence import InMemoryKernelStore, InMemoryProjectStore, LocalFileStore
+from nexus_persistence.factory import build_stores
+from nexus_persistence.file_store.errors import FileStoreNotFoundError
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden" / "esp32_imu_vibration_monitor"
 FIXTURE_FAMILY = "esp32-imu-vibration-monitor"
@@ -66,9 +69,39 @@ def test_golden_prompt_routes_to_vibration_monitor_family() -> None:
 def test_golden_g1_fixture_full_system(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    request: pytest.FixtureRequest,
     fail_analysis: bool | str,
 ) -> None:
+    _run_golden_g1(monkeypatch, tmp_path, fail_analysis)
+
+
+def _run_golden_g1(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    fail_analysis: bool | str,
+    *,
+    sqlite_url: str | None = None,
+    file_store_root: Path | None = None,
+) -> dict[str, Any] | None:
+    with ExitStack() as cleanup:
+        return _execute_golden_g1(
+            monkeypatch,
+            tmp_path,
+            cleanup,
+            fail_analysis,
+            sqlite_url=sqlite_url,
+            file_store_root=file_store_root,
+        )
+
+
+def _execute_golden_g1(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    cleanup: ExitStack,
+    fail_analysis: bool | str,
+    *,
+    sqlite_url: str | None = None,
+    file_store_root: Path | None = None,
+) -> dict[str, Any] | None:
     """GOLDEN G1 — fixture generation, compile stub, real analysis and VERIFY."""
     monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
     monkeypatch.setenv("NEXUS_ANALYSIS_USE_STUB", "0")
@@ -136,12 +169,19 @@ def test_golden_g1_fixture_full_system(
     )
     assert findings == [], findings
 
-    project_store = InMemoryProjectStore()
+    project_store: Any
+    if sqlite_url is None:
+        project_store = InMemoryProjectStore()
+        ks = InMemoryKernelStore(project_store=project_store)
+    else:
+        project_store, ks = build_stores("sqlite", sqlite_url)
     package["artifacts"] = init_artifacts
     project_store.save_initialization_package(package)
-    ks = InMemoryKernelStore(project_store=project_store)
-    kernel = build_project_kernel(ks, project_store=project_store)
-    request.addfinalizer(kernel.jobs.shutdown)
+    kernel_kwargs: dict[str, Any] = {}
+    if file_store_root is not None:
+        kernel_kwargs["file_store"] = LocalFileStore(file_store_root)
+    kernel = build_project_kernel(ks, project_store=project_store, **kernel_kwargs)
+    cleanup.callback(kernel.jobs.shutdown)
     user = actor("user")
     project_id = str(package["project"]["projectId"])
 
@@ -390,6 +430,8 @@ def test_golden_g1_fixture_full_system(
                 {"R7": "FAILED", "summary": summary_preview, "evidence": evidence},
             )
             print("DEFECT: R7 FAILED; injected 0.20 g RMS input; evidence=" + json.dumps(evidence))
+        if sqlite_url is not None:
+            return _capture_golden_restart_state(kernel, project_id, an_run)
         return
     assert summary_preview["assessment"] == "PASS"
     assert summary_preview["authority"] == "deterministic-code"
@@ -497,6 +539,8 @@ def test_golden_g1_fixture_full_system(
         },
         "result": "PASS",
     }
+    if sqlite_url is not None:
+        return _capture_golden_restart_state(kernel, project_id, an_run)
     # Preserve the evidence basis, then accept a changed requirement through the store.
     requirement = project_store.get_artifact(project_id, "requirement-set")
     basis_version = requirement["artifactVersion"]
@@ -521,6 +565,110 @@ def test_golden_g1_fixture_full_system(
     _write_report(tmp_path / "golden-g1.json", report)
     print("FIXTURE: R7 VERIFIED; RMS=" + str(summary_preview["accel_x_rms_noise_g"]))
     print("REQUIREMENT CHANGE: evidence STALE; " + json.dumps(report["evidenceFreshness"]))
+
+
+def _capture_golden_restart_state(
+    kernel: Any, project_id: str, run: dict[str, Any]
+) -> dict[str, Any]:
+    return copy.deepcopy(
+        {
+            "projectId": project_id,
+            "board": kernel.get_board(project_id),
+            "projection": kernel.verification.requirement_verification_projection(project_id),
+            "chain": kernel.verification.evidence_chain(project_id),
+            "run": run,
+            "inputs": {
+                path: kernel.workspace_runtime.read_analysis_snapshot_file(
+                    project_id=project_id,
+                    artifact_type="analysis",
+                    snapshot_id=run["inputSnapshotId"],
+                    path=path,
+                )
+                for path in ("analysis.py", "data/stationary_imu.csv")
+            },
+        }
+    )
+
+
+def _assert_golden_restart_preserves_verification(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    fail_analysis: bool | str,
+    expected_state: str,
+    *,
+    durable_files: bool,
+) -> None:
+    url = f"sqlite:///{tmp_path / 'golden.sqlite3'}"
+    file_root = tmp_path / "file-store" if durable_files else None
+    # Only detached data returns; the helper shuts down jobs and retains no
+    # bound finalizer for the original kernel before fresh stores are built.
+    before = _run_golden_g1(
+        monkeypatch, tmp_path, fail_analysis, sqlite_url=url, file_store_root=file_root
+    )
+    assert before is not None
+    r7 = next(row for row in before["projection"] if row["displayId"] == "R7")
+    assert r7["verificationState"] == expected_state
+    evidence = next(row for row in before["chain"] if row["requirementId"] == "R7")
+    assert evidence["evidenceReferences"]
+    assert evidence["executionRunId"] == before["run"]["executionRunId"]
+    assert evidence["assessmentAuthority"] == "deterministic-code"
+    assert evidence["criterion"]["metricId"] == "accel_x_rms_noise_g"
+    assert evidence["criterion"]["expectedValue"] == 0.10
+
+    projects, store = build_stores("sqlite", url)
+    kernel_kwargs: dict[str, Any] = {}
+    if file_root is not None:
+        kernel_kwargs["file_store"] = LocalFileStore(file_root)
+    kernel = build_project_kernel(store, project_store=projects, **kernel_kwargs)
+    try:
+        run = store.get_execution_run(before["run"]["executionRunId"])
+        assert run == before["run"]
+        assert kernel.get_board(before["projectId"]) == before["board"]
+        assert (
+            kernel.verification.requirement_verification_projection(before["projectId"])
+            == before["projection"]
+        )
+        assert kernel.verification.evidence_chain(before["projectId"]) == before["chain"]
+        after = _capture_golden_restart_state(kernel, before["projectId"], run)
+        # Full equality includes verified counts, evidence IDs, criterion,
+        # execution links, deterministic authority, and snapshot file contents.
+        assert after == before
+    finally:
+        kernel.jobs.shutdown()
+
+
+@pytest.mark.parametrize(
+    "fail_analysis, expected_state", [(False, "VERIFIED"), ("noise", "FAILED")]
+)
+def test_golden_g1_sqlite_restart_preserves_verification(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    fail_analysis: bool | str,
+    expected_state: str,
+) -> None:
+    """M2: promoted evidence and its immutable inputs survive fresh SQLite + file stores."""
+    _assert_golden_restart_preserves_verification(
+        monkeypatch, tmp_path, fail_analysis, expected_state, durable_files=True
+    )
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=FileStoreNotFoundError,
+    reason=(
+        "Known gap: build_project_kernel (and the API when NEXUS_FILE_STORE_ROOT is "
+        "unset) defaults to InMemoryFileStore, so analysis input snapshot blobs are "
+        "lost on restart even though SQLite keeps the verification metadata"
+    ),
+)
+def test_golden_g1_sqlite_restart_default_file_store_loses_snapshots(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Documents the in-memory file store default; flips to XPASS once it is durable."""
+    _assert_golden_restart_preserves_verification(
+        monkeypatch, tmp_path, False, "VERIFIED", durable_files=False
+    )
 
 
 @pytest.mark.skipif(
