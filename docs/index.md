@@ -5,6 +5,7 @@ Durable long-form documentation for Nexus lives under `docs/`. Module-level purp
 ## Architecture
 
 - [Repository overview](./architecture/overview.md)
+- [Golden full demo execution](./architecture/golden-full-demo-execution.md)
 
 ### Mind Graph
 
