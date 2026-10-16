@@ -90,6 +90,7 @@ extraPaths = [
   "agents/vera/src",
   "packages/agent-runtime/src",
   "packages/board/src",
+  "packages/board/tests",
   "packages/contracts/src",
   "packages/contracts/generated/python",
   "packages/memory/src",

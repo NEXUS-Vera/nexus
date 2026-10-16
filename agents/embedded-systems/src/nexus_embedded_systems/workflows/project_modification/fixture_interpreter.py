@@ -14,6 +14,13 @@ SUPPORTED_OPS = {
     "remove-proposed-requirement",
     "answer-open-question",
     "change-project-scope",
+    "reject-component-candidate",
+    "approve-component-selection",
+    "change-component-preference",
+    "add-component-constraint",
+    "change-interface-constraint",
+    "request-component-alternatives",
+    "answer-component-open-question",
 }
 
 
@@ -43,6 +50,28 @@ _ANSWER_RUNTIME_Q = re.compile(
     r"(\d+|eight|six|twelve)\s*(hour|hours|month|months)\b"
     r"|\b(\d+|eight|six|twelve)\s*(hour|hours).{0,20}(runtime|battery|operating)\b"
 )
+_REJECT_CANDIDATE = re.compile(r"(?i)\b(reject|drop|remove)\b.{0,40}\b(candidate|part|component)\b")
+_APPROVE_SELECTION = re.compile(
+    r"(?i)\b(approve|accept|confirm)\b.{0,40}\b(selection|candidate|component|part)\b"
+)
+_PREFER_CANDIDATE = re.compile(
+    r"(?i)\b(prefer|preference|favorite)\b.{0,40}\b(candidate|part|component)\b"
+)
+_ADD_BUDGET_CONSTRAINT = re.compile(
+    r"(?i)\b(budget|cost|bom)\b.{0,40}\b(constraint|limit|under|max|maximum|cap)\b"
+    r"|\b(add|set)\b.{0,20}\b(budget|cost)\b.{0,20}\b(constraint|limit)\b"
+)
+_INTERFACE_CONSTRAINT = re.compile(
+    r"(?i)\b(interface|i2c|spi|uart|ble|wifi)\b.{0,40}\b(constraint|require|must|only)\b"
+    r"|\b(change|update)\b.{0,20}\b(interface)\b"
+)
+_REQUEST_ALTERNATIVES = re.compile(
+    r"(?i)\b(alternative|alternatives|other options|other candidates|more candidates)\b"
+)
+_ANSWER_COMPONENT_Q = re.compile(
+    r"(?i)\b(accuracy|tolerance|range)\b.{0,40}\b(\d+|percent|%|celsius|°c)\b"
+    r"|\b(answer|for the component)\b.{0,40}\b(accuracy|question)\b"
+)
 
 
 def interpret_fixture_change(
@@ -54,6 +83,15 @@ def interpret_fixture_change(
     text = message.strip()
     requirements = _requirements(current_state)
     questions = current_state.get("openQuestions") or []
+    component_plan = _component_plan(current_state)
+
+    component_intent = _interpret_component_plan_change(
+        text,
+        source_turn_id=source_turn_id,
+        component_plan=component_plan,
+    )
+    if component_intent is not None:
+        return component_intent
 
     # Open-question answers first (runtime).
     if _ANSWER_RUNTIME_Q.search(text) or (
@@ -193,14 +231,248 @@ def interpret_fixture_change(
             "Fixture mode cannot interpret this modification. "
             "Supported examples include runtime/battery constraints, accuracy answers, "
             "sampling rate, environment, communication, size/weight, budget, "
-            "and rejecting a proposed requirement."
+            "rejecting a proposed requirement, and component-plan operations "
+            "(approve/reject candidates, budget/interface constraints, alternatives)."
         ),
     )
+
+
+def _interpret_component_plan_change(
+    text: str,
+    *,
+    source_turn_id: str,
+    component_plan: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if component_plan is None:
+        return None
+    content = component_plan.get("content") or {}
+    candidates = [c for c in (content.get("candidates") or []) if isinstance(c, dict)]
+    roles = [r for r in (content.get("componentRoles") or []) if isinstance(r, dict)]
+    open_qs = [q for q in (content.get("openQuestions") or []) if isinstance(q, dict)]
+
+    if _REJECT_CANDIDATE.search(text):
+        target = _resolve_single_candidate(candidates, text=text, prefer_preferred=False)
+        return _intent(
+            operation="reject-component-candidate",
+            target_artifact_type="component-plan",
+            requested_change=text,
+            source_turn_id=source_turn_id,
+            confidence="high",
+            category="component-plan",
+            extra={"pattern": "reject-candidate", "targetCandidateId": target},
+        )
+    if _APPROVE_SELECTION.search(text):
+        target = _resolve_single_candidate(
+            candidates,
+            text=text,
+            prefer_preferred=True,
+            roles=roles,
+        )
+        return _intent(
+            operation="approve-component-selection",
+            target_artifact_type="component-plan",
+            requested_change=text,
+            source_turn_id=source_turn_id,
+            confidence="high",
+            category="component-plan",
+            extra={"pattern": "approve-selection", "targetCandidateId": target},
+        )
+    if _PREFER_CANDIDATE.search(text):
+        target = _resolve_single_candidate(candidates, text=text, prefer_preferred=False)
+        return _intent(
+            operation="change-component-preference",
+            target_artifact_type="component-plan",
+            requested_change=text,
+            source_turn_id=source_turn_id,
+            confidence="high",
+            category="component-plan",
+            extra={"pattern": "prefer-candidate", "targetCandidateId": target},
+        )
+    if _ADD_BUDGET_CONSTRAINT.search(text):
+        role_id = _resolve_single_role(roles, text=text, prefer_default=True)
+        return _intent(
+            operation="add-component-constraint",
+            target_artifact_type="component-plan",
+            requested_change=text,
+            source_turn_id=source_turn_id,
+            confidence="high",
+            category="budget",
+            extra={"pattern": "add-budget-constraint", "targetRoleId": role_id},
+        )
+    if _INTERFACE_CONSTRAINT.search(text):
+        role_id = _resolve_single_role(roles, text=text, prefer_default=True)
+        return _intent(
+            operation="change-interface-constraint",
+            target_artifact_type="component-plan",
+            requested_change=text,
+            source_turn_id=source_turn_id,
+            confidence="high",
+            category="communication",
+            extra={"pattern": "change-interface-constraint", "targetRoleId": role_id},
+        )
+    if _REQUEST_ALTERNATIVES.search(text):
+        role_id = _resolve_single_role(roles, text=text, prefer_default=True)
+        return _intent(
+            operation="request-component-alternatives",
+            target_artifact_type="component-plan",
+            requested_change=text,
+            source_turn_id=source_turn_id,
+            confidence="high",
+            category="component-plan",
+            extra={"pattern": "request-alternatives", "targetRoleId": role_id},
+        )
+    if open_qs and _ANSWER_COMPONENT_Q.search(text):
+        return _intent(
+            operation="answer-component-open-question",
+            target_artifact_type="component-plan",
+            requested_change=text,
+            source_turn_id=source_turn_id,
+            confidence="high",
+            category="accuracy",
+            target_question_id=open_qs[0].get("questionId"),
+            extra={"pattern": "answer-component-question"},
+        )
+    return None
+
+
+def _resolve_single_candidate(
+    candidates: list[dict[str, Any]],
+    *,
+    text: str = "",
+    prefer_preferred: bool = False,
+    roles: list[dict[str, Any]] | None = None,
+) -> str | None:
+    active = [c for c in candidates if c.get("candidateState") not in {"rejected", "superseded"}]
+    named = [c for c in active if _candidate_named_in_text(c, text)]
+    if named:
+        if prefer_preferred:
+            preferred_named = [c for c in named if c.get("candidateState") == "preferred"]
+            if preferred_named:
+                return preferred_named[0].get("candidateId")
+        if len(named) == 1:
+            return named[0].get("candidateId")
+        raise FixtureModificationError(
+            code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+            message=(
+                "Multiple component candidates match. Clarify which role or candidate to update."
+            ),
+        )
+
+    scoped = active
+    matched_roles = _roles_matching_text(roles or [], text)
+    if matched_roles and len(matched_roles) < len(roles or []):
+        role_ids = {r.get("componentRoleId") for r in matched_roles}
+        scoped = [c for c in active if c.get("componentRoleId") in role_ids]
+
+    if prefer_preferred:
+        preferred = [c for c in scoped if c.get("candidateState") == "preferred"]
+        if len(preferred) == 1:
+            return preferred[0].get("candidateId")
+        if len(preferred) > 1 and not matched_roles:
+            raise FixtureModificationError(
+                code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+                message=(
+                    "Multiple preferred candidates match. "
+                    "Clarify which role or candidate to approve."
+                ),
+            )
+        if len(preferred) > 1:
+            raise FixtureModificationError(
+                code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+                message="Multiple preferred candidates match. Clarify which candidate to update.",
+            )
+        if len(preferred) == 0 and len(scoped) == 1:
+            return scoped[0].get("candidateId")
+
+    if len(scoped) > 1:
+        raise FixtureModificationError(
+            code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+            message="Multiple component candidates match. Clarify which candidate to update.",
+        )
+    if len(scoped) == 1:
+        return scoped[0].get("candidateId")
+    return None
+
+
+def _resolve_single_role(
+    roles: list[dict[str, Any]],
+    *,
+    text: str = "",
+    prefer_default: bool = False,
+) -> str | None:
+    matched = _roles_matching_text(roles, text)
+    if len(matched) == 1:
+        return matched[0].get("componentRoleId")
+    if prefer_default and roles:
+        sensors = [r for r in roles if r.get("category") == "sensor"]
+        if len(sensors) == 1:
+            return sensors[0].get("componentRoleId")
+        awaiting = [r for r in roles if r.get("status") == "selection-proposed"]
+        if len(awaiting) == 1:
+            return awaiting[0].get("componentRoleId")
+        if sensors:
+            return sensors[0].get("componentRoleId")
+        return roles[0].get("componentRoleId")
+    if len(roles) > 1:
+        raise FixtureModificationError(
+            code="AMBIGUOUS_PROJECT_CHANGE_TARGET",
+            message="Multiple component roles match. Clarify which role to update.",
+        )
+    if len(roles) == 1:
+        return roles[0].get("componentRoleId")
+    return None
+
+
+def _roles_matching_text(roles: list[dict[str, Any]], text: str) -> list[dict[str, Any]]:
+    blob = text.casefold()
+    if not blob or not roles:
+        return list(roles)
+    matched = []
+    for role in roles:
+        category = str(role.get("category") or "").casefold()
+        name = str(role.get("name") or "").casefold()
+        display = str(role.get("displayId") or "").casefold()
+        if category and category in blob:
+            matched.append(role)
+            continue
+        if display and display in blob:
+            matched.append(role)
+            continue
+        # Match distinctive words from the role name (skip generic tokens).
+        tokens = [
+            t
+            for t in name.replace("-", " ").split()
+            if len(t) > 3 and t not in {"role", "component"}
+        ]
+        if any(token in blob for token in tokens):
+            matched.append(role)
+    return matched or list(roles)
+
+
+def _candidate_named_in_text(candidate: dict[str, Any], text: str) -> bool:
+    blob = text.casefold()
+    if not blob:
+        return False
+    for key in ("partNumber", "displayName", "manufacturer"):
+        value = str(candidate.get(key) or "").casefold()
+        if value and value in blob:
+            return True
+    return False
 
 
 def impact_for_intent(intent: dict[str, Any]) -> dict[str, Any]:
     category = (intent.get("_meta") or {}).get("category")
     categories = [category] if category else []
+    if intent["operation"] in {
+        "reject-component-candidate",
+        "approve-component-selection",
+        "change-component-preference",
+        "add-component-constraint",
+        "change-interface-constraint",
+        "request-component-alternatives",
+        "answer-component-open-question",
+    }:
+        return analyze_impact(operation=intent["operation"], semantic_change=True)
     semantic = intent["operation"] != "clarify-requirement" or category in {
         "runtime",
         "power",
@@ -252,6 +524,13 @@ def _requirements(state: dict[str, Any]) -> list[dict[str, Any]]:
         if art.get("artifactType") == "requirement-set":
             return list(art.get("content", {}).get("requirements") or [])
     return []
+
+
+def _component_plan(state: dict[str, Any]) -> dict[str, Any] | None:
+    for art in state.get("artifacts") or []:
+        if isinstance(art, dict) and art.get("artifactType") == "component-plan":
+            return art
+    return None
 
 
 def _req_matches_category(req: dict[str, Any], category: str) -> bool:

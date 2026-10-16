@@ -10,6 +10,9 @@ from nexus_board.errors import DuplicateRegistrationError, RegistryError
 _WORKSPACE_COMMANDS = [
     "workspace.create",
     "workspace.update-draft",
+    "workspace.acquire-edit-lease",
+    "workspace.release-edit-lease",
+    "workspace.discard-draft",
     "workspace.create-snapshot",
     "workspace.restore-snapshot",
     "artifact.validate-draft",
@@ -107,7 +110,13 @@ DEFAULT_ARTIFACT_TYPE_DEFINITIONS: list[dict[str, Any]] = [
         workspace_type="focused-action",
         supported_command_types=_WORKSPACE_COMMANDS,
         required_capabilities=[],
-        dependencies=[],
+        dependencies=[
+            {
+                "artifactType": "component-plan",
+                "relationship": "depends-on",
+                "required": False,
+            }
+        ],
         editable=True,
         executable=False,
         board_visibility="global",
@@ -134,6 +143,18 @@ DEFAULT_ARTIFACT_TYPE_DEFINITIONS: list[dict[str, Any]] = [
         editable=True,
         executable=True,
         board_visibility="primary",
+    ),
+    _definition(
+        artifact_type="code-scratch",
+        display_name="Code Scratch",
+        phase="BUILD",
+        workspace_type="code-workspace",
+        supported_command_types=_EXECUTABLE_COMMANDS,
+        required_capabilities=["file-workspace", "sandbox-execution"],
+        dependencies=[],
+        editable=True,
+        executable=True,
+        board_visibility="hidden",
     ),
 ]
 

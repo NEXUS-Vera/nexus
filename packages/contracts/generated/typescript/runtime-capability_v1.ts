@@ -7,6 +7,7 @@ export interface RuntimeCapability {
     | 'structured-validation'
     | 'fake-execution'
     | 'file-workspace'
+    | 'sandbox-execution'
     | 'embedded-build'
     | 'python-kernel'
     | 'circuit-simulation'

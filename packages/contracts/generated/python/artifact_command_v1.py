@@ -13,6 +13,7 @@ class Input(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     initialContent: NotRequired[dict[str, Any]]
 
@@ -149,17 +150,36 @@ class ArtifactCommandV18(TypedDict, closed=True):
     schemaVersion: Literal['1.0.0']
     workspaceId: str
 
+class DeclaredOutput(TypedDict, closed=True):
+    kind: Literal['result', 'artifact', 'log']
+    path: str
+
+class EnvironmentItem(TypedDict, closed=True):
+    name: str
+    value: str
+
+class CommandSpec(TypedDict, closed=True):
+    arguments: list[str]
+    declaredOutputs: list[DeclaredOutput]
+    environment: list[EnvironmentItem]
+    executable: str
+    schemaVersion: Literal['1.0.0']
+    workingDirectory: str
+
 class Input8(TypedDict, closed=True):
     capability: Literal[
         'structured-validation',
         'fake-execution',
         'file-workspace',
+        'sandbox-execution',
         'embedded-build',
         'python-kernel',
         'circuit-simulation',
         'architecture-export',
     ]
+    commandSpec: NotRequired[CommandSpec]
     maxDurationMs: NotRequired[int]
+    maxOutputBytes: NotRequired[int]
     snapshotId: str
 
 class ArtifactCommandV19(TypedDict, closed=True):
@@ -169,6 +189,55 @@ class ArtifactCommandV19(TypedDict, closed=True):
     commandId: str
     commandType: Literal['artifact.execute']
     input: Input8
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: str
+
+class Input9(TypedDict, closed=True):
+    ttlSeconds: NotRequired[int]
+
+class ArtifactCommandV110(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['workspace.acquire-edit-lease']
+    input: Input9
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: str
+
+class Input10(TypedDict, closed=True):
+    leaseToken: NotRequired[str]
+
+class ArtifactCommandV111(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['workspace.release-edit-lease']
+    input: Input10
+    projectId: str
+    requestedAt: str
+    requestedBy: RequestedBy
+    schemaVersion: Literal['1.0.0']
+    workspaceId: str
+
+class Input11(TypedDict, closed=True):
+    expectedDraftVersion: int
+    refreshLease: NotRequired[bool]
+
+class ArtifactCommandV112(TypedDict, closed=True):
+    artifactId: str
+    baseArtifactVersion: int
+    baseProjectStateVersion: int
+    commandId: str
+    commandType: Literal['workspace.discard-draft']
+    input: Input11
     projectId: str
     requestedAt: str
     requestedBy: RequestedBy
@@ -185,4 +254,7 @@ ArtifactCommandV1: TypeAlias = (
     | ArtifactCommandV17
     | ArtifactCommandV18
     | ArtifactCommandV19
+    | ArtifactCommandV110
+    | ArtifactCommandV111
+    | ArtifactCommandV112
 )

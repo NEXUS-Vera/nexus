@@ -1,0 +1,34 @@
+"""Local and in-memory file store tests."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+from nexus_persistence.file_store import LocalFileStore, blob_digest
+from nexus_persistence.file_store.errors import FileStoreNotFoundError
+from nexus_persistence.file_store.memory import InMemoryFileStore
+
+
+def test_memory_and_local_parity(tmp_path: Path) -> None:
+    memory = InMemoryFileStore()
+    local = LocalFileStore(tmp_path / "store")
+    payload = b"hello-nexus"
+    m_hash = memory.put(payload)
+    l_hash = local.put(payload)
+    assert m_hash == l_hash == blob_digest(payload)
+    assert memory.get(m_hash) == local.get(l_hash) == payload
+    assert memory.exists(m_hash) and local.exists(l_hash)
+    with pytest.raises(FileStoreNotFoundError):
+        memory.get("sha256:" + ("0" * 64))
+
+
+def test_local_atomic_replace_and_no_tmp_leak(tmp_path: Path) -> None:
+    store = LocalFileStore(tmp_path / "store")
+    digest = store.put(b"one")
+    store.put(b"one")
+    hex_digest = digest.removeprefix("sha256:")
+    final = tmp_path / "store" / hex_digest[:2] / hex_digest[2:4] / hex_digest
+    assert final.is_file()
+    leftovers = list((tmp_path / "store").rglob("*.tmp"))
+    assert leftovers == []

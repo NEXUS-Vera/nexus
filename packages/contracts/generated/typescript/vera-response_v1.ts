@@ -2,9 +2,9 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 export type ArtifactType1 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 
 export interface VeraResponse {
   blockerIssueReferences: {

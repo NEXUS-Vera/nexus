@@ -1,0 +1,18 @@
+# This file is GENERATED from packages/contracts/schemas.
+# Do not edit manually. Re-run: make generate-contract-types
+from __future__ import annotations
+
+from typing import Literal, TypeAlias
+
+ComponentCategoryV1: TypeAlias = Literal[
+    'sensor',
+    'compute',
+    'power',
+    'communication',
+    'storage',
+    'interface',
+    'actuation',
+    'protection',
+    'mechanical',
+    'supporting-electronics',
+]

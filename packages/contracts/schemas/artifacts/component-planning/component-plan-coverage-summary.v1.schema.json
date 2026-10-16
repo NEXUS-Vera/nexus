@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/component-planning/component-plan-coverage-summary.v1.schema.json",
+  "title": "ComponentPlanCoverageSummary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "totalArchitectureNodes",
+    "coveredArchitectureNodes",
+    "uncoveredArchitectureNodeIds",
+    "totalRelevantRequirements",
+    "coveredRequirementIds",
+    "uncoveredRequirementIds",
+    "rolesWithoutArchitectureMapping",
+    "rolesWithoutRequirementMapping",
+    "rolesWithoutCandidates",
+    "rolesWithBlockedSelection",
+    "rolesAwaitingApproval"
+  ],
+  "properties": {
+    "totalArchitectureNodes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "coveredArchitectureNodes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uncoveredArchitectureNodeIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "totalRelevantRequirements": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "coveredRequirementIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "uncoveredRequirementIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "rolesWithoutArchitectureMapping": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rolesWithoutRequirementMapping": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rolesWithoutCandidates": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rolesWithBlockedSelection": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rolesAwaitingApproval": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

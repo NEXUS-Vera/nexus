@@ -21,6 +21,7 @@ class Payload(TypedDict, closed=True):
             'functional-architecture',
             'next-action',
             'component-plan',
+            'code-scratch',
         ]
     ]
     artifactVersion: NotRequired[int]
@@ -33,6 +34,7 @@ class Payload(TypedDict, closed=True):
             'python-kernel',
             'circuit-simulation',
             'architecture-export',
+            'sandbox-execution',
         ]
     ]
     decisionId: NotRequired[str]
@@ -110,6 +112,16 @@ class ProjectEventV1(TypedDict, closed=True):
         'question.resolved',
         'decision.accepted',
         'decision.reversed',
+        'component-plan.created',
+        'component-role.identified',
+        'component-candidate.proposed',
+        'component-candidate.rejected',
+        'component-selection.proposed',
+        'component-selection.approved',
+        'component-selection.rejected',
+        'compatibility-check.recorded',
+        'component-plan.revised',
+        'component-plan.marked-stale',
     ]
     occurredAt: str
     payload: Payload

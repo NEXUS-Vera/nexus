@@ -14,6 +14,18 @@ from nexus_board.governance.concurrency import (
 )
 from nexus_board.ids import content_digest, new_id, utc_now_iso
 from nexus_board.registries.artifact_types import ArtifactTypeRegistry
+from nexus_board.services.draft_lease import (
+    DEFAULT_LEASE_TTL_SECONDS,
+    acquire_lease,
+    assert_actor_holds_lease,
+    refresh_lease_for_owner,
+    release_lease,
+)
+from nexus_board.services.filesystem_service import (
+    FilesystemWorkspaceService,
+    filesystem_draft_content,
+    is_filesystem_workspace,
+)
 from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.projection_service import ProjectBoardProjectionService
 
@@ -62,12 +74,14 @@ class WorkspaceService:
         registry: ArtifactTypeRegistry,
         ledger: ProjectLedgerService,
         projection: ProjectBoardProjectionService,
+        filesystem: FilesystemWorkspaceService | None = None,
     ) -> None:
         self._kernel = kernel_store
         self._projects = project_store
         self._registry = registry
         self._ledger = ledger
         self._projection = projection
+        self._filesystem = filesystem
 
     def get_or_none(self, project_id: str, artifact_type: str) -> dict[str, Any] | None:
         workspace = self._kernel.get_workspace_by_project_artifact(project_id, artifact_type)
@@ -109,26 +123,36 @@ class WorkspaceService:
         try:
             artifact = self._projects.get_artifact(project_id, artifact_type)
         except Exception:  # noqa: BLE001
-            if artifact_type != "component-plan":
+            if (
+                artifact_type not in {"component-plan", "code-scratch"}
+                and definition.get("workspaceType") != "code-workspace"
+            ):
                 raise
-            # component-plan may not exist yet; synthesize placeholder pointer
+            # Filesystem fixtures / component-plan may not exist yet.
             artifact = {
                 "artifactId": artifact_id or new_id("art"),
                 "artifactVersion": 1,
                 "artifactType": artifact_type,
                 "content": initial_content
-                or {
-                    "selectionState": "draft",
-                    "candidateCount": 0,
-                    "constraintSummary": "No candidates retrieved; retrieval deferred.",
-                    "unresolvedCompatibilityChecks": ["provider-retrieval-unavailable"],
-                    "approvalStatus": "not-required",
-                },
+                or (
+                    filesystem_draft_content()
+                    if definition.get("workspaceType") == "code-workspace"
+                    else {
+                        "selectionState": "draft",
+                        "candidateCount": 0,
+                        "constraintSummary": "No candidates retrieved; retrieval deferred.",
+                        "unresolvedCompatibilityChecks": ["provider-retrieval-unavailable"],
+                        "approvalStatus": "not-required",
+                    }
+                ),
             }
         now = utc_now_iso()
-        content = (
-            initial_content if initial_content is not None else dict(artifact.get("content") or {})
-        )
+        if initial_content is not None:
+            content = initial_content
+        elif definition.get("workspaceType") == "code-workspace":
+            content = filesystem_draft_content()
+        else:
+            content = dict(artifact.get("content") or {})
         workspace = {
             "schemaVersion": "1.0.0",
             "workspaceId": new_id("ws"),
@@ -175,6 +199,48 @@ class WorkspaceService:
         self._projection.update_after_write(project_id)
         return {"workspace": workspace, "draft": draft}
 
+    def acquire_edit_lease(
+        self,
+        *,
+        workspace_id: str,
+        actor: dict[str, Any],
+        ttl_seconds: int = DEFAULT_LEASE_TTL_SECONDS,
+    ) -> dict[str, Any]:
+        workspace = self._kernel.get_workspace(workspace_id)
+        draft = self._kernel.get_draft(workspace_id)
+        now = utc_now_iso()
+        lease = acquire_lease(draft, actor=actor, ttl_seconds=ttl_seconds)
+        draft = dict(draft)
+        draft["editLease"] = lease
+        draft["updatedAt"] = now
+        draft["updatedBy"] = actor
+        self._kernel.update_draft(draft)
+        workspace = dict(workspace)
+        workspace["updatedAt"] = now
+        self._kernel.update_workspace(workspace)
+        self._projection.update_after_write(workspace["projectId"])
+        return {"workspace": workspace, "draft": draft}
+
+    def release_edit_lease(
+        self,
+        *,
+        workspace_id: str,
+        actor: dict[str, Any],
+        lease_token: str | None = None,
+    ) -> dict[str, Any]:
+        workspace = self._kernel.get_workspace(workspace_id)
+        draft = self._kernel.get_draft(workspace_id)
+        now = utc_now_iso()
+        draft = release_lease(draft, actor=actor, lease_token=lease_token)
+        draft["updatedAt"] = now
+        draft["updatedBy"] = actor
+        self._kernel.update_draft(draft)
+        workspace = dict(workspace)
+        workspace["updatedAt"] = now
+        self._kernel.update_workspace(workspace)
+        self._projection.update_after_write(workspace["projectId"])
+        return {"workspace": workspace, "draft": draft}
+
     def update_draft(
         self,
         *,
@@ -187,6 +253,7 @@ class WorkspaceService:
     ) -> dict[str, Any]:
         workspace = self._kernel.get_workspace(workspace_id)
         draft = self._kernel.get_draft(workspace_id)
+        assert_actor_holds_lease(draft, actor=actor)
         project = self._projects.get_project(workspace["projectId"])
         check_artifact_and_project_versions(
             expected_artifact_version=base_artifact_version,
@@ -214,6 +281,57 @@ class WorkspaceService:
         self._projection.update_after_write(workspace["projectId"])
         return {"workspace": workspace, "draft": draft}
 
+    def discard_draft(
+        self,
+        *,
+        workspace_id: str,
+        expected_draft_version: int,
+        actor: dict[str, Any],
+        base_artifact_version: int,
+        base_project_state_version: int,
+        refresh_lease: bool = True,
+    ) -> dict[str, Any]:
+        """Reset draft content to the accepted artifact head without a new revision.
+
+        Does not append an engineering ledger event.
+        """
+        workspace = self._kernel.get_workspace(workspace_id)
+        draft = self._kernel.get_draft(workspace_id)
+        assert_actor_holds_lease(draft, actor=actor)
+        project = self._projects.get_project(workspace["projectId"])
+        check_artifact_and_project_versions(
+            expected_artifact_version=base_artifact_version,
+            actual_artifact_version=int(workspace["baseArtifactVersion"]),
+            expected_project_state_version=base_project_state_version,
+            actual_project_state_version=int(project["currentStateVersion"]),
+        )
+        check_draft_version(
+            expected_draft_version=expected_draft_version,
+            actual_draft_version=int(draft["draftVersion"]),
+        )
+        artifact = self._projects.get_artifact(
+            workspace["projectId"],
+            workspace["artifactType"],
+        )
+        now = utc_now_iso()
+        draft = dict(draft)
+        draft["content"] = dict(artifact.get("content") or {})
+        draft["draftVersion"] = int(draft["draftVersion"]) + 1
+        draft["validationState"] = "unvalidated"
+        draft["updatedAt"] = now
+        draft["updatedBy"] = actor
+        if refresh_lease:
+            refreshed = refresh_lease_for_owner(draft, actor=actor)
+            if refreshed is not None:
+                draft["editLease"] = refreshed
+        self._kernel.update_draft(draft)
+        workspace = dict(workspace)
+        workspace["status"] = "ready"
+        workspace["updatedAt"] = now
+        self._kernel.update_workspace(workspace)
+        self._projection.update_after_write(workspace["projectId"])
+        return {"workspace": workspace, "draft": draft}
+
     def create_snapshot(
         self,
         *,
@@ -224,9 +342,17 @@ class WorkspaceService:
     ) -> dict[str, Any]:
         workspace = self._kernel.get_workspace(workspace_id)
         draft = self._kernel.get_draft(workspace_id)
+        assert_actor_holds_lease(draft, actor=actor)
         existing = self._kernel.list_snapshots(workspace_id)
         now = utc_now_iso()
-        structured = dict(draft["content"])
+        if is_filesystem_workspace(workspace):
+            if self._filesystem is None:
+                raise CommandValidationError("Filesystem workspace support is not configured")
+            content, digest = self._filesystem.capture_filesystem_snapshot_content(workspace_id)
+        else:
+            structured = dict(draft["content"])
+            content = {"kind": "structured", "structuredContent": structured}
+            digest = content_digest(structured)
         snapshot = {
             "schemaVersion": "1.0.0",
             "snapshotId": new_id("snap"),
@@ -236,8 +362,8 @@ class WorkspaceService:
             "snapshotVersion": len(existing) + 1,
             "baseArtifactVersion": int(draft["baseArtifactVersion"]),
             "baseProjectStateVersion": int(draft["baseProjectStateVersion"]),
-            "content": {"kind": "structured", "structuredContent": structured},
-            "contentDigest": content_digest(structured),
+            "content": content,
+            "contentDigest": digest,
             "createdBy": actor,
             "createdAt": now,
             "reason": reason,
@@ -278,11 +404,29 @@ class WorkspaceService:
         snapshot = self._kernel.get_snapshot(snapshot_id)
         if snapshot["workspaceId"] != workspace_id:
             raise CommandValidationError("Snapshot does not belong to workspace.")
-        content = snapshot["content"].get("structuredContent") or {}
         draft = self._kernel.get_draft(workspace_id)
+        assert_actor_holds_lease(draft, actor=actor)
         now = utc_now_iso()
+        content = snapshot["content"]
+        kind = content.get("kind")
+        if kind == "filesystem":
+            if self._filesystem is None:
+                raise CommandValidationError("Filesystem workspace support is not configured")
+            if not is_filesystem_workspace(workspace):
+                raise CommandValidationError(
+                    "Cannot restore a filesystem snapshot into a non-filesystem workspace"
+                )
+            manifest = content.get("filesystemManifest") or {}
+            self._filesystem.restore_filesystem_manifest(
+                workspace_id=workspace_id,
+                manifest=manifest,
+                actor=actor,
+            )
+            draft_content = filesystem_draft_content()
+        else:
+            draft_content = dict(content.get("structuredContent") or {})
         draft = dict(draft)
-        draft["content"] = dict(content)
+        draft["content"] = draft_content
         draft["draftVersion"] = int(draft["draftVersion"]) + 1
         draft["validationState"] = "unvalidated"
         draft["updatedAt"] = now

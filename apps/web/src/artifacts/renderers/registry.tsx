@@ -28,12 +28,18 @@ export type WorkspaceRenderProps = {
   changeIndicator?: string;
   selectedRequirementId?: string | null;
   selectedNodeId?: string | null;
+  selectedRoleId?: string | null;
   onSelectRequirement?: (id: string) => void;
   onSelectNode?: (id: string) => void;
+  onSelectRole?: (id: string) => void;
   onSelectItem?: (selection: InspectorSelection) => void;
   architectureNodeIdsByRequirement?: Record<string, string[]>;
   onCommandResult?: (result: ArtifactCommandResult) => void;
+  onSubmitTurn?: (message: string) => Promise<boolean>;
+  turnBusy?: boolean;
   nextActionTitle?: string;
+  onRequestAlternatives?: (roleId: string, suggestedPrompt: string) => void;
+  onAskVera?: () => void;
 };
 
 function ProjectBriefRenderer(props: WorkspaceRenderProps) {
@@ -122,7 +128,13 @@ function ComponentPlanRenderer(props: WorkspaceRenderProps) {
       projectId={props.projectId}
       artifact={artifact}
       isDark={props.isDark}
+      selectedRoleId={props.selectedRoleId ?? null}
+      onSelectRole={props.onSelectRole}
+      onSubmitTurn={props.onSubmitTurn}
+      turnBusy={props.turnBusy}
       onCommandResult={props.onCommandResult}
+      onRequestAlternatives={props.onRequestAlternatives}
+      onAskVera={props.onAskVera}
     />
   );
 }
@@ -281,8 +293,15 @@ export function shellMetaFor(
       artifact?.artifactType === 'functional-architecture'
     ) {
       subtitle = `Functional maturity: ${artifact.content.architectureMaturity}`;
+    } else if (
+      key === 'component-plan' &&
+      artifact?.artifactType === 'component-plan'
+    ) {
+      const roles = artifact.content.componentRoles.length;
+      const candidates = artifact.content.candidates.length;
+      subtitle = `${artifact.content.maturity} · ${roles} roles · ${candidates} candidates`;
     } else if (key === 'component-plan') {
-      subtitle = 'Proof comparison workspace for component and sensor planning.';
+      subtitle = 'Component comparison workspace';
     } else if (def.availability === 'placeholder') {
       subtitle = 'Future artifact — not produced yet';
     }

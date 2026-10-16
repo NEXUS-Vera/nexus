@@ -1,0 +1,635 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_2E3C90FB8D81A2272DD0CP01",
+  "projectId": "proj_05ROBOTPROJ0000000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_05VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_05USERMSG0000000000000001",
+  "workflowRunId": "run_05ROBOTRUN0000000000000001",
+  "content": {
+    "componentPlanId": "cplan_ROBOTOBS0001000000000000",
+    "maturity": "selection-proposed",
+    "summary": "Provisional component plan with 3 role(s), 6 fixture candidate(s), and 3 preferred proposal(s) awaiting user approval. Evidence remains unverified.",
+    "componentRoles": [
+      {
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "displayId": "CR1",
+        "name": "Indoor Robot Session Configuration Input role",
+        "category": "sensor",
+        "description": "Provide physical sensing for: Indoor Robot Session Configuration Input.",
+        "architectureNodeIds": [
+          "node_05ROBOTSESSIONCONFIG0000000000000001"
+        ],
+        "requirementIds": [
+          "req_05SMALLINDOORROBOTCONTEXT000000000000001",
+          "req_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+          "req_05REACTIONLATENCYUNKNOWN000000000000001",
+          "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+          "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      },
+      {
+        "componentRoleId": "role_ROBOTOBS0002000000000000",
+        "displayId": "CR2",
+        "name": "Obstacle Evidence Generation (In Front) role",
+        "category": "sensor",
+        "description": "Provide physical sensing for: Obstacle Evidence Generation (In Front).",
+        "architectureNodeIds": [
+          "node_05OBSTACLESENSING0000000000000001"
+        ],
+        "requirementIds": [
+          "req_05DETECTOBJECTSINFRONT0000000000000001",
+          "req_05DETECTIONRANGEFOVUNKNOWN000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      },
+      {
+        "componentRoleId": "role_ROBOTOBS0005000000000000",
+        "displayId": "CR3",
+        "name": "Robot-Controller Interface role",
+        "category": "compute",
+        "description": "Provide compute/control for: Robot-Controller Interface.",
+        "architectureNodeIds": [
+          "node_05CONTROLLERIF0000000000000001"
+        ],
+        "requirementIds": [
+          "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+          "req_05REACTBEFOREHITS0000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "medium",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      }
+    ],
+    "selectionConstraints": [
+      {
+        "constraintId": "cstr_ROBOTOBS0001000000000000",
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_05SMALLINDOORROBOTCONTEXT000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_05ROBOTSESSIONCONFIG0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The module is for a small indoor robot context."
+      },
+      {
+        "constraintId": "cstr_ROBOTOBS0002000000000000",
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_05DETECTIONRANGEFOVUNKNOWN000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_05ROBOTSESSIONCONFIG0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must support required detection distance and field of view for indoor obstacle detection (range/FOV unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_ROBOTOBS0003000000000000",
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_05REACTIONLATENCYUNKNOWN000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_05ROBOTSESSIONCONFIG0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must meet a required maximum reaction latency so the robot can respond before it hits obstacles (latency unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_ROBOTOBS0004000000000000",
+        "componentRoleId": "role_ROBOTOBS0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_05DETECTOBJECTSINFRONT0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_05OBSTACLESENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The module can detect objects in front of it."
+      },
+      {
+        "constraintId": "cstr_ROBOTOBS0005000000000000",
+        "componentRoleId": "role_ROBOTOBS0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_05DETECTIONRANGEFOVUNKNOWN000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_05OBSTACLESENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must support required detection distance and field of view for indoor obstacle detection (range/FOV unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_ROBOTOBS0006000000000000",
+        "componentRoleId": "role_ROBOTOBS0005000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_05REACTBEFOREHITS0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_05CONTROLLERIF0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The module can react before it hits objects."
+      },
+      {
+        "constraintId": "cstr_ROBOTOBS0007000000000000",
+        "componentRoleId": "role_ROBOTOBS0005000000000000",
+        "constraintType": "sample-rate",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": "Hz",
+        "sourceRequirementIds": [
+          "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_05CONTROLLERIF0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must integrate with the existing robot controller interface so it can issue reaction commands with the expected behavior semantics (robot-controller "
+      }
+    ],
+    "candidates": [
+      {
+        "candidateId": "cand_ROBOTOBS0001000000000000",
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_ROBOTOBS0001000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_ROBOTOBS0002000000000000",
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_ROBOTOBS0003000000000000",
+        "componentRoleId": "role_ROBOTOBS0002000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_ROBOTOBS0002000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_ROBOTOBS0004000000000000",
+        "componentRoleId": "role_ROBOTOBS0002000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_ROBOTOBS0005000000000000",
+        "componentRoleId": "role_ROBOTOBS0005000000000000",
+        "manufacturer": "Fixture Compute",
+        "partNumber": "FX-MCU-32",
+        "displayName": "Fixture microcontroller class",
+        "candidateCategory": "compute",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "logic-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          },
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Adequate for early firmware prototypes"
+        ],
+        "limitations": [
+          "Pinmux and peripheral fit not verified"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_ROBOTOBS0003000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_ROBOTOBS0006000000000000",
+        "componentRoleId": "role_ROBOTOBS0005000000000000",
+        "manufacturer": "Fixture Compute",
+        "partNumber": "FX-MCU-WIFI",
+        "displayName": "Fixture Wi-Fi MCU class",
+        "candidateCategory": "compute",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "logic-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          },
+          {
+            "specKey": "interface",
+            "value": "UART",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "On-module connectivity for connected nodes"
+        ],
+        "limitations": [
+          "Power budget impact not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      }
+    ],
+    "selectionDecisions": [
+      {
+        "selectionDecisionId": "sel_ROBOTOBS0001000000000000",
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "selectedCandidateId": "cand_ROBOTOBS0001000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_05VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_ROBOTOBS0002000000000000",
+        "componentRoleId": "role_ROBOTOBS0002000000000000",
+        "selectedCandidateId": "cand_ROBOTOBS0003000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_05VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_ROBOTOBS0003000000000000",
+        "componentRoleId": "role_ROBOTOBS0005000000000000",
+        "selectedCandidateId": "cand_ROBOTOBS0005000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture microcontroller class based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Pinmux and peripheral fit not verified"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_05VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      }
+    ],
+    "compatibilityChecks": [
+      {
+        "compatibilityCheckId": "cchk_ROBOTOBS0001000000000000",
+        "componentRoleId": "role_ROBOTOBS0001000000000000",
+        "candidateId": "cand_ROBOTOBS0001000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_05ROBOTSESSIONCONFIG0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_05VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "compatibilityCheckId": "cchk_ROBOTOBS0002000000000000",
+        "componentRoleId": "role_ROBOTOBS0002000000000000",
+        "candidateId": "cand_ROBOTOBS0003000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_05OBSTACLESENSING0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_05VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "compatibilityCheckId": "cchk_ROBOTOBS0003000000000000",
+        "componentRoleId": "role_ROBOTOBS0005000000000000",
+        "candidateId": "cand_ROBOTOBS0005000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_05CONTROLLERIF0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_05VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      }
+    ],
+    "openQuestions": [],
+    "assumptions": [
+      "Provisional candidates are fixture-backed placeholders. Pricing, availability, and datasheet claims remain unverified."
+    ],
+    "evidenceReferences": [],
+    "coverageSummary": {
+      "totalArchitectureNodes": 6,
+      "coveredArchitectureNodes": 3,
+      "uncoveredArchitectureNodeIds": [
+        "node_05DECIDE0000000000000001",
+        "node_05INTERPRET0000000000000001",
+        "node_05SAFETYOUTPUT0000000000000001"
+      ],
+      "totalRelevantRequirements": 7,
+      "coveredRequirementIds": [
+        "req_05DETECTIONRANGEFOVUNKNOWN000000000000001",
+        "req_05DETECTOBJECTSINFRONT0000000000000001",
+        "req_05ENVIRONMENTSAFETYUNKNOWN000000000000001",
+        "req_05REACTBEFOREHITS0000000000000001",
+        "req_05REACTIONLATENCYUNKNOWN000000000000001",
+        "req_05ROBOTCONTROLLERINTERFACEUNKNOWN0000000000001",
+        "req_05SMALLINDOORROBOTCONTEXT000000000000001"
+      ],
+      "uncoveredRequirementIds": [],
+      "rolesWithoutArchitectureMapping": 0,
+      "rolesWithoutRequirementMapping": 0,
+      "rolesWithoutCandidates": 0,
+      "rolesWithBlockedSelection": 0,
+      "rolesAwaitingApproval": 3
+    },
+    "validationSummary": {
+      "issueCount": 3,
+      "blockingIssueCount": 0,
+      "warningCount": 3,
+      "status": "warnings"
+    }
+  }
+}

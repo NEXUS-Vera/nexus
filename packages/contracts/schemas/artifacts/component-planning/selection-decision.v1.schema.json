@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/component-planning/selection-decision.v1.schema.json",
+  "title": "SelectionDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "selectionDecisionId",
+    "componentRoleId",
+    "selectedCandidateId",
+    "selectionState",
+    "rationale",
+    "tradeoffs",
+    "source",
+    "proposedBy",
+    "approvalRequirement",
+    "createdAt"
+  ],
+  "properties": {
+    "selectionDecisionId": {
+      "type": "string",
+      "pattern": "^sel_[A-Za-z0-9]{16,}$"
+    },
+    "componentRoleId": {
+      "type": "string",
+      "pattern": "^role_[A-Za-z0-9]{16,}$"
+    },
+    "selectedCandidateId": {
+      "type": "string",
+      "pattern": "^cand_[A-Za-z0-9]{16,}$"
+    },
+    "selectionState": {
+      "type": "string",
+      "enum": [
+        "not-started",
+        "proposed",
+        "awaiting-user",
+        "approved",
+        "rejected",
+        "superseded",
+        "blocked"
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tradeoffs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "source": {
+      "type": "string",
+      "enum": ["user-explicit", "agent-proposed", "fixture", "inferred"]
+    },
+    "proposedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "approvalRequirement": {
+      "$ref": "https://nexus.local/schemas/governance/approval-requirement.v1.schema.json"
+    },
+    "approvedBy": {
+      "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    },
+    "approvedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "supersedesSelectionDecisionId": {
+      "type": "string",
+      "pattern": "^sel_[A-Za-z0-9]{16,}$"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

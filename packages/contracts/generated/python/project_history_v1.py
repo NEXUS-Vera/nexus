@@ -14,6 +14,7 @@ class ArtifactRevision(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     artifactVersion: int
     createdAt: str

@@ -72,6 +72,12 @@ describe('workspace renderer registry', () => {
       />,
     );
     expect(screen.getByTestId('workspace-component-plan')).toBeInTheDocument();
-    expect(screen.getByTestId('component-plan-retrieval-notice')).toBeInTheDocument();
+    expect(screen.getByTestId('component-plan-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('component-plan-role-list')).toBeInTheDocument();
+  });
+
+  it('marks component-plan as live in the artifact registry', async () => {
+    const { ARTIFACT_REGISTRY } = await import('../registry');
+    expect(ARTIFACT_REGISTRY['component-plan'].availability).toBe('live');
   });
 });

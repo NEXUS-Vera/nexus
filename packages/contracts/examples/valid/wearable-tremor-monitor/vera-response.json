@@ -27,6 +27,12 @@
       "artifactId": "art_02TREMORNXT000000000000000001",
       "artifactVersion": 1,
       "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "component-plan",
+      "artifactId": "art_647DBE45BEFE14D00FC4CP01",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
     }
   ],
   "warningIssueReferences": [
@@ -75,4 +81,3 @@
   },
   "completionStatus": "completed-with-warnings"
 }
-

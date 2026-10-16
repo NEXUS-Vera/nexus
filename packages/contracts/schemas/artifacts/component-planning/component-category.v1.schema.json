@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/component-planning/component-category.v1.schema.json",
+  "title": "ComponentCategory",
+  "type": "string",
+  "enum": [
+    "sensor",
+    "compute",
+    "power",
+    "communication",
+    "storage",
+    "interface",
+    "actuation",
+    "protection",
+    "mechanical",
+    "supporting-electronics"
+  ]
+}

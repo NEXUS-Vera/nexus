@@ -6,7 +6,6 @@ import type { ArtifactRouteKey } from './types';
 type Props = {
   routeKey: Extract<
     ArtifactRouteKey,
-    | 'component-plan'
     | 'firmware-scaffold'
     | 'analysis-notebook'
     | 'test-plan'
@@ -17,8 +16,6 @@ type Props = {
 };
 
 const SHELL_HINTS: Partial<Record<ArtifactRouteKey, string>> = {
-  'component-plan':
-    'Visual shell reserved for BOM, candidate comparison, compatibility, evidence, and approval panels.',
   'firmware-scaffold':
     'Visual shell reserved for file tree, editor, and terminal panels. No project files are generated yet.',
   'analysis-notebook':

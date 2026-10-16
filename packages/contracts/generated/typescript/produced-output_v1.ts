@@ -31,6 +31,7 @@ export interface ProducedOutput {
     | 'binary-reference'
     | 'test-report';
   projectId: string;
+  providerId?: string;
   schemaVersion: '1.0.0';
   supports: {
     supportKind: 'artifact' | 'requirement' | 'architecture-node' | 'validation-issue' | 'decision';

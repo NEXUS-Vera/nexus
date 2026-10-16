@@ -24,6 +24,24 @@ DEFAULT_RUNTIME_CAPABILITIES: list[dict[str, Any]] = [
         "available": True,
         "description": "Deterministic fake execution runtime",
     },
+    {
+        "schemaVersion": "1.0.0",
+        "capabilityId": "file-workspace",
+        "displayName": "Filesystem Workspace",
+        "providerId": "local",
+        "available": True,
+        "description": "Persistent lease-guarded filesystem workspace storage",
+    },
+    {
+        "schemaVersion": "1.0.0",
+        "capabilityId": "sandbox-execution",
+        "displayName": "Sandboxed Execution",
+        "providerId": "local-sandbox",
+        "available": True,
+        "description": (
+            "Nexus-owned generic sandboxed command execution against filesystem snapshots"
+        ),
+    },
 ]
 
 

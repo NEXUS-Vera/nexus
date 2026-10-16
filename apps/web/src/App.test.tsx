@@ -64,7 +64,7 @@ describe('Nexus web routing and project workspace', () => {
       expect(screen.getByText(new RegExp(projectId))).toBeInTheDocument();
     });
     expect(screen.getByTestId('figma-shell')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Vera' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Vera' })).toBeInTheDocument();
     expect(screen.getByText(/Project Brief · v1/i)).toBeInTheDocument();
   });
 
@@ -101,7 +101,7 @@ describe('Nexus web routing and project workspace', () => {
       }),
     );
     renderApp(`/projects/${projectId}`);
-    expect(await screen.findByRole('heading', { name: 'Vera' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Vera' })).toBeInTheDocument();
     await userEvent.setup().click(screen.getByRole('button', { name: /Show project history|History/i }));
     expect(await screen.findByText(/Artifact revisions/i)).toBeInTheDocument();
   });
@@ -152,7 +152,9 @@ describe('Nexus web routing and project workspace', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
     renderApp(`/projects/${projectId}`);
-    await screen.findByRole('heading', { name: 'Vera' });
+    await screen.findByRole('tab', { name: 'Vera' });
+    await user.click(screen.getByRole('tab', { name: 'Vera' }));
+    expect(await screen.findByRole('heading', { name: 'Vera' })).toBeInTheDocument();
     const turnInput = screen.getByLabelText(/Continue the conversation/i);
     await user.clear(turnInput);
     await user.type(turnInput, 'Need six months battery');
@@ -218,9 +220,8 @@ describe('Nexus web routing and project workspace', () => {
 
     await user.click(screen.getByRole('button', { name: /^Components$/i }));
     expect(await screen.findByTestId('workspace-component-plan')).toBeInTheDocument();
-    expect(screen.getByTestId('component-plan-retrieval-notice')).toHaveTextContent(
-      /retrieval is unavailable/i,
-    );
+    expect(screen.getByTestId('component-plan-summary')).toBeInTheDocument();
+    expect(screen.getByTestId('component-plan-role-list')).toHaveTextContent(/role/i);
 
     await user.click(screen.getByRole('button', { name: /^Firmware$/i }));
     expect(screen.getByTestId('artifact-placeholder')).toHaveTextContent(/Firmware scaffold unavailable/i);

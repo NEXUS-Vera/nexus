@@ -2,24 +2,34 @@
 
 from __future__ import annotations
 
-from helpers import actor, build_test_kernel, cmd
+from helpers import acquire_edit_lease, actor, build_test_kernel, cmd
 
 
 def test_rebuild_matches_stored_projection() -> None:
     kernel, project_store, _, project_id = build_test_kernel()
     art = project_store.get_artifact(project_id, "requirement-set")
+    editor = actor()
     created = kernel.workspaces.create_workspace(
         project_id=project_id,
         artifact_type="requirement-set",
-        actor=actor(),
+        actor=editor,
+    )
+    ws = created["workspace"]["workspaceId"]
+    acquire_edit_lease(
+        kernel,
+        project_id=project_id,
+        artifact_id=art["artifactId"],
+        workspace_id=ws,
+        requested_by=editor,
     )
     kernel.dispatch(
         cmd(
             command_type="workspace.create-snapshot",
             project_id=project_id,
             artifact_id=art["artifactId"],
-            workspace_id=created["workspace"]["workspaceId"],
+            workspace_id=ws,
             input_data={"reason": "board"},
+            requested_by=editor,
         )
     )
     stored = kernel.get_board(project_id)

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "1.0.0",
+  "executionJobId": "execjob_PHASE14BJOB000001",
+  "executionRunId": "exec_PHASE14BRUN00000001",
+  "projectId": "proj_PHASE14BPROJECT0001",
+  "workspaceSnapshotId": "snap_PHASE14BSNAP000001",
+  "status": "queued",
+  "runtimeKind": "process",
+  "runtimeIdentity": {
+    "runtimeKind": "process",
+    "runtimeVersion": "process-runtime/1.0.0",
+    "workspaceSnapshotId": "snap_PHASE14BSNAP000001",
+    "workspaceManifestDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "commandSpecVersion": "1.0.0",
+    "limits": {
+      "wallTimeMs": 5000,
+      "stdoutBytes": 65536,
+      "stderrBytes": 65536,
+      "totalLogBytes": 131072,
+      "producedOutputBytes": 1048576,
+      "outputFileCount": 8,
+      "workspaceBytes": 16777216
+    },
+    "isolationGuarantees": [
+      "no-inherited-env",
+      "process-group-termination",
+      "ephemeral-workspace"
+    ],
+    "isolationLimitations": [
+      "no-network-isolation",
+      "no-memory-cgroup",
+      "host-process-isolation-only"
+    ]
+  },
+  "commandSpec": {
+    "schemaVersion": "1.0.0",
+    "executable": "python3",
+    "arguments": [
+      "-c",
+      "print('NEXUS_RUNTIME_READY'); open('result.txt','w').write('ok')"
+    ],
+    "workingDirectory": "",
+    "environment": [
+      {
+        "name": "NEXUS_JOB",
+        "value": "fixture"
+      }
+    ],
+    "declaredOutputs": [
+      {
+        "path": "result.txt",
+        "kind": "result"
+      }
+    ]
+  },
+  "limits": {
+    "wallTimeMs": 5000,
+    "stdoutBytes": 65536,
+    "stderrBytes": 65536,
+    "totalLogBytes": 131072,
+    "producedOutputBytes": 1048576,
+    "outputFileCount": 8,
+    "workspaceBytes": 16777216
+  },
+  "createdAt": "2026-08-10T18:00:00Z"
+}

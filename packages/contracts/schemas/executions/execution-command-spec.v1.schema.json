@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/execution-command-spec.v1.schema.json",
+  "title": "ExecutionCommandSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "executable",
+    "arguments",
+    "workingDirectory",
+    "environment",
+    "declaredOutputs"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "executable": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Executable name or workspace-relative path. Must not be a host absolute path."
+    },
+    "arguments": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "string",
+        "maxLength": 4096
+      }
+    },
+    "workingDirectory": {
+      "type": "string",
+      "maxLength": 1024,
+      "description": "Workspace-relative working directory scoped to the materialized snapshot. Empty string means snapshot root."
+    },
+    "environment": {
+      "type": "array",
+      "maxItems": 64,
+      "description": "Explicit non-secret environment values. Backend secrets must never appear here.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "maxLength": 128
+          },
+          "value": {
+            "type": "string",
+            "maxLength": 4096
+          }
+        }
+      }
+    },
+    "declaredOutputs": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["result", "artifact", "log"]
+          }
+        }
+      }
+    }
+  }
+}

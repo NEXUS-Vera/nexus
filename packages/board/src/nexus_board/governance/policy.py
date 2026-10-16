@@ -26,6 +26,9 @@ _EXTERNAL_AUTHORITIES: set[str] = set()
 _COMMAND_AUTHORITY: dict[str, str] = {
     "workspace.create": "edit-draft",
     "workspace.update-draft": "edit-draft",
+    "workspace.acquire-edit-lease": "edit-draft",
+    "workspace.release-edit-lease": "edit-draft",
+    "workspace.discard-draft": "edit-draft",
     "workspace.create-snapshot": "edit-draft",
     "workspace.restore-snapshot": "edit-draft",
     "artifact.validate-draft": "validate",
@@ -33,6 +36,7 @@ _COMMAND_AUTHORITY: dict[str, str] = {
     "artifact.accept-revision": "approve",
     "artifact.reject-revision": "reject",
     "artifact.execute": "execute",
+    "artifact.inspect-deletion-impact": "validate",
 }
 
 _ACTOR_TYPE_TO_KIND: dict[str, ActorKind] = {

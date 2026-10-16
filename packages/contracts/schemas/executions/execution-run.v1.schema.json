@@ -54,6 +54,7 @@
         "structured-validation",
         "fake-execution",
         "file-workspace",
+        "sandbox-execution",
         "embedded-build",
         "python-kernel",
         "circuit-simulation",
@@ -85,6 +86,152 @@
     "inputSnapshotId": {
       "type": "string",
       "pattern": "^snap_[A-Za-z0-9]{16,}$"
+    },
+    "executionJobId": {
+      "type": "string",
+      "pattern": "^execjob_[A-Za-z0-9]{16,}$",
+      "description": "Optional infrastructure job id for Nexus-owned sandboxed execution."
+    },
+    "runtimeIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Runtime fingerprint recorded for job-backed executions.",
+      "required": [
+        "runtimeKind",
+        "runtimeVersion",
+        "workspaceSnapshotId",
+        "workspaceManifestDigest",
+        "commandSpecVersion",
+        "limits"
+      ],
+      "properties": {
+        "runtimeKind": {
+          "type": "string",
+          "enum": [
+            "process",
+            "container"
+          ]
+        },
+        "runtimeVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "workspaceSnapshotId": {
+          "type": "string",
+          "pattern": "^snap_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceManifestDigest": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "commandSpecVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "wallTimeMs",
+            "stdoutBytes",
+            "stderrBytes",
+            "totalLogBytes",
+            "producedOutputBytes",
+            "outputFileCount",
+            "workspaceBytes"
+          ],
+          "properties": {
+            "wallTimeMs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 300000
+            },
+            "stdoutBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "stderrBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "totalLogBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "producedOutputBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "outputFileCount": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "workspaceBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "memoryBytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "cpuMillis": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "processCount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "imageReference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "imageDigest": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "executableFingerprint": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "isolationGuarantees": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "isolationLimitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "securityLevel": {
+          "type": "string",
+          "enum": [
+            "limited",
+            "isolated"
+          ]
+        },
+        "networkPolicy": {
+          "type": "string",
+          "enum": [
+            "none",
+            "restricted"
+          ]
+        }
+      }
     },
     "startedAt": {
       "type": "string",
@@ -129,6 +276,12 @@
           "minLength": 1
         }
       }
+    },
+    "cleanupWarning": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "Infrastructure cleanup warning after a successful or terminal run."
     }
   }
 }

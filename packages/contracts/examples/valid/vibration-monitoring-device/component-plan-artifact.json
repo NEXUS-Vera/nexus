@@ -1,0 +1,477 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_22BF8BCC19C6C7A283BBCP01",
+  "projectId": "proj_04VIBRATIONPROJ0000000000000001",
+  "artifactType": "component-plan",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_04VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-07-28T13:25:00Z",
+  "updatedAt": "2026-07-28T13:25:00Z",
+  "sourceTurnId": "turn_04USERMSG0000000000000001",
+  "workflowRunId": "run_04VIBRATIONRUN0000000000000001",
+  "content": {
+    "componentPlanId": "cplan_VIBRATIO0001000000000000",
+    "maturity": "selection-proposed",
+    "summary": "Provisional component plan with 2 role(s), 4 fixture candidate(s), and 2 preferred proposal(s) awaiting user approval. Evidence remains unverified.",
+    "componentRoles": [
+      {
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "displayId": "CR1",
+        "name": "Monitoring Session Configuration Input role",
+        "category": "sensor",
+        "description": "Provide physical sensing for: Monitoring Session Configuration Input.",
+        "architectureNodeIds": [
+          "node_04VIBINITCONFIG0000000000000001"
+        ],
+        "requirementIds": [
+          "req_04VIBRATIONFREQUENCYRANGEUNKNOWN000000000000001",
+          "req_04SAMPLERATEANDRECORDINGMODEUNKNOWN00000000000001",
+          "req_04DYNAMICRANGEACCELERATIONUNKNOWN000000000000001",
+          "req_04MOUNTINGBASELINECALIBRATIONUNKNOWN000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      },
+      {
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "displayId": "CR2",
+        "name": "Vibration Measurement Acquisition role",
+        "category": "sensor",
+        "description": "Provide physical sensing for: Vibration Measurement Acquisition.",
+        "architectureNodeIds": [
+          "node_04VIBSENSING0000000000000001"
+        ],
+        "requirementIds": [
+          "req_04ATTACHRECORDVIBRATION0000000000000001",
+          "req_04TIMESTAMPEDVIBRATIONRECORDS0000000000000001",
+          "req_04VIBRATIONFREQUENCYRANGEUNKNOWN000000000000001"
+        ],
+        "requiredCapabilities": [
+          "implementation-pending"
+        ],
+        "status": "selection-proposed",
+        "priority": "high",
+        "source": "fixture",
+        "rationale": "Derived from functional architecture node that requires physical implementation."
+      }
+    ],
+    "selectionConstraints": [
+      {
+        "constraintId": "cstr_VIBRATIO0001000000000000",
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_04VIBRATIONFREQUENCYRANGEUNKNOWN000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_04VIBINITCONFIG0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must support the required vibration frequency range (measurement bandwidth unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_VIBRATIO0002000000000000",
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "constraintType": "sample-rate",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": "Hz",
+        "sourceRequirementIds": [
+          "req_04SAMPLERATEANDRECORDINGMODEUNKNOWN00000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_04VIBINITCONFIG0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must support a target sampling rate and recording mode suitable for machine monitoring (sampling/recording mode unknown in this phase)."
+      },
+      {
+        "constraintId": "cstr_VIBRATIO0003000000000000",
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_04DYNAMICRANGEACCELERATIONUNKNOWN000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_04VIBINITCONFIG0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system must accommodate the required dynamic range / acceleration range so vibration changes can be captured without saturating (dynamic range unknown in th"
+      },
+      {
+        "constraintId": "cstr_VIBRATIO0004000000000000",
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_04ATTACHRECORDVIBRATION0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_04VIBSENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The device attaches to a machine and records vibration for analysis."
+      },
+      {
+        "constraintId": "cstr_VIBRATIO0005000000000000",
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "constraintType": "measurement-range",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_04DETECTOPERATINGCHANGES0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_04VIBSENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "confirmed",
+        "rationale": "Derived from requirement: The vibration records allow the user to detect changes in how the machine is operating."
+      },
+      {
+        "constraintId": "cstr_VIBRATIO0006000000000000",
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "constraintType": "interface",
+        "operator": "unknown",
+        "targetValue": {
+          "kind": "unknown"
+        },
+        "unit": null,
+        "sourceRequirementIds": [
+          "req_04TIMESTAMPEDVIBRATIONRECORDS0000000000000001"
+        ],
+        "sourceArchitectureNodeIds": [
+          "node_04VIBSENSING0000000000000001"
+        ],
+        "importance": "required",
+        "confirmationStatus": "unknown",
+        "rationale": "Derived from requirement: The system shall capture timestamped vibration records so machine operating states can be compared later."
+      }
+    ],
+    "candidates": [
+      {
+        "candidateId": "cand_VIBRATIO0001000000000000",
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_VIBRATIO0001000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_VIBRATIO0002000000000000",
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_VIBRATIO0003000000000000",
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "manufacturer": "Fixture Semiconductor",
+        "partNumber": "FX-ENV-100",
+        "displayName": "Fixture environmental sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "preferred",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "supply-voltage",
+            "value": 3.3,
+            "unit": "V",
+            "operator": "eq"
+          }
+        ],
+        "advantages": [
+          "Common digital interface",
+          "Suitable for early prototypes"
+        ],
+        "limitations": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "compatibilityCheckIds": [
+          "cchk_VIBRATIO0002000000000000"
+        ],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      },
+      {
+        "candidateId": "cand_VIBRATIO0004000000000000",
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "manufacturer": "Fixture Motion",
+        "partNumber": "FX-IMU-200",
+        "displayName": "Fixture IMU-class motion sensor",
+        "candidateCategory": "sensor",
+        "candidateState": "proposed",
+        "evidenceStatus": "unverified",
+        "specifications": [
+          {
+            "specKey": "interface",
+            "value": "I2C",
+            "operator": "eq"
+          },
+          {
+            "specKey": "sample-rate",
+            "value": {
+              "kind": "unknown"
+            },
+            "unit": "Hz",
+            "operator": "unknown"
+          }
+        ],
+        "advantages": [
+          "Covers tremor/vibration sensing roles"
+        ],
+        "limitations": [
+          "Noise floor not grounded"
+        ],
+        "compatibilityCheckIds": [],
+        "evidenceReferences": [],
+        "source": "fixture",
+        "confidence": "low",
+        "notes": "Provisional fixture candidate pending datasheet retrieval."
+      }
+    ],
+    "selectionDecisions": [
+      {
+        "selectionDecisionId": "sel_VIBRATIO0001000000000000",
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "selectedCandidateId": "cand_VIBRATIO0001000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_04VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "selectionDecisionId": "sel_VIBRATIO0002000000000000",
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "selectedCandidateId": "cand_VIBRATIO0003000000000000",
+        "selectionState": "awaiting-user",
+        "rationale": "Provisional preference for Fixture environmental sensor based on known interface/supply assumptions pending user approval.",
+        "tradeoffs": [
+          "Datasheet grounding deferred",
+          "Exact accuracy unknown"
+        ],
+        "source": "fixture",
+        "proposedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_04VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "approvalRequirement": {
+          "schemaVersion": "1.0.0",
+          "required": true,
+          "reason": "Component selection requires user confirmation before procurement.",
+          "consequenceLevel": "high",
+          "allowedApproverKinds": [
+            "user"
+          ],
+          "autoAcceptAllowed": false
+        },
+        "createdAt": "2026-07-28T13:25:00Z"
+      }
+    ],
+    "compatibilityChecks": [
+      {
+        "compatibilityCheckId": "cchk_VIBRATIO0001000000000000",
+        "componentRoleId": "role_VIBRATIO0001000000000000",
+        "candidateId": "cand_VIBRATIO0001000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_04VIBINITCONFIG0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_04VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      },
+      {
+        "compatibilityCheckId": "cchk_VIBRATIO0002000000000000",
+        "componentRoleId": "role_VIBRATIO0002000000000000",
+        "candidateId": "cand_VIBRATIO0003000000000000",
+        "checkType": "interface-type",
+        "status": "conditional",
+        "severity": "warning",
+        "reason": "Candidate declares an interface, but bus topology and address conflicts are not yet checked against the full architecture.",
+        "inputReferences": [
+          "node_04VIBSENSING0000000000000001"
+        ],
+        "evidenceReferences": [],
+        "performedBy": {
+          "schemaVersion": "1.0.0",
+          "actorId": "actor_04VERAACTOR0000000000000001",
+          "actorType": "vera",
+          "displayName": "Vera"
+        },
+        "performedAt": "2026-07-28T13:25:00Z"
+      }
+    ],
+    "openQuestions": [],
+    "assumptions": [
+      "Provisional candidates are fixture-backed placeholders. Pricing, availability, and datasheet claims remain unverified."
+    ],
+    "evidenceReferences": [],
+    "coverageSummary": {
+      "totalArchitectureNodes": 6,
+      "coveredArchitectureNodes": 2,
+      "uncoveredArchitectureNodeIds": [
+        "node_04VIBANALYSIS0000000000000001",
+        "node_04VIBEXPORT0000000000000001",
+        "node_04VIBPROCESSCOND0000000000000001",
+        "node_04VIBSTORAGE0000000000000001"
+      ],
+      "totalRelevantRequirements": 6,
+      "coveredRequirementIds": [
+        "req_04ATTACHRECORDVIBRATION0000000000000001",
+        "req_04DYNAMICRANGEACCELERATIONUNKNOWN000000000000001",
+        "req_04MOUNTINGBASELINECALIBRATIONUNKNOWN000000000000001",
+        "req_04SAMPLERATEANDRECORDINGMODEUNKNOWN00000000000001",
+        "req_04TIMESTAMPEDVIBRATIONRECORDS0000000000000001",
+        "req_04VIBRATIONFREQUENCYRANGEUNKNOWN000000000000001"
+      ],
+      "uncoveredRequirementIds": [],
+      "rolesWithoutArchitectureMapping": 0,
+      "rolesWithoutRequirementMapping": 0,
+      "rolesWithoutCandidates": 0,
+      "rolesWithBlockedSelection": 0,
+      "rolesAwaitingApproval": 2
+    },
+    "validationSummary": {
+      "issueCount": 2,
+      "blockingIssueCount": 0,
+      "warningCount": 2,
+      "status": "warnings"
+    }
+  }
+}

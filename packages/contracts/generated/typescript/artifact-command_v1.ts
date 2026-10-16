@@ -143,11 +143,14 @@ export type ArtifactCommand =
           | 'structured-validation'
           | 'fake-execution'
           | 'file-workspace'
+          | 'sandbox-execution'
           | 'embedded-build'
           | 'python-kernel'
           | 'circuit-simulation'
           | 'architecture-export';
+        commandSpec?: ExecutionCommandSpec;
         maxDurationMs?: number;
+        maxOutputBytes?: number;
         snapshotId: string;
       };
       projectId: string;
@@ -155,9 +158,55 @@ export type ArtifactCommand =
       requestedBy: ActorReference8;
       schemaVersion: '1.0.0';
       workspaceId: string;
+    }
+  | {
+      artifactId: string;
+      baseArtifactVersion: number;
+      baseProjectStateVersion: number;
+      commandId: string;
+      commandType: 'workspace.acquire-edit-lease';
+      input: {
+        ttlSeconds?: number;
+      };
+      projectId: string;
+      requestedAt: string;
+      requestedBy: ActorReference9;
+      schemaVersion: '1.0.0';
+      workspaceId: string;
+    }
+  | {
+      artifactId: string;
+      baseArtifactVersion: number;
+      baseProjectStateVersion: number;
+      commandId: string;
+      commandType: 'workspace.release-edit-lease';
+      input: {
+        leaseToken?: string;
+      };
+      projectId: string;
+      requestedAt: string;
+      requestedBy: ActorReference10;
+      schemaVersion: '1.0.0';
+      workspaceId: string;
+    }
+  | {
+      artifactId: string;
+      baseArtifactVersion: number;
+      baseProjectStateVersion: number;
+      commandId: string;
+      commandType: 'workspace.discard-draft';
+      input: {
+        expectedDraftVersion: number;
+        refreshLease?: boolean;
+      };
+      projectId: string;
+      requestedAt: string;
+      requestedBy: ActorReference11;
+      schemaVersion: '1.0.0';
+      workspaceId: string;
     };
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 
 export interface ActorReference {
@@ -208,7 +257,56 @@ export interface ActorReference7 {
   displayName?: string;
   schemaVersion: '1.0.0';
 }
+export interface ExecutionCommandSpec {
+  /**
+   * @maxItems 64
+   */
+  arguments: string[];
+  /**
+   * @maxItems 32
+   */
+  declaredOutputs: {
+    kind: 'result' | 'artifact' | 'log';
+    path: string;
+  }[];
+  /**
+   * Explicit non-secret environment values. Backend secrets must never appear here.
+   *
+   * @maxItems 64
+   */
+  environment: {
+    name: string;
+    value: string;
+  }[];
+  /**
+   * Executable name or workspace-relative path. Must not be a host absolute path.
+   */
+  executable: string;
+  schemaVersion: '1.0.0';
+  /**
+   * Workspace-relative working directory scoped to the materialized snapshot. Empty string means snapshot root.
+   */
+  workingDirectory: string;
+}
 export interface ActorReference8 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference9 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference10 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference11 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;

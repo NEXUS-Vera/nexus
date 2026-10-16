@@ -9,13 +9,12 @@ from httpx import ASGITransport, AsyncClient
 from nexus_api.config import settings
 from nexus_api.main import app
 
+AUTH_HEADERS = {"Authorization": f"Bearer {settings.session_token}"}
+
 GREENHOUSE = (
     "I want to build a greenhouse monitoring node that measures temperature, "
     "humidity, soil moisture, and light, and reports the readings remotely."
 )
-
-
-AUTH_HEADERS = {"Authorization": f"Bearer {settings.session_token}"}
 
 
 def _cmd_id() -> str:
@@ -46,6 +45,7 @@ async def test_phase11_kernel_api_flow() -> None:
             "functional-architecture",
             "next-action",
             "component-plan",
+            "code-scratch",
         }
 
         created = await client.post(
@@ -62,7 +62,8 @@ async def test_phase11_kernel_api_flow() -> None:
         assert "component-plan" in summaries
 
         missing = await client.get(f"/v1/projects/{project_id}/artifacts/requirement-set/workspace")
-        assert missing.status_code == 404
+        assert missing.status_code == 200, missing.text
+        assert missing.json()["workspace"]["artifactType"] == "requirement-set"
 
         ws = await client.post(
             f"/v1/projects/{project_id}/artifacts/requirement-set/workspace",
@@ -70,7 +71,27 @@ async def test_phase11_kernel_api_flow() -> None:
         )
         assert ws.status_code == 200, ws.text
         workspace_id = ws.json()["workspace"]["workspaceId"]
+        assert workspace_id == missing.json()["workspace"]["workspaceId"]
         draft_version = ws.json()["draft"]["draftVersion"]
+        editor = _actor()
+
+        lease = await client.post(
+            f"/v1/projects/{project_id}/artifact-commands",
+            json={
+                "schemaVersion": "1.0.0",
+                "commandId": _cmd_id(),
+                "commandType": "workspace.acquire-edit-lease",
+                "projectId": project_id,
+                "artifactId": req["artifactId"],
+                "workspaceId": workspace_id,
+                "baseArtifactVersion": 1,
+                "baseProjectStateVersion": 1,
+                "requestedBy": editor,
+                "requestedAt": "2026-08-04T12:00:00Z",
+                "input": {},
+            },
+        )
+        assert lease.status_code == 200, lease.text
 
         conflict = await client.post(
             f"/v1/projects/{project_id}/artifact-commands",
@@ -83,7 +104,7 @@ async def test_phase11_kernel_api_flow() -> None:
                 "workspaceId": workspace_id,
                 "baseArtifactVersion": 99,
                 "baseProjectStateVersion": 1,
-                "requestedBy": _actor(),
+                "requestedBy": editor,
                 "requestedAt": "2026-08-04T12:00:00Z",
                 "input": {"content": {"requirements": []}, "expectedDraftVersion": draft_version},
             },
@@ -102,7 +123,7 @@ async def test_phase11_kernel_api_flow() -> None:
                 "workspaceId": workspace_id,
                 "baseArtifactVersion": 1,
                 "baseProjectStateVersion": 1,
-                "requestedBy": _actor(),
+                "requestedBy": editor,
                 "requestedAt": "2026-08-04T12:00:00Z",
                 "input": {
                     "content": {"requirements": [{"statement": "api"}]},
@@ -123,7 +144,7 @@ async def test_phase11_kernel_api_flow() -> None:
                 "workspaceId": workspace_id,
                 "baseArtifactVersion": 1,
                 "baseProjectStateVersion": 1,
-                "requestedBy": _actor(),
+                "requestedBy": editor,
                 "requestedAt": "2026-08-04T12:00:00Z",
                 "input": {"reason": "api-checkpoint"},
             },
@@ -176,8 +197,9 @@ async def test_api_non_user_acceptance_preserves_head(actor_type: str) -> None:
         project_id = package["project"]["projectId"]
         artifact = next(a for a in package["artifacts"] if a["artifactType"] == "requirement-set")
         prefix = f"/v1/projects/{project_id}"
+        owner = _actor()
         created = await client.post(
-            f"{prefix}/artifacts/requirement-set/workspace", json={"requestedBy": _actor()}
+            f"{prefix}/artifacts/requirement-set/workspace", json={"requestedBy": owner}
         )
         assert created.status_code == 200, created.text
         base = {
@@ -187,9 +209,19 @@ async def test_api_non_user_acceptance_preserves_head(actor_type: str) -> None:
             "workspaceId": created.json()["workspace"]["workspaceId"],
             "baseArtifactVersion": 1,
             "baseProjectStateVersion": 1,
-            "requestedBy": _actor(),
+            "requestedBy": owner,
             "requestedAt": "2026-08-04T12:00:00Z",
         }
+        lease = await client.post(
+            f"{prefix}/artifact-commands",
+            json={
+                **base,
+                "commandId": _cmd_id(),
+                "commandType": "workspace.acquire-edit-lease",
+                "input": {},
+            },
+        )
+        assert lease.status_code == 200, lease.text
         snapshot = await client.post(
             f"{prefix}/artifact-commands",
             json={

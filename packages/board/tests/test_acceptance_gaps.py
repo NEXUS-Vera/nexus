@@ -3,7 +3,7 @@
 from pathlib import Path
 
 import pytest
-from helpers import actor, build_test_kernel, cmd, minimal_package
+from helpers import acquire_edit_lease, actor, build_test_kernel, cmd, minimal_package
 from nexus_board import build_project_kernel
 from nexus_persistence import build_stores
 
@@ -13,8 +13,9 @@ def test_non_user_acceptance_is_rejected_and_recorded(actor_type: str) -> None:
     """M4/M9: deny actual acceptance, preserve state, and retain the denial."""
     kernel, projects, store, project_id = build_test_kernel()
     artifact = projects.get_artifact(project_id, "requirement-set")
+    editor = actor()
     workspace = kernel.workspaces.create_workspace(
-        project_id=project_id, artifact_type="requirement-set", actor=actor()
+        project_id=project_id, artifact_type="requirement-set", actor=editor
     )["workspace"]["workspaceId"]
 
     def dispatch(command_type: str, data: dict, requested_by: dict | None = None) -> dict:
@@ -25,10 +26,17 @@ def test_non_user_acceptance_is_rejected_and_recorded(actor_type: str) -> None:
                 artifact_id=artifact["artifactId"],
                 workspace_id=workspace,
                 input_data=data,
-                requested_by=requested_by,
+                requested_by=requested_by or editor,
             )
         )
 
+    acquire_edit_lease(
+        kernel,
+        project_id=project_id,
+        artifact_id=artifact["artifactId"],
+        workspace_id=workspace,
+        requested_by=editor,
+    )
     snapshot = dispatch("workspace.create-snapshot", {"reason": "authority check"})
     proposal = dispatch("artifact.propose-revision", {"snapshotId": snapshot["snapshotId"]})
     before = store.get_proposal(proposal["proposalId"])
@@ -55,8 +63,9 @@ def test_sqlite_restart_reconstructs_execution_history(tmp_path: Path) -> None:
     project_id = package["project"]["projectId"]
     artifact = projects.get_artifact(project_id, "requirement-set")
     kernel = build_project_kernel(store, project_store=projects)
+    editor = actor()
     workspace = kernel.workspaces.create_workspace(
-        project_id=project_id, artifact_type="requirement-set", actor=actor()
+        project_id=project_id, artifact_type="requirement-set", actor=editor
     )["workspace"]["workspaceId"]
 
     def dispatch(command_type: str, data: dict, version: int = 1) -> dict:
@@ -69,11 +78,19 @@ def test_sqlite_restart_reconstructs_execution_history(tmp_path: Path) -> None:
                 base_artifact_version=version,
                 base_project_state_version=version,
                 input_data=data,
+                requested_by=editor,
             )
         )
         assert result["status"] == "completed", result
         return result
 
+    acquire_edit_lease(
+        kernel,
+        project_id=project_id,
+        artifact_id=artifact["artifactId"],
+        workspace_id=workspace,
+        requested_by=editor,
+    )
     dispatch("workspace.update-draft", {"content": {"requirements": []}, "expectedDraftVersion": 1})
     snapshot = dispatch("workspace.create-snapshot", {"reason": "durable input"})
     proposal = dispatch("artifact.propose-revision", {"snapshotId": snapshot["snapshotId"]})

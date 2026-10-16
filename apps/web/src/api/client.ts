@@ -312,3 +312,206 @@ export async function getProjectGraph(
     `/v1/projects/${projectId}/graph`,
   )) as import('@nexus/contracts').GraphTraversalResult;
 }
+
+export async function getExecution(
+  projectId: string,
+  executionRunId: string,
+): Promise<{
+  executionRun: import('@nexus/contracts').ExecutionRun;
+  executionJob?: import('@nexus/contracts').ExecutionJob | null;
+}> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/executions/${executionRunId}`,
+  )) as {
+    executionRun: import('@nexus/contracts').ExecutionRun;
+    executionJob?: import('@nexus/contracts').ExecutionJob | null;
+  };
+}
+
+export async function getExecutionLogs(
+  projectId: string,
+  executionRunId: string,
+  after = 0,
+): Promise<{
+  chunks: import('@nexus/contracts').ExecutionLogChunk[];
+  logTruncated?: boolean;
+  jobStatus?: string;
+}> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/executions/${executionRunId}/logs?after=${after}`,
+  )) as {
+    chunks: import('@nexus/contracts').ExecutionLogChunk[];
+    logTruncated?: boolean;
+    jobStatus?: string;
+  };
+}
+
+export async function cancelExecution(
+  projectId: string,
+  executionRunId: string,
+  requestedBy?: {
+    schemaVersion: '1.0.0';
+    actorId: string;
+    actorType: string;
+    displayName?: string;
+  },
+): Promise<{
+  executionRun: import('@nexus/contracts').ExecutionRun;
+  executionJob?: import('@nexus/contracts').ExecutionJob | null;
+}> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/executions/${executionRunId}/cancel`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestedBy ? { requestedBy } : {}),
+    },
+  )) as {
+    executionRun: import('@nexus/contracts').ExecutionRun;
+    executionJob?: import('@nexus/contracts').ExecutionJob | null;
+  };
+}
+
+/** Phase 14D: artifact-scoped workspace runtime binding + capabilities. */
+export async function getWorkspaceRuntimeBinding(
+  projectId: string,
+  artifactType: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/runtime`,
+  )) as Record<string, unknown>;
+}
+
+export async function listWorkspaceRuntimeFiles(
+  projectId: string,
+  artifactType: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/files`,
+  )) as Record<string, unknown>;
+}
+
+export async function readWorkspaceRuntimeFile(
+  projectId: string,
+  artifactType: string,
+  path: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/file?path=${encodeURIComponent(path)}`,
+  )) as Record<string, unknown>;
+}
+
+export async function writeWorkspaceRuntimeFile(
+  projectId: string,
+  artifactType: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/file`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+export async function deleteWorkspaceRuntimeFile(
+  projectId: string,
+  artifactType: string,
+  path: string,
+  opts: {
+    expectedDraftVersion: number;
+    baseArtifactVersion: number;
+    baseProjectStateVersion: number;
+    actorId?: string;
+  },
+): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams({
+    path,
+    expectedDraftVersion: String(opts.expectedDraftVersion),
+    baseArtifactVersion: String(opts.baseArtifactVersion),
+    baseProjectStateVersion: String(opts.baseProjectStateVersion),
+  });
+  if (opts.actorId) {
+    q.set('actorId', opts.actorId);
+  }
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/file?${q}`,
+    { method: 'DELETE' },
+  )) as Record<string, unknown>;
+}
+
+export async function listWorkspaceRuntimeSnapshots(
+  projectId: string,
+  artifactType: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots`,
+  )) as Record<string, unknown>;
+}
+
+export async function createWorkspaceRuntimeSnapshot(
+  projectId: string,
+  artifactType: string,
+  body?: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+  )) as Record<string, unknown>;
+}
+
+export async function restoreWorkspaceRuntimeSnapshot(
+  projectId: string,
+  artifactType: string,
+  snapshotId: string,
+  body?: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/snapshots/${snapshotId}/restore`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body ?? {}),
+    },
+  )) as Record<string, unknown>;
+}
+
+export async function startWorkspaceRuntimeExecution(
+  projectId: string,
+  artifactType: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/${artifactType}/workspace/executions`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+export async function listProducedOutputs(
+  projectId: string,
+): Promise<import('@nexus/contracts').ProducedOutput[]> {
+  const json = await requestJson(`/v1/projects/${projectId}/outputs`);
+  if (isRecord(json) && Array.isArray(json.items)) {
+    return json.items as import('@nexus/contracts').ProducedOutput[];
+  }
+  throw new Error('Outputs response must include an items array');
+}
+
+export async function getProducedOutput(
+  projectId: string,
+  outputId: string,
+): Promise<import('@nexus/contracts').ProducedOutput> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/outputs/${encodeURIComponent(outputId)}`,
+  )) as import('@nexus/contracts').ProducedOutput;
+}

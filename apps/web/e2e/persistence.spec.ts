@@ -29,13 +29,27 @@ test.describe('service-restart notice layout', () => {
     await expect(page).toHaveURL(/\/projects\/proj_/, { timeout: 60_000 });
     await expect(page.getByRole('status')).toBeVisible();
 
+    // Vera lives in the inspector sidecar; open the conversation as a user would.
+    await page.getByRole('tab', { name: 'Vera', exact: true }).click();
+
     // The notice apologises for losing what the student had typed, so the box
     // they would retype it into has to still be on screen. A notice rendered as
     // a sibling of a `100vh` workspace makes the document taller than the
     // viewport and pushes the composer below the fold, where the workspace's
     // own `overflow: hidden` puts it out of reach.
     const composer = page.getByLabel(/Continue the conversation/i);
-    await expect(composer).toBeInViewport();
+    await expect(composer).toBeInViewport({ ratio: 1 });
+    const send = page.getByRole('button', { name: /Send to Vera/i });
+    await expect(send).toBeInViewport({ ratio: 1 });
+
+    // A short workspace and a scrolled conversation must keep the input usable.
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.getByTestId('vera-thread').evaluate((thread) => {
+      thread.style.minHeight = '2000px';
+      thread.parentElement!.scrollTop = 2000;
+    });
+    await expect(composer).toBeInViewport({ ratio: 1 });
+    await expect(send).toBeInViewport({ ratio: 1 });
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollHeight - window.innerHeight,
@@ -56,12 +70,12 @@ test.describe('fixture-mode persistence and modification', () => {
     await page.getByRole('button', { name: /Create project/i }).click();
     await expect(page).toHaveURL(/\/projects\/proj_/, { timeout: 60_000 });
     await expect(page.getByTestId('figma-shell')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Vera' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Vera' })).toBeVisible();
     const url = page.url();
 
     await page.reload();
     await expect(page.getByTestId('figma-shell')).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByRole('heading', { name: 'Vera' })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole('tab', { name: 'Vera' })).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('button', { name: /^Project Brief$/i }).click();
     await expect(page.getByTestId('workspace-project-brief')).toBeVisible();
@@ -82,12 +96,15 @@ test.describe('fixture-mode persistence and modification', () => {
 
     await page.getByRole('button', { name: /^Components$/i }).click();
     await expect(page.getByTestId('workspace-component-plan')).toBeVisible();
-    await expect(page.getByTestId('component-plan-retrieval-notice')).toBeVisible();
+    await expect(page.getByTestId('workspace-component-plan-shell')).toBeVisible();
+    await expect(page.getByTestId('component-plan-summary')).toBeVisible();
+    await expect(page.getByTestId('component-plan-role-list')).toBeVisible();
     const componentsUrl = page.url();
     await page.reload();
     await expect(page.getByTestId('workspace-component-plan')).toBeVisible({ timeout: 30_000 });
     expect(componentsUrl).toMatch(/artifact=component-plan/);
 
+    await page.getByRole('tab', { name: 'Vera' }).click();
     await page
       .getByLabel(/Continue the conversation/i)
       .fill('It should run for at least six months on battery power.');

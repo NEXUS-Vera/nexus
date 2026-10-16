@@ -98,6 +98,7 @@ class ProjectBoardProjectionService:
                     "blockerCount": 0,
                     "openQuestionCount": 0,
                     "lastChangedAt": art.get("updatedAt") or art.get("createdAt") or utc_now_iso(),
+                    **ProjectBoardProjectionService._component_plan_summary_fields(atype, art),
                 }
             )
 
@@ -184,6 +185,39 @@ class ProjectBoardProjectionService:
             projection["nextActionSummary"] = next_summary
         self._kernel.upsert_board_projection(projection)
         return projection
+
+    @staticmethod
+    def _component_plan_summary_fields(artifact_type: str, art: dict[str, Any]) -> dict[str, Any]:
+        if artifact_type != "component-plan":
+            return {}
+        content = art.get("content") or {}
+        if not isinstance(content, dict):
+            return {}
+        roles = content.get("componentRoles") or []
+        candidates = content.get("candidates") or []
+        selections = content.get("selectionDecisions") or []
+        checks = content.get("compatibilityChecks") or []
+        coverage = content.get("coverageSummary") or {}
+        selected = sum(
+            1 for s in selections if isinstance(s, dict) and s.get("selectionState") == "approved"
+        )
+        unresolved = sum(
+            1
+            for c in checks
+            if isinstance(c, dict) and c.get("status") in {"unknown", "fail", "warning"}
+        )
+        fields: dict[str, Any] = {
+            "roleCount": len(roles) if isinstance(roles, list) else 0,
+            "candidateCount": len(candidates) if isinstance(candidates, list) else 0,
+            "selectedCount": selected,
+            "awaitingApprovalCount": int(coverage.get("rolesAwaitingApproval") or 0),
+            "blockedRoleCount": int(coverage.get("rolesWithBlockedSelection") or 0),
+            "unresolvedCompatibilityCheckCount": unresolved,
+        }
+        maturity = content.get("maturity")
+        if isinstance(maturity, str):
+            fields["maturity"] = maturity
+        return fields
 
     @staticmethod
     def _artifact_type_for(artifact_id: str | None, artifacts: list[dict[str, Any]]) -> str | None:
