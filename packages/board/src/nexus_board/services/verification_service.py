@@ -38,6 +38,8 @@ class _KernelStore(Protocol):
 
     def list_produced_outputs(self, project_id: str) -> list[dict[str, Any]]: ...
 
+    def get_workspace(self, workspace_id: str) -> dict[str, Any]: ...
+
     def get_workspace_by_project_artifact(
         self, project_id: str, artifact_type: str
     ) -> dict[str, Any] | None: ...
@@ -59,7 +61,7 @@ class VerificationService:
     def __init__(
         self,
         *,
-        kernel_store: Any,
+        kernel_store: _KernelStore,
         project_store: Any,
         workspaces: Any,
         commands: Any,
@@ -67,7 +69,7 @@ class VerificationService:
         projection: Any,
         file_store: Any | None = None,
     ) -> None:
-        self._kernel = kernel_store
+        self._kernel: _KernelStore = kernel_store
         self._projects = project_store
         self._workspaces = workspaces
         self._commands = commands
