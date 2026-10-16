@@ -62,7 +62,7 @@ def test_golden_prompt_routes_to_vibration_monitor_family() -> None:
     assert decision.family == FIXTURE_FAMILY
 
 
-@pytest.mark.parametrize("fail_analysis", [False, True, "noise"])
+@pytest.mark.parametrize("fail_analysis", [False, True, "noise", "missing-metric"])
 def test_golden_g1_fixture_full_system(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -120,6 +120,14 @@ def test_golden_g1_fixture_full_system(
     analysis_src = (GOLDEN_DIR / "analysis.py").read_text(encoding="utf-8")
     if fail_analysis is True:
         analysis_src += "\nraise SystemExit(1)\n"
+    if fail_analysis == "missing-metric":
+        # Simulate a completed producer omitting its metric while retaining PASS prose.
+        analysis_src += (
+            '\nsummary_path = OUT / "summary.json"\n'
+            "summary = json.loads(summary_path.read_text())\n"
+            'summary.pop("accel_x_rms_noise_g")\n'
+            "summary_path.write_text(json.dumps(summary))\n"
+        )
     findings = validate_golden_consistency(
         artifacts=init_artifacts,
         firmware_source=firmware_src,
@@ -310,24 +318,78 @@ def test_golden_g1_fixture_full_system(
             summary_preview = json.loads(preview["text"])
             break
     assert summary_preview is not None
-    if fail_analysis == "noise":
-        assert summary_preview["assessment"] == "FAIL"
-        kernel.verification.promote_execution_evidence(
+    if fail_analysis in {"noise", "missing-metric"}:
+        missing_metric = fail_analysis == "missing-metric"
+        expected_state = "INCONCLUSIVE" if missing_metric else "FAILED"
+        expected_assessment = "INCONCLUSIVE" if missing_metric else "FAIL"
+        if missing_metric:
+            assert "accel_x_rms_noise_g" not in summary_preview
+            assert "metricValue" not in summary_preview
+            assert summary_preview["assessment"] == "PASS"
+        else:
+            assert summary_preview["accel_x_rms_noise_g"] == pytest.approx(0.20)
+            assert summary_preview["assessment"] == "FAIL"
+        before = project_store.get_artifact(project_id, "test-plan")
+        original_case = next(c for c in before["content"]["testCases"] if c["displayId"] == "T7")
+        promotion = kernel.verification.promote_execution_evidence(
             project_id=project_id,
             execution_run_id=an_run["executionRunId"],
             actor=user,
             accept=True,
         )
+        assert promotion["changed"] is True
+        assert promotion["accepted"] is True
+        after = project_store.get_artifact(project_id, "test-plan")
+        assert after["artifactVersion"] == before["artifactVersion"] + 1
+        case = next(c for c in after["content"]["testCases"] if c["displayId"] == "T7")
+        assert case["criterion"] == original_case["criterion"]
+        assert case["verificationMethod"] == "analysis"
+        assert case["assessment"] == expected_assessment
+        assert case["status"] == ("inconclusive" if missing_metric else "failed")
         rows = kernel.verification.requirement_verification_projection(project_id)
-        assert next(r for r in rows if r["displayId"] == "R7")["verificationState"] == "FAILED"
+        r7 = next(r for r in rows if r["displayId"] == "R7")
+        assert r7["verificationState"] == expected_state
+        assert r7["verificationState"] != "VERIFIED"
         chain = kernel.verification.evidence_chain(project_id)
         evidence = next(r for r in chain if r["requirementId"] == "R7")
-        assert evidence["assessment"] == "FAIL" and evidence["evidenceReferences"]
-        _write_report(
-            tmp_path / "defect.json",
-            {"R7": "FAILED", "summary": summary_preview, "evidence": evidence},
+        assert evidence["testId"] == "T7"
+        assert evidence["verificationState"] == expected_state
+        assert evidence["assessment"] == expected_assessment
+        assert evidence["assessmentAuthority"] == "deterministic-code"
+        assert evidence["criterion"]["metricId"] == "accel_x_rms_noise_g"
+        assert evidence["criterion"]["operator"] == "<"
+        assert evidence["criterion"]["expectedValue"] == 0.10
+        assert evidence["executionRunId"] == an_run["executionRunId"]
+        summary_output = next(o for o in outputs if o["name"] == "outputs/summary.json")
+        assert summary_output["outputId"] in case["producedOutputIds"]
+        assert evidence["evidenceReferences"]
+        assert all(
+            ref["sourceId"] == an_run["executionRunId"] for ref in evidence["evidenceReferences"]
         )
-        print("DEFECT: R7 FAILED; injected 0.20 g RMS input; evidence=" + json.dumps(evidence))
+        # M3: trace evidence to the exact immutable input revision.
+        assert an_run["baseArtifactVersion"] == an["baseArtifactVersion"]
+        assert an_run["baseProjectStateVersion"] == an["baseProjectStateVersion"]
+        snapshot = kernel.workspace_runtime.read_analysis_snapshot_file(
+            project_id=project_id,
+            artifact_type="analysis",
+            snapshot_id=an_run["inputSnapshotId"],
+            path="data/stationary_imu.csv",
+        )
+        assert snapshot["snapshotId"] == an_run["inputSnapshotId"]
+        assert snapshot["content"].encode() == dataset
+        script_snapshot = kernel.workspace_runtime.read_analysis_snapshot_file(
+            project_id=project_id,
+            artifact_type="analysis",
+            snapshot_id=an_run["inputSnapshotId"],
+            path="analysis.py",
+        )
+        assert script_snapshot["content"] == analysis_src
+        if not missing_metric:
+            _write_report(
+                tmp_path / "defect.json",
+                {"R7": "FAILED", "summary": summary_preview, "evidence": evidence},
+            )
+            print("DEFECT: R7 FAILED; injected 0.20 g RMS input; evidence=" + json.dumps(evidence))
         return
     assert summary_preview["assessment"] == "PASS"
     assert summary_preview["authority"] == "deterministic-code"
