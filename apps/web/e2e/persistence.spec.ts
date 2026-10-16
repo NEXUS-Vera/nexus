@@ -89,7 +89,12 @@ test.describe('fixture-mode persistence and modification', () => {
     await page.getByRole('navigation', { name: /Workflow artifacts/i }).getByRole('button', { name: /Next Action/i }).click();
     await expect(page.getByTestId('workspace-next-action')).toBeVisible();
 
-    for (const label of ['Firmware', 'Analysis', 'Test Plan', 'Risk Register']) {
+    await page.getByRole('button', { name: /^Firmware$/i }).click();
+    await expect(page.getByTestId('firmware-workspace')).toBeVisible();
+    await expect(page.getByTestId('firmware-toolbar')).toBeVisible();
+    await expect(page.getByTestId('firmware-workspace-error')).toHaveCount(0);
+
+    for (const label of ['Analysis', 'Test Plan', 'Risk Register']) {
       await page.getByRole('button', { name: new RegExp(`^${label}$`, 'i') }).click();
       await expect(page.getByTestId('artifact-placeholder')).toBeVisible();
     }
