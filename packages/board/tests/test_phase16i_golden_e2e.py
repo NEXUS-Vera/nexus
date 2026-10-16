@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import copy
 import csv
 import json
 import os
 import re
 import shutil
+import subprocess
 import time
 from pathlib import Path
 from typing import Any
@@ -60,12 +62,12 @@ def test_golden_prompt_routes_to_vibration_monitor_family() -> None:
     assert decision.family == FIXTURE_FAMILY
 
 
-@pytest.mark.parametrize("fail_analysis", [False, True])
+@pytest.mark.parametrize("fail_analysis", [False, True, "noise"])
 def test_golden_g1_fixture_full_system(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     request: pytest.FixtureRequest,
-    fail_analysis: bool,
+    fail_analysis: bool | str,
 ) -> None:
     """GOLDEN G1 — fixture generation, compile stub, real analysis and VERIFY."""
     monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
@@ -116,7 +118,7 @@ def test_golden_g1_fixture_full_system(
 
     firmware_src = (GOLDEN_DIR / "main.cpp").read_text(encoding="utf-8")
     analysis_src = (GOLDEN_DIR / "analysis.py").read_text(encoding="utf-8")
-    if fail_analysis:
+    if fail_analysis is True:
         analysis_src += "\nraise SystemExit(1)\n"
     findings = validate_golden_consistency(
         artifacts=init_artifacts,
@@ -238,6 +240,14 @@ def test_golden_g1_fixture_full_system(
     )
     draft = ks.get_draft(an["workspaceId"])
     dataset = (GOLDEN_DIR / "stationary_imu.csv").read_bytes()
+    if fail_analysis == "noise":
+        lines = dataset.decode().splitlines()
+        dataset = (
+            lines[0]
+            + "\n"
+            + "\n".join(f"{i / 50},{0.2 if i % 2 else -0.2},0,1" for i in range(100))
+            + "\n"
+        ).encode()
     kernel.workspace_runtime.write_analysis_input_file(
         project_id=project_id,
         artifact_type="analysis",
@@ -267,7 +277,7 @@ def test_golden_g1_fixture_full_system(
         project_id=project_id, artifact_type="analysis", actor=user
     )
     an_run = _wait_run(kernel, started["executionRun"]["executionRunId"])
-    if fail_analysis:
+    if fail_analysis is True:
         assert an_run["status"] == "failed", an_run
         before = project_store.get_artifact(project_id, "test-plan")
         coverage_before = kernel.verification.requirement_verification_projection(project_id)
@@ -300,6 +310,25 @@ def test_golden_g1_fixture_full_system(
             summary_preview = json.loads(preview["text"])
             break
     assert summary_preview is not None
+    if fail_analysis == "noise":
+        assert summary_preview["assessment"] == "FAIL"
+        kernel.verification.promote_execution_evidence(
+            project_id=project_id,
+            execution_run_id=an_run["executionRunId"],
+            actor=user,
+            accept=True,
+        )
+        rows = kernel.verification.requirement_verification_projection(project_id)
+        assert next(r for r in rows if r["displayId"] == "R7")["verificationState"] == "FAILED"
+        chain = kernel.verification.evidence_chain(project_id)
+        evidence = next(r for r in chain if r["requirementId"] == "R7")
+        assert evidence["assessment"] == "FAIL" and evidence["evidenceReferences"]
+        _write_report(
+            tmp_path / "defect.json",
+            {"R7": "FAILED", "summary": summary_preview, "evidence": evidence},
+        )
+        print("DEFECT: R7 FAILED; injected 0.20 g RMS input; evidence=" + json.dumps(evidence))
+        return
     assert summary_preview["assessment"] == "PASS"
     assert summary_preview["authority"] == "deterministic-code"
     assert (
@@ -406,7 +435,30 @@ def test_golden_g1_fixture_full_system(
         },
         "result": "PASS",
     }
+    # Preserve the evidence basis, then accept a changed requirement through the store.
+    requirement = project_store.get_artifact(project_id, "requirement-set")
+    basis_version = requirement["artifactVersion"]
+    changed = copy.deepcopy(requirement)
+    changed["artifactVersion"] += 1
+    r7_requirement = next(r for r in changed["content"]["requirements"] if r["displayId"] == "R7")
+    r7_requirement["statement"] = "Stationary accel_x RMS noise shall be below 0.01 g."
+    project_store.apply_accepted_artifact_revision(
+        project_id=project_id,
+        new_artifact=changed,
+        next_state_version=project_store.get_project(project_id)["currentStateVersion"] + 1,
+        updated_at=changed["updatedAt"],
+    )
+    current_version = project_store.get_artifact(project_id, "requirement-set")["artifactVersion"]
+    assert current_version > basis_version
+    report["evidenceFreshness"] = {
+        "status": "STALE",
+        "basisRequirementVersion": basis_version,
+        "currentRequirementVersion": current_version,
+        "note": "Demo basis comparison; coverage projection does not yet invalidate old evidence.",
+    }
     _write_report(tmp_path / "golden-g1.json", report)
+    print("FIXTURE: R7 VERIFIED; RMS=" + str(summary_preview["accel_x_rms_noise_g"]))
+    print("REQUIREMENT CHANGE: evidence STALE; " + json.dumps(report["evidenceFreshness"]))
 
 
 @pytest.mark.skipif(
@@ -770,3 +822,33 @@ def test_firmware_telemetry_parses_in_analysis(
     with (tmp_path / "outputs/processed.csv").open() as handle:
         rows = list(csv.DictReader(handle))
     assert [float(row["time_s"]) for row in rows] == [0.02, 0.04]
+
+
+@pytest.mark.skipif(
+    os.environ.get("NEXUS_DEMO_LIVE_COMPILE") != "1",
+    reason="Live compile runs through make demo-golden, outside offline tests",
+)
+def test_golden_local_platformio(tmp_path: Path) -> None:
+    """Attempt an actual local build whenever the CLI exists; absence is a gap."""
+    cli = shutil.which("platformio") or shutil.which("pio")
+    if cli is None:
+        print("LIVE PlatformIO: GAP — CLI absent; no live compile pass")
+        pytest.skip("LIVE PlatformIO GAP: CLI absent")
+    (tmp_path / "src").mkdir()
+    shutil.copyfile(GOLDEN_DIR / "main.cpp", tmp_path / "src/main.cpp")
+    shutil.copyfile(GOLDEN_DIR / "platformio.ini", tmp_path / "platformio.ini")
+    try:
+        result = subprocess.run(
+            [cli, "run", "--project-dir", str(tmp_path)],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("LIVE PlatformIO: FAILED — build timed out after 300 seconds")
+    (tmp_path / "platformio.log").write_text(result.stdout + result.stderr)
+    assert result.returncode == 0, result.stdout + result.stderr
+    for name in ("firmware.elf", "firmware.bin"):
+        assert (tmp_path / ".pio/build/nexus" / name).stat().st_size > 0
+    print("LIVE PlatformIO: PASS — real CLI build and ELF/BIN checked")

@@ -111,3 +111,7 @@ seed-wokwi-golden-project:
 	@echo "Initialize a project with this prompt (fixture provider):"
 	@echo "I want a golden Nexus circuit simulation project with an ESP32-class MCU and an IMU motion sensor for Wokwi surrogate simulation."
 	@echo "Full demo: docs/architecture/golden-full-demo-execution.md"
+
+.PHONY: demo-golden
+demo-golden:
+	@PYTHONPATH="$(PYTHON_PATH):packages/board/tests" ./scripts/demo-golden.sh
