@@ -28,6 +28,10 @@ execution results.
 `WokwiProvider` discovers or accepts an installed `wokwi-cli` executable. It
 never installs the CLI. Materialization is offline and does not require a
 credential; execution requires a constructor-injected token and firmware ELF.
+Provider diagnostics and every execution output redact that token before
+serialization. The runner accepts only allowlisted workspace filenames, rejects
+symlinks and special output files, bounds file reads, and bounds subprocess
+timeout recovery even when descendants retain pipe handles.
 
 The checked-in golden firmware is source-only at
 `agents/embedded-systems/tests/fixtures/wokwi/sketch.ino`. Build it outside the

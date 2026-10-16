@@ -61,6 +61,10 @@ def apply_electrical_semantic_op(content: dict[str, Any], op: dict[str, Any]) ->
             for c in connections
             if c.get("fromNodeId") != node_id and c.get("toNodeId") != node_id
         ]
+        for domain in next_content.get("powerDomains") or []:
+            domain["memberNodeIds"] = [
+                member for member in domain.get("memberNodeIds") or [] if member != node_id
+            ]
     elif op_type == "add-connection":
         connections.append(
             {

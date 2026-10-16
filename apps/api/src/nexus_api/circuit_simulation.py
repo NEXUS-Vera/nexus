@@ -162,6 +162,10 @@ def workspace_digest(workspace: ProviderWorkspace) -> str:
     return digest.hexdigest()
 
 
+class _CircuitSimulationTimeout(CircuitExecutionError, TimeoutError):
+    """Domain error retaining the execution service's timeout classification."""
+
+
 class CircuitSimulationExecutionAdapter:
     """Translate board execution requests into provider calls and normalized outputs."""
 
@@ -177,7 +181,18 @@ class CircuitSimulationExecutionAdapter:
         self._firmware_ready = firmware_ready
 
     def execute(self, request: dict[str, Any]) -> dict[str, Any]:
-        snapshot = request["snapshot"]
+        snapshot = request.get("snapshot")
+        if not isinstance(snapshot, dict) or snapshot.get("projectId") != request.get("projectId"):
+            raise CircuitExecutionError(
+                code="SIMULATION_SNAPSHOT_INVALID",
+                message="Simulation snapshot must belong to the requested project",
+            )
+        content = snapshot.get("content")
+        if not isinstance(content, dict) or not isinstance(content.get("structuredContent"), dict):
+            raise CircuitExecutionError(
+                code="SIMULATION_SNAPSHOT_INVALID",
+                message="Simulation snapshot must contain structured electrical content",
+            )
         electrical_artifact = {
             "artifactId": request["artifactId"],
             "artifactType": request["artifactType"],
@@ -241,7 +256,10 @@ class CircuitSimulationExecutionAdapter:
                 )
             )
             if result.timed_out:
-                raise TimeoutError("Circuit simulation timed out")
+                raise _CircuitSimulationTimeout(
+                    code="SIMULATION_TIMEOUT",
+                    message="Circuit simulation timed out",
+                )
             if not result.succeeded:
                 raise CircuitExecutionError(
                     code="SIMULATION_FAILED",

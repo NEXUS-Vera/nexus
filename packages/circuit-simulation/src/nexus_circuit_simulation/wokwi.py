@@ -176,7 +176,7 @@ class WokwiProvider:
         )
         outputs: list[ExecutionOutput] = []
         for name in sorted(result.outputs):
-            content, truncated = self._bounded(result.outputs[name])
+            content, truncated = self._bounded(self._redact(result.outputs[name]))
             outputs.append(
                 ExecutionOutput(
                     name=name,
@@ -186,7 +186,7 @@ class WokwiProvider:
             )
         for name, content in (("stdout", result.stdout), ("stderr", result.stderr)):
             if content:
-                bounded, truncated = self._bounded(content)
+                bounded, truncated = self._bounded(self._redact(content))
                 outputs.append(
                     ExecutionOutput(
                         name=name,
@@ -252,7 +252,10 @@ class WokwiProvider:
             else (value[: self._max_output_bytes], True)
         )
 
+    def _redact(self, value: bytes) -> bytes:
+        return value.replace(self._token.encode(), b"[REDACTED]") if self._token else value
+
     def _diagnostic(self, stdout: bytes, stderr: bytes) -> str:
         combined = stdout + (b"\n" if stdout and stderr else b"") + stderr
-        bounded, _ = self._bounded(combined)
+        bounded, _ = self._bounded(self._redact(combined))
         return sanitize_diagnostic(bounded, self._token)

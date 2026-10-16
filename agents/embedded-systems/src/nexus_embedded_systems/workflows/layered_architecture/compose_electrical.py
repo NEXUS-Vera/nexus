@@ -8,6 +8,7 @@ from nexus_embedded_systems.workflows.layered_architecture.normalize_specs impor
     get_normalized_interface,
     get_normalized_voltage,
     normalize_candidate_specifications,
+    voltage_domain_key,
 )
 from nexus_embedded_systems.workflows.layered_architecture.validation import (
     electrical_validation_warnings,
@@ -593,7 +594,7 @@ def _propose_power_domains(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             voltage = iface.get("voltage")
             if not isinstance(voltage, dict) or not isinstance(voltage.get("value"), int | float):
                 continue
-            key = f"{voltage['value']}{voltage.get('unit') or 'V'}"
+            key = voltage_domain_key(voltage)
             domain = domains.get(key)
             if domain is None:
                 domain = {

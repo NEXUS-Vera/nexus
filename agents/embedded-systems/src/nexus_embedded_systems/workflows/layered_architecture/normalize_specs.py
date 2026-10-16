@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any
 
 # Canonical keys Electrical Architecture generation consumes.
@@ -150,3 +151,16 @@ def get_normalized_voltage(
         "value": float(value),
         "unit": unit,
     }
+
+
+def voltage_domain_key(voltage: dict[str, Any]) -> str:
+    """Compare equivalent voltage magnitudes without float formatting differences."""
+    value = Decimal(str(voltage["value"]))
+    unit = voltage.get("unit") or "V"
+    if unit == "mV":
+        value /= 1000
+        unit = "V"
+    magnitude = f"{value.normalize():f}"
+    if value.is_finite() and "." not in magnitude:
+        magnitude += ".0"
+    return f"{magnitude}{unit}"
