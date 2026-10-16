@@ -13,6 +13,7 @@ auditable, and it makes per-user backup and per-user deletion trivial.
 ⭐ Restore = REPLAY, not snapshot restoration. A restored snapshot could
 disagree with the ledger; a replayed one cannot.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,7 +28,7 @@ from .ledger import Ledger
 from .projector import project, state_hash
 
 USER_RE = __import__("re").compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$")
-RESIDENT_CAP_MB = 250          # measured 144-240 MB per live graph (Q11)
+RESIDENT_CAP_MB = 250  # measured 144-240 MB per live graph (Q11)
 
 
 class TenancyError(MindGraphError):
@@ -61,6 +62,7 @@ def provision(root: str | Path, user: str) -> Path:
 
 
 # ── backup and restore ──────────────────────────────────────────────────────
+
 
 def backup(root: str | Path, user: str, dest: str | Path) -> Path:
     """⭐ Backs up the LEDGER only. Snapshots and sidecars are deliberately
@@ -106,6 +108,7 @@ def verify_key_separation(root: str | Path, archive: str | Path) -> bool:
 
 
 # ── concurrency: the constraint the load test actually found ───────────────
+
 
 @dataclass
 class _Live:
@@ -164,6 +167,7 @@ class GraphCache:
 
 # ── erasure ────────────────────────────────────────────────────────────────
 
+
 def erase(root: str | Path, user: str) -> None:
     """GDPR Art. 17. Destroy the key, then record that it happened.
 
@@ -171,6 +175,7 @@ def erase(root: str | Path, user: str) -> None:
     aggregate outcome signal it carries outlives the request.
     """
     from .events import EventType
+
     keystore(root).destroy(user)
     led = Ledger(user_dir(root, user) / "ledger.db")
     try:
@@ -181,9 +186,10 @@ def erase(root: str | Path, user: str) -> None:
 
 def health(root: str | Path) -> dict:
     base = Path(root)
-    users = sorted(p.name for p in base.glob("*/ledger.db")
-                   for p in [p.parent])
+    users = sorted(p.name for p in base.glob("*/ledger.db") for p in [p.parent])
     ks = keystore(root)
-    return {"users": len(users),
-            "keys_outside_data_dir": (base / "keys.json").exists(),
-            "shredded": [u for u in users if not ks.exists(u)]}
+    return {
+        "users": len(users),
+        "keys_outside_data_dir": (base / "keys.json").exists(),
+        "shredded": [u for u in users if not ks.exists(u)],
+    }

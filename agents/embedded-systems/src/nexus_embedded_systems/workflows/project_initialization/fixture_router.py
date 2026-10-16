@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-class FixtureRouteOutcome(str, Enum):
+class FixtureRouteOutcome(str, Enum):  # noqa: UP042 - Preserve Enum string representation.
     MATCHED = "matched"
     UNSUPPORTED = "unsupported"
     AMBIGUOUS = "ambiguous"

@@ -6,31 +6,31 @@ cd "$ROOT"
 
 MODE="${1:-all}"
 
-TEST_LIST="$(find agents apps packages tools -type f -name "test_*.py" 2>/dev/null | sort || true)"
+TEST_LIST="$(find agents apps packages tools scripts -type f -name "test_*.py" 2>/dev/null | sort || true)"
 
 if [[ -z "${TEST_LIST}" ]]; then
   echo "test (${MODE}): no Python tests found; skipping"
   exit 0
 fi
 
-if ! command -v pytest >/dev/null 2>&1 && ! python3 -c "import pytest" >/dev/null 2>&1; then
-  echo "test (${MODE}): pytest not installed; cannot run existing tests" >&2
+if [[ -z "${PYTHON:-}" ]]; then
+  if [[ -x "$ROOT/.venv/bin/python" ]]; then
+    PYTHON="$ROOT/.venv/bin/python"
+  else
+    PYTHON="$(command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3 || true)"
+  fi
+fi
+if [[ ! -x "$PYTHON" ]] && ! command -v "$PYTHON" >/dev/null 2>&1; then
+  echo "test (${MODE}): Python environment missing; run make setup" >&2
+  exit 1
+fi
+if ! "$PYTHON" -c "import pytest" >/dev/null 2>&1; then
+  echo "test (${MODE}): pytest not installed; run make setup" >&2
   exit 1
 fi
 
 run_pytest() {
-  # Prefer Python 3.11+ when available.
-  if command -v python3.13 >/dev/null 2>&1; then
-    python3.13 -m pytest "$@"
-  elif command -v python3.12 >/dev/null 2>&1; then
-    python3.12 -m pytest "$@"
-  elif command -v python3.11 >/dev/null 2>&1; then
-    python3.11 -m pytest "$@"
-  elif command -v pytest >/dev/null 2>&1; then
-    pytest "$@"
-  else
-    python3 -m pytest "$@"
-  fi
+  "$PYTHON" -m pytest "$@"
 }
 
 case "$MODE" in

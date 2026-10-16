@@ -300,8 +300,8 @@ The same query returns different things to different roles:
 
 ```python
 def retrieve(query, role, budget):
-    seeds  = hybrid_seed(query)                    # embeddings + lexical
-    sub    = personalized_pagerank(seeds, alpha=0.15)
+    seeds = hybrid_seed(query)  # embeddings + lexical
+    sub = personalized_pagerank(seeds, alpha=0.15)
     ranked = doi_rank(sub, focus=query.focus, lens=query.lens)
     capped = cap_to_budget(ranked, budget)
     return project_view(capped, role.capabilities)  # ⭐ strips content if not granted

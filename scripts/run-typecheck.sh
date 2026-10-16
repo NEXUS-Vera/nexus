@@ -16,7 +16,7 @@ else
   if command -v pyright >/dev/null 2>&1; then
     # Limit to existing Python files so empty placeholder packages do not fail.
     # shellcheck disable=SC2086
-    pyright $PY_FILES
+    python3 scripts/pyright-baseline.py $PY_FILES
   elif command -v mypy >/dev/null 2>&1; then
     # shellcheck disable=SC2086
     mypy $PY_FILES

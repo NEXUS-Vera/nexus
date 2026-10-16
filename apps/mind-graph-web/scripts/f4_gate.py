@@ -25,6 +25,7 @@ require **4x** that. ⚠️ A pair below the floor is not "a bit close" — it i
 node TYPES a colour-blind student cannot tell apart, and type is the one thing
 hue is allowed to carry.
 """
+
 from __future__ import annotations
 
 import sys
@@ -46,27 +47,26 @@ import sys
 # same-hue/different-L is the most reliable distinction that survives every
 # dichromacy — better than two hues that a deuteranope reads as one.
 HUES = {
-    "lattice": "#7BF4FC",     # Concept, Question
-    "thinking": "#BB99FA",    # Claim, Note
-    "yours": "#E5C14A",       # Artifact
-    "outside": "#B79400",     # Source
+    "lattice": "#7BF4FC",  # Concept, Question
+    "thinking": "#BB99FA",  # Claim, Note
+    "yours": "#E5C14A",  # Artifact
+    "outside": "#B79400",  # Source
 }
 # VSUP: confidence desaturates toward grey, so the WORST case is the lowest rung.
-VSUP = {"EXTRACTED 1.0": 1.00, "INFERRED 0.85": 0.74,
-        "INFERRED 0.65": 0.46, "AMBIGUOUS 0.3": 0.20}
+VSUP = {"EXTRACTED 1.0": 1.00, "INFERRED 0.85": 0.74, "INFERRED 0.65": 0.46, "AMBIGUOUS 0.3": 0.20}
 
 JND = 0.02
-FLOOR = JND * 4          # 0.08 — a 16px mark in peripheral vision
+FLOOR = JND * 4  # 0.08 — a 16px mark in peripheral vision
 SIZES_PX = (12, 16, 20, 28, 40)
 
 
 # ── colour plumbing ─────────────────────────────────────────────────────────
 
+
 def hex_to_lin(h: str) -> tuple[float, float, float]:
     h = h.lstrip("#")
-    srgb = [int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)]
-    return tuple(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
-                 for c in srgb)  # type: ignore[return-value]
+    srgb = [int(h[i : i + 2], 16) / 255 for i in (0, 2, 4)]
+    return tuple(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4 for c in srgb)  # type: ignore[return-value]
 
 
 def lin_to_oklab(r: float, g: float, b: float) -> tuple[float, float, float]:
@@ -74,9 +74,11 @@ def lin_to_oklab(r: float, g: float, b: float) -> tuple[float, float, float]:
     m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
     s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
     l_, m_, s_ = (max(v, 0.0) ** (1 / 3) for v in (l, m, s))
-    return (0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
-            1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
-            0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_)
+    return (
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    )
 
 
 def desaturate(lab: tuple[float, float, float], k: float):
@@ -89,23 +91,29 @@ def oklab_to_lin(L: float, a: float, b: float) -> tuple[float, float, float]:
     l_ = L + 0.3963377774 * a + 0.2158037573 * b
     m_ = L - 0.1055613458 * a - 0.0638541728 * b
     s_ = L - 0.0894841775 * a - 1.2914855480 * b
-    l, m, s = (v ** 3 for v in (l_, m_, s_))
-    return (+4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
-            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
-            -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s)
+    l, m, s = (v**3 for v in (l_, m_, s_))
+    return (
+        +4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+    )
 
 
 # Hunt-Pointer-Estevez, normalised to D65 — the space the simulations live in.
 def lin_to_lms(r: float, g: float, b: float):
-    return (17.8824 * r + 43.5161 * g + 4.11935 * b,
-            3.45565 * r + 27.1554 * g + 3.86714 * b,
-            0.0299566 * r + 0.184309 * g + 1.46709 * b)
+    return (
+        17.8824 * r + 43.5161 * g + 4.11935 * b,
+        3.45565 * r + 27.1554 * g + 3.86714 * b,
+        0.0299566 * r + 0.184309 * g + 1.46709 * b,
+    )
 
 
 def lms_to_lin(l: float, m: float, s: float):
-    return (0.080944 * l - 0.130504 * m + 0.116721 * s,
-            -0.0102485 * l + 0.0540194 * m - 0.113615 * s,
-            -0.000365294 * l - 0.00412163 * m + 0.693513 * s)
+    return (
+        0.080944 * l - 0.130504 * m + 0.116721 * s,
+        -0.0102485 * l + 0.0540194 * m - 0.113615 * s,
+        -0.000365294 * l - 0.00412163 * m + 0.693513 * s,
+    )
 
 
 def simulate(rgb_lin, kind: str):
@@ -126,14 +134,17 @@ def dE(a, b) -> float:
 
 # ── the gate ────────────────────────────────────────────────────────────────
 
+
 def run() -> int:
     names = list(HUES)
     pairs = [(names[i], names[j]) for i in range(len(names)) for j in range(i + 1, len(names))]
     conditions = ["normal", "deuteranopia", "protanopia", "tritanopia"]
     failures: list[tuple[str, str, str, str, float]] = []
 
-    print(f"\nF4 — hue separation under CVD.  floor dE = {FLOOR:.3f} "
-          f"({JND} JND x4, for a 16px mark)\n")
+    print(
+        f"\nF4 — hue separation under CVD.  floor dE = {FLOOR:.3f} "
+        f"({JND} JND x4, for a 16px mark)\n"
+    )
     header = f"{'pair':<22}" + "".join(f"{c[:6]:>9}" for c in conditions)
 
     for level, k in VSUP.items():
@@ -158,10 +169,14 @@ def run() -> int:
 
     print("─" * 60)
     if not failures:
-        print(f"\n  PASS — all 15 pairs clear {FLOOR:.3f} in every condition, "
-              f"at every confidence rung.")
-        print(f"  Sizes checked by construction: {', '.join(str(s) for s in SIZES_PX)}px "
-              f"(the floor is set for the smallest).\n")
+        print(
+            f"\n  PASS — all 15 pairs clear {FLOOR:.3f} in every condition, "
+            f"at every confidence rung."
+        )
+        print(
+            f"  Sizes checked by construction: {', '.join(str(s) for s in SIZES_PX)}px "
+            f"(the floor is set for the smallest).\n"
+        )
         return 0
 
     print(f"\n  FAIL — {len(failures)} pair/condition combinations below the floor.\n")

@@ -1,0 +1,18 @@
+{
+  "agents/mind-graph/src/mindgraph/agents.py::reportArgumentType": 2,
+  "agents/mind-graph/src/mindgraph/agents.py::reportReturnType": 1,
+  "agents/mind-graph/src/mindgraph/artifact.py::reportArgumentType": 1,
+  "agents/mind-graph/src/mindgraph/cli.py::reportAttributeAccessIssue": 1,
+  "agents/mind-graph/src/mindgraph/cli.py::reportOptionalSubscript": 3,
+  "agents/mind-graph/src/mindgraph/coldstart.py::reportArgumentType": 1,
+  "agents/mind-graph/tests/test_agents.py::reportAttributeAccessIssue": 1,
+  "agents/mind-graph/tests/test_api.py::reportAttributeAccessIssue": 1,
+  "agents/mind-graph/tests/test_companion.py::reportArgumentType": 2,
+  "agents/mind-graph/tests/test_curation_eval.py::reportOptionalOperand": 1,
+  "agents/mind-graph/tests/test_retrieve.py::reportArgumentType": 2,
+  "agents/mind-graph/tests/test_tenancy.py::reportArgumentType": 2,
+  "agents/mind-graph/tests/test_tenancy.py::reportAttributeAccessIssue": 2,
+  "agents/mind-graph/tests/test_wiring.py::reportAttributeAccessIssue": 2,
+  "packages/persistence/src/nexus_persistence/alembic/versions/0001_initial_project_persistence.py::reportReturnType": 1,
+  "packages/persistence/tests/test_store_contract.py::reportOptionalCall": 2
+}

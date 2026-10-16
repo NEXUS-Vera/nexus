@@ -9,12 +9,13 @@ Two classes of next action: **gaps** (what you don't know) and **tensions**
     dead ends         = suppressed, and RESURRECTED when their blocker changes
     tensions          = every live `contradicts` edge, framed by kind (§8.2)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
 from .projector import GraphState
-from .schema import (Confidence, NodeType, Rank, Relation, Strength, Support)
+from .schema import Confidence, NodeType, Rank, Relation, Strength, Support
 
 # Six kinds. The trigger is WIDE — kind decides framing, never whether it fires.
 FRAMING = {
@@ -30,9 +31,13 @@ FRAMING = {
 def knowledge_state(state: GraphState) -> set[str]:
     """⭐ ESTABLISHED, not SUPPORTED. One lucky measurement must not mark a
     concept learned — that is what the corroboration gate is for."""
-    return {nid for nid, n in state.nodes.items()
-            if n.type is NodeType.CONCEPT and n.strength is Strength.ESTABLISHED
-            and n.rank is not Rank.DEPRECATED}
+    return {
+        nid
+        for nid, n in state.nodes.items()
+        if n.type is NodeType.CONCEPT
+        and n.strength is Strength.ESTABLISHED
+        and n.rank is not Rank.DEPRECATED
+    }
 
 
 def outer_fringe(state: GraphState, known: set[str] | None = None) -> list[str]:
@@ -44,27 +49,33 @@ def outer_fringe(state: GraphState, known: set[str] | None = None) -> list[str]:
     known = knowledge_state(state) if known is None else known
     out = []
     for nid, n in state.nodes.items():
-        if n.type is not NodeType.CONCEPT or nid in known \
-                or n.rank is Rank.DEPRECATED:
+        if n.type is not NodeType.CONCEPT or nid in known or n.rank is Rank.DEPRECATED:
             continue
-        prereqs = [e.src for e in state.edges.values()
-                   if e.dst == nid and e.relation is Relation.REQUIRES
-                   and e.rank is not Rank.DEPRECATED]
+        prereqs = [
+            e.src
+            for e in state.edges.values()
+            if e.dst == nid and e.relation is Relation.REQUIRES and e.rank is not Rank.DEPRECATED
+        ]
         if all(p in known for p in prereqs):
             out.append(nid)
     return sorted(out)
 
 
 def open_questions(state: GraphState) -> list[str]:
-    answered = {e.dst for e in state.edges.values()
-                if e.relation is Relation.ANSWERS
-                and e.rank is not Rank.DEPRECATED}
-    return sorted(nid for nid, n in state.nodes.items()
-                  if n.type is NodeType.QUESTION and nid not in answered
-                  and n.rank is not Rank.DEPRECATED)
+    answered = {
+        e.dst
+        for e in state.edges.values()
+        if e.relation is Relation.ANSWERS and e.rank is not Rank.DEPRECATED
+    }
+    return sorted(
+        nid
+        for nid, n in state.nodes.items()
+        if n.type is NodeType.QUESTION and nid not in answered and n.rank is not Rank.DEPRECATED
+    )
 
 
 # ── dead ends: suppression, and resurrection ────────────────────────────────
+
 
 def dead_end_nodes(state: GraphState) -> set[str]:
     """⚠️ The frontier SUPPRESSES these. Re-suggesting the thing that wasted a
@@ -81,24 +92,34 @@ def resurrected(state: GraphState) -> list[dict]:
     """
     out = []
     for did, d in sorted(state.dead_ends.items()):
-        changed = [nid for nid in d.get("resurrect_if", [])
-                   if (n := state.nodes.get(nid))
-                   and n.support is Support.SUPPORTED
-                   and n.created_seq > d["seq"]]
+        changed = [
+            nid
+            for nid in d.get("resurrect_if", [])
+            if (n := state.nodes.get(nid))
+            and n.support is Support.SUPPORTED
+            and n.created_seq > d["seq"]
+        ]
         if changed:
-            out.append({"dead_end": did, "question": d["question"],
-                        "unblocked_by": sorted(changed),
-                        "why": "you tried this before it was possible — "
-                               "the blocker has changed"})
+            out.append(
+                {
+                    "dead_end": did,
+                    "question": d["question"],
+                    "unblocked_by": sorted(changed),
+                    "why": "you tried this before it was possible — the blocker has changed",
+                }
+            )
     return out
 
 
 # ── the Disagreement Engine ─────────────────────────────────────────────────
 
+
 def _backing(state: GraphState, nid: str) -> set[NodeType]:
-    return {state.nodes[e.src].type for e in state.edges.values()
-            if e.dst == nid and e.src in state.nodes
-            and e.rank is not Rank.DEPRECATED}
+    return {
+        state.nodes[e.src].type
+        for e in state.edges.values()
+        if e.dst == nid and e.src in state.nodes and e.rank is not Rank.DEPRECATED
+    }
 
 
 def _kind(state: GraphState, a: str, b: str) -> str:
@@ -110,47 +131,60 @@ def _kind(state: GraphState, a: str, b: str) -> str:
     na, nb = state.nodes[a], state.nodes[b]
     ba, bb = _backing(state, a), _backing(state, b)
 
-    if {na.type, nb.type} == {NodeType.SOURCE} or \
-            (NodeType.SOURCE in ba and NodeType.SOURCE in bb
-             and NodeType.ARTIFACT not in ba | bb):
+    if {na.type, nb.type} == {NodeType.SOURCE} or (
+        NodeType.SOURCE in ba and NodeType.SOURCE in bb and NodeType.ARTIFACT not in ba | bb
+    ):
         return "LITERATURE"
 
-    bench = [n for n, bk in ((na, ba), (nb, bb))
-             if NodeType.ARTIFACT in bk or n.type is NodeType.ARTIFACT]
-    lit = [n for n, bk in ((na, ba), (nb, bb))
-           if NodeType.SOURCE in bk or n.type is NodeType.SOURCE]
+    bench = [
+        n
+        for n, bk in ((na, ba), (nb, bb))
+        if NodeType.ARTIFACT in bk or n.type is NodeType.ARTIFACT
+    ]
+    lit = [
+        n for n, bk in ((na, ba), (nb, bb)) if NodeType.SOURCE in bk or n.type is NodeType.SOURCE
+    ]
 
     if len(bench) == 2:
         return "CONFLICT"
     if bench and lit:
         corr = max(n.corroboration for n in bench)
         if corr < 2:
-            return "CHECK"                     # ⭐ fires in week 1
+            return "CHECK"  # ⭐ fires in week 1
         return "BOUNDARY" if bench[0].single_method else "FINDING"
     if bench and not lit:
         return "STALE"
     return "CHECK"
 
 
-def _priority(state: GraphState, a: str, b: str, kind: str,
-              focus: set[str] | None = None, dismissed: int = 0) -> int:
+def _priority(
+    state: GraphState, a: str, b: str, kind: str, focus: set[str] | None = None, dismissed: int = 0
+) -> int:
     """Computed continuously, and SEPARATE from kind. Kind says what it is;
     priority says where and when it surfaces."""
     na, nb = state.nodes[a], state.nodes[b]
     score = 0
     if focus and (a in focus or b in focus):
-        score += 100                            # blocking the current path
-    score += sum(e.weight for e in state.edges.values()
-                 if e.dst in (a, b) and e.rank is not Rank.DEPRECATED)
-    conf = {Confidence.EXTRACTED: 3, Confidence.INFERRED: 2,
-            Confidence.AMBIGUOUS: 1}
-    strengths = [max((conf[e.confidence] for e in state.edges.values()
-                      if e.dst == n and e.rank is not Rank.DEPRECATED),
-                     default=0) for n in (a, b)]
-    score += min(strengths)                     # two STRONG claims is worse
-    score += max(na.created_seq, nb.created_seq) // 100      # recency
+        score += 100  # blocking the current path
+    score += sum(
+        e.weight for e in state.edges.values() if e.dst in (a, b) and e.rank is not Rank.DEPRECATED
+    )
+    conf = {Confidence.EXTRACTED: 3, Confidence.INFERRED: 2, Confidence.AMBIGUOUS: 1}
+    strengths = [
+        max(
+            (
+                conf[e.confidence]
+                for e in state.edges.values()
+                if e.dst == n and e.rank is not Rank.DEPRECATED
+            ),
+            default=0,
+        )
+        for n in (a, b)
+    ]
+    score += min(strengths)  # two STRONG claims is worse
+    score += max(na.created_seq, nb.created_seq) // 100  # recency
     if kind == "FINDING":
-        score += 20                             # "this may be real" escalates
+        score += 20  # "this may be real" escalates
     return score - 10 * dismissed
 
 
@@ -184,26 +218,36 @@ class Tension:
     framing: str
 
 
-def tensions(state: GraphState, focus: set[str] | None = None,
-             dismissed: dict[str, int] | None = None) -> list[Tension]:
+def tensions(
+    state: GraphState, focus: set[str] | None = None, dismissed: dict[str, int] | None = None
+) -> list[Tension]:
     dismissed = dismissed or {}
     out = []
     for eid in sorted(state.edges):
         e = state.edges[eid]
         if e.relation not in (Relation.CONTRADICTS, Relation.REFUTES):
             continue
-        if e.rank is Rank.DEPRECATED or e.src not in state.nodes \
-                or e.dst not in state.nodes:
+        if e.rank is Rank.DEPRECATED or e.src not in state.nodes or e.dst not in state.nodes:
             continue
         kind = _kind(state, e.src, e.dst)
         p = _priority(state, e.src, e.dst, kind, focus, dismissed.get(eid, 0))
         hit = bool(focus and (e.src in focus or e.dst in focus))
-        out.append(Tension(a=e.src, b=e.dst, edge=eid, kind=kind, priority=p,
-                           level=_level(p, hit), framing=FRAMING[kind]))
+        out.append(
+            Tension(
+                a=e.src,
+                b=e.dst,
+                edge=eid,
+                kind=kind,
+                priority=p,
+                level=_level(p, hit),
+                framing=FRAMING[kind],
+            )
+        )
     return sorted(out, key=lambda t: (t.level, -t.priority, t.edge))
 
 
 # ── the ranked frontier ─────────────────────────────────────────────────────
+
 
 @dataclass
 class Action:
@@ -216,13 +260,14 @@ class Action:
 
 
 def _unlocks(state: GraphState, nid: str) -> int:
-    return sum(1 for e in state.edges.values()
-               if e.src == nid and e.relation is Relation.REQUIRES
-               and e.rank is not Rank.DEPRECATED)
+    return sum(
+        1
+        for e in state.edges.values()
+        if e.src == nid and e.relation is Relation.REQUIRES and e.rank is not Rank.DEPRECATED
+    )
 
 
-def frontier(state: GraphState, focus: set[str] | None = None,
-             limit: int = 3) -> list[Action]:
+def frontier(state: GraphState, focus: set[str] | None = None, limit: int = 3) -> list[Action]:
     """Gaps and tensions in ONE ranking.
 
     ⭐ Tensions do not get their own queue — they compete with gaps for the
@@ -235,7 +280,7 @@ def frontier(state: GraphState, focus: set[str] | None = None,
 
     for nid in outer_fringe(state, known):
         if nid in suppressed:
-            continue                    # never re-suggest a known dead end
+            continue  # never re-suggest a known dead end
         u = _unlocks(state, nid)
         # ⚠️ Every root is "ready", so without this a day-one frontier offers
         # "Algebraic manipulation" to a student asking about bioimpedance.
@@ -244,26 +289,38 @@ def frontier(state: GraphState, focus: set[str] | None = None,
         # they are actually reaching for. Ranking by it puts the domain concept
         # first without pretending we know what they know.
         tier = int(state.nodes[nid].labels_at.get("tier", 2))
-        actions.append(Action(
-            id=nid, kind="GAP", priority=1.0 + u + 0.4 * tier,
-            why=f"ready to learn — unlocks {u} thing(s)" if u
-                else "ready to learn", unlocks=u,
-            detail={"tier": tier}))
+        actions.append(
+            Action(
+                id=nid,
+                kind="GAP",
+                priority=1.0 + u + 0.4 * tier,
+                why=f"ready to learn — unlocks {u} thing(s)" if u else "ready to learn",
+                unlocks=u,
+                detail={"tier": tier},
+            )
+        )
 
     for t in tensions(state, focus):
         if t.level == "P3":
-            continue                    # ambient: never pushed
-        actions.append(Action(
-            id=t.edge, kind=f"TENSION/{t.kind}",
-            priority=3.0 + t.priority / 10, why=t.framing,
-            detail={"a": t.a, "b": t.b, "level": t.level}))
+            continue  # ambient: never pushed
+        actions.append(
+            Action(
+                id=t.edge,
+                kind=f"TENSION/{t.kind}",
+                priority=3.0 + t.priority / 10,
+                why=t.framing,
+                detail={"a": t.a, "b": t.b, "level": t.level},
+            )
+        )
 
     for q in open_questions(state):
-        actions.append(Action(id=q, kind="QUESTION", priority=1.5,
-                              why="open question with no answering claim"))
+        actions.append(
+            Action(id=q, kind="QUESTION", priority=1.5, why="open question with no answering claim")
+        )
 
     for r in resurrected(state):
-        actions.append(Action(id=r["dead_end"], kind="RESURRECTED",
-                              priority=4.0, why=r["why"], detail=r))
+        actions.append(
+            Action(id=r["dead_end"], kind="RESURRECTED", priority=4.0, why=r["why"], detail=r)
+        )
 
     return sorted(actions, key=lambda a: (-a.priority, a.kind, a.id))[:limit]

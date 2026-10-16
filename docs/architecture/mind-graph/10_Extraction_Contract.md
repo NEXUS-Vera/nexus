@@ -255,39 +255,58 @@ def validate(fragment: dict, ctx: Context) -> tuple[list[Node], list[Edge], list
     require(len(canonical(fragment)) < MAX_FRAGMENT_BYTES, "oversize")
 
     for n in fragment.get("nodes", []):
-        if n["type"] not in NodeType:            rejects.append(R(n, "unknown type"));      continue
-        if n.get("kind") not in KINDS[n["type"]]: rejects.append(R(n, "bad kind"));          continue
-        if not KEY_RE.fullmatch(n["key"]):        rejects.append(R(n, "malformed key"));     continue
+        if n["type"] not in NodeType:
+            rejects.append(R(n, "unknown type"))
+            continue
+        if n.get("kind") not in KINDS[n["type"]]:
+            rejects.append(R(n, "bad kind"))
+            continue
+        if not KEY_RE.fullmatch(n["key"]):
+            rejects.append(R(n, "malformed key"))
+            continue
 
         # SOFT — demote rather than discard
         if is_sentence_like(n["label"]):
-            n = demote_to_note(n)                 # ⭐ rule 3
+            n = demote_to_note(n)  # ⭐ rule 3
         if len(n["label"]) > 60:
-            n["body"] = n["label"]; n["label"] = truncate_to_noun_phrase(n["label"])
+            n["body"] = n["label"]
+            n["label"] = truncate_to_noun_phrase(n["label"])
         if n["type"] == "Concept" and n.get("project_id"):
-            n["project_id"] = None                # Concepts are global
+            n["project_id"] = None  # Concepts are global
 
     for e in fragment.get("edges", []):
-        if e["relation"] not in Relation:         rejects.append(R(e, "unknown relation")); continue
-        if e["score"] not in LEGAL_SCORES:        rejects.append(R(e, "off-rubric score")); continue
+        if e["relation"] not in Relation:
+            rejects.append(R(e, "unknown relation"))
+            continue
+        if e["score"] not in LEGAL_SCORES:
+            rejects.append(R(e, "off-rubric score"))
+            continue
         if e["confidence"] == "EXTRACTED" and e["score"] != 1.0:
-                                                  rejects.append(R(e, "false certainty")); continue
+            rejects.append(R(e, "false certainty"))
+            continue
 
         # ⭐ added 2026-08-07 (Backend/08 §5.1) — citation state gates the tier
         cs = e.get("citation_state")
         if e["confidence"] == "EXTRACTED" and cs != "present_relevant":
-            rejects.append(R(e, "EXTRACTED requires a directly-supporting passage")); continue
+            rejects.append(R(e, "EXTRACTED requires a directly-supporting passage"))
+            continue
         if cs in ("present_weak", "anchor_unavailable") and e["score"] > 0.75:
-            e["score"] = 0.75                     # demote, don't discard
+            e["score"] = 0.75  # demote, don't discard
         if cs == "missing" and e["score"] > 0.65:
             e["score"] = 0.65
         if cs == "wrong_source":
             e["confidence"], e["score"] = "AMBIGUOUS", 0.3
         if e["relation"] == "requires" and not both_concepts(e, ctx):
-                                                  rejects.append(R(e, "requires is Concept→Concept only")); continue
-        if e["src_key"] == e["dst_key"]:          rejects.append(R(e, "self-loop"));        continue
-        if unknown_key(e, fragment, ctx):         rejects.append(R(e, "dangling endpoint")); continue
-        if e.get("span") is None:                 e["score"] = demote_one_rung(e["score"])
+            rejects.append(R(e, "requires is Concept→Concept only"))
+            continue
+        if e["src_key"] == e["dst_key"]:
+            rejects.append(R(e, "self-loop"))
+            continue
+        if unknown_key(e, fragment, ctx):
+            rejects.append(R(e, "dangling endpoint"))
+            continue
+        if e.get("span") is None:
+            e["score"] = demote_one_rung(e["score"])
 
     return nodes, edges, rejects
 ```
@@ -295,14 +314,19 @@ def validate(fragment: dict, ctx: Context) -> tuple[list[Node], list[Edge], list
 ```python
 SENTENCE_MARKERS = re.compile(
     r"\b(is|are|was|were|has|have|should|would|could|will|did|does|because|"
-    r"therefore|so that|which|that we|we |i )\b", re.I)
+    r"therefore|so that|which|that we|we |i )\b",
+    re.I,
+)
+
 
 def is_sentence_like(label: str) -> bool:
     """A label is a name, not a sentence. Ported from Graphify's hard-won heuristic."""
-    return (len(label) > 60
-            or label.rstrip().endswith((".", "!", "?"))
-            or label.count(" ") > 7
-            or bool(SENTENCE_MARKERS.search(label)))
+    return (
+        len(label) > 60
+        or label.rstrip().endswith((".", "!", "?"))
+        or label.count(" ") > 7
+        or bool(SENTENCE_MARKERS.search(label))
+    )
 ```
 
 ## 4.1 Quarantine

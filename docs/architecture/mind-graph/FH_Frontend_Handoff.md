@@ -107,8 +107,9 @@ for the app to shell out to.
 
 ```python
 from mindgraph.api import Api, serve
+
 api = Api(root="users")
-token = api.tokens.mint("local", "human")     # server-minted, opaque
+token = api.tokens.mint("local", "human")  # server-minted, opaque
 serve(api, port=8787).serve_forever()
 ```
 

@@ -73,58 +73,94 @@ from pydantic import BaseModel, Field, model_validator
 
 SCHEMA_VERSION = 1
 
+
 class NodeType(StrEnum):
-    CONCEPT = "Concept"; QUESTION = "Question"; CLAIM = "Claim"
-    ARTIFACT = "Artifact"; SOURCE = "Source"; NOTE = "Note"
+    CONCEPT = "Concept"
+    QUESTION = "Question"
+    CLAIM = "Claim"
+    ARTIFACT = "Artifact"
+    SOURCE = "Source"
+    NOTE = "Note"
+
 
 class Relation(StrEnum):
-    CONTAINS = "contains"; PART_OF = "part_of"
-    SUPPORTS = "supports"; CONTRADICTS = "contradicts"
-    REFUTES = "refutes"; CONFIRMS = "confirms"; EXTENDS = "extends"
-    EVIDENCE_FOR = "evidence_for"; MEASURED_BY = "measured_by"
-    CITES = "cites"; USES_METHOD_IN = "uses_method_in"
-    REQUIRES = "requires"; RELATES_TO = "relates_to"; SAME_AS = "same_as"
-    ANSWERS = "answers"; RAISES = "raises"
-    SUPERSEDES = "supersedes"; DERIVED_FROM = "derived_from"
+    CONTAINS = "contains"
+    PART_OF = "part_of"
+    SUPPORTS = "supports"
+    CONTRADICTS = "contradicts"
+    REFUTES = "refutes"
+    CONFIRMS = "confirms"
+    EXTENDS = "extends"
+    EVIDENCE_FOR = "evidence_for"
+    MEASURED_BY = "measured_by"
+    CITES = "cites"
+    USES_METHOD_IN = "uses_method_in"
+    REQUIRES = "requires"
+    RELATES_TO = "relates_to"
+    SAME_AS = "same_as"
+    ANSWERS = "answers"
+    RAISES = "raises"
+    SUPERSEDES = "supersedes"
+    DERIVED_FROM = "derived_from"
 
-SUPPORTING = {Relation.SUPPORTS, Relation.EVIDENCE_FOR,
-              Relation.CONFIRMS, Relation.MEASURED_BY}
-OPPOSING   = {Relation.CONTRADICTS, Relation.REFUTES}
+
+SUPPORTING = {Relation.SUPPORTS, Relation.EVIDENCE_FOR, Relation.CONFIRMS, Relation.MEASURED_BY}
+OPPOSING = {Relation.CONTRADICTS, Relation.REFUTES}
+
 
 class Confidence(StrEnum):
-    EXTRACTED = "EXTRACTED"; INFERRED = "INFERRED"; AMBIGUOUS = "AMBIGUOUS"
+    EXTRACTED = "EXTRACTED"
+    INFERRED = "INFERRED"
+    AMBIGUOUS = "AMBIGUOUS"
+
 
 class Rank(StrEnum):
-    PREFERRED = "preferred"; NORMAL = "normal"; DEPRECATED = "deprecated"
+    PREFERRED = "preferred"
+    NORMAL = "normal"
+    DEPRECATED = "deprecated"
+
 
 class Support(StrEnum):
     """Distinct from Rank. A claim can be true but unsupported."""
-    SUPPORTED = "supported"; UNSUPPORTED = "unsupported"
-    CONTESTED = "contested"          # ⭐ NEW — live support AND live contradiction
+
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    CONTESTED = "contested"  # ⭐ NEW — live support AND live contradiction
     UNKNOWN = "unknown"
 
-class Strength(StrEnum):
-    TENTATIVE = "tentative"; ESTABLISHED = "established"; CONTESTED = "contested"
 
-class CitationState(StrEnum):          # ⭐ NEW
-    PRESENT_RELEVANT = "present_relevant"; PRESENT_WEAK = "present_weak"
-    MISSING = "missing"; WRONG_SOURCE = "wrong_source"
+class Strength(StrEnum):
+    TENTATIVE = "tentative"
+    ESTABLISHED = "established"
+    CONTESTED = "contested"
+
+
+class CitationState(StrEnum):  # ⭐ NEW
+    PRESENT_RELEVANT = "present_relevant"
+    PRESENT_WEAK = "present_weak"
+    MISSING = "missing"
+    WRONG_SOURCE = "wrong_source"
     ANCHOR_UNAVAILABLE = "anchor_unavailable"
 
-MIN_CORROBORATION = 2      # ⭐ one result cannot mint a belief
 
-class Scope(StrEnum):                  # ⭐ NEW — Concept scope
-    GLOBAL = "global"; PROJECT = "project"
+MIN_CORROBORATION = 2  # ⭐ one result cannot mint a belief
 
-class Origin(StrEnum):                 # ⭐ NEW — decides scope
-    CURATED   = "curated"      # from the skeleton, or carries a CASE external_id
-    EXTRACTED = "extracted"    # invented by the LLM from this student's material
-    PROMOTED  = "promoted"     # extracted, then seen in a 2nd project at ≥0.95
+
+class Scope(StrEnum):  # ⭐ NEW — Concept scope
+    GLOBAL = "global"
+    PROJECT = "project"
+
+
+class Origin(StrEnum):  # ⭐ NEW — decides scope
+    CURATED = "curated"  # from the skeleton, or carries a CASE external_id
+    EXTRACTED = "extracted"  # invented by the LLM from this student's material
+    PROMOTED = "promoted"  # extracted, then seen in a 2nd project at ≥0.95
+
 
 # Resolution bands — the middle one never hard-merges
-MERGE_HARD  = 0.95     # one node
-MERGE_SOFT  = 0.70     # `same_as` edge, both nodes survive
-PROMOTE_MIN = 0.95     # extracted -> global requires this AND a 2nd project
+MERGE_HARD = 0.95  # one node
+MERGE_SOFT = 0.70  # `same_as` edge, both nodes survive
+PROMOTE_MIN = 0.95  # extracted -> global requires this AND a 2nd project
 
 # The ONLY legal confidence scores. Continuous ranges collapse to bimodal
 # in practice (>50% at 0.5, >40% at 0.85+ measured in production).
@@ -134,24 +170,24 @@ LEGAL_SCORES = frozenset({1.0, 0.95, 0.85, 0.75, 0.65, 0.55, 0.3, 0.2, 0.1})
 class Node(BaseModel):
     id: str
     type: NodeType
-    kind: str | None = None          # ⭐ Artifact/Source: INTRINSIC. Claim: DERIVED (Q5)
-    label: str | None = None                      # ENCRYPTED at rest
-    aliases: list[str] = Field(default_factory=list)   # ENCRYPTED at rest
+    kind: str | None = None  # ⭐ Artifact/Source: INTRINSIC. Claim: DERIVED (Q5)
+    label: str | None = None  # ENCRYPTED at rest
+    aliases: list[str] = Field(default_factory=list)  # ENCRYPTED at rest
     body_ref: str | None = None
     project_id: str | None = None
     labels_at: dict[str, str] = Field(default_factory=dict)
-    external_ids: dict[str, str] = Field(default_factory=dict)   # ⭐ NEW
-    scope: Scope = Scope.PROJECT                  # ⭐ NEW — Concept only; set by provenance
-    origin: Origin = Origin.EXTRACTED             # ⭐ NEW — curated | extracted | promoted
+    external_ids: dict[str, str] = Field(default_factory=dict)  # ⭐ NEW
+    scope: Scope = Scope.PROJECT  # ⭐ NEW — Concept only; set by provenance
+    origin: Origin = Origin.EXTRACTED  # ⭐ NEW — curated | extracted | promoted
     created_seq: int
     valid_from: str | None = None
     valid_to: str | None = None
     rank: Rank = Rank.NORMAL
     support: Support = Support.UNKNOWN
-    corroboration: int = 0                        # ⭐ NEW — distinct supporting results
+    corroboration: int = 0  # ⭐ NEW — distinct supporting results
     corroborating_methods: list[str] = Field(default_factory=list)  # ⭐ Q12 — method node ids
-    single_method: bool = False                   # ⭐ Q12 — DERIVED, see _recompute_support
-    strength: Strength = Strength.TENTATIVE       # ⭐ NEW
+    single_method: bool = False  # ⭐ Q12 — DERIVED, see _recompute_support
+    strength: Strength = Strength.TENTATIVE  # ⭐ NEW
     superseded_by: str | None = None
     quarantined: bool = False
 
@@ -177,9 +213,9 @@ class Edge(BaseModel):
     relation: Relation
     confidence: Confidence
     score: float
-    weight: int = 1                                        # ⭐ NEW
+    weight: int = 1  # ⭐ NEW
     weight_sources: list[int] = Field(default_factory=list)  # ⭐ contributing event seqs
-    justification: list[str] = Field(default_factory=list)   # ATMS
+    justification: list[str] = Field(default_factory=list)  # ATMS
     provenance: dict = Field(default_factory=dict)  # {actor, method, source_span, citation_state}
     created_seq: int
     valid_from: str | None = None
@@ -195,8 +231,7 @@ class Edge(BaseModel):
             if self.score != 1.0:
                 raise ValueError("EXTRACTED edges are always 1.0")
             # ⭐ NEW — certainty requires a directly-supporting passage
-            if self.provenance.get("citation_state") not in (
-                    None, CitationState.PRESENT_RELEVANT):
+            if self.provenance.get("citation_state") not in (None, CitationState.PRESENT_RELEVANT):
                 raise ValueError("EXTRACTED requires citation_state=present_relevant")
         if self.confidence is Confidence.AMBIGUOUS and self.score > 0.3:
             raise ValueError("AMBIGUOUS edges score 0.1-0.3")
@@ -212,7 +247,7 @@ class Hyperedge(BaseModel):
     target: str | None = None
     confidence: Confidence
     score: float
-    weight: int = 1                                # ⭐ NEW
+    weight: int = 1  # ⭐ NEW
     justification: list[str] = Field(default_factory=list)
     created_seq: int
     rank: Rank = Rank.NORMAL
@@ -232,23 +267,29 @@ class Hyperedge(BaseModel):
 
 ```python
 class EventType(StrEnum):
-    OBSERVED = "observed"; PROPOSED = "proposed"
-    ACCEPTED = "accepted"; REJECTED = "rejected"
-    VALIDATED = "validated"      # ⭐ the outcome path
-    RETRACTED = "retracted"; MERGED = "merged"; SPLIT = "split"
-    ANNOTATED = "annotated"; ACCESSED = "accessed"
-    DEAD_END = "dead_end"        # ⭐ NEW — this approach failed
-    CORRECTION = "correction"    # ⭐ NEW — user fixed something; a learning signal
+    OBSERVED = "observed"
+    PROPOSED = "proposed"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
+    VALIDATED = "validated"  # ⭐ the outcome path
+    RETRACTED = "retracted"
+    MERGED = "merged"
+    SPLIT = "split"
+    ANNOTATED = "annotated"
+    ACCESSED = "accessed"
+    DEAD_END = "dead_end"  # ⭐ NEW — this approach failed
+    CORRECTION = "correction"  # ⭐ NEW — user fixed something; a learning signal
     SHREDDED = "shredded"
+
 
 class Event(BaseModel):
     seq: int
     ts: str
     actor: str
     type: EventType
-    schema_version: int = SCHEMA_VERSION     # for upcasting (Backend/07 §2)
-    structural: dict = Field(default_factory=dict)   # PLAINTEXT
-    content: bytes | None = None                     # ENCRYPTED
+    schema_version: int = SCHEMA_VERSION  # for upcasting (Backend/07 §2)
+    structural: dict = Field(default_factory=dict)  # PLAINTEXT
+    content: bytes | None = None  # ENCRYPTED
     caused_by: int | None = None
     prev_hash: str
     hash: str
@@ -287,10 +328,13 @@ PRAGMA journal_mode = WAL;
 ```python
 GENESIS = "0" * 64
 
+
 def canonical(obj) -> str:
     """Byte-stable JSON. Sorted keys, no whitespace, no NaN."""
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"),
-                      ensure_ascii=False, allow_nan=False)
+    return json.dumps(
+        obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
+
 
 def event_hash(prev, seq, ts, actor, etype, ver, structural, content) -> str:
     h = hashlib.sha256()
@@ -300,24 +344,38 @@ def event_hash(prev, seq, ts, actor, etype, ver, structural, content) -> str:
     h.update(hashlib.sha256(content).hexdigest().encode() if content else b"-")
     return h.hexdigest()
 
+
 class Ledger:
     def append(self, actor, etype, structural, content=None, caused_by=None) -> int:
-        with self.db:                                # single transaction
+        with self.db:  # single transaction
             prev_seq, prev_hash = self.head()
             seq, ts = prev_seq + 1, self._clock()
-            h = event_hash(prev_hash, seq, ts, actor, etype,
-                           SCHEMA_VERSION, structural, content)
-            self.db.execute("INSERT INTO events VALUES (?,?,?,?,?,?,?,?,?,?)",
-                            (seq, ts, actor, str(etype), SCHEMA_VERSION,
-                             canonical(structural), content, caused_by, prev_hash, h))
+            h = event_hash(prev_hash, seq, ts, actor, etype, SCHEMA_VERSION, structural, content)
+            self.db.execute(
+                "INSERT INTO events VALUES (?,?,?,?,?,?,?,?,?,?)",
+                (
+                    seq,
+                    ts,
+                    actor,
+                    str(etype),
+                    SCHEMA_VERSION,
+                    canonical(structural),
+                    content,
+                    caused_by,
+                    prev_hash,
+                    h,
+                ),
+            )
             return seq
 
     def verify_chain(self) -> bool:
         prev = GENESIS
         for e in self.read():
-            if e.prev_hash != prev: return False
-            if e.hash != event_hash(prev, e.seq, e.ts, e.actor, e.type,
-                                    e.schema_version, e.structural, e.content):
+            if e.prev_hash != prev:
+                return False
+            if e.hash != event_hash(
+                prev, e.seq, e.ts, e.actor, e.type, e.schema_version, e.structural, e.content
+            ):
                 return False
             prev = e.hash
         return True
@@ -334,22 +392,23 @@ Pure function: `list[Event] -> GraphState`. **No I/O, no clock, no randomness, n
 ```python
 @dataclass
 class GraphState:
-    nodes: dict[str, Node]         = field(default_factory=dict)
-    edges: dict[str, Edge]         = field(default_factory=dict)
-    hyper: dict[str, Hyperedge]    = field(default_factory=dict)
-    alias: dict[str, str]          = field(default_factory=dict)
-    merged_into: dict[str, str]    = field(default_factory=dict)
+    nodes: dict[str, Node] = field(default_factory=dict)
+    edges: dict[str, Edge] = field(default_factory=dict)
+    hyper: dict[str, Hyperedge] = field(default_factory=dict)
+    alias: dict[str, str] = field(default_factory=dict)
+    merged_into: dict[str, str] = field(default_factory=dict)
     justified_by: dict[str, set[str]] = field(default_factory=dict)
-    edge_key: dict[tuple, str]     = field(default_factory=dict)  # ⭐ (src,rel,dst)->edge_id
-    dead_ends: dict[str, dict]     = field(default_factory=dict)  # ⭐
+    edge_key: dict[tuple, str] = field(default_factory=dict)  # ⭐ (src,rel,dst)->edge_id
+    dead_ends: dict[str, dict] = field(default_factory=dict)  # ⭐
     last_seq: int = 0
+
 
 def project(events, state=None) -> GraphState:
     state = state or GraphState()
     for e in events:
         if e.seq <= state.last_seq:
-            continue                                  # idempotent replay
-        payload = upcast(e.structural, e.schema_version)   # Backend/07 §2
+            continue  # idempotent replay
+        payload = upcast(e.structural, e.schema_version)  # Backend/07 §2
         HANDLERS[e.type](state, payload, e.seq)
         state.last_seq = e.seq
     return state
@@ -362,23 +421,27 @@ def _accepted(state, p, seq):
     for nd in sorted(p.get("nodes", []), key=lambda d: d["id"]):
         node = Node(**nd, created_seq=seq)
         nid = resolve(state, node.id)
-        if nid in state.nodes: _merge_attrs(state.nodes[nid], node)
-        else:                  state.nodes[nid] = node
-        for a in sorted(node.aliases): state.alias[a] = nid
+        if nid in state.nodes:
+            _merge_attrs(state.nodes[nid], node)
+        else:
+            state.nodes[nid] = node
+        for a in sorted(node.aliases):
+            state.alias[a] = nid
 
     for ed in sorted(p.get("edges", []), key=lambda d: d["id"]):
         edge = Edge(**ed, created_seq=seq)
         edge.src, edge.dst = resolve(state, edge.src), resolve(state, edge.dst)
-        if edge.src == edge.dst: continue              # self-loop after merge
+        if edge.src == edge.dst:
+            continue  # self-loop after merge
 
         # ⭐ NEW — re-assertion increments weight rather than duplicating
         key = (edge.src, edge.relation, edge.dst)
         if (existing_id := state.edge_key.get(key)) is not None:
             ex = state.edges[existing_id]
-            if seq not in ex.weight_sources:           # distinct sources only
+            if seq not in ex.weight_sources:  # distinct sources only
                 ex.weight += 1
                 ex.weight_sources = sorted(set(ex.weight_sources) | {seq})
-            ex.score = max(ex.score, edge.score)       # best evidence wins
+            ex.score = max(ex.score, edge.score)  # best evidence wins
             ex.justification = sorted(set(ex.justification) | set(edge.justification))
         else:
             edge.weight_sources = [seq]
@@ -386,60 +449,73 @@ def _accepted(state, p, seq):
             state.edge_key[key] = edge.id
 
         for dep in edge.justification:
-            state.justified_by.setdefault(resolve(state, dep), set()).add(
-                state.edge_key[key])
+            state.justified_by.setdefault(resolve(state, dep), set()).add(state.edge_key[key])
 
-    _recompute_support(state, affected_nodes(p))       # ⭐ support + strength
+    _recompute_support(state, affected_nodes(p))  # ⭐ support + strength
+
 
 def _validated(state, p, seq):
     """⭐ The outcome path. agreement is structural; values are encrypted."""
     aid = resolve(state, p["artifact_id"])
-    if (art := state.nodes.get(aid)) is None: return
+    if (art := state.nodes.get(aid)) is None:
+        return
     art.labels_at = {**art.labels_at, "outcome": p["agreement"]}
     if p["agreement"] == "matched":
-        m = _method_of(state, aid)                     # ⭐ Q12 — may be None
+        m = _method_of(state, aid)  # ⭐ Q12 — may be None
         for cid in sorted(p.get("validates", [])):
-            if (c := state.nodes.get(resolve(state, cid))):
-                c.corroboration += 1                   # ⭐ distinct RESULT
+            if c := state.nodes.get(resolve(state, cid)):
+                c.corroboration += 1  # ⭐ distinct RESULT
                 if m and m not in c.corroborating_methods:
                     c.corroborating_methods = sorted(c.corroborating_methods + [m])
                 _recompute_support(state, [c.id])
 
-def _method_of(state, artifact_id):                    # ⭐ Q12
+
+def _method_of(state, artifact_id):  # ⭐ Q12
     """The Method an Artifact was produced with, if it declared one.
-       Artifact(kind=run) --uses_method_in--> Artifact(kind=method)."""
+    Artifact(kind=run) --uses_method_in--> Artifact(kind=method)."""
     for e in state.edges.values():
-        if (e.src == artifact_id and e.relation is Relation.USES_METHOD_IN
-                and e.rank is not Rank.DEPRECATED):
+        if (
+            e.src == artifact_id
+            and e.relation is Relation.USES_METHOD_IN
+            and e.rank is not Rank.DEPRECATED
+        ):
             return e.dst
     return None
 
-def _dead_end(state, p, seq):                          # ⭐ NEW
+
+def _dead_end(state, p, seq):  # ⭐ NEW
     state.dead_ends[p["id"]] = {
-        "question": p["question"], "nodes": sorted(p.get("nodes", [])),
-        "seq": seq, "resurrect_if": sorted(p.get("resurrect_if", [])),
+        "question": p["question"],
+        "nodes": sorted(p.get("nodes", [])),
+        "seq": seq,
+        "resurrect_if": sorted(p.get("resurrect_if", [])),
     }
 
-def _correction(state, p, seq):                        # ⭐ NEW
+
+def _correction(state, p, seq):  # ⭐ NEW
     """User fixed something. Applied, and logged as extraction-quality signal."""
-    if (n := state.nodes.get(resolve(state, p["target"]))):
+    if n := state.nodes.get(resolve(state, p["target"])):
         for k, v in p.get("fields", {}).items():
             setattr(n, k, v)
 
+
 def _merged(state, p, seq):
     kept, absorbed = resolve(state, p["kept"]), resolve(state, p["absorbed"])
-    if kept == absorbed: return
+    if kept == absorbed:
+        return
     state.merged_into[absorbed] = kept
     a = state.nodes.pop(absorbed, None)
     if a and kept in state.nodes:
         k = state.nodes[kept]
-        k.aliases = sorted(set(k.aliases) | set(a.aliases) |
-                           ({a.label} if a.label else set()))
-        k.corroboration += a.corroboration              # ⭐ counts survive a merge
-        k.corroborating_methods = sorted(set(k.corroborating_methods) |
-                                         set(a.corroborating_methods))   # ⭐ Q12
-        for s in k.aliases: state.alias[s] = kept
-    _rebuild_edge_keys(state)                           # endpoints changed
+        k.aliases = sorted(set(k.aliases) | set(a.aliases) | ({a.label} if a.label else set()))
+        k.corroboration += a.corroboration  # ⭐ counts survive a merge
+        k.corroborating_methods = sorted(
+            set(k.corroborating_methods) | set(a.corroborating_methods)
+        )  # ⭐ Q12
+        for s in k.aliases:
+            state.alias[s] = kept
+    _rebuild_edge_keys(state)  # endpoints changed
+
 
 def _shredded(state, p, seq):
     for n in state.nodes.values():
@@ -451,6 +527,7 @@ def _shredded(state, p, seq):
 
 ```python
 import math
+
 
 def independent_weight(state, edge) -> int:
     """⭐ REVISED 2026-08-10 (Backend/09 Q6).
@@ -465,11 +542,10 @@ def independent_weight(state, edge) -> int:
     if len(srcs) <= 1:
         return max(1, edge.weight)
     derivative = {
-        b for b in srcs
-        for a in srcs
-        if a != b and _reaches(state, a, b, via=Relation.CITES)
+        b for b in srcs for a in srcs if a != b and _reaches(state, a, b, via=Relation.CITES)
     }
     return max(1, len(srcs - derivative))
+
 
 def evidence_mass(state, edges) -> float:
     """Damping over INDEPENDENT weight.
@@ -480,6 +556,7 @@ def evidence_mass(state, edges) -> float:
     """
     return sum(math.sqrt(independent_weight(state, e)) for e in edges)
 
+
 # ⭐ Q5 (2026-08-10): Claim.kind is DERIVED from structure, not stored.
 #   observation  supported by evidence OUTSIDE your reasoning (Artifact | Source)
 #   conclusion   supported by other Claims
@@ -489,6 +566,7 @@ def evidence_mass(state, edges) -> float:
 #  is not derivable from the graph. Only Claim.kind is.)
 EXTERNAL_TYPES = {NodeType.ARTIFACT, NodeType.SOURCE}
 
+
 def _derive_claim_kind(state, nid, live_supporting) -> str:
     if not live_supporting:
         return "hypothesis"
@@ -497,27 +575,32 @@ def _derive_claim_kind(state, nid, live_supporting) -> str:
         return "observation"
     return "conclusion"
 
+
 def _recompute_support(state, node_ids):
     """⭐ Support is an EXISTENCE question. Weight grades it; it never decides it.
-       Also derives Claim.kind (Q5) and evidence_mass (Q6) in the same pass."""
+    Also derives Claim.kind (Q5) and evidence_mass (Q6) in the same pass."""
     for nid in sorted(set(node_ids)):
-        if (n := state.nodes.get(nid)) is None: continue
-        live = [e for e in state.edges.values()
-                if e.dst == nid and e.rank is not Rank.DEPRECATED]
+        if (n := state.nodes.get(nid)) is None:
+            continue
+        live = [e for e in state.edges.values() if e.dst == nid and e.rank is not Rank.DEPRECATED]
         pos = [e for e in live if e.relation in SUPPORTING]
         neg = [e for e in live if e.relation in OPPOSING]
 
         # classification uses COUNTS, not weights — one live contradiction
         # always shows, however heavily the other side is cited
-        if   pos and neg: n.support, n.strength = Support.CONTESTED, Strength.CONTESTED
+        if pos and neg:
+            n.support, n.strength = Support.CONTESTED, Strength.CONTESTED
         elif pos:
             n.support = Support.SUPPORTED
             # ⭐ strength depends on CORROBORATION (independent results),
             #    never on edge weight (how many sources assert the link)
-            n.strength = (Strength.ESTABLISHED if n.corroboration >= MIN_CORROBORATION
-                          else Strength.TENTATIVE)
-        elif neg: n.support, n.strength = Support.UNSUPPORTED, Strength.TENTATIVE
-        else:     n.support, n.strength = Support.UNKNOWN, Strength.TENTATIVE
+            n.strength = (
+                Strength.ESTABLISHED if n.corroboration >= MIN_CORROBORATION else Strength.TENTATIVE
+            )
+        elif neg:
+            n.support, n.strength = Support.UNSUPPORTED, Strength.TENTATIVE
+        else:
+            n.support, n.strength = Support.UNKNOWN, Strength.TENTATIVE
 
         # ⭐ Q5 — Claim.kind falls out of the same pass
         if n.type is NodeType.CLAIM:
@@ -526,8 +609,7 @@ def _recompute_support(state, node_ids):
         # ⭐ Q12 — corroborated, but every result came from ONE method.
         # Flags, never blocks: same-method replication is a legitimate
         # reproducibility check, it just isn't independent evidence.
-        n.single_method = (n.corroboration >= MIN_CORROBORATION
-                           and len(n.corroborating_methods) == 1)
+        n.single_method = n.corroboration >= MIN_CORROBORATION and len(n.corroborating_methods) == 1
 
         # magnitude is retained for RANKING only (DOI, tension_priority)
         pm, nm = evidence_mass(state, pos), evidence_mass(state, neg)
@@ -580,11 +662,14 @@ And **one live contradiction always produces `CONTESTED`**, no matter how heavil
 ```python
 def state_hash(state) -> str:
     """Canonical fingerprint. Excludes encrypted fields so a shredded
-       graph still passes its own determinism check."""
+    graph still passes its own determinism check."""
     h = hashlib.sha256()
     for nid in sorted(state.nodes):
-        h.update(canonical(state.nodes[nid].model_dump(
-            exclude={"label", "aliases", "body_ref"})).encode())
+        h.update(
+            canonical(
+                state.nodes[nid].model_dump(exclude={"label", "aliases", "body_ref"})
+            ).encode()
+        )
     for eid in sorted(state.edges):
         h.update(canonical(state.edges[eid].model_dump()).encode())
     for hid in sorted(state.hyper):
@@ -618,16 +703,19 @@ def cascade_retract(state, target_id, seq) -> dict:
     while queue:
         dead = queue.popleft()
         for dependent in sorted(state.justified_by.get(dead, ())):
-            if dependent in seen: continue
+            if dependent in seen:
+                continue
             seen.add(dependent)
             if (e := state.edges.get(dependent)) is not None:
                 e.rank, e.valid_to = Rank.DEPRECATED, str(seq)
-                deprecated.add(dependent); touched.add(e.dst)
+                deprecated.add(dependent)
+                touched.add(e.dst)
                 queue.append(dependent)
             elif dependent in state.nodes:
-                touched.add(dependent); queue.append(dependent)
+                touched.add(dependent)
+                queue.append(dependent)
 
-    _recompute_support(state, touched)      # ⭐ magnitude-aware, one place
+    _recompute_support(state, touched)  # ⭐ magnitude-aware, one place
     return {"deprecated": sorted(deprecated), "recomputed": sorted(touched)}
 ```
 
@@ -649,20 +737,23 @@ The tests are the specification.
 def test_replay_is_byte_identical(led):
     assert state_hash(project(led.read())) == state_hash(project(led.read()))
 
+
 def test_replay_independent_of_batching(led):
     whole, piecewise = project(led.read()), GraphState()
-    for e in led.read(): piecewise = project([e], piecewise)
+    for e in led.read():
+        piecewise = project([e], piecewise)
     assert state_hash(whole) == state_hash(piecewise)
+
 
 def test_hash_chain_detects_tampering(led):
     assert led.verify_chain()
     led.db.execute("UPDATE events SET structural='{\"x\":1}' WHERE seq=5")
     assert not led.verify_chain()
 
+
 def test_projector_is_pure(led, monkeypatch):
-    for mod, fn in [("time","time"), ("random","random"), ("socket","socket")]:
-        monkeypatch.setattr(f"{mod}.{fn}",
-                            lambda *a, **k: (_ for _ in ()).throw(AssertionError()))
+    for mod, fn in [("time", "time"), ("random", "random"), ("socket", "socket")]:
+        monkeypatch.setattr(f"{mod}.{fn}", lambda *a, **k: (_ for _ in ()).throw(AssertionError()))
     project(led.read())
 ```
 
@@ -675,14 +766,16 @@ def test_reassertion_increments_weight_not_duplicates(led):
     assert len([e for e in g.edges.values() if e.relation == "supports"]) == 1
     assert g.edges[edge_id(g, "M", "supports", "C")].weight == 2
 
+
 def test_same_source_does_not_double_count(led):
     """Weight counts distinct sources, not repetitions."""
-    seq = led.append(...)                     # same event replayed
+    seq = led.append(...)  # same event replayed
     g = project(list(led.read()) + list(led.read()))
     assert g.edges[...].weight == 1
 
+
 def test_weight_survives_merge(led):
-    g = project(led.read())                   # merge two concepts
+    g = project(led.read())  # merge two concepts
     assert g.nodes["kept"].corroboration == 3  # 2 + 1
 ```
 
@@ -692,69 +785,79 @@ def test_weight_survives_merge(led):
 def test_one_result_is_tentative_not_established(g_one_measurement):
     c = g_one_measurement.nodes["C"]
     assert c.support is Support.SUPPORTED
-    assert c.strength is Strength.TENTATIVE      # ⭐ NOT in the knowledge state
+    assert c.strength is Strength.TENTATIVE  # ⭐ NOT in the knowledge state
+
 
 def test_two_distinct_results_establish(g_two_measurements):
     assert g_two_measurements.nodes["C"].strength is Strength.ESTABLISHED
 
-def test_claim_kind_is_derived_not_stored(g):                 # ⭐ Q5
+
+def test_claim_kind_is_derived_not_stored(g):  # ⭐ Q5
     """A hypothesis becomes an observation the moment it's measured."""
-    assert g.nodes["C"].kind == "hypothesis"        # no support yet
+    assert g.nodes["C"].kind == "hypothesis"  # no support yet
     apply_measurement(g, artifact="M", supports="C")
-    assert g.nodes["C"].kind == "observation"       # Artifact-backed
-    apply_support(g, claim="C2", supports="C")      # Claim-backed only
+    assert g.nodes["C"].kind == "observation"  # Artifact-backed
+    apply_support(g, claim="C2", supports="C")  # Claim-backed only
     assert g.nodes["C2"].kind == "conclusion"
 
-def test_hypothesis_can_never_be_established(g):             # ⭐ Q5
+
+def test_hypothesis_can_never_be_established(g):  # ⭐ Q5
     assert g.nodes["C"].kind == "hypothesis"
     assert g.nodes["C"].strength is Strength.TENTATIVE
 
-def test_citing_sources_are_discounted(g_cascade):            # ⭐ Q6
+
+def test_citing_sources_are_discounted(g_cascade):  # ⭐ Q6
     """Three papers, two citing the first: independent weight is 1, not 3."""
     e = g_cascade.edges["e1"]
     assert e.weight == 3
     assert independent_weight(g_cascade, e) == 1
 
+
 def test_conflicting_evidence_is_contested(g_pos_and_neg):
     n = g_pos_and_neg.nodes["C"]
     assert n.support is Support.CONTESTED
-    assert n.strength is Strength.CONTESTED      # feeds the Disagreement Engine
+    assert n.strength is Strength.CONTESTED  # feeds the Disagreement Engine
+
 
 def test_heavy_citation_does_not_suppress_a_contradiction(g_lopsided):
     """20 papers agree; the student's bench disagrees once. Still CONTESTED."""
     n = g_lopsided.nodes["C"]
-    assert n.support is Support.CONTESTED        # existence, not magnitude
-    assert n.contest_ratio < 0.3                 # graded for ranking only
+    assert n.support is Support.CONTESTED  # existence, not magnitude
+    assert n.contest_ratio < 0.3  # graded for ranking only
 
-def test_same_method_twice_is_flagged_not_blocked(g):          # ⭐ Q12
+
+def test_same_method_twice_is_flagged_not_blocked(g):  # ⭐ Q12
     """Two runs, one method: still ESTABLISHED, but visibly single-method."""
     apply_method(g, method="M1")
     apply_measurement(g, artifact="R1", method="M1", supports="C")
     apply_measurement(g, artifact="R2", method="M1", supports="C")
     c = g.nodes["C"]
     assert c.corroboration == 2
-    assert c.strength is Strength.ESTABLISHED      # not blocked
-    assert c.single_method is True                 # but flagged
+    assert c.strength is Strength.ESTABLISHED  # not blocked
+    assert c.single_method is True  # but flagged
 
-def test_two_methods_clears_the_flag(g):                       # ⭐ Q12
+
+def test_two_methods_clears_the_flag(g):  # ⭐ Q12
     apply_measurement(g, artifact="R1", method="M1", supports="C")
     apply_measurement(g, artifact="R2", method="M2", supports="C")
     assert g.nodes["C"].single_method is False
 
-def test_methods_survive_a_merge(g):                           # ⭐ Q12
+
+def test_methods_survive_a_merge(g):  # ⭐ Q12
     """Merging two claims unions their method sets — a merge must not
-       manufacture single-method-ness, nor hide it."""
+    manufacture single-method-ness, nor hide it."""
     apply_measurement(g, artifact="R1", method="M1", supports="A")
     apply_measurement(g, artifact="R2", method="M2", supports="B")
     apply_merge(g, kept="A", absorbed="B")
     assert g.nodes["A"].corroborating_methods == ["M1", "M2"]
     assert g.nodes["A"].single_method is False
 
+
 def test_weight_never_substitutes_for_corroboration(g_one_result_many_citations):
     """One measurement, cited by ten sources, is still TENTATIVE."""
     n = g_one_result_many_citations.nodes["C"]
     assert n.corroboration == 1
-    assert n.strength is Strength.TENTATIVE      # ⭐ not admitted to knowledge state
+    assert n.strength is Strength.TENTATIVE  # ⭐ not admitted to knowledge state
 ```
 
 ## `test_cascade.py`
@@ -764,57 +867,85 @@ def test_retracting_evidence_unsupports_the_conclusion(g):
     cascade_retract(g, "M", seq=10)
     assert g.nodes["M"].rank is Rank.DEPRECATED
     assert g.nodes["C"].support is Support.UNSUPPORTED
-    assert g.nodes["C"].rank is not Rank.DEPRECATED     # ⭐ still not false
+    assert g.nodes["C"].rank is not Rank.DEPRECATED  # ⭐ still not false
+
 
 def test_claim_with_surviving_support_stays_supported(g_two):
     cascade_retract(g_two, "M1", seq=10)
     assert g_two.nodes["C"].support is Support.SUPPORTED
 
+
 def test_cascade_terminates_on_cyclic_justification(g_cycle):
-    cascade_retract(g_cycle, "A", seq=10)          # must not hang
+    cascade_retract(g_cycle, "A", seq=10)  # must not hang
+
 
 def test_cascade_is_transitive(g_chain):
-    out = cascade_retract(g_chain, "M", seq=10)    # M -> C1 -> C2 -> C3
-    assert {"C1","C2","C3"} <= set(out["recomputed"])
+    out = cascade_retract(g_chain, "M", seq=10)  # M -> C1 -> C2 -> C3
+    assert {"C1", "C2", "C3"} <= set(out["recomputed"])
 ```
 
 ## `test_crypto_shred.py` · `test_ontology.py`
 
 ```python
 def test_structure_survives_shredding(led, keystore):
-    before = project(led.read()); keystore.destroy(user)
+    before = project(led.read())
+    keystore.destroy(user)
     led.append("system", EventType.SHREDDED, {"user": user})
     after = project(led.read())
     assert set(after.nodes) == set(before.nodes)
     assert all(n.label is None for n in after.nodes.values())
     assert state_hash(after) == state_hash(before)
 
-def test_no_user_text_in_structural(led):        # CI gate
+
+def test_no_user_text_in_structural(led):  # CI gate
     for e in led.read():
         assert not any(len(tok) > 40 for tok in canonical(e.structural).split('"'))
 
+
 @pytest.mark.parametrize("bad", [0.5, 0.9, 0.42, 0.0])
 def test_scores_outside_the_rubric_are_rejected(bad):
-    with pytest.raises(ValidationError): Edge(..., score=bad)
-
-def test_extracted_requires_a_supporting_passage():   # ⭐ new
     with pytest.raises(ValidationError):
-        Edge(..., confidence=Confidence.EXTRACTED, score=1.0,
-             provenance={"citation_state": CitationState.PRESENT_WEAK})
+        Edge(..., score=bad)
 
-def test_curated_concepts_must_be_global():          # ⭐ revised
+
+def test_extracted_requires_a_supporting_passage():  # ⭐ new
     with pytest.raises(ValidationError):
-        Node(id="n", type=NodeType.CONCEPT, origin=Origin.CURATED,
-             scope=Scope.PROJECT, project_id="p1", created_seq=1)
+        Edge(
+            ...,
+            confidence=Confidence.EXTRACTED,
+            score=1.0,
+            provenance={"citation_state": CitationState.PRESENT_WEAK},
+        )
+
+
+def test_curated_concepts_must_be_global():  # ⭐ revised
+    with pytest.raises(ValidationError):
+        Node(
+            id="n",
+            type=NodeType.CONCEPT,
+            origin=Origin.CURATED,
+            scope=Scope.PROJECT,
+            project_id="p1",
+            created_seq=1,
+        )
+
 
 def test_extracted_concepts_start_project_scoped():
-    n = Node(id="n", type=NodeType.CONCEPT, origin=Origin.EXTRACTED,
-             scope=Scope.PROJECT, project_id="p1", created_seq=1)
+    n = Node(
+        id="n",
+        type=NodeType.CONCEPT,
+        origin=Origin.EXTRACTED,
+        scope=Scope.PROJECT,
+        project_id="p1",
+        created_seq=1,
+    )
     assert n.scope is Scope.PROJECT
+
 
 def test_only_concepts_may_be_global():
     with pytest.raises(ValidationError):
         Node(id="n", type=NodeType.CLAIM, scope=Scope.GLOBAL, created_seq=1)
+
 
 def test_soft_merge_band_does_not_merge(g_similarity_0_85):
     """0.7-0.95 creates a same_as edge; both nodes survive."""
@@ -835,10 +966,11 @@ Nightly, over every user ledger: rebuild from zero, compare `state_hash` to the 
 def measure(op_type: str, **tags):
     t0, c0 = time.perf_counter(), time.process_time()
     rec = {"op_type": op_type, **tags}
-    try: yield rec
+    try:
+        yield rec
     finally:
-        rec["wall_ms"] = int((time.perf_counter()-t0)*1000)
-        rec["cpu_ms"]  = int((time.process_time()-c0)*1000)
+        rec["wall_ms"] = int((time.perf_counter() - t0) * 1000)
+        rec["cpu_ms"] = int((time.process_time() - c0) * 1000)
         write_op(rec)
 ```
 

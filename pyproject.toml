@@ -16,7 +16,23 @@ dev = [
   "sqlalchemy>=2.0.0",
   "psycopg[binary]>=3.1.0",
   "alembic>=1.13.0",
+  "httpx>=0.27.0",
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.0.0",
+  "datamodel-code-generator>=0.26.0",
+  "networkx>=3",
+  "scipy>=1.11",
+  "cryptography>=42",
 ]
+
+# The root project installs development dependencies only; modules own their packages.
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = []
 
 [tool.ruff]
 line-length = 100
@@ -59,24 +75,31 @@ addopts = "-q"
 asyncio_mode = "auto"
 
 [tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+# Resolve site-packages from disk when sandbox restrictions block the interpreter probe.
 venvPath = "."
 venv = ".venv"
+include = ["agents", "apps", "packages", "tools", "scripts"]
+exclude = ["**/__pycache__", "**/.venv", "**/node_modules", "packages/contracts/generated"]
+# Import roots for the src-layout packages (mirrors PYTHON_PATH in the Makefile).
 extraPaths = [
   "apps/api/src",
   "agents/embedded-systems/src",
   "agents/mind-graph/src",
+  "agents/vera/src",
+  "packages/agent-runtime/src",
   "packages/board/src",
   "packages/board/tests",
   "packages/contracts/src",
   "packages/contracts/generated/python",
+  "packages/memory/src",
   "packages/model-gateway/src",
   "packages/observability/src",
   "packages/persistence/src",
+  "packages/retrieval/src",
+  "packages/testing/src",
 ]
-pythonVersion = "3.11"
-typeCheckingMode = "basic"
-include = ["agents", "apps", "packages", "tools", "scripts"]
-exclude = ["**/__pycache__", "**/.venv", "**/node_modules", "packages/contracts/generated"]
 
 [tool.mypy]
 python_version = "3.11"

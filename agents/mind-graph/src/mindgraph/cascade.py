@@ -9,6 +9,7 @@ The part most likely to be built wrong, so the semantics are stated first:
   3. Support is a magnitude, not a boolean. Retracting one of five supports
      leaves a claim SUPPORTED; retracting the last leaves it UNSUPPORTED.
 """
+
 from __future__ import annotations
 
 from collections import deque
@@ -38,8 +39,7 @@ def cascade_retract(state: GraphState, target_id: str, seq: int) -> dict:
     seeds: list[str] = [target_id]
     for eid in sorted(state.edges):
         e = state.edges[eid]
-        if (e.src == target_id or e.dst == target_id) \
-                and e.rank is not Rank.DEPRECATED:
+        if (e.src == target_id or e.dst == target_id) and e.rank is not Rank.DEPRECATED:
             e.rank, e.valid_to = Rank.DEPRECATED, str(seq)
             deprecated.add(eid)
             touched.add(e.dst)
@@ -54,14 +54,14 @@ def cascade_retract(state: GraphState, target_id: str, seq: int) -> dict:
         dead = queue.popleft()
         for dependent in sorted(state.justified_by.get(dead, ())):
             if dependent in seen:
-                continue                        # cyclic justification: stop
+                continue  # cyclic justification: stop
             seen.add(dependent)
             if (e := state.edges.get(dependent)) is not None:
                 e.rank, e.valid_to = Rank.DEPRECATED, str(seq)
                 deprecated.add(dependent)
                 touched.add(e.dst)
                 queue.append(dependent)
-                queue.append(e.dst)             # follow the claim onward
+                queue.append(e.dst)  # follow the claim onward
             elif dependent in state.nodes:
                 touched.add(dependent)
                 queue.append(dependent)

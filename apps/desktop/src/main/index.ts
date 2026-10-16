@@ -163,7 +163,8 @@ async function bootstrap(): Promise<void> {
         app.on(
           'before-quit',
           createShutdownHandler(sidecar, () => {
-            app.quit();
+            // Shutdown is complete; exit even if the windows are already gone.
+            app.exit(0);
           }),
         );
       },

@@ -7,6 +7,7 @@ is: snapshot + tail == full replay.
 ⚠️ Backup the ledger, not this (Backend/07 §4.4). A restored snapshot can
 disagree with the log; a replayed one cannot.
 """
+
 from __future__ import annotations
 
 import json
@@ -17,20 +18,21 @@ from .schema import Edge, Hyperedge, Node
 
 
 def dumps(state: GraphState) -> str:
-    return json.dumps({
-        "last_seq": state.last_seq,
-        "nodes": {k: state.nodes[k].model_dump(mode="json")
-                  for k in sorted(state.nodes)},
-        "edges": {k: state.edges[k].model_dump(mode="json")
-                  for k in sorted(state.edges)},
-        "hyper": {k: state.hyper[k].model_dump(mode="json")
-                  for k in sorted(state.hyper)},
-        "alias": dict(sorted(state.alias.items())),
-        "merged_into": dict(sorted(state.merged_into.items())),
-        "justified_by": {k: sorted(v) for k, v in sorted(state.justified_by.items())},
-        "dead_ends": {k: state.dead_ends[k] for k in sorted(state.dead_ends)},
-        "access": {k: state.access[k] for k in sorted(state.access)},
-    }, sort_keys=True, separators=(",", ":"))
+    return json.dumps(
+        {
+            "last_seq": state.last_seq,
+            "nodes": {k: state.nodes[k].model_dump(mode="json") for k in sorted(state.nodes)},
+            "edges": {k: state.edges[k].model_dump(mode="json") for k in sorted(state.edges)},
+            "hyper": {k: state.hyper[k].model_dump(mode="json") for k in sorted(state.hyper)},
+            "alias": dict(sorted(state.alias.items())),
+            "merged_into": dict(sorted(state.merged_into.items())),
+            "justified_by": {k: sorted(v) for k, v in sorted(state.justified_by.items())},
+            "dead_ends": {k: state.dead_ends[k] for k in sorted(state.dead_ends)},
+            "access": {k: state.access[k] for k in sorted(state.access)},
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
 
 
 def loads(blob: str) -> GraphState:

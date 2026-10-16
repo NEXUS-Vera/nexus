@@ -4,10 +4,10 @@ The property being proved: destroying a key removes the content and leaves the
 STRUCTURE intact, so the projector never corrupts and aggregate outcome data
 outlives an erasure request.
 """
+
 from __future__ import annotations
 
 import pytest
-
 from conftest import accept, edge, node, validate
 from mindgraph.crypto import KeyStore, decrypt, encrypt
 from mindgraph.errors import KeyDestroyed
@@ -35,9 +35,11 @@ def test_destroying_the_key_makes_content_unreadable():
 def test_structure_survives_shredding(led):
     """⭐ The shape stays; the labels go. state_hash excludes encrypted fields,
     so a shredded graph still passes its own determinism check."""
-    accept(led, [node("M", "Artifact", label="forearm sweep"),
-                 node("C", label="47 kOhm means hydrated")],
-           [edge("M", "supports", "C")])
+    accept(
+        led,
+        [node("M", "Artifact", label="forearm sweep"), node("C", label="47 kOhm means hydrated")],
+        [edge("M", "supports", "C")],
+    )
     validate(led, "M", ["C"])
     before = project(led.read())
 
@@ -52,8 +54,9 @@ def test_structure_survives_shredding(led):
 def test_agreement_outlives_erasure(led):
     """The flywheel signal is structural, so calibration data survives while
     the person's numbers do not."""
-    accept(led, [node("M", "Artifact", label="forearm sweep"), node("C")],
-           [edge("M", "supports", "C")])
+    accept(
+        led, [node("M", "Artifact", label="forearm sweep"), node("C")], [edge("M", "supports", "C")]
+    )
     validate(led, "M", ["C"])
     led.append("system", EventType.SHREDDED, {"user": "u1"})
     g = project(led.read())

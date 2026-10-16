@@ -456,10 +456,12 @@ Do **not** read this end to end. Work in this order:
 def validate_skeleton(concepts: list[dict]) -> list[str]:
     errs = []
     ids = {c["id"] for c in concepts}
-    if len(ids) != len(concepts):            errs.append("duplicate ids")
+    if len(ids) != len(concepts):
+        errs.append("duplicate ids")
     for c in concepts:
         for r in c.get("requires", []):
-            if r not in ids:                 errs.append(f"{c['id']} requires unknown {r}")
+            if r not in ids:
+                errs.append(f"{c['id']} requires unknown {r}")
     # ⭐ a cycle makes the outer fringe empty and the frontier engine
     #    silently returns nothing — fail loudly instead
     g = nx.DiGraph((c["id"], r) for c in concepts for r in c.get("requires", []))

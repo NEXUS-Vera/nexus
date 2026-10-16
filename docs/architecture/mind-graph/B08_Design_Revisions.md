@@ -46,8 +46,8 @@ Everything else in the STEAL lists **is** in the design — sidecar separation, 
 ```python
 class Edge(BaseModel):
     ...
-    weight: int = 1        # ⭐ NEW — times this relation was independently asserted
-    weight_sources: list[str] = Field(default_factory=list)   # distinct event seqs
+    weight: int = 1  # ⭐ NEW — times this relation was independently asserted
+    weight_sources: list[str] = Field(default_factory=list)  # distinct event seqs
 ```
 
 **Semantics:** re-asserting an existing `(src, relation, dst)` **increments `weight`** and appends the event seq, rather than creating a duplicate edge. Distinct-source counting, not raw repetition — the same paper cited twice is weight 1; two papers agreeing is weight 2.
@@ -62,21 +62,24 @@ class Edge(BaseModel):
 
 ```python
 class Support(StrEnum):
-    SUPPORTED   = "supported"
+    SUPPORTED = "supported"
     UNSUPPORTED = "unsupported"
-    CONTESTED   = "contested"     # ⭐ NEW — live support AND live contradiction
-    UNKNOWN     = "unknown"
+    CONTESTED = "contested"  # ⭐ NEW — live support AND live contradiction
+    UNKNOWN = "unknown"
 ```
 
 Graphify's `reflect` splits nodes into **preferred / tentative / contested**; Research/02 §13 lists *contested* among the canonical colour groups we should ship. My `Support` enum collapsed it into `unknown`, which is wrong: a claim nobody has tested and a claim two measurements disagree about are opposite epistemic states, and the second is far more interesting.
 
 ```python
 def support_state(state, node_id) -> Support:
-    pos = live_support_weight(state, node_id)      # Σ weight over live supporting edges
+    pos = live_support_weight(state, node_id)  # Σ weight over live supporting edges
     neg = live_contradiction_weight(state, node_id)
-    if pos and neg:  return Support.CONTESTED       # ⭐ the interesting one
-    if pos:          return Support.SUPPORTED
-    if neg:          return Support.UNSUPPORTED
+    if pos and neg:
+        return Support.CONTESTED  # ⭐ the interesting one
+    if pos:
+        return Support.SUPPORTED
+    if neg:
+        return Support.UNSUPPORTED
     return Support.UNKNOWN
 ```
 
@@ -89,7 +92,7 @@ Research/01 §12.4, verbatim: *"`min_corroboration = 2`, 30-day half-life. One s
 ```python
 class Claim(Node):
     ...
-    corroboration: int = 0     # ⭐ distinct supporting results (NOT re-assertions)
+    corroboration: int = 0  # ⭐ distinct supporting results (NOT re-assertions)
     strength: Literal["tentative", "established", "contested"] = "tentative"
 ```
 
@@ -108,7 +111,9 @@ Time-decay uses the existing 30-day half-life already specified for salience.
 ```python
 class Node(BaseModel):
     ...
-    external_ids: dict[str, str] = Field(default_factory=dict)   # {"CASE": "...", "wikidata": "Q..."}
+    external_ids: dict[str, str] = Field(
+        default_factory=dict
+    )  # {"CASE": "...", "wikidata": "Q..."}
 ```
 
 Research/04 Tier 6 identified **CASE** as the standard giving competencies globally unique IDs. Free to add now; expensive to backfill; and it's the hook for ever exchanging skeletons with an institution.
@@ -178,9 +183,9 @@ Research/01 §12.5 called this the highest-value cross-session memory, and noted
 ```python
 class DeadEnd(BaseModel):
     id: str
-    question: str            # what was being attempted
-    nodes: list[str]         # what it rested on
-    reason: str              # why it failed
+    question: str  # what was being attempted
+    nodes: list[str]  # what it rested on
+    reason: str  # why it failed
     seq: int
     resurrect_if: list[str]  # ⭐ node ids whose change makes this worth retrying
 ```
@@ -288,10 +293,10 @@ Research/02 §7.9 (Bases separation) and Research/04 §2.4, where I flagged **vi
 class View(BaseModel):
     id: str
     name: str
-    filter: dict          # node/edge predicates
-    lens: str | None      # the angle-prompt embedding target
-    focus: str | None     # anchor node
-    pinned: list[str]     # positions the user fixed
+    filter: dict  # node/edge predicates
+    lens: str | None  # the angle-prompt embedding target
+    focus: str | None  # anchor node
+    pinned: list[str]  # positions the user fixed
     owner: str
     shared: bool = False
 ```

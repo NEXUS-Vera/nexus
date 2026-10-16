@@ -7,7 +7,8 @@ SHELL := /bin/bash
 
 .PHONY: setup format lint typecheck test test-unit test-integration eval eval-embedded-initialization contracts policy check build clean generate-contract-types dev dev-api dev-web dev-db db-migrate db-reset-local test-e2e
 
-PYTHON ?= $(shell command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3)
+export PATH := $(CURDIR)/.venv/bin:$(PATH)
+export PYTHON ?= $(shell if [ -x "$(CURDIR)/.venv/bin/python" ]; then printf '%s\n' "$(CURDIR)/.venv/bin/python"; else command -v python3.13 || command -v python3.12 || command -v python3.11 || command -v python3; fi)
 PYTHON_PATH := apps/api/src:agents/embedded-systems/src:packages/board/src:packages/contracts/src:packages/contracts/generated/python:packages/model-gateway/src:packages/observability/src:packages/persistence/src
 
 setup:
