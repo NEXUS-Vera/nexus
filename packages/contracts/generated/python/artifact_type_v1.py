@@ -14,4 +14,7 @@ ArtifactTypeV1: TypeAlias = Literal[
     'firmware',
     'electrical-architecture',
     'physical-architecture',
+    'analysis',
+    'test-plan',
+    'risk-register',
 ]

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/workspaces/analysis-verification-assessment.v1.schema.json",
+  "title": "AnalysisVerificationAssessment",
+  "description": "Deterministic metric vs criterion assessment. LLM prose is never verification authority (Phase 16H).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "computedMetric",
+    "verificationCriterion",
+    "assessment",
+    "authority"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "computedMetric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metricId", "value", "unit"],
+      "properties": {
+        "metricId": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "executionRunId": { "type": ["string", "null"] },
+        "outputId": { "type": ["string", "null"] },
+        "rmsNoiseDefinition": {
+          "type": "string",
+          "enum": ["demeaned", "about-zero"]
+        }
+      }
+    },
+    "verificationCriterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["linkedRequirementId", "metricId", "operator", "threshold", "unit"],
+      "properties": {
+        "linkedRequirementId": { "type": "string" },
+        "metricId": { "type": "string" },
+        "operator": {
+          "type": "string",
+          "enum": ["<", "<=", ">", ">=", "==", "!="]
+        },
+        "threshold": { "type": "number" },
+        "unit": { "type": "string" }
+      }
+    },
+    "assessment": {
+      "type": "string",
+      "enum": ["PASS", "FAIL", "INCONCLUSIVE"]
+    },
+    "authority": { "const": "deterministic-code" },
+    "notes": { "type": "string" }
+  }
+}

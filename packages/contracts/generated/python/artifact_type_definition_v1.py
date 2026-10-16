@@ -17,6 +17,9 @@ class Dependency(TypedDict, closed=True):
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     relationship: Literal['depends-on', 'derives-from', 'constrains', 'covers']
     required: NotRequired[bool]
@@ -33,6 +36,9 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     boardVisibility: Literal['primary', 'global', 'hidden']
     dependencies: list[Dependency]

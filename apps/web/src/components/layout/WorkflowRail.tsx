@@ -16,6 +16,7 @@ import {
 import { isArchitectureNavSelected } from '../../artifacts/architecture/views';
 import type { ArtifactRouteKey } from '../../artifacts/types';
 import { LIFECYCLE_DOT, themeColors } from '../../lib/theme';
+import { selectArtifactByType } from '../../artifacts';
 
 type WorkflowRailProps = {
   selectedArtifact: ArtifactRouteKey;
@@ -27,6 +28,8 @@ type WorkflowRailProps = {
   nextAction?: Extract<Artifact, { artifactType: 'next-action' }>;
   onOpenNextAction: () => void;
   onOpenHistory: () => void;
+  onOpenEvidence?: () => void;
+  evidenceOpen?: boolean;
   changeByType?: Record<string, string>;
 };
 
@@ -56,7 +59,11 @@ function railStatusFor(
   if (def.availability === 'placeholder' || !def.artifactType) {
     return { status: 'unavailable' };
   }
-  const live = artifacts.find((artifact) => artifact.artifactType === def.artifactType);
+  // Filesystem workspaces do not have structured Artifact envelopes.
+  if (def.artifactType === 'firmware' || def.artifactType === 'analysis') {
+    return { status: 'ready' };
+  }
+  const live = selectArtifactByType(artifacts, def.artifactType);
   if (!live) {
     return {
       status: def.availability === 'proof' ? 'drafted' : 'unavailable',
@@ -78,6 +85,8 @@ export function WorkflowRail({
   nextAction,
   onOpenNextAction,
   onOpenHistory,
+  onOpenEvidence,
+  evidenceOpen,
   changeByType,
 }: WorkflowRailProps) {
   const t = themeColors(isDark);
@@ -324,22 +333,29 @@ export function WorkflowRail({
           <Activity size={14} aria-hidden />
           Project Activity
         </button>
-        <div
+        <button
+          type="button"
+          onClick={onOpenEvidence}
+          data-testid="evidence-explorer-nav"
           style={{
             width: '100%',
             display: 'flex',
             alignItems: 'center',
             gap: 8,
             padding: '7px 8px',
-            color: t.textMuted,
+            borderRadius: 6,
+            border: 'none',
+            cursor: onOpenEvidence ? 'pointer' : 'default',
+            background: evidenceOpen ? t.cobaltSelected : 'transparent',
+            color: evidenceOpen ? t.cobalt : t.textSec,
             fontSize: 12,
+            textAlign: 'left',
           }}
-          title="Evidence explorer is not available yet"
+          title="Evidence explorer"
         >
           <Database size={14} aria-hidden />
           Evidence Explorer
-          <span style={{ marginLeft: 'auto', fontSize: 10 }}>Soon</span>
-        </div>
+        </button>
         <div
           style={{
             width: '100%',

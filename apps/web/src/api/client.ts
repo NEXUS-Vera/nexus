@@ -738,3 +738,194 @@ export async function testFirmware(
     },
   )) as Record<string, unknown>;
 }
+
+
+export async function generateAnalysisScaffold(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/scaffold`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function uploadAnalysisInputFile(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/inputs/upload`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function importProducedOutputIntoAnalysisInput(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/inputs/import-produced-output`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function runAnalysis(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/run`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function promoteAnalysisSummary(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/promote-analysis-summary`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })) as Record<string, unknown>;
+}
+
+
+export async function promoteExecutionEvidence(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/promote-execution`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })) as Record<string, unknown>;
+}
+
+
+export async function promoteStructuralMapping(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/promote-structural`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })) as Record<string, unknown>;
+}
+
+
+export async function getVerificationEvidenceChain(
+  projectId: string,
+): Promise<{ chains: unknown[]; requirementVerification: unknown[] }> {
+  return (await requestJson(`/v1/projects/${projectId}/verify/evidence-chain`)) as {
+    chains: unknown[];
+    requirementVerification: unknown[];
+  };
+}
+
+
+export async function rerunAnalysis(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/rerun`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function proposeAnalysisPatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/patch/propose`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function applyAnalysisPatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/patch/apply`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function discardAnalysisPatch(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/patch/discard`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function compareAnalysisOutputs(
+  projectId: string,
+  body: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/compare-outputs`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+  )) as Record<string, unknown>;
+}
+
+
+export async function previewAnalysisOutput(
+  projectId: string,
+  outputId: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${projectId}/artifacts/analysis/workspace/outputs/${encodeURIComponent(outputId)}/preview`,
+  )) as Record<string, unknown>;
+}

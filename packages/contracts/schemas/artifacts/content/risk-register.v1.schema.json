@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/content/risk-register.v1.schema.json",
+  "title": "RiskRegisterContent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "riskRegisterId", "risks", "summary"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "riskRegisterId": {
+      "type": "string",
+      "pattern": "^rreg_[A-Za-z0-9]{16,}$"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "summary": { "$ref": "#/$defs/riskSummary" },
+    "risks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/riskItem" }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "generatedBy": { "type": "string", "enum": ["fixture", "llm", "user", "derived"] },
+        "notes": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "riskCategory": {
+      "type": "string",
+      "enum": [
+        "electrical",
+        "firmware",
+        "communication",
+        "power",
+        "thermal",
+        "mechanical",
+        "integration",
+        "performance",
+        "data-quality",
+        "safety"
+      ]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "likelihood": {
+      "type": "string",
+      "enum": ["rare", "unlikely", "possible", "likely"]
+    },
+    "riskStatus": {
+      "type": "string",
+      "enum": ["open", "mitigating", "mitigated", "accepted", "monitoring"]
+    },
+    "riskItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "riskId",
+        "displayId",
+        "title",
+        "description",
+        "category",
+        "likelihood",
+        "severity",
+        "priorityScore",
+        "mitigation",
+        "status"
+      ],
+      "properties": {
+        "riskId": {
+          "type": "string",
+          "pattern": "^risk_[A-Za-z0-9]{16,}$"
+        },
+        "displayId": { "type": "string", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 },
+        "category": { "$ref": "#/$defs/riskCategory" },
+        "linkedRequirementIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linkedComponentIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linkedArchitectureRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "linkedTestIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "likelihood": { "$ref": "#/$defs/likelihood" },
+        "severity": { "$ref": "#/$defs/severity" },
+        "priorityScore": { "type": "integer", "minimum": 1, "maximum": 25 },
+        "mitigation": { "type": "string", "minLength": 1 },
+        "residualRisk": { "type": "string" },
+        "verificationTestIds": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "status": { "$ref": "#/$defs/riskStatus" },
+        "evidenceReferences": {
+          "type": "array",
+          "items": {
+            "$ref": "https://nexus.local/schemas/common/evidence-reference.v1.schema.json"
+          }
+        }
+      }
+    },
+    "riskSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "totalRisks",
+        "openRisks",
+        "highOrCritical",
+        "mitigated",
+        "unverifiedMitigations"
+      ],
+      "properties": {
+        "totalRisks": { "type": "integer", "minimum": 0 },
+        "openRisks": { "type": "integer", "minimum": 0 },
+        "highOrCritical": { "type": "integer", "minimum": 0 },
+        "mitigated": { "type": "integer", "minimum": 0 },
+        "unverifiedMitigations": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

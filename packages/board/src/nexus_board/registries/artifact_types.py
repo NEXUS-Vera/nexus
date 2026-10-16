@@ -221,6 +221,69 @@ DEFAULT_ARTIFACT_TYPE_DEFINITIONS: list[dict[str, Any]] = [
         executable=True,
         board_visibility="primary",
     ),
+    _definition(
+        artifact_type="analysis",
+        display_name="Analysis",
+        phase="BUILD",
+        workspace_type="code-workspace",
+        supported_command_types=_EXECUTABLE_COMMANDS,
+        required_capabilities=["file-workspace", "sandbox-execution"],
+        dependencies=[],
+        editable=True,
+        executable=True,
+        board_visibility="primary",
+    ),
+    _definition(
+        artifact_type="test-plan",
+        display_name="Test Plan",
+        phase="VERIFY",
+        workspace_type="structured-document",
+        supported_command_types=_WORKSPACE_COMMANDS,
+        required_capabilities=["structured-validation"],
+        dependencies=[
+            {
+                "artifactType": "requirement-set",
+                "relationship": "depends-on",
+                "required": True,
+            },
+            {
+                "artifactType": "analysis",
+                "relationship": "depends-on",
+                "required": False,
+            },
+        ],
+        editable=True,
+        executable=False,
+        board_visibility="primary",
+    ),
+    _definition(
+        artifact_type="risk-register",
+        display_name="Risk Register",
+        phase="VERIFY",
+        workspace_type="structured-document",
+        supported_command_types=_WORKSPACE_COMMANDS,
+        required_capabilities=["structured-validation"],
+        dependencies=[
+            {
+                "artifactType": "requirement-set",
+                "relationship": "depends-on",
+                "required": False,
+            },
+            {
+                "artifactType": "functional-architecture",
+                "relationship": "depends-on",
+                "required": False,
+            },
+            {
+                "artifactType": "test-plan",
+                "relationship": "depends-on",
+                "required": False,
+            },
+        ],
+        editable=True,
+        executable=False,
+        board_visibility="primary",
+    ),
 ]
 
 

@@ -1,0 +1,266 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENVERA00000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z",
+  "sourceTurnId": "turn_16GOLDENUSER000000000000001",
+  "workflowRunId": "run_16GOLDENRUN00000000000000001",
+  "artifactId": "art_16GOLDENTESTPLAN0000000000001",
+  "artifactType": "test-plan",
+  "content": {
+    "schemaVersion": "1.0.0",
+    "testPlanId": "tplan_16GOLDENVIBRATIONMONITOR01",
+    "title": "ESP32 IMU Vibration Monitor Verification",
+    "summary": "Deterministic fixture Test Plan covering R1\u2013R8 (T1\u2013T8).",
+    "testCases": [
+      {
+        "testId": "test_16GOLDENT1I2CCOMM00000000001",
+        "displayId": "T1",
+        "title": "I\u00b2C communication",
+        "description": "I\u00b2C communication",
+        "linkedRequirementIds": [
+          "R1"
+        ],
+        "linkedComponentIds": [
+          "ESP32",
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "simulation",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Execute T1 using method simulation."
+        ],
+        "expectedResult": "MPU6050 initialization succeeds over I\u00b2C.",
+        "criterion": {
+          "criterionType": "contains",
+          "marker": "NEXUS_MPU_READY"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      },
+      {
+        "testId": "test_16GOLDENT2PINMAP000000000001",
+        "displayId": "T2",
+        "title": "I\u00b2C pin mapping",
+        "description": "I\u00b2C pin mapping",
+        "linkedRequirementIds": [
+          "R2"
+        ],
+        "linkedComponentIds": [
+          "ESP32",
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "inspection",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Inspect Electrical Architecture / Wokwi pin mapping for SDA/SCL."
+        ],
+        "expectedResult": "SDA \u2192 GPIO21 and SCL \u2192 GPIO22.",
+        "criterion": {
+          "criterionType": "structural-mapping",
+          "signal": "SDA",
+          "expectedMapping": "GPIO21"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      },
+      {
+        "testId": "test_16GOLDENT3BAUD00000000000001",
+        "displayId": "T3",
+        "title": "Serial baud rate",
+        "description": "Serial baud rate",
+        "linkedRequirementIds": [
+          "R3"
+        ],
+        "linkedComponentIds": [
+          "ESP32"
+        ],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "inspection",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Execute T3 using method inspection."
+        ],
+        "expectedResult": "Serial initializes at 115200 baud.",
+        "criterion": {
+          "criterionType": "exact-match",
+          "expectedValue": "115200"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      },
+      {
+        "testId": "test_16GOLDENT4MPUINIT00000000001",
+        "displayId": "T4",
+        "title": "MPU6050 initialization",
+        "description": "MPU6050 initialization",
+        "linkedRequirementIds": [
+          "R4"
+        ],
+        "linkedComponentIds": [
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "execution-output",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Execute T4 using method execution-output."
+        ],
+        "expectedResult": "Firmware reports NEXUS_MPU_READY before streaming.",
+        "criterion": {
+          "criterionType": "contains",
+          "marker": "NEXUS_MPU_READY"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      },
+      {
+        "testId": "test_16GOLDENT5TELEM0000000000001",
+        "displayId": "T5",
+        "title": "Telemetry schema",
+        "description": "Telemetry schema",
+        "linkedRequirementIds": [
+          "R5"
+        ],
+        "linkedComponentIds": [
+          "ESP32",
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "execution-output",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Execute T5 using method execution-output."
+        ],
+        "expectedResult": "Telemetry includes time_ms, accel_x_g, accel_y_g, accel_z_g.",
+        "criterion": {
+          "criterionType": "contains",
+          "marker": "accel_x_g"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      },
+      {
+        "testId": "test_16GOLDENT6SAMPLE000000000001",
+        "displayId": "T6",
+        "title": "Sampling frequency",
+        "description": "Sampling frequency",
+        "linkedRequirementIds": [
+          "R6"
+        ],
+        "linkedComponentIds": [
+          "ESP32"
+        ],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "analysis",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Execute T6 using method analysis."
+        ],
+        "expectedResult": "Telemetry interval approximately 50 Hz (45\u201355 Hz).",
+        "criterion": {
+          "criterionType": "range",
+          "metricId": "sampling_hz",
+          "minValue": 45,
+          "maxValue": 55,
+          "unit": "Hz"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      },
+      {
+        "testId": "test_16GOLDENT7NOISE0000000000001",
+        "displayId": "T7",
+        "title": "Stationary accel_x RMS noise",
+        "description": "Stationary accel_x RMS noise",
+        "linkedRequirementIds": [
+          "R7"
+        ],
+        "linkedComponentIds": [
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "analysis",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Execute T7 using method analysis."
+        ],
+        "expectedResult": "Demeaned accel_x RMS noise < 0.10 g.",
+        "criterion": {
+          "criterionType": "numeric-comparison",
+          "metricId": "accel_x_rms_noise_g",
+          "operator": "<",
+          "expectedValue": 0.1,
+          "unit": "g"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      },
+      {
+        "testId": "test_16GOLDENT8OUTPUTS00000000001",
+        "displayId": "T8",
+        "title": "Analysis deliverables",
+        "description": "Analysis deliverables",
+        "linkedRequirementIds": [
+          "R8"
+        ],
+        "linkedComponentIds": [],
+        "linkedArchitectureRefs": [],
+        "verificationMethod": "analysis",
+        "preconditions": [],
+        "inputs": [],
+        "procedure": [
+          "Execute T8 using method analysis."
+        ],
+        "expectedResult": "summary.json, processed.csv, and accel_plot.png are produced.",
+        "criterion": {
+          "criterionType": "existence",
+          "outputName": "summary.json,processed.csv,accel_plot.png"
+        },
+        "status": "ready",
+        "evidenceReferences": [],
+        "producedOutputIds": []
+      }
+    ],
+    "coverageSummary": {
+      "totalRequirements": 8,
+      "coveredRequirements": 8,
+      "verifiedRequirements": 0,
+      "failedRequirements": 0,
+      "blockedRequirements": 0,
+      "unverifiedRequirements": 8,
+      "uncoveredRequirements": 0
+    },
+    "provenance": {
+      "generatedBy": "fixture",
+      "notes": "Phase 17 golden T1\u2013T8"
+    }
+  }
+}

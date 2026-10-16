@@ -7,7 +7,7 @@ type Props = {
   routeKey: Extract<
     ArtifactRouteKey,
     | 'firmware-scaffold'
-    | 'analysis-notebook'
+    | 'analysis'
     | 'test-plan'
     | 'risk-register'
   >;
@@ -18,7 +18,7 @@ type Props = {
 const SHELL_HINTS: Partial<Record<ArtifactRouteKey, string>> = {
   'firmware-scaffold':
     'Visual shell reserved for file tree, editor, and terminal panels. No project files are generated yet.',
-  'analysis-notebook':
+  'analysis':
     'Visual shell reserved for notebook cells and outputs. No runtime is connected.',
   'test-plan': 'Visual shell reserved for verification tables and case detail.',
   'risk-register': 'Visual shell reserved for risk tables and mitigation detail.',

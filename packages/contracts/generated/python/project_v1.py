@@ -21,6 +21,9 @@ class CurrentArtifactReference(TypedDict, closed=True):
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

@@ -10,7 +10,10 @@ export type ArtifactType =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -20,7 +23,10 @@ export type ArtifactType1 =
   | 'code-scratch'
   | 'firmware'
   | 'electrical-architecture'
-  | 'physical-architecture';
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 /**
  * Directed dependency between two project artifacts. Dependencies are recorded at artifact-type level so they survive artifact revisions, and may additionally pin the specific revisions involved.

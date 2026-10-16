@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_16GOLDENUSER000000000000001",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "rawUserMessage": "Build an ESP32-based vibration monitor using an MPU6050. It should stream acceleration telemetry and analyze stationary sensor noise to verify that accel_x RMS noise stays below 0.10 g.",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENUSER00000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "timestamp": "2026-08-11T12:00:00Z"
+}

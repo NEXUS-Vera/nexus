@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "routeId": "route_16GOLDENROUTE0000000000001",
+  "turnId": "turn_16GOLDENUSER000000000000001",
+  "supported": true,
+  "routeType": "project-initialization",
+  "domain": "embedded-products",
+  "projectOperation": "create-project",
+  "complexity": "medium",
+  "autonomyMode": "collaborate",
+  "chairmanRequiredEventually": false,
+  "reasons": [
+    "Prompt describes an ESP32 IMU vibration monitor with Analysis verification."
+  ]
+}

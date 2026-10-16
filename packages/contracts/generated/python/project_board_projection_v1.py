@@ -27,6 +27,9 @@ class ArtifactSummary(TypedDict, closed=True):
         'firmware',
         'electrical-architecture',
         'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     artifactVersion: int
     awaitingApprovalCount: NotRequired[int]
@@ -143,12 +146,16 @@ class RecentExecutionSummary(TypedDict, closed=True):
             'firmware',
             'electrical-architecture',
             'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     capability: Literal[
         'structured-validation',
         'fake-execution',
         'file-workspace',
+        'sandbox-execution',
         'embedded-build',
         'python-kernel',
         'circuit-simulation',

@@ -125,3 +125,19 @@ class FirmwareToolchainValidationError(BoardError):
 
 class FirmwareTestNotConfiguredError(BoardError):
     code = "FIRMWARE_TEST_NOT_CONFIGURED"
+
+
+class AnalysisPatchValidationError(BoardError):
+    code = "ANALYSIS_PATCH_VALIDATION_FAILED"
+
+
+class AnalysisPatchStaleError(BoardError):
+    code = "ANALYSIS_PATCH_STALE"
+
+
+class AnalysisPatchNotFoundError(BoardError):
+    code = "ANALYSIS_PATCH_NOT_FOUND"
+
+
+class AnalysisPatchGenerationError(BoardError):
+    code = "ANALYSIS_PATCH_GENERATION_FAILED"

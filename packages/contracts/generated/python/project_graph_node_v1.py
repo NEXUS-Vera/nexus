@@ -18,6 +18,9 @@ class ProjectGraphNodeV1(TypedDict, closed=True):
             'firmware',
             'electrical-architecture',
             'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     createdAt: str

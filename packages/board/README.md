@@ -90,3 +90,19 @@ validation, semantic editing, and functional-node deletion impact inspection.
 Accepted revisions materialize graph entities and update board projections.
 Electrical execution delegates to an injected `circuit-simulation` executor;
 provider translation and invocation belong to `packages/circuit-simulation`.
+
+
+## Analysis and deterministic VERIFY
+
+The `analysis` workspace supports scaffolding, guarded patch proposals, input
+upload/import, immutable execution snapshots, reruns, output comparison and
+preview. Analysis patch payloads reuse the predecessor's durable patch store;
+`anpatch_` IDs and artifact-type validation separate them from firmware proposals.
+`NEXUS_ANALYSIS_USE_STUB=1` selects offline fixtures; set it to `0` for Python
+execution with the configured runtime and preinstalled analysis dependencies.
+
+`kernel.verification` promotes execution evidence into new Test Plan revisions
+and projects requirement coverage separately from verification. Metric criteria
+are assessed by deterministic code. Repeated promotion is idempotent, and the
+Risk Register retains monitoring for risks requiring physical evidence. The API
+and Evidence Explorer expose the resulting evidence chain.
