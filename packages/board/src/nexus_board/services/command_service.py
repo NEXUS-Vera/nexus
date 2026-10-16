@@ -113,8 +113,6 @@ class ArtifactCommandService:
         command_type = command["commandType"]
         actor = command["requestedBy"]
         actor_kind = actor_kind_from_actor_type(actor.get("actorType", "system"))
-        if not may_perform_command(actor_kind, command_type):
-            raise GovernanceRejectedError(f"Actor kind {actor_kind} may not perform {command_type}")
 
         started = utc_now_iso()
         handlers = {
@@ -132,6 +130,10 @@ class ArtifactCommandService:
             "artifact.execute": self._execute,
         }
         try:
+            if not may_perform_command(actor_kind, command_type):
+                raise GovernanceRejectedError(
+                    f"Actor kind {actor_kind} may not perform {command_type}"
+                )
             result_body = handlers[command_type](command, actor_kind)
             status = result_body.pop("_status", "completed")
             result = self._result(
