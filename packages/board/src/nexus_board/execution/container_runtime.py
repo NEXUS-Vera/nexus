@@ -139,13 +139,15 @@ class LocalContainerRuntime:
         with self._lock:
             container_id = self._containers.get(job_id)
         if container_id:
-            self._docker_run(["rm", "-f", container_id], timeout=10)
+            self._docker_run(["kill", container_id], timeout=10)
 
     def cleanup(self, job_id: str, *, handle: dict[str, Any] | None = None) -> None:
         del handle
         self.cancel(job_id)
         with self._lock:
-            self._containers.pop(job_id, None)
+            container_id = self._containers.pop(job_id, None)
+        if container_id:
+            self._docker_run(["rm", "-f", container_id], timeout=10)
 
     def reconcile_handle(self, handle: dict[str, Any]) -> str | None:
         container_id = handle.get("containerId")
@@ -251,6 +253,9 @@ class LocalContainerRuntime:
         pids = limits.process_count or 64
         name = f"nexus-exec-{request.job_id[-20:]}"
 
+        owner = root.stat()
+        if owner.st_uid == 0:
+            return _failed(CONTAINER_START_FAILED, "Workspace owner must be nonroot")
         docker_args = [
             "run",
             "--detach",
@@ -262,7 +267,7 @@ class LocalContainerRuntime:
             "--tmpfs",
             "/tmp:rw,noexec,nosuid,size=64m",
             "--user",
-            "65534:65534",
+            f"{owner.st_uid}:{owner.st_gid}",
             "--cap-drop",
             "ALL",
             "--security-opt",
@@ -323,13 +328,13 @@ class LocalContainerRuntime:
             while True:
                 if request.cancel_check and request.cancel_check():
                     cancelled = True
-                    self._docker_run(["rm", "-f", container_id], timeout=10)
-                    system_messages.append("Cancellation requested; container removed")
+                    self._docker_run(["kill", container_id], timeout=10)
+                    system_messages.append("Cancellation requested; container killed")
                     break
                 if time.monotonic() >= deadline:
                     timed_out = True
-                    self._docker_run(["rm", "-f", container_id], timeout=10)
-                    system_messages.append("Wall-clock timeout; container removed")
+                    self._docker_run(["kill", container_id], timeout=10)
+                    system_messages.append("Wall-clock timeout; container killed")
                     break
                 state = self._docker_run(
                     [

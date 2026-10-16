@@ -68,7 +68,9 @@ recover interrupted work on startup. Only declared successful outputs are
 promoted. Retention protects referenced snapshots and reclaims orphan blobs.
 
 The process runtime has limited isolation; use the container runtime for its
-stronger filesystem/network/resource boundaries. Live Docker/Postgres acceptance
+stronger filesystem/network/resource boundaries. Containers run as the nonroot
+workspace owner so the materialized directory remains private (`0700`); root-owned
+workspaces are rejected. Live Docker/Postgres acceptance
 tests require explicit configuration and do not substitute process runs.
 
 ## Firmware workspace
@@ -78,7 +80,8 @@ proposals pinned to immutable snapshots, guarded patch application, history and
 compile/test operations through `kernel.workspace_runtime`. Compile consumes a
 pre-compile snapshot and promotes only declared successful outputs.
 
-`NEXUS_FIRMWARE_USE_STUB=1` (the current default) runs offline fixtures; their
+`NEXUS_FIRMWARE_USE_STUB=1` runs offline fixtures; when unset, Nexus uses
+PlatformIO if `pio` is available and otherwise falls back to the stub. Fixture
 outputs are not real build or device evidence. Set it to `0` to run PlatformIO
 and configure the execution runtime/image for the preinstalled toolchain.
 Live toolchain/container acceptance tests require explicit opt-in.
