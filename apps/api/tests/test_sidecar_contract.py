@@ -314,10 +314,26 @@ child.wait()
 
 
 def _pid_is_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
         return False
+    except OSError:
+        return False
+
+    # On Linux, an unreaped child remains in the process table as a zombie ('Z')
+    # until its reparented init/subreaper reaps it. os.kill(pid, 0) returns True
+    # for zombies, falsely reporting an already-terminated process as alive.
+    if sys.platform.startswith("linux"):
+        try:
+            with open(f"/proc/{pid}/stat", encoding="utf-8") as f:
+                state = f.read().split(")")[-1].split()[0]
+            if state == "Z":
+                return False
+        except (FileNotFoundError, ProcessLookupError, IndexError, OSError):
+            return False
     return True
 
 

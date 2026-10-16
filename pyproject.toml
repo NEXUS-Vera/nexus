@@ -75,20 +75,6 @@ addopts = "-q"
 asyncio_mode = "auto"
 
 [tool.pyright]
-venvPath = "."
-venv = ".venv"
-extraPaths = [
-  "apps/api/src",
-  "agents/embedded-systems/src",
-  "agents/mind-graph/src",
-  "packages/board/src",
-  "packages/board/tests",
-  "packages/contracts/src",
-  "packages/contracts/generated/python",
-  "packages/model-gateway/src",
-  "packages/observability/src",
-  "packages/persistence/src",
-]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
 # Resolve site-packages from disk when sandbox restrictions block the interpreter probe.
@@ -104,6 +90,7 @@ extraPaths = [
   "agents/vera/src",
   "packages/agent-runtime/src",
   "packages/board/src",
+  "packages/board/tests",
   "packages/contracts/src",
   "packages/contracts/generated/python",
   "packages/memory/src",
