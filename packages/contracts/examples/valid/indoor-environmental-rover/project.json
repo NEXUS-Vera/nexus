@@ -30,6 +30,12 @@
       "artifactId": "art_01ROVNXT000000000000000001",
       "artifactVersion": 1,
       "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "component-plan",
+      "artifactId": "art_853CA32D7BB8792D464CCP01",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
     }
   ],
   "openQuestionReferences": [
@@ -62,4 +68,3 @@
   "createdAt": "2026-07-28T13:25:00Z",
   "updatedAt": "2026-07-28T13:25:00Z"
 }
-

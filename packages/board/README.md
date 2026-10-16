@@ -40,3 +40,33 @@ Commands are dispatched through a single service:
 ```python
 kernel.dispatch(artifact_command_dict)
 ```
+
+## Component Plan (Phase 12)
+
+The default artifact-type registry includes `component-plan` in the DESIGN phase
+with a comparison workspace. Dependencies:
+
+- `functional-architecture` → `component-plan` (required)
+- `requirement-set` → `component-plan` (required)
+- `component-plan` → `next-action` (optional)
+
+Board projections populate optional Component Plan summary fields when the
+artifact exists: `maturity`, `roleCount`, `candidateCount`, `selectedCount`,
+`awaitingApprovalCount`, `blockedRoleCount`, and
+`unresolvedCompatibilityCheckCount`.
+
+## Filesystem workspaces and execution jobs
+
+The hidden `code-scratch` artifact provides generic editable files backed by a
+content-addressed file store. Acquire an edit lease before changing files or
+creating/restoring an immutable snapshot. `kernel.workspace_runtime` exposes
+artifact-scoped files, snapshots, execution, logs, cancellation and outputs.
+
+Executions consume snapshots rather than mutable drafts. Jobs persist their
+state and runtime identity, apply queue/concurrency/time/log/output limits, and
+recover interrupted work on startup. Only declared successful outputs are
+promoted. Retention protects referenced snapshots and reclaims orphan blobs.
+
+The process runtime has limited isolation; use the container runtime for its
+stronger filesystem/network/resource boundaries. Live Docker/Postgres acceptance
+tests require explicit configuration and do not substitute process runs.

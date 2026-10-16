@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "1.0.0",
+  "executionJobId": "execjob_PHASE14BJOB000001",
+  "sequence": 1,
+  "stream": "stdout",
+  "timestamp": "2026-08-10T18:00:01Z",
+  "content": "NEXUS_RUNTIME_READY\n"
+}

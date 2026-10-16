@@ -13,6 +13,7 @@ class Dependency(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     relationship: Literal['depends-on', 'derives-from', 'constrains', 'covers']
     required: NotRequired[bool]
@@ -25,6 +26,7 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     boardVisibility: Literal['primary', 'global', 'hidden']
     dependencies: list[Dependency]
@@ -37,6 +39,7 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
             'structured-validation',
             'fake-execution',
             'file-workspace',
+            'sandbox-execution',
             'embedded-build',
             'python-kernel',
             'circuit-simulation',
@@ -48,6 +51,9 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         Literal[
             'workspace.create',
             'workspace.update-draft',
+            'workspace.acquire-edit-lease',
+            'workspace.release-edit-lease',
+            'workspace.discard-draft',
             'workspace.create-snapshot',
             'workspace.restore-snapshot',
             'artifact.validate-draft',

@@ -822,4 +822,581 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
                         )
                     )
 
+    # --- Component Plan semantic rules ---
+    architecture_node_ids: set[str] | None = None
+    if isinstance(functional_arch, dict):
+        nodes = functional_arch.get("nodes") or []
+        if isinstance(nodes, list):
+            architecture_node_ids = {
+                node_id
+                for node in nodes
+                if isinstance(node, dict)
+                for node_id in [node.get("nodeId")]
+                if isinstance(node_id, str)
+            }
+
+    requirement_ids: set[str] | None = None
+    if isinstance(requirement_set, dict):
+        requirements = requirement_set.get("requirements") or []
+        if isinstance(requirements, list):
+            requirement_ids = {
+                requirement_id
+                for req in requirements
+                if isinstance(req, dict)
+                for requirement_id in [req.get("requirementId")]
+                if isinstance(requirement_id, str)
+            }
+
+    component_plan_content = bundle.get("component_plan_content")
+    for artifact in artifact_envelopes:
+        if not isinstance(artifact, dict) or artifact.get("artifactType") != "component-plan":
+            continue
+        content = artifact.get("content")
+        if not isinstance(content, dict):
+            continue
+        if component_plan_content is None:
+            component_plan_content = content
+        errors.extend(
+            _validate_component_plan_content(
+                content,
+                architecture_node_ids=architecture_node_ids,
+                requirement_ids=requirement_ids,
+            )
+        )
+
+    if isinstance(component_plan_content, dict) and not any(
+        isinstance(a, dict) and a.get("artifactType") == "component-plan"
+        for a in artifact_envelopes
+    ):
+        errors.extend(
+            _validate_component_plan_content(
+                component_plan_content,
+                architecture_node_ids=architecture_node_ids,
+                requirement_ids=requirement_ids,
+            )
+        )
+
+    return errors
+
+
+_OVERSTATED_EVIDENCE_STATUSES = {"grounded", "calculated", "tested"}
+_PHASE12_FORBIDDEN_CANDIDATE_EVIDENCE = {"tested"}
+_AWAITING_SELECTION_STATES = {"proposed", "awaiting-user"}
+
+
+def compute_component_plan_coverage_summary(
+    content: dict[str, Any],
+    *,
+    architecture_node_ids: set[str] | None = None,
+) -> dict[str, Any]:
+    """Compute coverage summary fields from component-plan content."""
+
+    roles = [r for r in (content.get("componentRoles") or []) if isinstance(r, dict)]
+    candidates = [c for c in (content.get("candidates") or []) if isinstance(c, dict)]
+    selections = [s for s in (content.get("selectionDecisions") or []) if isinstance(s, dict)]
+
+    role_arch_ids: set[str] = set()
+    covered_requirement_ids: set[str] = set()
+    roles_without_arch = 0
+    roles_without_req = 0
+    for role in roles:
+        arch_ids = [i for i in (role.get("architectureNodeIds") or []) if isinstance(i, str)]
+        req_ids = [i for i in (role.get("requirementIds") or []) if isinstance(i, str)]
+        if not arch_ids:
+            roles_without_arch += 1
+        else:
+            role_arch_ids.update(arch_ids)
+        if not req_ids:
+            roles_without_req += 1
+        else:
+            covered_requirement_ids.update(req_ids)
+
+    candidates_by_role: Counter[str] = Counter()
+    for candidate in candidates:
+        role_id = candidate.get("componentRoleId")
+        if isinstance(role_id, str):
+            candidates_by_role[role_id] += 1
+
+    roles_without_candidates = 0
+    for role in roles:
+        role_id = role.get("componentRoleId")
+        if isinstance(role_id, str) and candidates_by_role[role_id] == 0:
+            roles_without_candidates += 1
+
+    blocked_roles: set[str] = set()
+    awaiting_roles: set[str] = set()
+    for selection in selections:
+        role_id = selection.get("componentRoleId")
+        if not isinstance(role_id, str):
+            continue
+        state = selection.get("selectionState")
+        if state in _AWAITING_SELECTION_STATES:
+            awaiting_roles.add(role_id)
+        if state == "blocked":
+            blocked_roles.add(role_id)
+        candidate_id = selection.get("selectedCandidateId")
+        if state == "approved" and isinstance(candidate_id, str):
+            for candidate in candidates:
+                if (
+                    candidate.get("candidateId") == candidate_id
+                    and candidate.get("candidateState") == "blocked"
+                ):
+                    blocked_roles.add(role_id)
+
+    if architecture_node_ids is not None:
+        covered = sorted(role_arch_ids.intersection(architecture_node_ids))
+        uncovered = sorted(architecture_node_ids.difference(role_arch_ids))
+        total_nodes = len(architecture_node_ids)
+        covered_count = len(covered)
+    else:
+        covered = sorted(role_arch_ids)
+        uncovered = [
+            node_id
+            for node_id in (content.get("coverageSummary") or {}).get(
+                "uncoveredArchitectureNodeIds"
+            )
+            or []
+            if isinstance(node_id, str)
+        ]
+        covered_count = len(covered)
+        declared_total = (content.get("coverageSummary") or {}).get("totalArchitectureNodes")
+        total_nodes = (
+            int(declared_total)
+            if isinstance(declared_total, int)
+            else covered_count + len(uncovered)
+        )
+
+    covered_reqs = sorted(covered_requirement_ids)
+    uncovered_reqs = [
+        req_id
+        for req_id in (content.get("coverageSummary") or {}).get("uncoveredRequirementIds") or []
+        if isinstance(req_id, str)
+    ]
+    total_relevant = len(covered_reqs) + len(uncovered_reqs)
+
+    return {
+        "totalArchitectureNodes": total_nodes,
+        "coveredArchitectureNodes": covered_count,
+        "uncoveredArchitectureNodeIds": uncovered,
+        "totalRelevantRequirements": total_relevant,
+        "coveredRequirementIds": covered_reqs,
+        "uncoveredRequirementIds": uncovered_reqs,
+        "rolesWithoutArchitectureMapping": roles_without_arch,
+        "rolesWithoutRequirementMapping": roles_without_req,
+        "rolesWithoutCandidates": roles_without_candidates,
+        "rolesWithBlockedSelection": len(blocked_roles),
+        "rolesAwaitingApproval": len(awaiting_roles),
+    }
+
+
+def validate_component_plan_content(
+    content: dict[str, Any],
+    *,
+    architecture_node_ids: set[str] | None = None,
+    requirement_ids: set[str] | None = None,
+) -> list[SemanticValidationError]:
+    """Public entry point for Component Plan content semantic validation."""
+
+    return _validate_component_plan_content(
+        content,
+        architecture_node_ids=architecture_node_ids,
+        requirement_ids=requirement_ids,
+    )
+
+
+def _validate_component_plan_content(
+    content: dict[str, Any],
+    *,
+    architecture_node_ids: set[str] | None = None,
+    requirement_ids: set[str] | None = None,
+) -> list[SemanticValidationError]:
+    errors: list[SemanticValidationError] = []
+
+    roles = content.get("componentRoles") or []
+    candidates = content.get("candidates") or []
+    selections = content.get("selectionDecisions") or []
+    checks = content.get("compatibilityChecks") or []
+    constraints = content.get("selectionConstraints") or []
+
+    role_ids: set[str] = set()
+    seen_role_ids: Counter[str] = Counter()
+    if isinstance(roles, list):
+        for idx, role in enumerate(roles):
+            if not isinstance(role, dict):
+                continue
+            role_id = role.get("componentRoleId")
+            if isinstance(role_id, str):
+                seen_role_ids[role_id] += 1
+                role_ids.add(role_id)
+            arch_ids = role.get("architectureNodeIds") or []
+            if not isinstance(arch_ids, list) or len(arch_ids) == 0:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_ROLE_MISSING_ARCHITECTURE_REF",
+                        message="Component role must reference at least one architecture node.",
+                        path=f"componentPlan.componentRoles[{idx}].architectureNodeIds",
+                        blocking=True,
+                    )
+                )
+            elif architecture_node_ids is not None:
+                for arch_id in arch_ids:
+                    if isinstance(arch_id, str) and arch_id not in architecture_node_ids:
+                        errors.append(
+                            SemanticValidationError(
+                                code="COMPONENT_UNKNOWN_ARCHITECTURE_NODE",
+                                message=(
+                                    "Component role references an architecture node that is "
+                                    "not present in the functional architecture artifact."
+                                ),
+                                path=f"componentPlan.componentRoles[{idx}].architectureNodeIds",
+                                blocking=True,
+                            )
+                        )
+            req_ids = role.get("requirementIds") or []
+            if isinstance(req_ids, list) and requirement_ids is not None:
+                for req_id in req_ids:
+                    if isinstance(req_id, str) and req_id not in requirement_ids:
+                        errors.append(
+                            SemanticValidationError(
+                                code="COMPONENT_UNKNOWN_REQUIREMENT",
+                                message=(
+                                    "Component role references a requirementId that is not "
+                                    "present in the requirement-set artifact."
+                                ),
+                                path=f"componentPlan.componentRoles[{idx}].requirementIds",
+                                blocking=True,
+                            )
+                        )
+
+    for role_id, count in sorted(seen_role_ids.items()):
+        if count > 1:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_DUPLICATE_ROLE_ID",
+                    message=f"Duplicate componentRoleId: {role_id}.",
+                    path="componentPlan.componentRoles",
+                    blocking=True,
+                )
+            )
+
+    candidates_by_id: dict[str, dict[str, Any]] = {}
+    seen_candidate_ids: Counter[str] = Counter()
+    if isinstance(candidates, list):
+        for idx, candidate in enumerate(candidates):
+            if not isinstance(candidate, dict):
+                continue
+            candidate_id = candidate.get("candidateId")
+            role_id = candidate.get("componentRoleId")
+            if isinstance(candidate_id, str):
+                seen_candidate_ids[candidate_id] += 1
+                candidates_by_id[candidate_id] = candidate
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_CANDIDATE_MISSING_ROLE",
+                        message="Candidate references an unknown componentRoleId.",
+                        path=f"componentPlan.candidates[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+            evidence_status = candidate.get("evidenceStatus")
+            evidence_refs = candidate.get("evidenceReferences") or []
+            if evidence_status in _PHASE12_FORBIDDEN_CANDIDATE_EVIDENCE:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_CANDIDATE_OVERSTATED_EVIDENCE",
+                        message=(
+                            "Candidate evidenceStatus 'tested' is not allowed in Phase 12 "
+                            "component planning."
+                        ),
+                        path=f"componentPlan.candidates[{idx}].evidenceStatus",
+                        blocking=True,
+                    )
+                )
+            elif evidence_status in _OVERSTATED_EVIDENCE_STATUSES and (
+                not isinstance(evidence_refs, list) or len(evidence_refs) == 0
+            ):
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_CANDIDATE_OVERSTATED_EVIDENCE",
+                        message=(
+                            "Candidate evidenceStatus is stronger than available "
+                            "evidenceReferences support."
+                        ),
+                        path=f"componentPlan.candidates[{idx}].evidenceStatus",
+                        blocking=True,
+                    )
+                )
+
+    for candidate_id, count in sorted(seen_candidate_ids.items()):
+        if count > 1:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_DUPLICATE_CANDIDATE_ID",
+                    message=f"Duplicate candidateId: {candidate_id}.",
+                    path="componentPlan.candidates",
+                    blocking=True,
+                )
+            )
+
+    seen_constraint_ids: Counter[str] = Counter()
+    if isinstance(constraints, list):
+        for idx, constraint in enumerate(constraints):
+            if not isinstance(constraint, dict):
+                continue
+            constraint_id = constraint.get("constraintId")
+            if isinstance(constraint_id, str):
+                seen_constraint_ids[constraint_id] += 1
+            role_id = constraint.get("componentRoleId")
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_CONSTRAINT_MISSING_ROLE",
+                        message="Selection constraint references an unknown componentRoleId.",
+                        path=f"componentPlan.selectionConstraints[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+            for req_id in constraint.get("sourceRequirementIds") or []:
+                if (
+                    isinstance(req_id, str)
+                    and requirement_ids is not None
+                    and req_id not in requirement_ids
+                ):
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_UNKNOWN_REQUIREMENT",
+                            message=(
+                                "Selection constraint references a requirementId missing "
+                                "from the requirement-set artifact."
+                            ),
+                            path=(
+                                f"componentPlan.selectionConstraints[{idx}].sourceRequirementIds"
+                            ),
+                            blocking=True,
+                        )
+                    )
+            for arch_id in constraint.get("sourceArchitectureNodeIds") or []:
+                if (
+                    isinstance(arch_id, str)
+                    and architecture_node_ids is not None
+                    and arch_id not in architecture_node_ids
+                ):
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_UNKNOWN_ARCHITECTURE_NODE",
+                            message=(
+                                "Selection constraint references an architecture node missing "
+                                "from the functional architecture artifact."
+                            ),
+                            path=(
+                                "componentPlan.selectionConstraints"
+                                f"[{idx}].sourceArchitectureNodeIds"
+                            ),
+                            blocking=True,
+                        )
+                    )
+
+    for constraint_id, count in sorted(seen_constraint_ids.items()):
+        if count > 1:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_DUPLICATE_CONSTRAINT_ID",
+                    message=f"Duplicate constraintId: {constraint_id}.",
+                    path="componentPlan.selectionConstraints",
+                    blocking=True,
+                )
+            )
+
+    approved_roles: Counter[str] = Counter()
+    seen_selection_ids: Counter[str] = Counter()
+    if isinstance(selections, list):
+        for idx, selection in enumerate(selections):
+            if not isinstance(selection, dict):
+                continue
+            selection_id = selection.get("selectionDecisionId")
+            if isinstance(selection_id, str):
+                seen_selection_ids[selection_id] += 1
+            role_id = selection.get("componentRoleId")
+            candidate_id = selection.get("selectedCandidateId")
+            selection_state = selection.get("selectionState")
+
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_SELECTION_MISSING_ROLE",
+                        message="Selection decision references an unknown componentRoleId.",
+                        path=f"componentPlan.selectionDecisions[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+
+            candidate = (
+                candidates_by_id.get(candidate_id) if isinstance(candidate_id, str) else None
+            )
+            if isinstance(candidate_id, str) and candidate is None:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_SELECTION_MISSING_CANDIDATE",
+                        message="Selection decision references an unknown selectedCandidateId.",
+                        path=f"componentPlan.selectionDecisions[{idx}].selectedCandidateId",
+                        blocking=True,
+                    )
+                )
+            elif isinstance(candidate, dict):
+                candidate_role = candidate.get("componentRoleId")
+                if (
+                    isinstance(role_id, str)
+                    and isinstance(candidate_role, str)
+                    and candidate_role != role_id
+                ):
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_SELECTION_ROLE_CANDIDATE_MISMATCH",
+                            message="Selected candidate does not belong to the selection role.",
+                            path=f"componentPlan.selectionDecisions[{idx}]",
+                            blocking=True,
+                        )
+                    )
+                if selection_state == "approved" and candidate.get("candidateState") == "blocked":
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_SELECTION_BLOCKED_CANDIDATE_APPROVED",
+                            message="Blocked candidates cannot be approved selections.",
+                            path=f"componentPlan.selectionDecisions[{idx}]",
+                            blocking=True,
+                        )
+                    )
+                if selection_state == "approved" and candidate.get("candidateState") == "rejected":
+                    errors.append(
+                        SemanticValidationError(
+                            code="COMPONENT_SELECTION_REJECTED_CANDIDATE_APPROVED",
+                            message="Rejected candidates cannot be current approved selections.",
+                            path=f"componentPlan.selectionDecisions[{idx}]",
+                            blocking=True,
+                        )
+                    )
+
+            if selection_state == "approved" and isinstance(role_id, str):
+                approved_roles[role_id] += 1
+
+    for selection_id, count in sorted(seen_selection_ids.items()):
+        if count > 1:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_DUPLICATE_SELECTION_ID",
+                    message=f"Duplicate selectionDecisionId: {selection_id}.",
+                    path="componentPlan.selectionDecisions",
+                    blocking=True,
+                )
+            )
+
+    for role_id, count in sorted(approved_roles.items()):
+        if count > 1:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_SELECTION_DUPLICATE_APPROVED",
+                    message=f"Role {role_id} has multiple approved selection decisions.",
+                    path="componentPlan.selectionDecisions",
+                    blocking=True,
+                )
+            )
+
+    seen_check_ids: Counter[str] = Counter()
+    if isinstance(checks, list):
+        for idx, check in enumerate(checks):
+            if not isinstance(check, dict):
+                continue
+            check_id = check.get("compatibilityCheckId")
+            if isinstance(check_id, str):
+                seen_check_ids[check_id] += 1
+            role_id = check.get("componentRoleId")
+            candidate_id = check.get("candidateId")
+            if isinstance(role_id, str) and role_id not in role_ids:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_COMPATIBILITY_MISSING_ROLE",
+                        message="Compatibility check references an unknown componentRoleId.",
+                        path=f"componentPlan.compatibilityChecks[{idx}].componentRoleId",
+                        blocking=True,
+                    )
+                )
+            if isinstance(candidate_id, str) and candidate_id not in candidates_by_id:
+                errors.append(
+                    SemanticValidationError(
+                        code="COMPONENT_COMPATIBILITY_MISSING_CANDIDATE",
+                        message="Compatibility check references an unknown candidateId.",
+                        path=f"componentPlan.compatibilityChecks[{idx}].candidateId",
+                        blocking=True,
+                    )
+                )
+
+    for check_id, count in sorted(seen_check_ids.items()):
+        if count > 1:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_DUPLICATE_COMPATIBILITY_CHECK_ID",
+                    message=f"Duplicate compatibilityCheckId: {check_id}.",
+                    path="componentPlan.compatibilityChecks",
+                    blocking=True,
+                )
+            )
+
+    declared = content.get("coverageSummary")
+    if isinstance(declared, dict):
+        expected = compute_component_plan_coverage_summary(
+            content,
+            architecture_node_ids=architecture_node_ids,
+        )
+        comparable_keys = (
+            "rolesWithoutArchitectureMapping",
+            "rolesWithoutRequirementMapping",
+            "rolesWithoutCandidates",
+            "rolesWithBlockedSelection",
+            "rolesAwaitingApproval",
+        )
+        mismatched = []
+        for key in comparable_keys:
+            if declared.get(key) != expected.get(key):
+                mismatched.append(key)
+        declared_covered_reqs = declared.get("coveredRequirementIds") or []
+        expected_covered_reqs = expected.get("coveredRequirementIds") or []
+        if set(declared_covered_reqs) != set(expected_covered_reqs):
+            mismatched.append("coveredRequirementIds")
+        if architecture_node_ids is not None:
+            for key in ("totalArchitectureNodes", "coveredArchitectureNodes"):
+                if declared.get(key) != expected.get(key):
+                    mismatched.append(key)
+            declared_uncovered = declared.get("uncoveredArchitectureNodeIds") or []
+            expected_uncovered = expected.get("uncoveredArchitectureNodeIds") or []
+            if set(declared_uncovered) != set(expected_uncovered):
+                mismatched.append("uncoveredArchitectureNodeIds")
+        else:
+            # Without an architecture artifact, still require internal arithmetic consistency.
+            uncovered = declared.get("uncoveredArchitectureNodeIds") or []
+            covered_count = declared.get("coveredArchitectureNodes")
+            total = declared.get("totalArchitectureNodes")
+            if (
+                isinstance(covered_count, int)
+                and isinstance(total, int)
+                and isinstance(uncovered, list)
+                and total != covered_count + len(uncovered)
+            ):
+                mismatched.append("totalArchitectureNodes")
+            if covered_count != expected.get("coveredArchitectureNodes"):
+                mismatched.append("coveredArchitectureNodes")
+        if mismatched:
+            errors.append(
+                SemanticValidationError(
+                    code="COMPONENT_COVERAGE_MISMATCH",
+                    message=(
+                        "coverageSummary does not match computed coverage for fields: "
+                        + ", ".join(sorted(set(mismatched)))
+                        + "."
+                    ),
+                    path="componentPlan.coverageSummary",
+                    blocking=True,
+                )
+            )
+
     return errors

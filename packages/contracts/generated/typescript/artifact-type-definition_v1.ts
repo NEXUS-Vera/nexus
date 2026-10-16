@@ -2,9 +2,9 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 export type ArtifactType1 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 
 export interface ArtifactTypeDefinition {
   approvalPolicyId: string;
@@ -23,6 +23,7 @@ export interface ArtifactTypeDefinition {
     | 'structured-validation'
     | 'fake-execution'
     | 'file-workspace'
+    | 'sandbox-execution'
     | 'embedded-build'
     | 'python-kernel'
     | 'circuit-simulation'
@@ -32,6 +33,9 @@ export interface ArtifactTypeDefinition {
   supportedCommandTypes: (
     | 'workspace.create'
     | 'workspace.update-draft'
+    | 'workspace.acquire-edit-lease'
+    | 'workspace.release-edit-lease'
+    | 'workspace.discard-draft'
     | 'workspace.create-snapshot'
     | 'workspace.restore-snapshot'
     | 'artifact.validate-draft'

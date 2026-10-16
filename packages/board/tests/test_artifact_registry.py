@@ -10,7 +10,7 @@ from nexus_board.registries.artifact_types import (
 )
 
 
-def test_default_registry_has_five_artifacts() -> None:
+def test_default_registry_has_runtime_artifacts() -> None:
     registry = default_artifact_type_registry()
     types = {item["artifactType"] for item in registry.list()}
     assert types == {
@@ -19,6 +19,7 @@ def test_default_registry_has_five_artifacts() -> None:
         "functional-architecture",
         "next-action",
         "component-plan",
+        "code-scratch",
     }
 
 
@@ -31,6 +32,8 @@ def test_dependency_rules() -> None:
         == "requirement-set"
     )
     assert registry.get("next-action")["boardVisibility"] == "global"
+    next_deps = {d["artifactType"] for d in registry.get("next-action")["dependencies"]}
+    assert "component-plan" in next_deps
     deps = {d["artifactType"] for d in registry.get("component-plan")["dependencies"]}
     assert deps == {"functional-architecture", "requirement-set"}
 

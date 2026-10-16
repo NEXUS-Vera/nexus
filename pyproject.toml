@@ -77,6 +77,9 @@ asyncio_mode = "auto"
 [tool.pyright]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
+# Resolve site-packages from disk when sandbox restrictions block the interpreter probe.
+venvPath = "."
+venv = ".venv"
 include = ["agents", "apps", "packages", "tools", "scripts"]
 exclude = ["**/__pycache__", "**/.venv", "**/node_modules", "packages/contracts/generated"]
 # Import roots for the src-layout packages (mirrors PYTHON_PATH in the Makefile).
@@ -87,6 +90,7 @@ extraPaths = [
   "agents/vera/src",
   "packages/agent-runtime/src",
   "packages/board/src",
+  "packages/board/tests",
   "packages/contracts/src",
   "packages/contracts/generated/python",
   "packages/memory/src",

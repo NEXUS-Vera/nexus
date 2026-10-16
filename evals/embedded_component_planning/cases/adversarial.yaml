@@ -1,0 +1,23 @@
+# Adversarial component-planning cases.
+- id: adversarial-cp-software-only
+  category: unsupported
+  prompt: Build me a web app for tracking personal expenses.
+  expectedOutcome: unsupported
+  expectedErrorCode: UNSUPPORTED_EMBEDDED_PROJECT_FOR_FIXTURE_PHASE
+
+- id: adversarial-cp-named-parts
+  category: greenhouse-sensing-node
+  prompt: >-
+    Greenhouse node that measures temperature with a DHT22 and ESP32 and
+    reports remotely.
+  expectedOutcome: supported
+  expectedMaturity: roles-defined
+  minRoleCount: 1
+  requireSensorRole: true
+  forbiddenSelections:
+    - DHT22
+    - ESP32
+    - tested
+  notes: >-
+    Prompt names specific parts; composed Component Plan must not mint those
+    as grounded/tested candidates.

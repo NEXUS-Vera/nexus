@@ -55,6 +55,7 @@ def select_next_action(
     open_questions: list[dict[str, Any]],
     missing_dimensions: list[str],
     project_stage: ProjectStage,
+    component_plan_content: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Select and construct the single highest-priority Next Action.
 
@@ -65,7 +66,8 @@ def select_next_action(
       3. A measurement/performance missing dimension.
       4. An interface/environment/resource missing dimension.
       5. An architecture missing dimension.
-      6. Fallback: the project is ready for later component-selection.
+      6. Component-plan gaps (missing constraints, awaiting approval, no candidates).
+      7. Fallback: the project is ready for later component-selection.
     """
 
     blocking_issues = [issue for issue in issues if issue.get("blocking") is True]
@@ -121,7 +123,103 @@ def select_next_action(
             open_questions=open_questions,
         )
 
+    component_gap = _component_plan_gap_action(component_plan_content)
+    if component_gap is not None:
+        return component_gap
+
     return _component_selection_ready_action(project_stage)
+
+
+def _component_plan_gap_action(
+    component_plan_content: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    if not isinstance(component_plan_content, dict):
+        return None
+    coverage = component_plan_content.get("coverageSummary") or {}
+    roles = component_plan_content.get("componentRoles") or []
+    constraints = component_plan_content.get("selectionConstraints") or []
+    candidates = component_plan_content.get("candidates") or []
+    open_qs = component_plan_content.get("openQuestions") or []
+
+    awaiting = int(coverage.get("rolesAwaitingApproval") or 0)
+    without_candidates = int(coverage.get("rolesWithoutCandidates") or 0)
+
+    if awaiting > 0:
+        return _build_action(
+            title="Approve pending component selections",
+            description=(
+                f"{awaiting} component role(s) have provisional selections awaiting "
+                "user approval before procurement planning."
+            ),
+            rationale=(
+                "Selection approval is the highest-value component-plan gate once "
+                "candidates have been proposed."
+            ),
+            priority="high",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="requirements-confirmed",
+            completion_criteria="User approves or rejects pending component selections.",
+            source_issue_ids=[],
+            source_question_ids=[q["questionId"] for q in open_qs if q.get("questionId")][:3],
+        )
+
+    if roles and not constraints:
+        return _build_action(
+            title="Confirm component selection constraints",
+            description=(
+                "Component roles are defined but selection constraints (range, "
+                "accuracy, budget, interface) are still missing."
+            ),
+            rationale=(
+                "Constraints must be confirmed before candidates can be grounded "
+                "or compared fairly."
+            ),
+            priority="high",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="unknowns-resolved",
+            completion_criteria="User confirms key selection constraints for component roles.",
+            source_issue_ids=[],
+            source_question_ids=[],
+        )
+
+    if without_candidates > 0 or (roles and not candidates):
+        return _build_action(
+            title="Propose component candidates for uncovered roles",
+            description=(
+                f"{without_candidates or len(roles)} component role(s) still lack "
+                "provisional part candidates."
+            ),
+            rationale=(
+                "Roles without candidates block comparison-workspace planning and "
+                "selection approval."
+            ),
+            priority="medium",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="requirements-confirmed",
+            completion_criteria="At least one provisional candidate exists for each role.",
+            source_issue_ids=[],
+            source_question_ids=[],
+        )
+
+    if open_qs:
+        qid = open_qs[0].get("questionId")
+        return _build_action(
+            title="Answer open component planning questions",
+            description=str(open_qs[0].get("summary") or "Resolve a component-plan open question."),
+            rationale="Open component questions block grounded selection.",
+            priority="medium",
+            prerequisites=[],
+            blocks=[],
+            completion_condition_type="unknowns-resolved",
+            completion_criteria="Component-plan open questions are answered.",
+            source_issue_ids=[],
+            source_question_ids=[qid] if isinstance(qid, str) else [],
+        )
+
+    return None
 
 
 def _blocking_defect_action(blocking_issues: list[dict[str, Any]]) -> dict[str, Any]:

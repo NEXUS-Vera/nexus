@@ -2,9 +2,9 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 export type ArtifactType1 =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 
 export interface ProjectBoardProjection {
   artifactSummaries: {
@@ -12,7 +12,10 @@ export interface ProjectBoardProjection {
     artifactId: string;
     artifactType: ArtifactType;
     artifactVersion: number;
+    awaitingApprovalCount?: number;
+    blockedRoleCount?: number;
     blockerCount: number;
+    candidateCount?: number;
     evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
     lastChangedAt: string;
     lastExecutionStatus?:
@@ -26,7 +29,18 @@ export interface ProjectBoardProjection {
       | 'timed-out'
       | 'stale';
     lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+    maturity?:
+      | 'roles-defined'
+      | 'candidates-proposed'
+      | 'candidates-grounded'
+      | 'compatibility-checked'
+      | 'selection-proposed'
+      | 'selection-approved'
+      | 'validated';
     openQuestionCount: number;
+    roleCount?: number;
+    selectedCount?: number;
+    unresolvedCompatibilityCheckCount?: number;
     workspaceStatus: 'none' | 'creating' | 'ready' | 'dirty' | 'validating' | 'blocked' | 'archived';
   }[];
   blockingIssueCount: number;
@@ -70,7 +84,17 @@ export interface ProjectBoardProjection {
       | 'question.opened'
       | 'question.resolved'
       | 'decision.accepted'
-      | 'decision.reversed';
+      | 'decision.reversed'
+      | 'component-plan.created'
+      | 'component-role.identified'
+      | 'component-candidate.proposed'
+      | 'component-candidate.rejected'
+      | 'component-selection.proposed'
+      | 'component-selection.approved'
+      | 'component-selection.rejected'
+      | 'compatibility-check.recorded'
+      | 'component-plan.revised'
+      | 'component-plan.marked-stale';
     occurredAt: string;
     summary: string;
   }[];

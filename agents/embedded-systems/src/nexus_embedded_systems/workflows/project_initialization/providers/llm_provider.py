@@ -7,8 +7,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from nexus_contracts.validation.semantic_validators import validate_component_plan_content
 from nexus_model_gateway import ModelGateway, ModelGatewayError, ModelPolicy
 from nexus_observability import GenerationObservation, ObservationRecorder, StructuredLogRecorder
+
+from nexus_embedded_systems.workflows.component_planning import (
+    compose_component_plan_content,
+    compose_component_plan_envelope,
+)
 
 from ..assembly import (
     ProjectStage,
@@ -180,12 +186,24 @@ class LlmInitializationProvider:
                     }
                 )
 
+            component_plan_art = await self._compose_component_plan(
+                architecture_content=arch_art["content"],
+                requirement_set_content=req_art["content"],
+                project_id=project_id,
+                turn_id=turn_id,
+                run_id=run_id,
+                now=now,
+                vera_actor=vera_actor,
+                ledger=ledger,
+            )
+
             step = ledger.start_step("derive-next-action")
             next_content = select_next_action(
                 issues=issues,
                 open_questions=open_questions,
                 missing_dimensions=missing_dimensions,
                 project_stage=stage,
+                component_plan_content=component_plan_art.get("content"),
             )
             next_art_id = new_id("art_")
             next_art = {
@@ -210,7 +228,7 @@ class LlmInitializationProvider:
                 output_artifact_references=[_ref(next_art)],
             )
 
-            artifacts = [brief_art, req_art, arch_art, next_art]
+            artifacts = [brief_art, req_art, arch_art, component_plan_art, next_art]
             created_refs = [_ref(a) for a in artifacts]
             warning_issues = [i for i in issues if not i.get("blocking")]
             blocker_issues = [i for i in issues if i.get("blocking")]
@@ -454,6 +472,88 @@ class LlmInitializationProvider:
             now=kwargs["now"],
             requested_from=kwargs["vera_actor"],
         )
+
+    async def _compose_component_plan(
+        self,
+        *,
+        architecture_content: dict[str, Any],
+        requirement_set_content: dict[str, Any],
+        project_id: str,
+        turn_id: str,
+        run_id: str,
+        now: str,
+        vera_actor: dict[str, Any],
+        ledger: WorkflowLedger,
+    ) -> dict[str, Any]:
+        """Deterministic Phase 12 Component Plan composition with ledgered steps."""
+
+        step = ledger.start_step("derive-component-roles")
+        content = compose_component_plan_content(
+            architecture_content=architecture_content,
+            requirement_set_content=requirement_set_content,
+            include_candidates=True,
+            source="inferred",
+            proposed_by=vera_actor,
+            now=now,
+        )
+        ledger.complete_step(step)
+
+        step = ledger.start_step("derive-selection-constraints")
+        ledger.complete_step(step)
+
+        step = ledger.start_step("propose-component-candidates")
+        # Candidates and preferred (unapproved) selections are included at init.
+        ledger.complete_step(step)
+
+        step = ledger.start_step("identify-known-compatibility-checks")
+        ledger.complete_step(step)
+
+        step = ledger.start_step("propose-preferred-selections")
+        ledger.complete_step(step)
+
+        step = ledger.start_step("validate-component-plan")
+        arch_ids = {
+            node_id
+            for node in (architecture_content.get("nodes") or [])
+            if isinstance(node, dict)
+            for node_id in [node.get("nodeId")]
+            if isinstance(node_id, str)
+        }
+        req_ids = {
+            requirement_id
+            for req in (requirement_set_content.get("requirements") or [])
+            if isinstance(req, dict)
+            for requirement_id in [req.get("requirementId")]
+            if isinstance(requirement_id, str)
+        }
+        semantic_errors = validate_component_plan_content(
+            content,
+            architecture_node_ids=arch_ids,
+            requirement_ids=req_ids,
+        )
+        blocking = [e for e in semantic_errors if getattr(e, "blocking", True)]
+        if blocking:
+            ledger.fail_step(step)
+            codes = sorted({e.code for e in blocking})
+            raise LlmInitializationError(
+                code="LLM_INITIALIZATION_VALIDATION_FAILED",
+                message="Component plan failed semantic validation.",
+                workflow_run=ledger.to_workflow_run(),
+                details=codes,
+            )
+        ledger.complete_step(step)
+
+        step = ledger.start_step("materialize-component-plan")
+        envelope = compose_component_plan_envelope(
+            content=content,
+            project_id=project_id,
+            turn_id=turn_id,
+            workflow_run_id=run_id,
+            created_by=vera_actor,
+            now=now,
+        )
+        ledger.complete_step(step, output_artifact_references=[_ref(envelope)])
+        return envelope
 
     async def _generate_content_artifact(
         self,

@@ -33,6 +33,11 @@ Successful turn responses return `ProjectTurnResult` (includes current state and
 impact analysis). Artifact commands return `ArtifactCommandResult` (or a
 structured conflict/governance error envelope).
 
+Phase 12 initialize packages include five artifact types, including
+`component-plan`. Board summaries expose Component Plan maturity/coverage
+counts. Fixture-mode turns support component-plan operations (approve/reject
+candidates, constraints, alternatives) in addition to requirement edits.
+
 ## Configuration
 
 | Variable | Default | Notes |
@@ -134,3 +139,18 @@ make dev-db          # optional postgres
 make db-migrate
 make dev-api
 ```
+
+## Workspace runtime
+
+Artifact-scoped `/workspace/runtime`, `/workspace/files`, `/workspace/file`,
+`/workspace/snapshots` and `/workspace/executions` routes expose generic runtime
+operations. Workspace file writes and snapshots require an edit lease acquired
+through `workspace.acquire-edit-lease`. Execution routes expose status, bounded
+logs and cancellation; project `/outputs` routes expose declared outputs.
+All routes retain session-token authentication.
+
+`GET /v1/runtime/health` reports runtime availability and guarantees.
+`POST /v1/admin/retention/gc` accepts a dry-run retention request. Runtime, queue,
+workspace and execution bounds are configured through `NEXUS_EXEC_*`,
+`NEXUS_WORKSPACE_*`, `NEXUS_EXECUTION_RUNTIME`,
+`NEXUS_EXECUTION_CONTAINER_IMAGE` and `NEXUS_FILE_STORE_ROOT`.

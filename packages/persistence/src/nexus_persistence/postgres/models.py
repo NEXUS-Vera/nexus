@@ -134,7 +134,7 @@ class WorkspaceRow(Base):
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     artifact_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     artifact_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -143,7 +143,22 @@ class WorkspaceDraftRow(Base):
 
     workspace_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     draft_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class WorkspaceFileRow(Base):
+    __tablename__ = "workspace_files"
+    __table_args__ = (
+        UniqueConstraint("workspace_id", "path", name="uq_workspace_files_workspace_path"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    workspace_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -155,7 +170,7 @@ class WorkspaceSnapshotRow(Base):
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     artifact_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     snapshot_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -167,7 +182,7 @@ class ArtifactProposalRow(Base):
     artifact_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     workspace_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     proposed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -179,7 +194,7 @@ class ArtifactCommandRunRow(Base):
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     workspace_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -191,8 +206,36 @@ class ExecutionRunRow(Base):
     artifact_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     workspace_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ExecutionJobRow(Base):
+    __tablename__ = "execution_jobs"
+
+    execution_job_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    execution_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    workspace_snapshot_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ExecutionLogChunkRow(Base):
+    __tablename__ = "execution_log_chunks"
+    __table_args__ = (
+        UniqueConstraint("execution_job_id", "sequence", name="uq_execution_log_job_sequence"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    execution_job_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    stream: Mapped[str] = mapped_column(String(16), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
 class ProducedOutputRow(Base):
@@ -203,7 +246,7 @@ class ProducedOutputRow(Base):
     artifact_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     workspace_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     execution_run_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -214,7 +257,7 @@ class ProjectEventRow(Base):
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class ProjectBoardProjectionRow(Base):
@@ -223,7 +266,7 @@ class ProjectBoardProjectionRow(Base):
     project_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     projection_version: Mapped[int] = mapped_column(Integer, nullable=False)
     project_state_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
@@ -234,7 +277,7 @@ class ProjectGraphNodeRow(Base):
     project_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     node_type: Mapped[str] = mapped_column(String(64), nullable=False)
     ref_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)
 
 
 class ProjectGraphEdgeRow(Base):
@@ -245,4 +288,4 @@ class ProjectGraphEdgeRow(Base):
     source_node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     target_node_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     edge_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON_PAYLOAD, nullable=False)

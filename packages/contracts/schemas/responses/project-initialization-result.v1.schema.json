@@ -32,8 +32,8 @@
     },
     "artifacts": {
       "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
+      "minItems": 5,
+      "maxItems": 5,
       "items": {
         "$ref": "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
       },
@@ -70,6 +70,15 @@
             "type": "object",
             "properties": {
               "artifactType": { "const": "next-action" }
+            },
+            "required": ["artifactType"]
+          }
+        },
+        {
+          "contains": {
+            "type": "object",
+            "properties": {
+              "artifactType": { "const": "component-plan" }
             },
             "required": ["artifactType"]
           }

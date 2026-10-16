@@ -6,9 +6,16 @@ import type { InspectorSelection } from '../lib/inspector-selection';
 
 const DEFAULT_ARTIFACT: ArtifactRouteKey = 'project-brief';
 
+export type InspectorPanelMode = 'context' | 'vera';
+
 function parseGlobalView(value: string | null): GlobalView {
   if (value === 'overview' || value === 'mind-graph' || value === 'workspace') return value;
   return 'workspace';
+}
+
+function parseInspectorPanel(value: string | null): InspectorPanelMode {
+  if (value === 'vera') return 'vera';
+  return 'context';
 }
 
 function parseSelection(params: URLSearchParams): InspectorSelection {
@@ -28,6 +35,7 @@ function parseSelection(params: URLSearchParams): InspectorSelection {
     id &&
     (kind === 'requirement' ||
       kind === 'architecture-node' ||
+      kind === 'component-role' ||
       kind === 'open-question' ||
       kind === 'validation-issue' ||
       kind === 'project-brief-item')
@@ -47,9 +55,11 @@ export function useWorkspaceUrl() {
     : DEFAULT_ARTIFACT;
   const selectedRequirement = searchParams.get('req');
   const selectedArchNode = searchParams.get('node');
+  const selectedComponentRole = searchParams.get('role');
   const selectedTest = searchParams.get('test');
   const selectedRisk = searchParams.get('risk');
   const historyOpen = searchParams.get('history') === '1';
+  const inspectorPanel = parseInspectorPanel(searchParams.get('panel'));
   const selection = useMemo(() => parseSelection(searchParams), [searchParams]);
 
   const patchParams = useCallback(
@@ -84,6 +94,7 @@ export function useWorkspaceUrl() {
         artifact: entry.routeKey,
         req: null,
         node: null,
+        role: null,
         test: null,
         risk: null,
         sel: null,
@@ -113,6 +124,19 @@ export function useWorkspaceUrl() {
         artifact: 'functional-architecture',
         node: id,
         sel: id ? 'architecture-node' : null,
+        selId: id,
+      });
+    },
+    [patchParams],
+  );
+
+  const setSelectedComponentRole = useCallback(
+    (id: string | null) => {
+      patchParams({
+        view: null,
+        artifact: 'component-plan',
+        role: id,
+        sel: id ? 'component-role' : null,
         selId: id,
       });
     },
@@ -156,8 +180,15 @@ export function useWorkspaceUrl() {
     [patchParams],
   );
 
+  const setInspectorPanel = useCallback(
+    (mode: InspectorPanelMode) => {
+      patchParams({ panel: mode === 'context' ? null : mode });
+    },
+    [patchParams],
+  );
+
   const focusVera = useCallback(() => {
-    patchParams({ view: null });
+    patchParams({ view: null, panel: 'vera' });
     requestAnimationFrame(() => {
       document.getElementById('vera-turn')?.focus();
     });
@@ -168,16 +199,20 @@ export function useWorkspaceUrl() {
     selectedArtifact,
     selectedRequirement,
     selectedArchNode,
+    selectedComponentRole,
     selectedTest,
     selectedRisk,
     historyOpen,
+    inspectorPanel,
     selection,
     setGlobalView,
     setSelectedArtifact,
     setSelectedRequirement,
     setSelectedArchNode,
+    setSelectedComponentRole,
     setInspectorSelection,
     setHistoryOpen,
+    setInspectorPanel,
     focusVera,
     patchParams,
   };

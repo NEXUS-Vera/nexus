@@ -24,6 +24,10 @@ from nexus_contracts.validation.semantic_validators import (  # noqa: E402
 
 # Fixture filenames validated against a single root schema only.
 RECORD_SCHEMA_IDS_BY_FILENAME: dict[str, str] = {
+    "workspace-file.json": "https://nexus.local/schemas/workspaces/workspace-file.v1.schema.json",
+    "execution-command-spec.json": "https://nexus.local/schemas/executions/execution-command-spec.v1.schema.json",
+    "execution-job.json": "https://nexus.local/schemas/executions/execution-job.v1.schema.json",
+    "execution-log-chunk.json": "https://nexus.local/schemas/executions/execution-log-chunk.v1.schema.json",
     "project-history.json": "https://nexus.local/schemas/responses/project-history.v1.schema.json",
     "project-turn-result.json": (
         "https://nexus.local/schemas/responses/project-turn-result.v1.schema.json"

@@ -30,6 +30,7 @@ class WorkspaceDescriptorV1(TypedDict, closed=True):
         'functional-architecture',
         'next-action',
         'component-plan',
+        'code-scratch',
     ]
     baseArtifactVersion: int
     baseProjectStateVersion: int
@@ -43,6 +44,7 @@ class WorkspaceDescriptorV1(TypedDict, closed=True):
             'structured-validation',
             'fake-execution',
             'file-workspace',
+            'sandbox-execution',
             'embedded-build',
             'python-kernel',
             'circuit-simulation',

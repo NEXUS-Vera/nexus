@@ -2,7 +2,7 @@
  * Do not edit manually. Re-run: make generate-contract-types
  */
 export type ArtifactType =
-  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan';
+  'project-brief' | 'requirement-set' | 'functional-architecture' | 'next-action' | 'component-plan' | 'code-scratch';
 
 export interface ProjectEvent {
   actor: ActorReference;
@@ -28,7 +28,17 @@ export interface ProjectEvent {
     | 'question.opened'
     | 'question.resolved'
     | 'decision.accepted'
-    | 'decision.reversed';
+    | 'decision.reversed'
+    | 'component-plan.created'
+    | 'component-role.identified'
+    | 'component-candidate.proposed'
+    | 'component-candidate.rejected'
+    | 'component-selection.proposed'
+    | 'component-selection.approved'
+    | 'component-selection.rejected'
+    | 'compatibility-check.recorded'
+    | 'component-plan.revised'
+    | 'component-plan.marked-stale';
   occurredAt: string;
   payload: {
     artifactId?: string;
@@ -41,7 +51,8 @@ export interface ProjectEvent {
       | 'embedded-build'
       | 'python-kernel'
       | 'circuit-simulation'
-      | 'architecture-export';
+      | 'architecture-export'
+      | 'sandbox-execution';
     decisionId?: string;
     evidenceId?: string;
     evidenceStatus?: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';

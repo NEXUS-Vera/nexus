@@ -30,8 +30,16 @@ def test_runtime_change_impacts_architecture() -> None:
     )
     assert "requirement-set" in impact["regenerate"]
     assert "functional-architecture" in impact["regenerate"]
+    assert "component-plan" in impact["regenerate"]
     assert "next-action" in impact["regenerate"]
     assert "project-brief" in impact["unchanged"]
+
+
+def test_component_plan_approve_impacts_next_action() -> None:
+    impact = analyze_impact(operation="approve-component-selection")
+    assert "component-plan" in impact["changed"]
+    assert "next-action" in impact["regenerate"]
+    assert "functional-architecture" in impact["unchanged"]
 
 
 def test_accuracy_clarify_does_not_force_architecture() -> None:
