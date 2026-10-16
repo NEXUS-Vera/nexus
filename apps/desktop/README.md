@@ -143,7 +143,9 @@ system set aside for it - `~/Library/Application Support/Nexus` on macOS,
 `name`, and this package is scoped, so the scope would end up in the path a
 student's projects live in permanently. The sidecar is spawned with
 `NEXUS_STORAGE_BACKEND=sqlite` pointing at that file, because the API's own
-default backend is in-memory and would lose every project on quit. And when the supervisor replaces a crashed sidecar, the replacement binds
+default backend is in-memory and would lose every project on quit. It also sets
+`NEXUS_FILE_STORE_ROOT` to `files/` beside the database so snapshots survive quit.
+And when the supervisor replaces a crashed sidecar, the replacement binds
 a different port, so the shell rewrites the runtime configuration the bridge
 serves and reloads the window. The preload exposes named values rather than a
 channel the page can poll, so a reload is how the renderer learns the new
@@ -178,7 +180,8 @@ idempotent, since which of the two wins that race is not ordered.
 
 It is also what decides the sidecar's environment. `NEXUS_API_HOST`,
 `NEXUS_API_PORT`, `NEXUS_API_SESSION_TOKEN`, `NEXUS_API_CORS_ORIGINS`,
-`NEXUS_STORAGE_BACKEND` and `NEXUS_DATABASE_URL` are all stated after the
+`NEXUS_STORAGE_BACKEND`, `NEXUS_DATABASE_URL` and `NEXUS_FILE_STORE_ROOT` are all
+stated after the
 inherited environment rather than left to it. For a developer running the API by
 hand those are a configuration surface; for a packaged application they are
 decisions already made, and a shell profile exporting `NEXUS_API_HOST=0.0.0.0`

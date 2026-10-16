@@ -6,6 +6,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from sqlalchemy.engine import URL, make_url
+
 from nexus_persistence.file_store.errors import FileStoreIntegrityError, FileStoreNotFoundError
 from nexus_persistence.file_store.hashing import blob_digest, digest_hex
 
@@ -99,3 +101,18 @@ class LocalFileStore:
 
     def _path_for(self, hex_digest: str) -> Path:
         return self._root / hex_digest[:2] / hex_digest[2:4] / hex_digest
+
+
+def default_sqlite_file_store_root(database_url: str | URL) -> Path | None:
+    """Resolve durable blob storage beside a file-backed SQLite database."""
+    url = make_url(database_url)
+    database = url.database
+    if url.get_backend_name() != "sqlite" or not database or database == ":memory:":
+        return None
+    if url.query.get("mode") == "memory":
+        return None
+    if url.query.get("uri") == "true" and database.startswith("file:"):
+        database = database.removeprefix("file:")
+        if not database or database == ":memory:":
+            return None
+    return Path(database).resolve().parent / "files"

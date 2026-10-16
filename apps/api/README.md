@@ -43,7 +43,8 @@ candidates, constraints, alternatives) in addition to requirement edits.
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `NEXUS_STORAGE_BACKEND` | `memory` | `memory`, `sqlite`, or `postgres`. The packaged desktop shell always runs `sqlite` |
-| `NEXUS_DATABASE_URL` | local postgres URL | Used by both `sqlite` and `postgres`. For SQLite it is `sqlite:///<absolute-path>` - note the four slashes an absolute path produces |
+| `NEXUS_DATABASE_URL` | `sqlite:///nexus.db` for SQLite; local postgres URL otherwise | Used by both `sqlite` and `postgres`. For SQLite it is `sqlite:///<absolute-path>` - note the four slashes an absolute path produces |
+| `NEXUS_FILE_STORE_ROOT` | `files/` beside a SQLite database file; otherwise memory | Explicit blob directory override |
 | `NEXUS_INITIALIZATION_PROVIDER` | `fixture` | `fixture`, `llm`, or `shadow` |
 | `NEXUS_API_CORS_ORIGINS` | conditional, see below | Explicit allowlist of browser origins; overrides the default either way |
 | `NEXUS_API_SESSION_TOKEN` | `nexus-dev-session-token` | Per-session bearer token; the desktop shell mints a fresh one per launch |

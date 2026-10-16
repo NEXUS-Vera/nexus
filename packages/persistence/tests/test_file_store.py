@@ -32,3 +32,29 @@ def test_local_atomic_replace_and_no_tmp_leak(tmp_path: Path) -> None:
     assert final.is_file()
     leftovers = list((tmp_path / "store").rglob("*.tmp"))
     assert leftovers == []
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("sqlite:///project.db", "files"),
+        ("sqlite+pysqlite:///nested/project.db", "nested/files"),
+        ("sqlite://", None),
+        ("sqlite:///:memory:", None),
+        ("sqlite:///file:shared?mode=memory&cache=shared&uri=true", None),
+        ("sqlite:///file::memory:?cache=shared&uri=true", None),
+        ("postgresql://localhost/nexus", None),
+    ],
+)
+def test_default_sqlite_file_store_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, url: str, expected: str | None
+) -> None:
+    from nexus_persistence.file_store.local import default_sqlite_file_store_root
+
+    monkeypatch.chdir(tmp_path)
+    root = default_sqlite_file_store_root(url)
+    assert root == (tmp_path / expected if expected else None)
+    assert not (tmp_path / "files").exists()
+    assert default_sqlite_file_store_root(f"sqlite:///{tmp_path / 'db.sqlite'}") == (
+        tmp_path / "files"
+    )

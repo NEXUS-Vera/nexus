@@ -593,6 +593,7 @@ describe('SidecarSupervisor storage configuration', () => {
         `writeFileSync(${JSON.stringify(observed)}, JSON.stringify({`,
         '  backend: process.env.NEXUS_STORAGE_BACKEND,',
         '  url: process.env.NEXUS_DATABASE_URL,',
+        '  fileStoreRoot: process.env.NEXUS_FILE_STORE_ROOT,',
         '  token: process.env.NEXUS_API_SESSION_TOKEN,',
         '  port: process.env.NEXUS_API_PORT,',
         '  host: process.env.NEXUS_API_HOST,',
@@ -613,6 +614,7 @@ describe('SidecarSupervisor storage configuration', () => {
     vi.stubEnv('NEXUS_API_HOST', '0.0.0.0');
     vi.stubEnv('NEXUS_API_CORS_ORIGINS', 'https://evil.example');
     vi.stubEnv('NEXUS_STORAGE_BACKEND', 'postgres');
+    vi.stubEnv('NEXUS_FILE_STORE_ROOT', '/wrong/files');
     vi.stubEnv('NEXUS_DATABASE_URL', 'postgresql+psycopg://someone@elsewhere/db');
 
     const supervisor = new SidecarSupervisor({
@@ -632,6 +634,7 @@ describe('SidecarSupervisor storage configuration', () => {
       // three-slash one is relative and would put the database wherever the
       // sidecar was started from.
       url: `sqlite:///${databaseFile}`,
+      fileStoreRoot: join(dir, 'files'),
       token: 'a-session-token',
       port: '0',
       host: '127.0.0.1',

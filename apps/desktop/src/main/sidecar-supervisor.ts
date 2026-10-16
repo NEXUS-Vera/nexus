@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcessByStdio } from 'node:child_process';
+import { dirname, join } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 
 /**
@@ -245,6 +246,7 @@ export class SidecarSupervisor {
         // developer's Postgres, or back into memory to be lost on quit.
         NEXUS_STORAGE_BACKEND: 'sqlite',
         NEXUS_DATABASE_URL: sqliteUrl(this.#options.databaseFile),
+        NEXUS_FILE_STORE_ROOT: join(dirname(this.#options.databaseFile), 'files'),
       },
       // stdout is the contract channel. stderr is inherited so sidecar logging
       // reaches the shell's own diagnostics instead of filling an unread pipe.
