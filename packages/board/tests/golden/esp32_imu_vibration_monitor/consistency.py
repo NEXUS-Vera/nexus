@@ -13,7 +13,7 @@ GOLDEN_PROMPT = (
     "to verify that accel_x RMS noise stays below 0.10 g."
 )
 
-TELEMETRY_FIELDS: tuple[str, ...] = ("time_ms", "accel_x_g", "accel_y_g", "accel_z_g")
+TELEMETRY_FIELDS: tuple[str, ...] = ("time_s", "accel_x_g", "accel_y_g", "accel_z_g")
 ANALYSIS_OUTPUTS: tuple[str, ...] = (
     "outputs/summary.json",
     "outputs/processed.csv",
@@ -89,12 +89,17 @@ def validate_golden_consistency(
         findings.append(
             {"code": "FIRMWARE_BAUD_MISMATCH", "message": "Firmware missing 115200 baud"}
         )
-    for field in TELEMETRY_FIELDS:
-        # Firmware emits TEL,time,ax,ay,az — names documented in comments / Analysis schema.
-        if field == "time_ms" and "TEL," not in firmware_source:
-            findings.append(
-                {"code": "FIRMWARE_TELEM_MISSING", "message": "Missing TEL telemetry frame"}
-            )
+    header = ",".join(TELEMETRY_FIELDS)
+    if f'Serial.println("{header}")' not in firmware_source or "TEL," not in firmware_source:
+        findings.append(
+            {"code": "FIRMWARE_TELEM_MISSING", "message": "Missing telemetry header/frame"}
+        )
+    if "Serial.print(now / 1000.0, 3)" not in firmware_source:
+        findings.append(
+            {"code": "FIRMWARE_TIME_UNIT", "message": "Telemetry time_s must use seconds"}
+        )
+    if '"time_s"' not in analysis_source:
+        findings.append({"code": "ANALYSIS_TIME_UNIT", "message": "Analysis must consume time_s"})
 
     if "stationary_imu.csv" not in analysis_source:
         findings.append(

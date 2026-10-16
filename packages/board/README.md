@@ -106,3 +106,11 @@ and projects requirement coverage separately from verification. Metric criteria
 are assessed by deterministic code. Repeated promotion is idempotent, and the
 Risk Register retains monitoring for risks requiring physical evidence. The API
 and Evidence Explorer expose the resulting evidence chain.
+
+The golden ESP32/MPU6050 fixture uses `time_s` (seconds) and `accel_*_g`
+(acceleration in g) throughout firmware telemetry and analysis CSVs. Firmware
+emits the CSV header at startup; strip the `TEL,` frame prefix when capturing
+samples as CSV. Golden G1 runs real Python analysis and promotes its execution
+outputs into R7/R8 verification; a failed execution is rejected. Its report is
+written under pytest's temporary directory. Firmware stub outputs and unavailable
+live compile/Wokwi gates remain explicit gaps.

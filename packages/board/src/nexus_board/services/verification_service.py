@@ -87,6 +87,11 @@ class VerificationService:
         if run.get("projectId") != project_id:
             raise VerificationError("ExecutionRun does not belong to this project.")
 
+        if run.get("status") not in {"completed", "completed-with-warnings"}:
+            raise VerificationError(
+                "Only completed ExecutionRuns may promote verification evidence."
+            )
+
         test_plan = self._projects.get_artifact(project_id, "test-plan")
         requirements = self._load_requirements(project_id)
         summary, output_names, output_id, log_text = self._extract_run_evidence(run)

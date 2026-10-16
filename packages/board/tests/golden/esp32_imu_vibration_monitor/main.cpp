@@ -80,6 +80,7 @@ void setup() {
   } else {
     Serial.println("NEXUS_MPU_READY");
   }
+  Serial.println("time_s,accel_x_g,accel_y_g,accel_z_g");
   lastSampleMs = millis();
 }
 
@@ -99,9 +100,9 @@ void loop() {
     Serial.println("NEXUS_MPU_READ_FAIL");
     return;
   }
-  // Machine-readable telemetry frame (R5)
+  // Machine-readable telemetry frame (R5): TEL prefix, seconds, acceleration in g.
   Serial.print("TEL,");
-  Serial.print(now);
+  Serial.print(now / 1000.0, 3);
   Serial.print(',');
   Serial.print(ax, 5);
   Serial.print(',');
