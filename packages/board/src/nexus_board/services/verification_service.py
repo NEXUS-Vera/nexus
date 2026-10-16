@@ -86,8 +86,10 @@ class VerificationService:
         run = self._kernel.get_execution_run(execution_run_id)
         if run.get("projectId") != project_id:
             raise VerificationError("ExecutionRun does not belong to this project.")
-        if run.get("status") != "completed":
-            raise VerificationError("ExecutionRun must be completed before promoting evidence.")
+        if run.get("status") not in {"completed", "completed-with-warnings"}:
+            raise VerificationError(
+                "Only completed ExecutionRuns may promote verification evidence."
+            )
         job_id = run.get("executionJobId")
         if job_id:
             job = self._kernel.get_execution_job(job_id)

@@ -444,7 +444,8 @@ def test_evidence_chain_exposes_r7_links() -> None:
 
 
 @pytest.mark.parametrize(
-    "run_status", ["completed", "failed", "timed-out", "cancelled", "truncated"]
+    "run_status",
+    ["completed", "completed-with-warnings", "failed", "timed-out", "cancelled", "truncated"],
 )
 def test_g1_product_path_execution_run_promotion(run_status: str) -> None:
     """Analysis ExecutionRun + ProducedOutput → VerificationService (not helper-only)."""
@@ -505,7 +506,7 @@ def test_g1_product_path_execution_run_promotion(run_status: str) -> None:
             }
         )
 
-    if run_status != "completed":
+    if run_status not in {"completed", "completed-with-warnings"}:
         before = project_store.get_artifact(project_id, "test-plan")
         with pytest.raises(VerificationError, match="truncated|completed"):
             kernel.verification.promote_execution_evidence(
