@@ -94,10 +94,27 @@ test.describe('fixture-mode persistence and modification', () => {
     await expect(page.getByTestId('firmware-toolbar')).toBeVisible();
     await expect(page.getByTestId('firmware-workspace-error')).toHaveCount(0);
 
-    for (const label of ['Analysis', 'Test Plan', 'Risk Register']) {
-      await page.getByRole('button', { name: new RegExp(`^${label}$`, 'i') }).click();
-      await expect(page.getByTestId('artifact-placeholder')).toBeVisible();
-    }
+    await page.getByRole('button', { name: /^Analysis$/i }).click();
+    await expect(page.getByTestId('analysis-workspace')).toBeVisible();
+    await expect(page.getByTestId('analysis-toolbar')).toBeVisible();
+    await expect(page.getByTestId('analysis-workspace-error')).toHaveCount(0);
+
+    // These live renderers report missing artifacts until VERIFY generates them.
+    await page.getByRole('button', { name: /^Test Plan$/i }).click();
+    const testPlanShell = page.getByTestId('workspace-test-plan-shell');
+    await expect(testPlanShell).toBeVisible();
+    await expect(testPlanShell.getByTestId('unavailable-workspace')).toBeVisible();
+    await expect(testPlanShell.getByTestId('unavailable-workspace')).toContainText(
+      'Test Plan artifact is missing from current state.',
+    );
+
+    await page.getByRole('button', { name: /^Risk Register$/i }).click();
+    const riskRegisterShell = page.getByTestId('workspace-risk-register-shell');
+    await expect(riskRegisterShell).toBeVisible();
+    await expect(riskRegisterShell.getByTestId('unavailable-workspace')).toBeVisible();
+    await expect(riskRegisterShell.getByTestId('unavailable-workspace')).toContainText(
+      'Risk Register artifact is missing from current state.',
+    );
 
     await page.getByRole('button', { name: /^Components$/i }).click();
     await expect(page.getByTestId('workspace-component-plan')).toBeVisible();
