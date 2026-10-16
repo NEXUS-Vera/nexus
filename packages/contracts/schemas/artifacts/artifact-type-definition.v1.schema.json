@@ -68,7 +68,8 @@
           "artifact.propose-revision",
           "artifact.accept-revision",
           "artifact.reject-revision",
-          "artifact.execute"
+          "artifact.execute",
+          "artifact.inspect-deletion-impact"
         ]
       },
       "uniqueItems": true

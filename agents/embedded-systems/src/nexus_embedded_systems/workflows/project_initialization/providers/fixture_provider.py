@@ -128,6 +128,10 @@ class FixtureInitializationProvider:
         ledger.complete_step(step, output_artifact_references=artifact_refs)
         result["workflowRun"] = ledger.to_workflow_run()
 
+        result = _ensure_layered_architecture_artifacts(result, ledger)
+        artifact_refs = _artifact_refs(result)
+        result["workflowRun"] = ledger.to_workflow_run()
+
         step = ledger.start_step("validate-schema")
         schema_errors = validate_initialization_result_schema(result)
         if schema_errors:
@@ -197,3 +201,73 @@ def _artifact_refs(result: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     return refs
+
+
+def _ensure_layered_architecture_artifacts(
+    result: dict[str, Any],
+    ledger: WorkflowLedger,
+) -> dict[str, Any]:
+    """Compose provisional Electrical/Physical Architecture when missing from fixtures."""
+
+    from nexus_embedded_systems.workflows.layered_architecture import (
+        ensure_layered_architecture_artifacts,
+    )
+
+    artifacts = list(result.get("artifacts") or [])
+    ensured = ensure_layered_architecture_artifacts(
+        project_id=str(result["project"]["projectId"]),
+        artifacts=artifacts,
+        actor=(artifacts[0].get("createdBy") if artifacts else None),
+        turn_id=str(result["userTurn"]["turnId"]),
+        workflow_run_id=str(result["workflowRun"]["workflowRunId"]),
+        now=str(
+            (artifacts[0].get("updatedAt") or artifacts[0].get("createdAt")) if artifacts else None
+        ),
+    )
+    if ensured.get("skippedReason"):
+        return result
+
+    created = ensured.get("created") or []
+    for art in created:
+        atype = art.get("artifactType")
+        step_name = (
+            "compose-electrical-architecture"
+            if atype == "electrical-architecture"
+            else "compose-physical-architecture"
+        )
+        step = ledger.start_step(step_name)
+        ledger.complete_step(
+            step,
+            output_artifact_references=[
+                {
+                    "artifactType": art["artifactType"],
+                    "artifactId": art["artifactId"],
+                    "artifactVersion": art.get("artifactVersion", 1),
+                    "contentSchemaVersion": art.get("contentSchemaVersion", "1.0.0"),
+                }
+            ],
+        )
+
+    ordered = list(ensured.get("artifacts") or artifacts)
+    result = dict(result)
+    result["artifacts"] = ordered
+    result["project"] = dict(result["project"])
+    result["project"]["currentArtifactReferences"] = _artifact_refs({"artifacts": ordered})
+
+    vera = dict(result.get("veraResponse") or {})
+    created_refs = list(vera.get("createdArtifactReferences") or [])
+    existing_types = {r.get("artifactType") for r in created_refs if isinstance(r, dict)}
+    for art in created:
+        if art.get("artifactType") in existing_types:
+            continue
+        created_refs.append(
+            {
+                "artifactType": art["artifactType"],
+                "artifactId": art["artifactId"],
+                "artifactVersion": art.get("artifactVersion", 1),
+                "contentSchemaVersion": art.get("contentSchemaVersion", "1.0.0"),
+            }
+        )
+    vera["createdArtifactReferences"] = created_refs
+    result["veraResponse"] = vera
+    return result

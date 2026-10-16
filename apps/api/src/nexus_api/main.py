@@ -7,20 +7,26 @@ import logging
 import re
 import secrets
 import uuid
+from pathlib import Path
 from typing import Any, cast
 
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from nexus_board import build_project_kernel
+from nexus_board.analysis.live_patch_generator import LiveAnalysisPatchGenerator
 from nexus_board.errors import BoardError
 from nexus_board.execution.limits import ExecutionLimits
 from nexus_board.execution.runtime_factory import build_execution_runtime
 from nexus_board.execution.scheduler import SchedulerConfig
 from nexus_board.firmware.live_patch_generator import LiveFirmwarePatchGenerator
 from nexus_board.ids import new_id
+from nexus_board.registries.external_providers import default_external_provider_registry
+from nexus_board.registries.runtime_capabilities import default_runtime_capability_registry
+from nexus_board.services.architecture_graph import materialize_layered_architecture_graph
 from nexus_board.services.filesystem_limits import WorkspaceFilesystemLimits
 from nexus_board.services.retention import RetentionPolicy
+from nexus_circuit_simulation import CircuitSimulationError, WokwiProvider
 from nexus_embedded_systems.workflows.project_initialization import (
     InitializationProviderError,
     InitializationRoutingError,
@@ -50,6 +56,14 @@ from nexus_persistence import (
 )
 from project_initialization_result_v1 import ProjectInitializationResultV1
 
+from .circuit_simulation import (
+    CircuitSimulationExecutionAdapter,
+    materialization_request,
+    serialize_availability,
+    serialize_provider_preview,
+    serialize_support_assessment,
+    serialize_validation,
+)
 from .config import settings
 from .models import InitializeProjectRequest, ProjectTurnRequest
 
@@ -58,6 +72,9 @@ logger = logging.getLogger("nexus.api")
 
 PROJECT_ID_RE = re.compile(r"^proj_[A-Za-z0-9]{16,}$")
 ARTIFACT_TYPES = {
+    "analysis",
+    "test-plan",
+    "risk-register",
     "project-brief",
     "requirement-set",
     "functional-architecture",
@@ -65,6 +82,8 @@ ARTIFACT_TYPES = {
     "component-plan",
     "code-scratch",
     "firmware",
+    "electrical-architecture",
+    "physical-architecture",
 }
 COMMAND_ID_RE = re.compile(r"^cmd_[A-Za-z0-9]{16,}$")
 
@@ -73,6 +92,37 @@ app = FastAPI(title="Nexus API", version="0.1.0")
 _store, _kernel_store = build_stores(
     backend=settings.storage_backend,
     database_url=settings.database_url,
+)
+_wokwi_provider = WokwiProvider(
+    token=settings.wokwi_cli_token or None,
+    executable=settings.wokwi_cli_executable,
+    firmware_elf_path=settings.wokwi_firmware_elf or None,
+)
+_wokwi_availability = _wokwi_provider.availability()
+_firmware_ready = bool(
+    settings.wokwi_firmware_elf
+    and Path(settings.wokwi_firmware_elf).is_file()
+    and Path(settings.wokwi_firmware_elf).suffix.lower() == ".elf"
+)
+_capabilities = default_runtime_capability_registry()
+_capabilities.register(
+    {
+        "schemaVersion": "1.0.0",
+        "capabilityId": "circuit-simulation",
+        "displayName": "Circuit Simulation",
+        "providerId": "wokwi",
+        "available": _wokwi_availability.ready,
+        "description": "Provider-neutral circuit simulation through Wokwi CLI",
+    }
+)
+_providers = default_external_provider_registry()
+_providers.register(
+    {
+        "providerId": "wokwi",
+        "displayName": "Wokwi",
+        "available": _wokwi_availability.ready,
+        "capabilities": ["circuit-simulation"],
+    }
 )
 _file_store = (
     LocalFileStore(settings.file_store_root) if settings.file_store_root else InMemoryFileStore()
@@ -106,11 +156,49 @@ def _build_firmware_patch_generator() -> LiveFirmwarePatchGenerator | None:
     return LiveFirmwarePatchGenerator(gateway=gateway, model_policy=policy)
 
 
+def _build_analysis_patch_generator() -> LiveAnalysisPatchGenerator | None:
+    """Reuse the same Nexus model gateway config as firmware (Phase 16G)."""
+    mode = settings.initialization_provider
+    if mode not in {"llm", "shadow"}:
+        return None
+    credential = settings.model_credential.strip()
+    if not credential:
+        return None
+    provider = settings.model_provider.strip().lower()
+    gateway: Any
+    if provider in {"anthropic", "claude"}:
+        gateway = AnthropicGateway(
+            model_credential=credential,
+            base_url=settings.model_base_url,
+        )
+    else:
+        gateway = OpenAICompatibleGateway(
+            model_credential=credential,
+            base_url=settings.model_base_url,
+        )
+    policy = ModelPolicy(
+        provider=provider,
+        model=settings.model_name,
+        timeout_seconds=settings.model_timeout_seconds,
+    )
+    return LiveAnalysisPatchGenerator(gateway=gateway, model_policy=policy)
+
+
+_analysis_patch_generator = _build_analysis_patch_generator()
 _firmware_patch_generator = _build_firmware_patch_generator()
 
 _kernel = build_project_kernel(
     _kernel_store,
     project_store=_store,
+    capabilities=_capabilities,
+    providers=_providers,
+    capability_executors={
+        "circuit-simulation": CircuitSimulationExecutionAdapter(
+            provider=_wokwi_provider,
+            project_store=_store,
+            firmware_ready=_firmware_ready,
+        )
+    },
     file_store=_file_store,
     filesystem_limits=WorkspaceFilesystemLimits(
         max_file_bytes=settings.workspace_max_file_bytes,
@@ -138,6 +226,7 @@ _kernel = build_project_kernel(
     ),
     retention_policy=RetentionPolicy.from_environ(),
     firmware_patch_generator=_firmware_patch_generator,
+    analysis_patch_generator=_analysis_patch_generator,
 )
 
 
@@ -273,6 +362,20 @@ async def initialize_project(
             autonomy_mode=body.autonomyMode,
             request_id=request_id,
         )
+        try:
+            project_id = result["project"]["projectId"]
+            materialize_layered_architecture_graph(
+                _kernel_store,
+                project_id,
+                list(result.get("artifacts") or []),
+                new_id("evt"),
+            )
+            _kernel.projection.update_after_write(project_id)
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "initialization_graph_materialization_failed request_id=%s",
+                request_id,
+            )
         return cast(ProjectInitializationResultV1, result)
     except InitializationRoutingError as exc:
         return _error(
@@ -336,7 +439,7 @@ async def get_project(project_id: str, request: Request) -> dict[str, Any] | JSO
     if invalid:
         return invalid
     try:
-        return _store.get_current_state(project_id)
+        return cast(dict[str, Any], _store.get_current_state(project_id))
     except ProjectNotFoundError as exc:
         return _error(404, code=exc.code, message="Project not found.", request_id=request_id)
     except Exception:  # noqa: BLE001
@@ -345,6 +448,266 @@ async def get_project(project_id: str, request: Request) -> dict[str, Any] | JSO
             500,
             code="PROJECT_RETRIEVAL_FAILED",
             message="Failed to retrieve the project.",
+            request_id=request_id,
+        )
+
+
+@app.post("/v1/projects/{project_id}/ensure-layered-architecture", response_model=None)
+async def ensure_layered_architecture(
+    project_id: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Idempotently materialize Electrical/Physical for pre-Phase-13 projects."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        from nexus_embedded_systems.workflows.layered_architecture import (
+            ensure_layered_architecture_artifacts,
+        )
+
+        project = _store.get_project(project_id)  # type: ignore[attr-defined]
+        artifacts = _store.get_artifacts(project_id)
+        body: dict[str, Any] = {}
+        try:
+            body = await request.json()
+        except Exception:  # noqa: BLE001
+            body = {}
+        actor = body.get("requestedBy") or {
+            "schemaVersion": "1.0.0",
+            "actorId": new_id("actor"),
+            "actorType": "system",
+            "displayName": "System",
+        }
+        ensured = ensure_layered_architecture_artifacts(
+            project_id=project_id,
+            artifacts=list(artifacts),
+            actor=actor,
+        )
+        if ensured.get("skippedReason"):
+            return _error(
+                422,
+                code="LAYERED_ARCHITECTURE_ENSURE_BLOCKED",
+                message=str(ensured["skippedReason"]),
+                request_id=request_id,
+            )
+        created = list(ensured.get("created") or [])
+        now = created[0]["createdAt"] if created else None
+        state_version = int(project["currentStateVersion"])
+        for art in created:
+            state_version += 1
+            stamp = str(art.get("updatedAt") or art.get("createdAt") or now)
+            _store.apply_accepted_artifact_revision(  # type: ignore[attr-defined]
+                project_id=project_id,
+                new_artifact=art,
+                next_state_version=state_version,
+                updated_at=stamp,
+                expected_project_state_version=state_version - 1,
+            )
+        if created:
+            try:
+                materialize_layered_architecture_graph(
+                    _kernel_store,
+                    project_id,
+                    list(ensured.get("artifacts") or artifacts),
+                    new_id("evt"),
+                )
+                _kernel.projection.update_after_write(project_id)
+            except Exception:  # noqa: BLE001
+                logger.exception(
+                    "ensure_layered_graph_materialization_failed request_id=%s",
+                    request_id,
+                )
+        current = _store.get_current_state(project_id)
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "createdArtifactTypes": [a["artifactType"] for a in created],
+            "currentState": current,
+        }
+    except ProjectNotFoundError:
+        return _error(
+            404,
+            code="PROJECT_NOT_FOUND",
+            message="Project not found.",
+            request_id=request_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("ensure_layered_architecture_failed request_id=%s", request_id)
+        return _error(
+            500,
+            code="LAYERED_ARCHITECTURE_ENSURE_FAILED",
+            message="Failed to ensure layered architecture artifacts.",
+            request_id=request_id,
+        )
+
+
+def _circuit_materialization(project_id: str) -> tuple[dict[str, Any], Any]:
+    electrical = _store.get_artifact(project_id, "electrical-architecture")
+    component_plan = _store.get_artifact(project_id, "component-plan")
+    return electrical, materialization_request(
+        electrical_artifact=electrical,
+        component_plan_artifact=component_plan,
+    )
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/support",
+    response_model=None,
+)
+async def get_circuit_simulation_support(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        electrical, materialization = _circuit_materialization(project_id)
+        assessment = _wokwi_provider.assess_support(materialization)
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "artifactId": electrical["artifactId"],
+            "providerAvailability": serialize_availability(
+                _wokwi_provider, firmware_ready=_firmware_ready
+            ),
+            "assessment": serialize_support_assessment(
+                assessment,
+                firmware_ready=_firmware_ready,
+                provider_id="wokwi",
+            ),
+        }
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
+            request_id=request_id,
+        )
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/preview",
+    response_model=None,
+)
+async def get_circuit_simulation_preview(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _, materialization = _circuit_materialization(project_id)
+        assessment = _wokwi_provider.assess_support(materialization)
+        workspace = _wokwi_provider.materialize(materialization)
+        return serialize_provider_preview(
+            assessment=assessment,
+            workspace=workspace,
+            provider_id="wokwi",
+        )
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
+            request_id=request_id,
+        )
+    except CircuitSimulationError as exc:
+        return _error(
+            503,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/validate",
+    response_model=None,
+)
+async def validate_circuit_simulation(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _, materialization = _circuit_materialization(project_id)
+        workspace = _wokwi_provider.materialize(materialization)
+        result = _wokwi_provider.validate(workspace)
+        return serialize_validation(result, workspace)
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
+            request_id=request_id,
+        )
+    except CircuitSimulationError as exc:
+        return _error(
+            503,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/electrical-architecture/circuit-simulation/export",
+    response_model=None,
+)
+async def export_circuit_simulation_workspace(
+    project_id: str,
+    request: Request,
+) -> JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        electrical = _store.get_artifact(project_id, "electrical-architecture")
+        persisted = next(
+            (
+                output
+                for output in reversed(_kernel.executions.list_outputs(project_id))
+                if output.get("artifactId") == electrical["artifactId"]
+                and output.get("name") == "provider-workspace-manifest"
+            ),
+            None,
+        )
+        if persisted is None:
+            return _error(
+                404,
+                code="SIMULATION_EXPORT_NOT_FOUND",
+                message="Run a simulation with provider workspace output before exporting.",
+                request_id=request_id,
+            )
+        structured = (persisted.get("content") or {}).get("structuredResult") or {}
+        return JSONResponse(
+            content={
+                "schemaVersion": "1.0.0",
+                "providerId": "wokwi",
+                "workspaceDigest": structured.get("workspaceDigest"),
+                "manifest": structured.get("manifest"),
+                "files": structured.get("files"),
+            },
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="nexus-{project_id}-wokwi-workspace.json"'
+                )
+            },
+        )
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="SIMULATION_INPUT_NOT_FOUND",
+            message="Electrical Architecture or Component Plan was not found.",
             request_id=request_id,
         )
 
@@ -392,7 +755,10 @@ async def get_project_artifact(
             request_id=request_id,
         )
     try:
-        return _store.get_artifact(project_id, artifact_type, version=version)
+        return cast(
+            dict[str, Any],
+            _store.get_artifact(project_id, artifact_type, version=version),
+        )
     except ProjectNotFoundError:
         return _error(
             404,
@@ -424,7 +790,7 @@ async def get_project_history(
     if invalid:
         return invalid
     try:
-        return _store.get_history(project_id, limit=limit)
+        return cast(dict[str, Any], _store.get_history(project_id, limit=limit))
     except ProjectNotFoundError:
         return _error(
             404,
@@ -452,11 +818,14 @@ async def submit_project_turn(
     if invalid:
         return invalid
     try:
-        return await _mod_service.submit_turn(
-            project_id,
-            body.message.strip(),
-            autonomy_mode=body.autonomyMode,
-            request_id=request_id,
+        return cast(
+            dict[str, Any],
+            await _mod_service.submit_turn(
+                project_id,
+                body.message.strip(),
+                autonomy_mode=body.autonomyMode,
+                request_id=request_id,
+            ),
         )
     except ModificationError as exc:
         status = 422
@@ -678,6 +1047,7 @@ async def dispatch_artifact_command(
         "artifact.accept-revision",
         "artifact.reject-revision",
         "artifact.execute",
+        "artifact.inspect-deletion-impact",
     }:
         return _error(
             422,
@@ -1185,6 +1555,8 @@ async def restore_artifact_workspace_snapshot(
         restore = (
             _kernel.workspace_runtime.restore_firmware_snapshot
             if artifact_type == "firmware"
+            else _kernel.workspace_runtime.restore_analysis_snapshot
+            if artifact_type == "analysis"
             else _kernel.workspace_runtime.restore_snapshot
         )
         return restore(
@@ -1766,7 +2138,11 @@ async def generate_artifact_workspace_scaffold(
         )
     try:
         actor = _workspace_runtime_actor(body)
-        result = _kernel.workspace_runtime.generate_firmware_scaffold(
+        result = (
+            _kernel.workspace_runtime.generate_analysis_scaffold
+            if artifact_type == "analysis"
+            else _kernel.workspace_runtime.generate_firmware_scaffold
+        )(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=actor,
@@ -1843,7 +2219,9 @@ async def propose_artifact_workspace_patch(
         )
     try:
         result = await asyncio.to_thread(
-            _kernel.workspace_runtime.propose_firmware_patch,
+            _kernel.workspace_runtime.propose_analysis_patch
+            if artifact_type == "analysis"
+            else _kernel.workspace_runtime.propose_firmware_patch,
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
@@ -1902,7 +2280,11 @@ async def apply_artifact_workspace_patch(
             request_id=request_id,
         )
     try:
-        result = _kernel.workspace_runtime.apply_firmware_patch(
+        result = (
+            _kernel.workspace_runtime.apply_analysis_patch
+            if artifact_type == "analysis"
+            else _kernel.workspace_runtime.apply_firmware_patch
+        )(
             project_id=project_id,
             artifact_type=artifact_type,
             proposal_id=str(body["proposalId"]),
@@ -1968,7 +2350,11 @@ async def discard_artifact_workspace_patch(
             request_id=request_id,
         )
     try:
-        result = _kernel.workspace_runtime.discard_firmware_patch(
+        result = (
+            _kernel.workspace_runtime.discard_analysis_patch
+            if artifact_type == "analysis"
+            else _kernel.workspace_runtime.discard_firmware_patch
+        )(
             project_id=project_id,
             artifact_type=artifact_type,
             proposal_id=str(body["proposalId"]),
@@ -2013,9 +2399,11 @@ async def read_artifact_workspace_snapshot_file(
             request_id=request_id,
         )
     try:
-        return _kernel.workspace_runtime.read_firmware_snapshot_file(
-            project_id=project_id, artifact_type=artifact_type, snapshot_id=snapshot_id, path=path
-        )
+        return (
+            _kernel.workspace_runtime.read_analysis_snapshot_file
+            if artifact_type == "analysis"
+            else _kernel.workspace_runtime.read_firmware_snapshot_file
+        )(project_id=project_id, artifact_type=artifact_type, snapshot_id=snapshot_id, path=path)
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
@@ -2110,4 +2498,465 @@ async def test_artifact_firmware(
             status = 422
         elif "NOT_FOUND" in exc.code:
             status = 404
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post("/v1/projects/{project_id}/verify/promote-execution", response_model=None)
+async def promote_execution_evidence(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Promote ExecutionRun ProducedOutputs into a Test Plan revision (Phase 17F)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict) or not body.get("executionRunId"):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="executionRunId is required.",
+            request_id=request_id,
+        )
+    try:
+        return _kernel.verification.promote_execution_evidence(
+            project_id=project_id,
+            execution_run_id=str(body["executionRunId"]),
+            actor=_workspace_runtime_actor(body),
+            accept=bool(body.get("accept", True)),
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post("/v1/projects/{project_id}/verify/promote-analysis-summary", response_model=None)
+async def promote_analysis_summary(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Promote a deterministic Analysis summary into Test Plan revision (Phase 17F)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict) or not isinstance(body.get("summary"), dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="summary object is required.",
+            request_id=request_id,
+        )
+    try:
+        return _kernel.verification.promote_analysis_summary(
+            project_id=project_id,
+            summary=body["summary"],
+            produced_output_names=list(body.get("producedOutputNames") or []),
+            actor=_workspace_runtime_actor(body),
+            execution_run_id=body.get("executionRunId"),
+            accept=bool(body.get("accept", True)),
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post("/v1/projects/{project_id}/verify/promote-structural", response_model=None)
+async def promote_structural_mapping(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Promote Electrical/Wokwi pin maps into structural Test Plan evidence (Phase 17F)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict) or not isinstance(body.get("signalMap"), dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="signalMap object is required.",
+            request_id=request_id,
+        )
+    try:
+        signal_map = {str(k): str(v) for k, v in body["signalMap"].items()}
+        return _kernel.verification.promote_structural_mapping(
+            project_id=project_id,
+            signal_map=signal_map,
+            actor=_workspace_runtime_actor(body),
+            source_id=body.get("sourceId"),
+            accept=bool(body.get("accept", True)),
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get("/v1/projects/{project_id}/verify/evidence-chain", response_model=None)
+async def get_verification_evidence_chain(
+    project_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Requirement → TestCase → EvidenceReference chain for Evidence Explorer."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "chains": _kernel.verification.evidence_chain(project_id),
+            "requirementVerification": _kernel.verification.requirement_verification_projection(
+                project_id
+            ),
+        }
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+    except Exception:  # noqa: BLE001
+        logger.exception("evidence_chain_failed request_id=%s", request_id)
+        return _error(
+            500,
+            code="PROJECT_RETRIEVAL_FAILED",
+            message="Failed to retrieve verification evidence chain.",
+            request_id=request_id,
+        )
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/inputs/upload",
+    response_model=None,
+)
+async def upload_analysis_input_file(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Phase 16B: Analysis input upload into analysis `data/`."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+
+    content, content_error = _decode_file_content(body)
+    if content_error is not None or content is None:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=content_error or "Invalid file content.",
+            request_id=request_id,
+        )
+
+    try:
+        return _kernel.workspace_runtime.write_analysis_input_file(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            path=str(body["path"]),
+            content=content,
+            actor=_workspace_runtime_actor(body),
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+            media_type=body.get("mediaType"),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/inputs/import-produced-output",
+    response_model=None,
+)
+async def import_produced_output_into_analysis_input(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Phase 16B: Copy an existing ProducedOutput into analysis `data/`."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+
+    try:
+        return _kernel.workspace_runtime.import_produced_output_into_analysis_input(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            output_id=str(body["outputId"]),
+            path=str(body["path"]),
+            actor=_workspace_runtime_actor(body),
+            expected_draft_version=int(body["expectedDraftVersion"]),
+            base_artifact_version=int(body["baseArtifactVersion"]),
+            base_project_state_version=int(body["baseProjectStateVersion"]),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/run",
+    response_model=None,
+)
+async def run_artifact_analysis(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Run analysis.py against an immutable pre-run snapshot (Phase 16D)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    try:
+        result = _kernel.workspace_runtime.run_analysis(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            actor=_workspace_runtime_actor(body),
+            base_artifact_version=body.get("baseArtifactVersion"),
+            base_project_state_version=body.get("baseProjectStateVersion"),
+            max_duration_ms=body.get("maxDurationMs"),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "operation": result.get("operation"),
+            "executionSnapshotId": result.get("executionSnapshotId"),
+            "executionRun": result.get("executionRun"),
+            "executionJob": result.get("executionJob"),
+            "toolchainProfile": result.get("toolchainProfile"),
+            "binding": result.get("binding"),
+            "accepted": result.get("accepted"),
+            "startedAt": result.get("startedAt"),
+        }
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/rerun",
+    response_model=None,
+)
+async def rerun_artifact_analysis(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Re-run analysis against a specific immutable snapshot (Phase 16D)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        result = _kernel.workspace_runtime.rerun_analysis(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            snapshot_id=str(body["snapshotId"]),
+            actor=_workspace_runtime_actor(body),
+            base_artifact_version=body.get("baseArtifactVersion"),
+            base_project_state_version=body.get("baseProjectStateVersion"),
+            max_duration_ms=body.get("maxDurationMs"),
+            causation_id=body.get("commandId") or body.get("causationId"),
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "operation": result.get("operation"),
+            "rerun": result.get("rerun"),
+            "executionSnapshotId": result.get("executionSnapshotId"),
+            "executionRun": result.get("executionRun"),
+            "executionJob": result.get("executionJob"),
+            "toolchainProfile": result.get("toolchainProfile"),
+            "binding": result.get("binding"),
+            "accepted": result.get("accepted"),
+            "startedAt": result.get("startedAt"),
+        }
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/compare-outputs",
+    response_model=None,
+)
+async def compare_artifact_analysis_outputs(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Compare ProducedOutput content hashes between baseline and rerun (Phase 16G)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    if artifact_type != "analysis":
+        return _error(
+            422,
+            code="WORKSPACE_RUNTIME_CAPABILITY_DENIED",
+            message="Output hash comparison is only available for artifact type analysis",
+            request_id=request_id,
+        )
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+    try:
+        return _kernel.workspace_runtime.compare_analysis_run_outputs(
+            project_id=project_id,
+            baseline_execution_run_id=str(body["baselineExecutionRunId"]),
+            rerun_execution_run_id=str(body["rerunExecutionRunId"]),
+        )
+    except KeyError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=f"Missing required field: {exc.args[0]}",
+            request_id=request_id,
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get(
+    "/v1/projects/{project_id}/artifacts/analysis/workspace/outputs/{output_id}/preview",
+    response_model=None,
+)
+async def preview_analysis_produced_output(
+    project_id: str,
+    output_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Bounded Analysis ProducedOutput preview (Phase 16G)."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        return _kernel.workspace_runtime.preview_analysis_output(
+            project_id=project_id,
+            output_id=output_id,
+        )
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)

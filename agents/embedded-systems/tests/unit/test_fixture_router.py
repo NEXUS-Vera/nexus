@@ -35,6 +35,17 @@ from nexus_embedded_systems.workflows.project_initialization.fixture_router impo
             "so it can detect objects in front of it and react before it hits them.",
             "robot-obstacle-detection-module",
         ),
+        (
+            "I want a golden Nexus circuit simulation project with an ESP32-class MCU "
+            "and an IMU motion sensor for Wokwi surrogate simulation.",
+            "esp32-imu-circuit-simulation",
+        ),
+        (
+            "Build an ESP32-based vibration monitor using an MPU6050. "
+            "It should stream acceleration telemetry and analyze stationary sensor noise "
+            "to verify that accel_x RMS noise stays below 0.10 g.",
+            "esp32-imu-vibration-monitor",
+        ),
     ],
 )
 def test_fixture_router_maps_each_family(message: str, family: str) -> None:
@@ -62,3 +73,12 @@ def test_fixture_router_ambiguous() -> None:
     assert decision.outcome is FixtureRouteOutcome.AMBIGUOUS
     assert decision.family is None
     assert len(decision.matched_families) >= 2
+
+
+def test_fixture_router_prefers_golden_vibration_monitor_over_generic() -> None:
+    decision = route_fixture_family(
+        "Build an ESP32-based vibration monitor using an MPU6050 for accel_x RMS noise"
+    )
+    assert decision.outcome is FixtureRouteOutcome.MATCHED
+    assert decision.family == "esp32-imu-vibration-monitor"
+    assert "vibration-monitoring-device" in decision.matched_families

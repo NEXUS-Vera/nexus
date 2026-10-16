@@ -161,6 +161,30 @@
           "unresolvedCompatibilityCheckCount": {
             "type": "integer",
             "minimum": 0
+          },
+          "nodeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unresolvedConnectionCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "provisionalImplementationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "approvedImplementationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unresolvedPlacementCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "provisionalRelationshipCount": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       }
@@ -235,6 +259,7 @@
               "structured-validation",
               "fake-execution",
               "file-workspace",
+              "sandbox-execution",
               "embedded-build",
               "python-kernel",
               "circuit-simulation",

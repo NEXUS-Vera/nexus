@@ -1,0 +1,29 @@
+[
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_05BLOCKOBSTACLECONSTRAINTSINTERFACEENVUNKNOWN000000000000001",
+    "projectId": "proj_05ROBOTPROJ0000000000000001",
+    "severity": "high",
+    "code": "unknown-obstacle-range-latency-interface-environment-safety",
+    "message": "Obstacle detection range, required reaction latency, robot-controller interface behavior, and environmental safety constraints are not confirmed; functional architecture must remain non-component-specific until these unknowns are resolved.",
+    "blocking": true,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:05Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Confirm the robot’s sensor-to-reaction needs (range and latency), the interface to the robot controller, and the indoor environmental constraints affecting safe reactions."
+  },
+  {
+    "schemaVersion": "1.0.0",
+    "issueId": "issue_05WARNFALSEPOSNEGCASESUNCLEAR000000000000001",
+    "projectId": "proj_05ROBOTPROJ0000000000000001",
+    "severity": "medium",
+    "code": "false-positives-negatives-tolerances-unclear",
+    "message": "False positive/false negative tolerances and edge-case scenarios for obstacle detection are considered but not sufficiently specified for the initial prototype scope.",
+    "blocking": false,
+    "resolutionType": "manual-review",
+    "createdAt": "2026-07-28T13:25:06Z",
+    "resolutionStatus": "open",
+    "suggestedResolution": "Clarify acceptable false-positive and false-negative rates (or qualitative tolerances) and identify indoor test scenarios covering edge cases."
+  }
+]
+

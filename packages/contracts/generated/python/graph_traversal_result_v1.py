@@ -41,6 +41,11 @@ class Node(TypedDict, closed=True):
             'component-plan',
             'code-scratch',
             'firmware',
+            'electrical-architecture',
+            'physical-architecture',
+            'analysis',
+            'test-plan',
+            'risk-register',
         ]
     ]
     createdAt: str
@@ -52,6 +57,9 @@ class Node(TypedDict, closed=True):
         'artifact-revision',
         'requirement',
         'architecture-node',
+        'electrical-node',
+        'physical-node',
+        'component-role',
         'question',
         'validation-issue',
         'decision',

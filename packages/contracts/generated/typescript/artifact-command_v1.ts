@@ -149,8 +149,31 @@ export type ArtifactCommand =
           | 'circuit-simulation'
           | 'architecture-export';
         commandSpec?: ExecutionCommandSpec;
+        executionMode?: 'validate' | 'simulate';
+        expectedText?: string;
         maxDurationMs?: number;
         maxOutputBytes?: number;
+        /**
+         * @maxItems 4
+         */
+        requestedOutputs?:
+          | []
+          | ['serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace']
+          | [
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace',
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace'
+            ]
+          | [
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace',
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace',
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace'
+            ]
+          | [
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace',
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace',
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace',
+              'serial-log' | 'logic-trace' | 'simulation-screenshot' | 'provider-workspace'
+            ];
         snapshotId: string;
       };
       projectId: string;
@@ -204,6 +227,22 @@ export type ArtifactCommand =
       requestedBy: ActorReference11;
       schemaVersion: '1.0.0';
       workspaceId: string;
+    }
+  | {
+      artifactId: string;
+      baseArtifactVersion: number;
+      baseProjectStateVersion: number;
+      commandId: string;
+      commandType: 'artifact.inspect-deletion-impact';
+      input: {
+        entityId: string;
+        entityType: 'functional-node';
+      };
+      projectId: string;
+      requestedAt: string;
+      requestedBy: ActorReference12;
+      schemaVersion: '1.0.0';
+      workspaceId?: string;
     };
 export type ArtifactType =
   | 'project-brief'
@@ -212,7 +251,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 
 export interface ActorReference {
@@ -313,6 +357,12 @@ export interface ActorReference10 {
   schemaVersion: '1.0.0';
 }
 export interface ActorReference11 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ActorReference12 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;

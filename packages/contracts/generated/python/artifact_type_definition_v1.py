@@ -15,6 +15,11 @@ class Dependency(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     relationship: Literal['depends-on', 'derives-from', 'constrains', 'covers']
     required: NotRequired[bool]
@@ -29,6 +34,11 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     boardVisibility: Literal['primary', 'global', 'hidden']
     dependencies: list[Dependency]
@@ -63,6 +73,7 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
             'artifact.accept-revision',
             'artifact.reject-revision',
             'artifact.execute',
+            'artifact.inspect-deletion-impact',
         ]
     ]
     workspaceType: Literal[

@@ -20,7 +20,12 @@ def test_default_registry_has_runtime_artifacts() -> None:
         "next-action",
         "component-plan",
         "code-scratch",
+        "analysis",
+        "test-plan",
+        "risk-register",
         "firmware",
+        "electrical-architecture",
+        "physical-architecture",
     }
 
 
@@ -37,6 +42,16 @@ def test_dependency_rules() -> None:
     assert "component-plan" in next_deps
     deps = {d["artifactType"] for d in registry.get("component-plan")["dependencies"]}
     assert deps == {"functional-architecture", "requirement-set"}
+    electrical_deps = {
+        d["artifactType"] for d in registry.get("electrical-architecture")["dependencies"]
+    }
+    assert electrical_deps == {"functional-architecture", "component-plan"}
+    assert (
+        registry.get("physical-architecture")["dependencies"][0]["artifactType"]
+        == "electrical-architecture"
+    )
+    assert registry.get("electrical-architecture")["workspaceType"] == "graph-workspace"
+    assert registry.get("physical-architecture")["workspaceType"] == "graph-workspace"
 
 
 def test_duplicate_registration_fails() -> None:

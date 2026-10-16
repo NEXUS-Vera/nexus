@@ -1,0 +1,198 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENVERA00000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z",
+  "sourceTurnId": "turn_16GOLDENUSER000000000000001",
+  "workflowRunId": "run_16GOLDENRUN00000000000000001",
+  "artifactId": "art_16GOLDENRISKREG0000000000001",
+  "artifactType": "risk-register",
+  "content": {
+    "schemaVersion": "1.0.0",
+    "riskRegisterId": "rreg_16GOLDENVIBRATIONMONITOR01",
+    "title": "ESP32 IMU Vibration Monitor Risks",
+    "summary": {
+      "totalRisks": 6,
+      "openRisks": 4,
+      "highOrCritical": 4,
+      "mitigated": 2,
+      "unverifiedMitigations": 4
+    },
+    "risks": [
+      {
+        "riskId": "risk_16GOLDENK1I2CPIN00000000001",
+        "displayId": "K1",
+        "title": "Incorrect I\u00b2C pin configuration",
+        "description": "SDA/SCL wired to non-canonical pins breaks MPU6050 communication.",
+        "category": "electrical",
+        "linkedRequirementIds": [
+          "R1",
+          "R2"
+        ],
+        "linkedComponentIds": [
+          "ESP32",
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "linkedTestIds": [
+          "T2"
+        ],
+        "likelihood": "possible",
+        "severity": "high",
+        "priorityScore": 9,
+        "mitigation": "Use canonical GPIO21 (SDA) / GPIO22 (SCL) mapping.",
+        "verificationTestIds": [
+          "T2"
+        ],
+        "status": "mitigated",
+        "evidenceReferences": []
+      },
+      {
+        "riskId": "risk_16GOLDENK2MPUINIT0000000001",
+        "displayId": "K2",
+        "title": "MPU6050 initialization failure",
+        "description": "Sensor may fail to ACK or leave firmware without a readiness marker.",
+        "category": "firmware",
+        "linkedRequirementIds": [
+          "R4"
+        ],
+        "linkedComponentIds": [
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "linkedTestIds": [
+          "T4"
+        ],
+        "likelihood": "possible",
+        "severity": "high",
+        "priorityScore": 9,
+        "mitigation": "Explicit startup failure path and NEXUS_MPU_READY marker.",
+        "verificationTestIds": [
+          "T4"
+        ],
+        "status": "mitigating",
+        "evidenceReferences": []
+      },
+      {
+        "riskId": "risk_16GOLDENK3TELEM000000000001",
+        "displayId": "K3",
+        "title": "Telemetry format mismatch",
+        "description": "Analysis or consumers may break if field names drift from golden schema.",
+        "category": "data-quality",
+        "linkedRequirementIds": [
+          "R5",
+          "R8"
+        ],
+        "linkedComponentIds": [
+          "ESP32"
+        ],
+        "linkedArchitectureRefs": [],
+        "linkedTestIds": [
+          "T5"
+        ],
+        "likelihood": "unlikely",
+        "severity": "medium",
+        "priorityScore": 4,
+        "mitigation": "Stable telemetry schema: time_ms, accel_x_g, accel_y_g, accel_z_g.",
+        "verificationTestIds": [
+          "T5"
+        ],
+        "status": "mitigating",
+        "evidenceReferences": []
+      },
+      {
+        "riskId": "risk_16GOLDENK4SAMPLERATE0000001",
+        "displayId": "K4",
+        "title": "Sampling-rate drift",
+        "description": "Blocking work in the main loop can push the interval away from 50 Hz.",
+        "category": "performance",
+        "linkedRequirementIds": [
+          "R6"
+        ],
+        "linkedComponentIds": [
+          "ESP32"
+        ],
+        "linkedArchitectureRefs": [],
+        "linkedTestIds": [
+          "T6"
+        ],
+        "likelihood": "possible",
+        "severity": "high",
+        "priorityScore": 9,
+        "mitigation": "Monotonic 20 ms scheduling and interval validation via T6.",
+        "verificationTestIds": [
+          "T6"
+        ],
+        "status": "open",
+        "evidenceReferences": []
+      },
+      {
+        "riskId": "risk_16GOLDENK5NOISE000000000001",
+        "displayId": "K5",
+        "title": "Excessive accelerometer noise",
+        "description": "Stationary accel_x RMS may exceed the R7 0.10 g limit.",
+        "category": "performance",
+        "linkedRequirementIds": [
+          "R7"
+        ],
+        "linkedComponentIds": [
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "linkedTestIds": [
+          "T7"
+        ],
+        "likelihood": "unlikely",
+        "severity": "high",
+        "priorityScore": 6,
+        "mitigation": "Mounting/filtering plus deterministic Analysis verification (T7).",
+        "verificationTestIds": [
+          "T7"
+        ],
+        "status": "mitigated",
+        "evidenceReferences": []
+      },
+      {
+        "riskId": "risk_16GOLDENK6SIMDIVERGE0000001",
+        "displayId": "K6",
+        "title": "Simulator/hardware divergence",
+        "description": "Wokwi/surrogate results may not match physical MPU6050/ESP32 behavior.",
+        "category": "integration",
+        "linkedRequirementIds": [
+          "R1",
+          "R4",
+          "R7"
+        ],
+        "linkedComponentIds": [
+          "ESP32",
+          "MPU6050"
+        ],
+        "linkedArchitectureRefs": [],
+        "linkedTestIds": [],
+        "likelihood": "possible",
+        "severity": "medium",
+        "priorityScore": 6,
+        "mitigation": "Defer closure until physical hardware validation exists.",
+        "verificationTestIds": [],
+        "status": "monitoring",
+        "evidenceReferences": [],
+        "residualRisk": "No physical-hardware evidence in Phase 17; remains unresolved."
+      }
+    ],
+    "provenance": {
+      "generatedBy": "fixture",
+      "notes": "Phase 17 golden risks; K6 intentionally unresolved without hardware evidence."
+    }
+  }
+}

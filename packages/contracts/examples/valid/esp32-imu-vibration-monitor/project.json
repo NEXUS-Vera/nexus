@@ -1,0 +1,57 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "title": "ESP32 IMU Vibration Monitor",
+  "domain": "embedded-products",
+  "projectPhase": "concept",
+  "currentStateVersion": 1,
+  "autonomyMode": "collaborate",
+  "currentArtifactReferences": [
+    {
+      "artifactType": "project-brief",
+      "artifactId": "art_16GOLDENBRIEF00000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "requirement-set",
+      "artifactId": "art_16GOLDENREQS000000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "functional-architecture",
+      "artifactId": "art_16GOLDENARCH00000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "next-action",
+      "artifactId": "art_16GOLDENNEXT00000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "component-plan",
+      "artifactId": "art_16GOLDENCPLAN0000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "test-plan",
+      "artifactId": "art_16GOLDENTESTPLAN0000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    },
+    {
+      "artifactType": "risk-register",
+      "artifactId": "art_16GOLDENRISKREG0000000000001",
+      "artifactVersion": 1,
+      "contentSchemaVersion": "1.0.0"
+    }
+  ],
+  "openQuestionReferences": [],
+  "blockerOrValidationIssueReferences": [],
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z"
+}

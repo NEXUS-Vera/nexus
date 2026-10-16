@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_16GOLDENBRIEF00000000000001",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "artifactType": "project-brief",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENVERA00000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z",
+  "sourceTurnId": "turn_16GOLDENUSER000000000000001",
+  "workflowRunId": "run_16GOLDENRUN00000000000000001",
+  "content": {
+    "goal": "Build an ESP32 + MPU6050 vibration monitor that streams acceleration telemetry and verifies stationary accel_x RMS noise stays below 0.10 g.",
+    "problemStatement": "Stationary IMU noise must be quantified and verified against an explicit RMS threshold using reproducible Analysis outputs.",
+    "intendedContext": "Embedded systems prototype using ESP32 DevKit and MPU6050 over I2C (SDA GPIO21, SCL GPIO22) with serial telemetry at 115200 baud.",
+    "projectStage": "prototype-planning",
+    "scope": [
+      "ESP32 communicates with MPU6050 over I2C on GPIO21/GPIO22",
+      "Firmware initializes serial 115200 and reports readiness",
+      "Machine-readable telemetry: time_ms, accel_x_g, accel_y_g, accel_z_g",
+      "Analysis verifies demeaned accel_x RMS noise < 0.10 g and emits JSON/CSV/PNG"
+    ],
+    "outOfScope": [
+      "Production PCB layout",
+      "Cloud dashboards",
+      "Phase 17 Test/Register product"
+    ],
+    "successCriteria": [
+      "Requirements R1\u2013R8 are consistent across architecture, firmware, and analysis",
+      "Firmware compiles offline in the pinned PlatformIO image",
+      "Analysis produces summary.json, processed.csv, accel_plot.png with deterministic R7 PASS"
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "A1",
+        "statement": "Golden stationary dataset is representative of bench-idle IMU noise.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unknowns": []
+  }
+}

@@ -40,7 +40,7 @@ export function MindGraphWorkspace({ state, isDark, onNavigate }: Props) {
     ['requirement-set', 'functional-architecture'],
     ['functional-architecture', 'component-plan'],
     ['component-plan', 'firmware-scaffold'],
-    ['firmware-scaffold', 'analysis-notebook'],
+    ['firmware-scaffold', 'analysis'],
     ['requirement-set', 'test-plan'],
     ['functional-architecture', 'risk-register'],
   ];

@@ -8,7 +8,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export interface GraphTraversalResult {
   direction: 'upstream' | 'downstream' | 'neighbors' | 'subgraph';
@@ -57,6 +62,9 @@ export interface ProjectGraphNode {
     | 'artifact-revision'
     | 'requirement'
     | 'architecture-node'
+    | 'electrical-node'
+    | 'physical-node'
+    | 'component-role'
     | 'question'
     | 'validation-issue'
     | 'decision'

@@ -28,6 +28,11 @@ def load_project_package_bundle(folder: Path) -> dict[str, Any]:
         "functional_architecture_content": None,
         "next_action_content": None,
         "component_plan_content": None,
+        # Phase 13 layered artifacts are optional for backwards-compatible golden fixtures.
+        "electrical_architecture_content": None,
+        "physical_architecture_content": None,
+        "test_plan_content": None,
+        "risk_register_content": None,
         "validation_issues": [],
         "open_questions": [],
         "vera_response": None,
@@ -65,6 +70,14 @@ def load_project_package_bundle(folder: Path) -> dict[str, Any]:
                 bundle["next_action_content"] = content
             elif artifact_type == "component-plan":
                 bundle["component_plan_content"] = content
+            elif artifact_type == "electrical-architecture":
+                bundle["electrical_architecture_content"] = content
+            elif artifact_type == "physical-architecture":
+                bundle["physical_architecture_content"] = content
+            elif artifact_type == "test-plan":
+                bundle["test_plan_content"] = content
+            elif artifact_type == "risk-register":
+                bundle["risk_register_content"] = content
 
     return bundle
 
@@ -81,6 +94,8 @@ def validate_project_package_bundle(bundle: dict[str, Any]) -> list[SemanticVali
         if isinstance(art, dict) and isinstance(art.get("artifactType"), str):
             artifact_by_type[art["artifactType"]] = art
 
+    # electrical-architecture / physical-architecture are intentionally optional so
+    # pre-Phase-13 golden fixtures remain valid; new init packages may include them.
     required_types = {
         "project-brief",
         "requirement-set",

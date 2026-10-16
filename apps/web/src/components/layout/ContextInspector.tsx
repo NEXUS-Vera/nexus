@@ -226,6 +226,21 @@ export function ContextInspector({
         </div>
       );
     }
+  } else if (
+    selection.kind === 'electrical-node' ||
+    selection.kind === 'physical-node' ||
+    selection.kind === 'electrical-connection' ||
+    selection.kind === 'physical-relationship' ||
+    selection.kind === 'functional-edge' ||
+    selection.kind === 'power-domain' ||
+    selection.kind === 'architecture-view'
+  ) {
+    title = selection.id;
+    body = (
+      <p style={{ margin: 0, fontSize: 13, color: t.textSec }}>
+        Selected {selection.kind.replace(/-/g, ' ')}. Inspect details in the Architecture workspace.
+      </p>
+    );
   } else if (selection.kind === 'component-role') {
     const role = findComponentRole(state.artifacts, selection.id);
     if (role) {

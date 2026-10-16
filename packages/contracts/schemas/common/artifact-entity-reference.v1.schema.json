@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/common/artifact-entity-reference.v1.schema.json",
+  "title": "ArtifactEntityReference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "artifactId",
+    "artifactType",
+    "entityType",
+    "entityId"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art_",
+      "minLength": 1
+    },
+    "artifactVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "artifactType": {
+      "$ref": "https://nexus.local/schemas/common/artifact-type.v1.schema.json"
+    },
+    "entityType": {
+      "type": "string",
+      "enum": [
+        "requirement",
+        "functional-node",
+        "functional-edge",
+        "component-role",
+        "component-candidate",
+        "selection-decision",
+        "electrical-node",
+        "electrical-connection",
+        "electrical-interface",
+        "power-domain",
+        "physical-node",
+        "physical-relationship",
+        "physical-zone",
+        "open-question",
+        "other"
+      ]
+    },
+    "entityId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "displayLabel": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,7 +1,7 @@
 """Fixture-phase routing for embedded project initialization.
 
 This classifier is intentionally non-intelligent: it matches explicit keyword
-families against the five golden fixture packages. It must not invent confidence
+families against the golden fixture packages. It must not invent confidence
 or silently pick an unrelated fixture.
 """
 
@@ -64,7 +64,25 @@ FAMILY_KEYWORDS: dict[str, tuple[str, ...]] = {
         "obstacle-detection",
         "obstacle detection",
     ),
+    "esp32-imu-circuit-simulation": (
+        "golden nexus circuit simulation",
+        "esp32-class mcu and an imu",
+        "wokwi surrogate simulation",
+        "circuit simulation project with an esp32",
+        "esp32 imu golden",
+    ),
+    "esp32-imu-vibration-monitor": (
+        "mpu6050",
+        "esp32-based vibration monitor",
+        "stationary sensor noise",
+        "accel_x rms",
+        "accel_x rms noise",
+    ),
 }
+
+# Prefer full-system golden family when ambiguous with broader vibration keywords.
+_PRIORITY_FAMILIES: tuple[str, ...] = ("esp32-imu-vibration-monitor",)
+
 
 SUPPORTED_FAMILIES: tuple[str, ...] = tuple(FAMILY_KEYWORDS.keys())
 
@@ -98,6 +116,13 @@ def route_fixture_family(message: str) -> FixtureRouteDecision:
             matched_families=tuple(matched),
         )
     if len(matched) > 1:
+        for preferred in _PRIORITY_FAMILIES:
+            if preferred in matched:
+                return FixtureRouteDecision(
+                    outcome=FixtureRouteOutcome.MATCHED,
+                    family=preferred,
+                    matched_families=tuple(matched),
+                )
         return FixtureRouteDecision(
             outcome=FixtureRouteOutcome.AMBIGUOUS,
             family=None,

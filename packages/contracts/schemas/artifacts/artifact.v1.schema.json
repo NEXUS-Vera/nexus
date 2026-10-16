@@ -113,6 +113,94 @@
           ]
         }
       ]
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": {
+              "const": "electrical-architecture"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/electrical-architecture.v1.schema.json"
+            }
+          },
+          "required": [
+            "artifactType",
+            "content"
+          ]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": {
+              "const": "physical-architecture"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/physical-architecture.v1.schema.json"
+            }
+          },
+          "required": [
+            "artifactType",
+            "content"
+          ]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": {
+              "const": "test-plan"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json"
+            }
+          },
+          "required": [
+            "artifactType",
+            "content"
+          ]
+        }
+      ]
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": {
+              "const": "risk-register"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/risk-register.v1.schema.json"
+            }
+          },
+          "required": [
+            "artifactType",
+            "content"
+          ]
+        }
+      ]
     }
   ]
 }

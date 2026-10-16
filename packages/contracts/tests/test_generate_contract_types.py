@@ -22,32 +22,33 @@ def _run_generator(*args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
+def _file_map(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and "__pycache__" not in path.parts
+    }
+
+
 def test_generate_is_deterministic_and_includes_notices() -> None:
-    before_py = {
-        path.relative_to(GENERATED_PY).as_posix(): path.read_bytes()
-        for path in sorted(GENERATED_PY.rglob("*"))
-        if path.is_file()
-    }
-    before_ts = {
-        path.relative_to(GENERATED_TS).as_posix(): path.read_bytes()
-        for path in sorted(GENERATED_TS.rglob("*"))
-        if path.is_file()
-    }
+    before_py = _file_map(GENERATED_PY)
+    before_ts = _file_map(GENERATED_TS)
     completed = _run_generator()
     assert completed.returncode == 0, completed.stderr
-    after_py = {
-        path.relative_to(GENERATED_PY).as_posix(): path.read_bytes()
-        for path in sorted(GENERATED_PY.rglob("*"))
-        if path.is_file()
-    }
-    after_ts = {
-        path.relative_to(GENERATED_TS).as_posix(): path.read_bytes()
-        for path in sorted(GENERATED_TS.rglob("*"))
-        if path.is_file()
-    }
+    after_py = _file_map(GENERATED_PY)
+    after_ts = _file_map(GENERATED_TS)
     assert before_py == after_py
     assert before_ts == after_ts
 
+    for stem in [
+        "analysis-investigation",
+        "analysis-patch-proposal",
+        "analysis-verification-assessment",
+        "test-plan",
+        "risk-register",
+    ]:
+        assert (GENERATED_TS / f"{stem}_v1.ts").is_file()
+        assert (GENERATED_PY / f"{stem.replace('-', '_')}_v1.py").is_file()
     py_sample = next(GENERATED_PY.glob("*.py"))
     ts_sample = next(GENERATED_TS.glob("*.ts"))
     assert "Do not edit manually" in py_sample.read_text(encoding="utf-8")

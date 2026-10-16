@@ -33,7 +33,7 @@
     "artifacts": {
       "type": "array",
       "minItems": 5,
-      "maxItems": 5,
+      "maxItems": 12,
       "items": {
         "$ref": "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
       },

@@ -3,9 +3,11 @@ export type ArtifactRouteKey =
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
+  | 'electrical-architecture'
+  | 'physical-architecture'
   | 'component-plan'
   | 'firmware-scaffold'
-  | 'analysis-notebook'
+  | 'analysis'
   | 'test-plan'
   | 'risk-register';
 
@@ -20,9 +22,14 @@ export type LiveArtifactType =
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
+  | 'electrical-architecture'
+  | 'physical-architecture'
   | 'next-action'
   | 'component-plan'
-  | 'firmware';
+  | 'firmware'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export type ChangeIndicator = 'Updated' | 'Regenerated' | 'Unchanged' | 'Affected' | 'Stale' | 'Current';
 

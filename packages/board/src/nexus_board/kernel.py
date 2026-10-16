@@ -32,6 +32,7 @@ from nexus_board.services.graph_service import ProjectGraphService
 from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.projection_service import ProjectBoardProjectionService
 from nexus_board.services.retention import RetentionPolicy, RetentionService
+from nexus_board.services.verification_service import VerificationService
 from nexus_board.services.workspace_runtime import WorkspaceRuntimeService
 from nexus_board.services.workspace_service import WorkspaceService
 
@@ -53,6 +54,7 @@ class ProjectKernel:
         execution_runtime: Any | None = None,
         retention_policy: RetentionPolicy | None = None,
         firmware_patch_generator: Any | None = None,
+        analysis_patch_generator: Any | None = None,
         auto_start_scheduler: bool = True,
         recover_jobs_on_start: bool = True,
     ) -> None:
@@ -127,6 +129,16 @@ class ProjectKernel:
             executions=self.executions,
             ledger=self.ledger,
             firmware_patch_generator=firmware_patch_generator,
+            analysis_patch_generator=analysis_patch_generator,
+        )
+        self.verification = VerificationService(
+            kernel_store=kernel_store,
+            project_store=project_store,
+            workspaces=self.workspaces,
+            commands=self.commands,
+            ledger=self.ledger,
+            projection=self.projection,
+            file_store=self.file_store,
         )
 
     def list_artifact_types(self) -> list[dict[str, Any]]:

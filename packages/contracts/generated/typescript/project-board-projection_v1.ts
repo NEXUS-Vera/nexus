@@ -8,7 +8,12 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -16,11 +21,17 @@ export type ArtifactType1 =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 export interface ProjectBoardProjection {
   artifactSummaries: {
     approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+    approvedImplementationCount?: number;
     artifactId: string;
     artifactType: ArtifactType;
     artifactVersion: number;
@@ -49,10 +60,15 @@ export interface ProjectBoardProjection {
       | 'selection-proposed'
       | 'selection-approved'
       | 'validated';
+    nodeCount?: number;
     openQuestionCount: number;
+    provisionalImplementationCount?: number;
+    provisionalRelationshipCount?: number;
     roleCount?: number;
     selectedCount?: number;
     unresolvedCompatibilityCheckCount?: number;
+    unresolvedConnectionCount?: number;
+    unresolvedPlacementCount?: number;
     workspaceStatus: 'none' | 'creating' | 'ready' | 'dirty' | 'validating' | 'blocked' | 'archived';
   }[];
   blockingIssueCount: number;
@@ -116,6 +132,7 @@ export interface ProjectBoardProjection {
       | 'structured-validation'
       | 'fake-execution'
       | 'file-workspace'
+      | 'sandbox-execution'
       | 'embedded-build'
       | 'python-kernel'
       | 'circuit-simulation'

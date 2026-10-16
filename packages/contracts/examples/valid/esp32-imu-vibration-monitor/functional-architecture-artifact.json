@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_16GOLDENARCH00000000000001",
+  "projectId": "proj_16GOLDENVIB0000000000000001",
+  "artifactType": "functional-architecture",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "ready",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_16GOLDENVERA00000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-11T12:00:00Z",
+  "updatedAt": "2026-08-11T12:00:00Z",
+  "sourceTurnId": "turn_16GOLDENUSER000000000000001",
+  "workflowRunId": "run_16GOLDENRUN00000000000000001",
+  "content": {
+    "architectureId": "arch_16GOLDENARCH000000000000001",
+    "architectureMaturity": "functional",
+    "systemBoundary": "Primary MCU samples an IMU over I2C, streams acceleration telemetry on serial, and offline Analysis verifies stationary noise against R7.",
+    "nodes": [
+      {
+        "nodeId": "node_16GOLDENIMU0000000000000001",
+        "name": "IMU Acceleration Sensing",
+        "functionalType": "sensing",
+        "responsibilities": [
+          "Sense acceleration",
+          "Provide I2C acceleration registers"
+        ],
+        "satisfiesRequirementIds": [
+          "req_16GOLDENR1I2CCOMM000000000000001",
+          "req_16GOLDENR2WIRING0000000000000001",
+          "req_16GOLDENR4MPUINIT00000000000001",
+          "req_16GOLDENR5TELEM0000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_16GOLDENMCU0000000000000001",
+        "name": "Primary MCU Control & I2C Master",
+        "functionalType": "control",
+        "responsibilities": [
+          "Drive I2C on GPIO21/GPIO22",
+          "Initialize IMU",
+          "Emit readiness"
+        ],
+        "satisfiesRequirementIds": [
+          "req_16GOLDENR1I2CCOMM000000000000001",
+          "req_16GOLDENR2WIRING0000000000000001",
+          "req_16GOLDENR3SERIAL000000000000001",
+          "req_16GOLDENR4MPUINIT00000000000001",
+          "req_16GOLDENR6RATE00000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_16GOLDENTELEM00000000000001",
+        "name": "Serial Telemetry Output",
+        "functionalType": "communication",
+        "responsibilities": [
+          "Emit machine-readable acceleration frames at approximately 50 Hz"
+        ],
+        "satisfiesRequirementIds": [
+          "req_16GOLDENR3SERIAL000000000000001",
+          "req_16GOLDENR5TELEM0000000000000001",
+          "req_16GOLDENR6RATE00000000000000001"
+        ]
+      },
+      {
+        "nodeId": "node_16GOLDENANAL000000000000001",
+        "name": "Stationary Noise Analysis",
+        "functionalType": "analysis",
+        "responsibilities": [
+          "Compute demeaned accel_x RMS",
+          "Emit JSON/CSV/PNG",
+          "Assess R7 deterministically"
+        ],
+        "satisfiesRequirementIds": [
+          "req_16GOLDENR7RMS000000000000000001",
+          "req_16GOLDENR8OUTPUTS00000000000001"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "edgeId": "edge_16GOLDENIMU2MCU0000000000001",
+        "fromNodeId": "node_16GOLDENIMU0000000000000001",
+        "toNodeId": "node_16GOLDENMCU0000000000000001",
+        "flowType": "data",
+        "description": "I2C acceleration samples SDA=GPIO21 SCL=GPIO22"
+      },
+      {
+        "edgeId": "edge_16GOLDENMCU2TEL0000000000001",
+        "fromNodeId": "node_16GOLDENMCU0000000000000001",
+        "toNodeId": "node_16GOLDENTELEM00000000000001",
+        "flowType": "data",
+        "description": "Serial telemetry frames at 115200 baud"
+      },
+      {
+        "edgeId": "edge_16GOLDENTEL2AN00000000000001",
+        "fromNodeId": "node_16GOLDENTELEM00000000000001",
+        "toNodeId": "node_16GOLDENANAL000000000000001",
+        "flowType": "data",
+        "description": "Captured/imported stationary IMU dataset for Analysis"
+      }
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "FA1",
+        "statement": "Stationary IMU dataset is sufficient to verify demeaned accel_x RMS noise against R7 without claiming production metrology certification.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unresolvedDecisions": [],
+    "requirementCoverage": {
+      "coveredRequirementIds": [
+        "req_16GOLDENR1I2CCOMM000000000000001",
+        "req_16GOLDENR2WIRING0000000000000001",
+        "req_16GOLDENR3SERIAL000000000000001",
+        "req_16GOLDENR4MPUINIT00000000000001",
+        "req_16GOLDENR5TELEM0000000000000001",
+        "req_16GOLDENR6RATE00000000000000001",
+        "req_16GOLDENR7RMS000000000000000001",
+        "req_16GOLDENR8OUTPUTS00000000000001"
+      ]
+    }
+  }
+}

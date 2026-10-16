@@ -37,6 +37,11 @@ class ArtifactProposalV1(TypedDict, closed=True):
         'component-plan',
         'code-scratch',
         'firmware',
+        'electrical-architecture',
+        'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
     ]
     baseArtifactVersion: int
     baseProjectStateVersion: int

@@ -10,7 +10,12 @@ from typing import Any
 
 from nexus_embedded_systems.workflows.component_planning import (
     apply_component_plan_operation,
-    compose_component_plan_content,
+)
+from nexus_embedded_systems.workflows.layered_architecture import (
+    compose_electrical_architecture_content,
+    compose_electrical_architecture_envelope,
+    compose_physical_architecture_content,
+    compose_physical_architecture_envelope,
 )
 from nexus_embedded_systems.workflows.project_initialization.next_action_selector import (
     select_next_action,
@@ -21,6 +26,8 @@ CURRENT_ARTIFACT_ORDER = (
     "requirement-set",
     "functional-architecture",
     "component-plan",
+    "electrical-architecture",
+    "physical-architecture",
     "next-action",
 )
 
@@ -97,6 +104,47 @@ def revise_artifacts(
         by_type["component-plan"] = new
         new_revisions.append(new)
 
+    if "electrical-architecture" in regenerate:
+        architecture = by_type.get("functional-architecture")
+        component_plan = by_type.get("component-plan")
+        if (
+            isinstance(architecture, dict)
+            and isinstance(component_plan, dict)
+            and isinstance(architecture.get("content"), dict)
+            and isinstance(component_plan.get("content"), dict)
+        ):
+            old = by_type.get("electrical-architecture")
+            new = _revise_electrical_architecture(
+                old,
+                architecture=architecture,
+                component_plan=component_plan,
+                project_id=project["projectId"],
+                turn_id=turn_id,
+                run_id=run_id,
+                actor=actor,
+                ts=ts,
+            )
+            by_type["electrical-architecture"] = new
+            new_revisions.append(new)
+
+    if "physical-architecture" in regenerate:
+        electrical = by_type.get("electrical-architecture")
+        architecture = by_type.get("functional-architecture")
+        if isinstance(electrical, dict) and isinstance(electrical.get("content"), dict):
+            old = by_type.get("physical-architecture")
+            new = _revise_physical_architecture(
+                old,
+                electrical=electrical,
+                architecture=architecture,
+                project_id=project["projectId"],
+                turn_id=turn_id,
+                run_id=run_id,
+                actor=actor,
+                ts=ts,
+            )
+            by_type["physical-architecture"] = new
+            new_revisions.append(new)
+
     if "next-action" in regenerate:
         old = by_type["next-action"]
         new = _revise_next_action(
@@ -106,6 +154,8 @@ def revise_artifacts(
             open_questions=current_state.get("openQuestions") or [],
             intent=intent,
             component_plan=by_type.get("component-plan"),
+            electrical=by_type.get("electrical-architecture"),
+            physical=by_type.get("physical-architecture"),
             turn_id=turn_id,
             run_id=run_id,
             actor=actor,
@@ -320,6 +370,8 @@ def _revise_next_action(
     open_questions: list[dict[str, Any]],
     intent: dict[str, Any],
     component_plan: dict[str, Any] | None = None,
+    electrical: dict[str, Any] | None = None,
+    physical: dict[str, Any] | None = None,
     turn_id: str,
     run_id: str,
     actor: dict[str, Any],
@@ -339,6 +391,8 @@ def _revise_next_action(
             )
         ]
     component_content = (component_plan or {}).get("content")
+    electrical_content = (electrical or {}).get("content")
+    physical_content = (physical or {}).get("content")
     if open_q:
         content = copy.deepcopy(old["content"])
         content["actionId"] = _new_id("act")
@@ -372,6 +426,8 @@ def _revise_next_action(
         missing_dimensions=[],
         project_stage="prototype-planning",
         component_plan_content=component_content if isinstance(component_content, dict) else None,
+        electrical_content=electrical_content if isinstance(electrical_content, dict) else None,
+        physical_content=physical_content if isinstance(physical_content, dict) else None,
     )
     new["content"] = selected
     return new
@@ -415,46 +471,91 @@ def _revise_component_plan(
         return new
 
     # Architecture/requirement-driven refresh: recompose while preserving role IDs
-    # when node mappings still match.
+    # and compatible approved selections when node mappings still match.
     if isinstance(architecture_content, dict) and isinstance(requirements, dict):
-        fresh = compose_component_plan_content(
+        from nexus_embedded_systems.workflows.component_planning.reconcile import (
+            reconcile_component_plan_after_architecture_change,
+        )
+
+        new["content"] = reconcile_component_plan_after_architecture_change(
+            old["content"],
             architecture_content=architecture_content,
             requirement_set_content=requirements.get("content") or {},
-            include_candidates=True,
-            source="inferred",
         )
-        old_roles = {
-            tuple(sorted(r.get("architectureNodeIds") or [])): r
-            for r in (old["content"].get("componentRoles") or [])
-            if isinstance(r, dict)
-        }
-        id_remap: dict[str, str] = {}
-        for role in fresh.get("componentRoles") or []:
-            key = tuple(sorted(role.get("architectureNodeIds") or []))
-            prior = old_roles.get(key)
-            if prior and isinstance(prior.get("componentRoleId"), str):
-                new_id = role.get("componentRoleId")
-                if isinstance(new_id, str):
-                    id_remap[new_id] = prior["componentRoleId"]
-                role["componentRoleId"] = prior["componentRoleId"]
-                role["displayId"] = prior.get("displayId") or role.get("displayId")
-        if id_remap:
-            for collection_key in (
-                "selectionConstraints",
-                "candidates",
-                "selectionDecisions",
-                "compatibilityChecks",
-            ):
-                for item in fresh.get(collection_key) or []:
-                    if not isinstance(item, dict):
-                        continue
-                    role_id = item.get("componentRoleId")
-                    if isinstance(role_id, str) and role_id in id_remap:
-                        item["componentRoleId"] = id_remap[role_id]
-        new["content"] = fresh
         return new
 
     new["content"] = copy.deepcopy(old["content"])
+    return new
+
+
+def _revise_electrical_architecture(
+    old: dict[str, Any] | None,
+    *,
+    architecture: dict[str, Any],
+    component_plan: dict[str, Any],
+    project_id: str,
+    turn_id: str,
+    run_id: str,
+    actor: dict[str, Any],
+    ts: str,
+) -> dict[str, Any]:
+    previous_content = old.get("content") if isinstance(old, dict) else None
+    content = compose_electrical_architecture_content(
+        architecture_content=architecture["content"],
+        component_plan_content=component_plan["content"],
+        previous_content=previous_content if isinstance(previous_content, dict) else None,
+    )
+    if old is None:
+        return compose_electrical_architecture_envelope(
+            content=content,
+            project_id=project_id,
+            turn_id=turn_id,
+            workflow_run_id=run_id,
+            created_by=actor,
+            now=ts,
+        )
+    new = _bump_envelope(old, turn_id=turn_id, run_id=run_id, actor=actor, ts=ts)
+    new["content"] = content
+    new["evidenceStatus"] = content.get("evidenceStatus") or new.get("evidenceStatus")
+    return new
+
+
+def _revise_physical_architecture(
+    old: dict[str, Any] | None,
+    *,
+    electrical: dict[str, Any],
+    architecture: dict[str, Any] | None,
+    project_id: str,
+    turn_id: str,
+    run_id: str,
+    actor: dict[str, Any],
+    ts: str,
+) -> dict[str, Any]:
+    previous_content = old.get("content") if isinstance(old, dict) else None
+    arch_content = (architecture or {}).get("content") or {}
+    project_context = {
+        "systemBoundary": (
+            arch_content.get("systemBoundary") if isinstance(arch_content, dict) else None
+        ),
+        "summary": arch_content.get("summary") if isinstance(arch_content, dict) else None,
+    }
+    content = compose_physical_architecture_content(
+        electrical_content=electrical["content"],
+        previous_content=previous_content if isinstance(previous_content, dict) else None,
+        project_context=project_context,
+    )
+    if old is None:
+        return compose_physical_architecture_envelope(
+            content=content,
+            project_id=project_id,
+            turn_id=turn_id,
+            workflow_run_id=run_id,
+            created_by=actor,
+            now=ts,
+        )
+    new = _bump_envelope(old, turn_id=turn_id, run_id=run_id, actor=actor, ts=ts)
+    new["content"] = content
+    new["evidenceStatus"] = content.get("evidenceStatus") or new.get("evidenceStatus")
     return new
 
 

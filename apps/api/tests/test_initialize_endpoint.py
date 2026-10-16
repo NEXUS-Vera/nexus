@@ -30,6 +30,10 @@ PROMPTS = {
         "I want to build an obstacle-detection module for a small indoor robot "
         "so it can detect objects in front of it and react before it hits them."
     ),
+    "esp32-imu-circuit-simulation": (
+        "I want a golden Nexus circuit simulation project with an ESP32-class MCU "
+        "and an IMU motion sensor for Wokwi surrogate simulation."
+    ),
 }
 
 
@@ -75,9 +79,11 @@ async def test_initialize_supported_families(family: str) -> None:
         "requirement-set",
         "functional-architecture",
         "component-plan",
+        "electrical-architecture",
+        "physical-architecture",
         "next-action",
     }
-    assert len(payload["artifacts"]) == 5
+    assert len(payload["artifacts"]) == 7
     next_ref = payload["veraResponse"]["nextActionArtifactReference"]["artifactId"]
     assert any(a["artifactId"] == next_ref for a in payload["artifacts"])
     steps = [s["stepType"] for s in payload["workflowRun"]["stepRecords"]]
@@ -86,12 +92,63 @@ async def test_initialize_supported_families(family: str) -> None:
         "select-fixture-family",
         "create-project-context",
         "materialize-fixture-package",
+        "compose-electrical-architecture",
+        "compose-physical-architecture",
         "validate-schema",
         "validate-project-package",
         "build-result",
         "complete-workflow",
     ]
     assert all(s["status"] == "completed" for s in payload["workflowRun"]["stepRecords"])
+
+    electrical = next(
+        a for a in payload["artifacts"] if a["artifactType"] == "electrical-architecture"
+    )
+    assert electrical["content"]["maturity"] == "provisional"
+    assert electrical["evidenceStatus"] in {"unverified", "inferred"}
+    physical = next(a for a in payload["artifacts"] if a["artifactType"] == "physical-architecture")
+    assert physical["content"]["maturity"] == "provisional"
+
+
+@pytest.mark.asyncio
+async def test_initialize_golden_esp32_imu_has_i2c_and_simulation_support() -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport, base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
+        response = await client.post(
+            "/v1/projects/initialize",
+            json={
+                "message": PROMPTS["esp32-imu-circuit-simulation"],
+                "autonomyMode": "collaborate",
+            },
+        )
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        project_id = payload["project"]["projectId"]
+        electrical = next(
+            artifact
+            for artifact in payload["artifacts"]
+            if artifact["artifactType"] == "electrical-architecture"
+        )
+        connections = electrical["content"]["connections"]
+        assert any(
+            str(connection.get("interfaceType", "")).lower() == "i2c" for connection in connections
+        ), connections
+
+        support = await client.get(
+            f"/v1/projects/{project_id}/artifacts/"
+            "electrical-architecture/circuit-simulation/support"
+        )
+        assert support.status_code == 200, support.text
+        assessment = support.json()["assessment"]
+        assert assessment["status"] in {
+            "SUPPORTED",
+            "SURROGATE_REQUIRED",
+            "FIRMWARE_REQUIRED",
+        }, assessment
+        assert assessment["status"] not in {"UNSUPPORTED", "PARTIALLY_SUPPORTED"}
+        assert assessment["surrogateUsed"] is True
 
 
 @pytest.mark.asyncio

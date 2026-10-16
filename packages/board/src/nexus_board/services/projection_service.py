@@ -82,7 +82,16 @@ class ProjectBoardProjectionService:
                         "blockerCount": 0,
                         "openQuestionCount": 0,
                         "lastChangedAt": project.get("updatedAt") or utc_now_iso(),
-                        "summary": "Not yet created" if atype == "component-plan" else None,
+                        "summary": (
+                            "Not yet created"
+                            if atype
+                            in {
+                                "component-plan",
+                                "electrical-architecture",
+                                "physical-architecture",
+                            }
+                            else None
+                        ),
                     }
                 )
                 continue
@@ -98,7 +107,7 @@ class ProjectBoardProjectionService:
                     "blockerCount": 0,
                     "openQuestionCount": 0,
                     "lastChangedAt": art.get("updatedAt") or art.get("createdAt") or utc_now_iso(),
-                    **ProjectBoardProjectionService._component_plan_summary_fields(atype, art),
+                    **ProjectBoardProjectionService._artifact_summary_fields(atype, art),
                 }
             )
 
@@ -187,9 +196,21 @@ class ProjectBoardProjectionService:
         return projection
 
     @staticmethod
-    def _component_plan_summary_fields(artifact_type: str, art: dict[str, Any]) -> dict[str, Any]:
-        if artifact_type != "component-plan":
-            return {}
+    def _artifact_summary_fields(artifact_type: str, art: dict[str, Any]) -> dict[str, Any]:
+        if artifact_type == "component-plan":
+            return ProjectBoardProjectionService._component_plan_summary_fields(art)
+        if artifact_type == "electrical-architecture":
+            return ProjectBoardProjectionService._electrical_summary_fields(art)
+        if artifact_type == "physical-architecture":
+            return ProjectBoardProjectionService._physical_summary_fields(art)
+        if artifact_type == "test-plan":
+            return ProjectBoardProjectionService._test_plan_summary_fields(art)
+        if artifact_type == "risk-register":
+            return ProjectBoardProjectionService._risk_register_summary_fields(art)
+        return {}
+
+    @staticmethod
+    def _component_plan_summary_fields(art: dict[str, Any]) -> dict[str, Any]:
         content = art.get("content") or {}
         if not isinstance(content, dict):
             return {}
@@ -218,6 +239,77 @@ class ProjectBoardProjectionService:
         if isinstance(maturity, str):
             fields["maturity"] = maturity
         return fields
+
+    @staticmethod
+    def _electrical_summary_fields(art: dict[str, Any]) -> dict[str, Any]:
+        content = art.get("content") or {}
+        if not isinstance(content, dict):
+            return {}
+        nodes = content.get("nodes") or []
+        coverage = content.get("coverageSummary") or {}
+        provisional = sum(
+            1
+            for n in nodes
+            if isinstance(n, dict) and n.get("implementationStatus") in {"preferred", "provisional"}
+        )
+        approved = int(coverage.get("approvedImplementationCount") or 0)
+        if approved == 0:
+            approved = sum(
+                1
+                for n in nodes
+                if isinstance(n, dict) and n.get("implementationStatus") == "approved"
+            )
+        return {
+            "nodeCount": len(nodes) if isinstance(nodes, list) else 0,
+            "unresolvedConnectionCount": int(coverage.get("unresolvedConnectionCount") or 0),
+            "provisionalImplementationCount": provisional
+            or int(coverage.get("preferredImplementationCount") or 0),
+            "approvedImplementationCount": approved,
+        }
+
+    @staticmethod
+    def _physical_summary_fields(art: dict[str, Any]) -> dict[str, Any]:
+        content = art.get("content") or {}
+        if not isinstance(content, dict):
+            return {}
+        nodes = content.get("nodes") or []
+        coverage = content.get("coverageSummary") or {}
+        return {
+            "nodeCount": len(nodes) if isinstance(nodes, list) else 0,
+            "unresolvedPlacementCount": int(coverage.get("unresolvedPlacementCount") or 0),
+            "provisionalRelationshipCount": int(coverage.get("provisionalRelationshipCount") or 0),
+        }
+
+    @staticmethod
+    def _test_plan_summary_fields(art: dict[str, Any]) -> dict[str, Any]:
+        content = art.get("content") or {}
+        if not isinstance(content, dict):
+            return {}
+        coverage = content.get("coverageSummary") or {}
+        cases = content.get("testCases") or []
+        return {
+            "testCaseCount": len(cases) if isinstance(cases, list) else 0,
+            "coveredRequirements": int(coverage.get("coveredRequirements") or 0),
+            "totalRequirements": int(coverage.get("totalRequirements") or 0),
+            "verifiedRequirements": int(coverage.get("verifiedRequirements") or 0),
+            "failedRequirements": int(coverage.get("failedRequirements") or 0),
+            "uncoveredRequirements": int(coverage.get("uncoveredRequirements") or 0),
+        }
+
+    @staticmethod
+    def _risk_register_summary_fields(art: dict[str, Any]) -> dict[str, Any]:
+        content = art.get("content") or {}
+        if not isinstance(content, dict):
+            return {}
+        summary = content.get("summary") or {}
+        risks = content.get("risks") or []
+        return {
+            "riskCount": len(risks) if isinstance(risks, list) else 0,
+            "openRisks": int(summary.get("openRisks") or 0),
+            "highOrCritical": int(summary.get("highOrCritical") or 0),
+            "mitigated": int(summary.get("mitigated") or 0),
+            "unverifiedMitigations": int(summary.get("unverifiedMitigations") or 0),
+        }
 
     @staticmethod
     def _artifact_type_for(artifact_id: str | None, artifacts: list[dict[str, Any]]) -> str | None:

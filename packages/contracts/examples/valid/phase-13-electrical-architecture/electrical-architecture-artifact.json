@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_03GREENHOUSEELEC0000000000000001",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "artifactType": "electrical-architecture",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_03VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-07T12:00:00Z",
+  "updatedAt": "2026-08-07T12:00:00Z",
+  "sourceTurnId": "turn_03USERMSG0000000000000001",
+  "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+  "content": {
+    "architectureId": "earch_03GREENHOUSEELEC000000000001",
+    "maturity": "provisional",
+    "summary": "Provisional electrical architecture for a greenhouse sensing node covering environmental sensors, MCU, and a 3.3V local power domain.",
+    "nodes": [
+      {
+        "nodeId": "enode_03GREENHOUSEMCU00000000000001",
+        "name": "Greenhouse MCU",
+        "nodeType": "component",
+        "functionalArchitectureNodeIds": [
+          "node_03GREENHOUSETIMESTAMPSTOR0000000000000001"
+        ],
+        "componentRoleIds": [
+          "role_03GREENHOUSEMCU00000000000001"
+        ],
+        "implementationStatus": "preferred",
+        "evidenceStatus": "unverified",
+        "selectionState": "preferred",
+        "interfaces": [
+          {
+            "interfaceId": "eiface_03GREENHOUSEI2C0000000000001",
+            "interfaceType": "i2c",
+            "direction": "bidirectional",
+            "status": "needs-resolution",
+            "label": "I2C sensor bus"
+          },
+          {
+            "interfaceId": "eiface_03GREENHOUSEPWRIN00000000001",
+            "interfaceType": "power",
+            "direction": "in",
+            "status": "resolved",
+            "label": "3V3 rail",
+            "voltage": {
+              "schemaVersion": "1.0.0",
+              "value": 3.3,
+              "unit": "V"
+            }
+          }
+        ]
+      },
+      {
+        "nodeId": "enode_03GREENHOUSETEMP0000000000001",
+        "name": "Temperature/Humidity Sensor",
+        "nodeType": "component",
+        "functionalArchitectureNodeIds": [
+          "node_03GREENHOUSEENVACQ0000000000000001"
+        ],
+        "componentRoleIds": [
+          "role_03GREENHOUSETEMP0000000000001"
+        ],
+        "implementationStatus": "provisional",
+        "evidenceStatus": "unverified",
+        "selectionState": "unresolved",
+        "interfaces": [
+          {
+            "interfaceId": "eiface_03GREENHOUSETEMPI2C000000001",
+            "interfaceType": "i2c",
+            "direction": "bidirectional",
+            "status": "needs-resolution",
+            "label": "I2C"
+          },
+          {
+            "interfaceId": "eiface_03GREENHOUSETEMPPWR000000001",
+            "interfaceType": "power",
+            "direction": "in",
+            "status": "resolved",
+            "voltage": {
+              "schemaVersion": "1.0.0",
+              "value": 3.3,
+              "unit": "V"
+            }
+          }
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "connectionId": "econn_03GREENHOUSEI2CBUS0000000001",
+        "fromNodeId": "enode_03GREENHOUSEMCU00000000000001",
+        "toNodeId": "enode_03GREENHOUSETEMP0000000000001",
+        "connectionType": "bus",
+        "interfaceType": "i2c",
+        "status": "provisional",
+        "fromInterfaceId": "eiface_03GREENHOUSEI2C0000000000001",
+        "toInterfaceId": "eiface_03GREENHOUSETEMPI2C000000001",
+        "description": "Shared I2C bus between MCU and environmental sensor.",
+        "provisionalReason": "Exact pull-up and address assignment not yet confirmed."
+      }
+    ],
+    "powerDomains": [
+      {
+        "powerDomainId": "epwr_03GREENHOUSE3V3DOM0000000001",
+        "name": "Local 3.3V domain",
+        "status": "known",
+        "nominalVoltage": {
+          "schemaVersion": "1.0.0",
+          "value": 3.3,
+          "unit": "V"
+        },
+        "memberNodeIds": [
+          "enode_03GREENHOUSEMCU00000000000001",
+          "enode_03GREENHOUSETEMP0000000000001"
+        ]
+      }
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "assume_03GREENHOUSE3V3RAIL000000001",
+        "statement": "MCU and environmental sensors share a single regulated 3.3V rail.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unresolvedDecisions": [],
+    "warnings": [
+      {
+        "code": "provisional-sensor-selection",
+        "message": "Temperature/humidity sensor candidate is provisional pending grounded evidence.",
+        "severity": "warning",
+        "relatedNodeIds": [
+          "enode_03GREENHOUSETEMP0000000000001"
+        ]
+      }
+    ],
+    "coverageSummary": {
+      "totalFunctionalNodes": 2,
+      "coveredFunctionalNodes": 2,
+      "uncoveredFunctionalNodeIds": [],
+      "preferredImplementationCount": 1,
+      "approvedImplementationCount": 0,
+      "unresolvedImplementationCount": 0,
+      "unresolvedConnectionCount": 0
+    },
+    "evidenceStatus": "unverified",
+    "selectionBasisSummary": "Selections follow provisional greenhouse component-plan preferences; sensor part remains unresolved."
+  }
+}

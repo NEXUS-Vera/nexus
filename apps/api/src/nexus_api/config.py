@@ -82,6 +82,9 @@ class Settings:
     execution_process_count: int = 64
     execution_runtime: str = "process"
     execution_container_image: str = "python:3.13-slim"
+    wokwi_cli_executable: str = "wokwi-cli"
+    wokwi_cli_token: str = ""
+    wokwi_firmware_elf: str = ""
 
 
 def load_settings() -> Settings:
@@ -130,6 +133,9 @@ def load_settings() -> Settings:
         execution_container_image=os.environ.get(
             "NEXUS_EXEC_CONTAINER_IMAGE", "python:3.13-slim"
         ).strip(),
+        wokwi_cli_executable=os.environ.get("NEXUS_WOKWI_CLI", "wokwi-cli"),
+        wokwi_cli_token=os.environ.get("WOKWI_CLI_TOKEN", ""),
+        wokwi_firmware_elf=os.environ.get("NEXUS_WOKWI_FIRMWARE_ELF", ""),
     )
 
 

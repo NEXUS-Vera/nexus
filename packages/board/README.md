@@ -85,3 +85,35 @@ PlatformIO if `pio` is available and otherwise falls back to the stub. Fixture
 outputs are not real build or device evidence. Set it to `0` to run PlatformIO
 and configure the execution runtime/image for the preinstalled toolchain.
 Live toolchain/container acceptance tests require explicit opt-in.
+
+## Layered architecture
+
+Electrical and Physical Architecture use graph workspaces with deterministic
+validation, semantic editing, and functional-node deletion impact inspection.
+Accepted revisions materialize graph entities and update board projections.
+Electrical execution delegates to an injected `circuit-simulation` executor;
+provider translation and invocation belong to `packages/circuit-simulation`.
+
+
+## Analysis and deterministic VERIFY
+
+The `analysis` workspace supports scaffolding, guarded patch proposals, input
+upload/import, immutable execution snapshots, reruns, output comparison and
+preview. Analysis patch payloads reuse the predecessor's durable patch store;
+`anpatch_` IDs and artifact-type validation separate them from firmware proposals.
+`NEXUS_ANALYSIS_USE_STUB=1` selects offline fixtures; set it to `0` for Python
+execution with the configured runtime and preinstalled analysis dependencies.
+
+`kernel.verification` promotes execution evidence into new Test Plan revisions
+and projects requirement coverage separately from verification. Metric criteria
+are assessed by deterministic code. Repeated promotion is idempotent, and the
+Risk Register retains monitoring for risks requiring physical evidence. The API
+and Evidence Explorer expose the resulting evidence chain.
+
+The golden ESP32/MPU6050 fixture uses `time_s` (seconds) and `accel_*_g`
+(acceleration in g) throughout firmware telemetry and analysis CSVs. Firmware
+emits the CSV header at startup; strip the `TEL,` frame prefix when capturing
+samples as CSV. Golden G1 runs real Python analysis and promotes its execution
+outputs into R7/R8 verification; a failed execution is rejected. Its report is
+written under pytest's temporary directory. Firmware stub outputs and unavailable
+live compile/Wokwi gates remain explicit gaps.
