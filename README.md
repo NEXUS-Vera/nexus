@@ -105,6 +105,8 @@ After `make setup` (Python 3.11+ and the repository Python dependencies), run:
 make demo-golden
 # Or use an existing environment:
 make demo-golden PYTHON=/path/to/venv/bin/python
+# Or run directly (defaults PYTHONPATH to the repository's demo import paths):
+PYTHON=/path/to/venv/bin/python ./scripts/demo-golden.sh
 ```
 
 This developer demo builds on N24's `esp32-imu-vibration-monitor` flow. It
@@ -115,12 +117,15 @@ real Python analysis, and accepted Test Plan evidence through the in-memory kern
 R7 becomes VERIFIED at approximately **0.015676 g RMS < 0.10 g**. A second run
 injects 0.20 g noise and proves R7 FAILED with linked execution evidence; a
 crashing analysis run is also rejected for promotion.
+The firmware telemetry CSV parsing regression runs as part of the demo.
 
 Fixture/fake gates and live gates are printed separately. When `platformio` or
 `pio` is on PATH, the demo attempts a real ESP32 build with the checked-in
 `platformio.ini` and verifies nonempty ELF/BIN outputs. Initial builds require
 PlatformIO's ESP32 platform/toolchain downloads (network access); build errors
 and timeouts fail the command. Without the CLI it explicitly reports a GAP.
+The build uses `PLATFORMIO_CORE_DIR` when set; otherwise it uses a writable
+directory under the demo's temporary artifacts, avoiding `~/.platformio`.
 Wokwi execution always remains a GAP in this no-key demo; diagram translation
 is not simulation or hardware validation. Fixture compilation is never live
 compile evidence. Synthetic CSV analysis is not evidence from a physical IMU.
