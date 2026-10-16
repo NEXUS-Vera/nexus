@@ -8,7 +8,9 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -16,7 +18,9 @@ export type ArtifactType1 =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 
 export interface VeraResponse {
   blockerIssueReferences: {

@@ -686,6 +686,31 @@
             },
             "commandSpec": {
               "$ref": "https://nexus.local/schemas/executions/execution-command-spec.v1.schema.json"
+            },
+            "executionMode": {
+              "type": "string",
+              "enum": [
+                "validate",
+                "simulate"
+              ]
+            },
+            "expectedText": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "requestedOutputs": {
+              "type": "array",
+              "uniqueItems": true,
+              "maxItems": 4,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "serial-log",
+                  "logic-trace",
+                  "simulation-screenshot",
+                  "provider-workspace"
+                ]
+              }
             }
           }
         }
@@ -897,6 +922,81 @@
             },
             "refreshLease": {
               "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "commandId",
+        "commandType",
+        "projectId",
+        "artifactId",
+        "baseArtifactVersion",
+        "baseProjectStateVersion",
+        "requestedBy",
+        "requestedAt",
+        "input"
+      ],
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0.0"
+        },
+        "commandId": {
+          "type": "string",
+          "pattern": "^cmd_[A-Za-z0-9]{16,}$"
+        },
+        "commandType": {
+          "type": "string",
+          "const": "artifact.inspect-deletion-impact"
+        },
+        "projectId": {
+          "type": "string",
+          "pattern": "^proj_[A-Za-z0-9]{16,}$"
+        },
+        "artifactId": {
+          "type": "string",
+          "pattern": "^art_[A-Za-z0-9]{16,}$"
+        },
+        "workspaceId": {
+          "type": "string",
+          "pattern": "^ws_[A-Za-z0-9]{16,}$"
+        },
+        "baseArtifactVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "baseProjectStateVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "requestedBy": {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "entityType",
+            "entityId"
+          ],
+          "properties": {
+            "entityType": {
+              "type": "string",
+              "enum": ["functional-node"]
+            },
+            "entityId": {
+              "type": "string",
+              "minLength": 1
             }
           }
         }

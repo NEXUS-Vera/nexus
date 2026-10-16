@@ -15,6 +15,12 @@ from nexus_embedded_systems.workflows.component_planning import (
     compose_component_plan_content,
     compose_component_plan_envelope,
 )
+from nexus_embedded_systems.workflows.layered_architecture import (
+    compose_electrical_architecture_content,
+    compose_electrical_architecture_envelope,
+    compose_physical_architecture_content,
+    compose_physical_architecture_envelope,
+)
 
 from ..assembly import (
     ProjectStage,
@@ -197,6 +203,28 @@ class LlmInitializationProvider:
                 ledger=ledger,
             )
 
+            electrical_art = self._compose_electrical_architecture(
+                architecture_content=arch_art["content"],
+                component_plan_content=component_plan_art["content"],
+                project_id=project_id,
+                turn_id=turn_id,
+                run_id=run_id,
+                now=now,
+                vera_actor=vera_actor,
+                ledger=ledger,
+            )
+
+            physical_art = self._compose_physical_architecture(
+                electrical_content=electrical_art["content"],
+                architecture_content=arch_art["content"],
+                project_id=project_id,
+                turn_id=turn_id,
+                run_id=run_id,
+                now=now,
+                vera_actor=vera_actor,
+                ledger=ledger,
+            )
+
             step = ledger.start_step("derive-next-action")
             next_content = select_next_action(
                 issues=issues,
@@ -204,6 +232,8 @@ class LlmInitializationProvider:
                 missing_dimensions=missing_dimensions,
                 project_stage=stage,
                 component_plan_content=component_plan_art.get("content"),
+                electrical_content=electrical_art.get("content"),
+                physical_content=physical_art.get("content"),
             )
             next_art_id = new_id("art_")
             next_art = {
@@ -228,7 +258,15 @@ class LlmInitializationProvider:
                 output_artifact_references=[_ref(next_art)],
             )
 
-            artifacts = [brief_art, req_art, arch_art, component_plan_art, next_art]
+            artifacts = [
+                brief_art,
+                req_art,
+                arch_art,
+                component_plan_art,
+                electrical_art,
+                physical_art,
+                next_art,
+            ]
             created_refs = [_ref(a) for a in artifacts]
             warning_issues = [i for i in issues if not i.get("blocking")]
             blocker_issues = [i for i in issues if i.get("blocking")]
@@ -545,6 +583,66 @@ class LlmInitializationProvider:
 
         step = ledger.start_step("materialize-component-plan")
         envelope = compose_component_plan_envelope(
+            content=content,
+            project_id=project_id,
+            turn_id=turn_id,
+            workflow_run_id=run_id,
+            created_by=vera_actor,
+            now=now,
+        )
+        ledger.complete_step(step, output_artifact_references=[_ref(envelope)])
+        return envelope
+
+    def _compose_electrical_architecture(
+        self,
+        *,
+        architecture_content: dict[str, Any],
+        component_plan_content: dict[str, Any],
+        project_id: str,
+        turn_id: str,
+        run_id: str,
+        now: str,
+        vera_actor: dict[str, Any],
+        ledger: WorkflowLedger,
+    ) -> dict[str, Any]:
+        step = ledger.start_step("compose-electrical-architecture")
+        content = compose_electrical_architecture_content(
+            architecture_content=architecture_content,
+            component_plan_content=component_plan_content,
+        )
+        envelope = compose_electrical_architecture_envelope(
+            content=content,
+            project_id=project_id,
+            turn_id=turn_id,
+            workflow_run_id=run_id,
+            created_by=vera_actor,
+            now=now,
+        )
+        ledger.complete_step(step, output_artifact_references=[_ref(envelope)])
+        return envelope
+
+    def _compose_physical_architecture(
+        self,
+        *,
+        electrical_content: dict[str, Any],
+        architecture_content: dict[str, Any],
+        project_id: str,
+        turn_id: str,
+        run_id: str,
+        now: str,
+        vera_actor: dict[str, Any],
+        ledger: WorkflowLedger,
+    ) -> dict[str, Any]:
+        step = ledger.start_step("compose-physical-architecture")
+        project_context = {
+            "systemBoundary": architecture_content.get("systemBoundary"),
+            "summary": architecture_content.get("summary"),
+        }
+        content = compose_physical_architecture_content(
+            electrical_content=electrical_content,
+            project_context=project_context,
+        )
+        envelope = compose_physical_architecture_envelope(
             content=content,
             project_id=project_id,
             turn_id=turn_id,

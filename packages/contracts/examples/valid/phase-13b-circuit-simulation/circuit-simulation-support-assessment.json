@@ -1,0 +1,25 @@
+{
+  "schemaVersion": "1.0.0",
+  "status": "PARTIALLY_SUPPORTED",
+  "providerId": "provider-neutral-simulator",
+  "capabilityId": "circuit-simulation",
+  "findings": [
+    {
+      "findingId": "finding_mcu_model_mapping",
+      "entityReference": {
+        "schemaVersion": "1.0.0",
+        "artifactId": "art_02PHASE13BELEC00000000001",
+        "artifactVersion": 2,
+        "artifactType": "electrical-architecture",
+        "entityType": "electrical-node",
+        "entityId": "node_mcu",
+        "displayLabel": "Microcontroller"
+      },
+      "reasonCode": "EQUIVALENT_MODEL_AVAILABLE",
+      "message": "An electrically equivalent microcontroller model is available.",
+      "mappingType": "equivalent"
+    }
+  ],
+  "firmwareRequired": true,
+  "surrogateUsed": false
+}

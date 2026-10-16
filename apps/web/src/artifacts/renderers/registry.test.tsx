@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../../../../../packages/contracts/examples/valid/project-initialization-result/project-initialization-result.json';
 import type { ProjectCurrentState } from '@nexus/contracts';
 import {
@@ -13,6 +13,21 @@ import {
 const state = fixture as unknown as ProjectCurrentState;
 
 describe('workspace renderer registry', () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: async () => '',
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('registers component-plan and core live renderers by key, not position', () => {
     const keys = Object.keys(WORKSPACE_RENDERER_REGISTRY);
     expect(keys).toEqual(
@@ -20,12 +35,14 @@ describe('workspace renderer registry', () => {
         'project-brief',
         'requirement-set',
         'functional-architecture',
+        'electrical-architecture',
+        'physical-architecture',
         'next-action',
         'component-plan',
         'firmware-scaffold',
       ]),
     );
-    expect(keys).toHaveLength(6);
+    expect(keys).toHaveLength(8);
 
     const shuffled = [...keys].sort().reverse();
     for (const key of shuffled) {
@@ -60,7 +77,7 @@ describe('workspace renderer registry', () => {
     );
   });
 
-  it('renders component-plan through the registry', () => {
+  it('renders component-plan through the registry', async () => {
     const Renderer = getWorkspaceRenderer('component-plan');
     expect(Renderer).toBeDefined();
     if (!Renderer) {
@@ -77,6 +94,9 @@ describe('workspace renderer registry', () => {
     expect(screen.getByTestId('workspace-component-plan')).toBeInTheDocument();
     expect(screen.getByTestId('component-plan-summary')).toBeInTheDocument();
     expect(screen.getByTestId('component-plan-role-list')).toBeInTheDocument();
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalled();
+    });
   });
 
   it('marks component-plan as live in the artifact registry', async () => {

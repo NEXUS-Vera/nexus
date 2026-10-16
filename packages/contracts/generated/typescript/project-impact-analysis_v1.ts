@@ -8,7 +8,9 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -16,7 +18,9 @@ export type ArtifactType1 =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType2 =
   | 'project-brief'
   | 'requirement-set'
@@ -24,7 +28,9 @@ export type ArtifactType2 =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType3 =
   | 'project-brief'
   | 'requirement-set'
@@ -32,7 +38,9 @@ export type ArtifactType3 =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType4 =
   | 'project-brief'
   | 'requirement-set'
@@ -40,7 +48,9 @@ export type ArtifactType4 =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ArtifactType5 =
   | 'project-brief'
   | 'requirement-set'
@@ -48,7 +58,9 @@ export type ArtifactType5 =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 
 /**
  * Deterministic classification of how a project change propagates across artifact types. Every non-unchanged classification must carry an explicit reason so downstream regeneration is auditable.

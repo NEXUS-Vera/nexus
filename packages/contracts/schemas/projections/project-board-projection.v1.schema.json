@@ -161,6 +161,30 @@
           "unresolvedCompatibilityCheckCount": {
             "type": "integer",
             "minimum": 0
+          },
+          "nodeCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unresolvedConnectionCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "provisionalImplementationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "approvedImplementationCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "unresolvedPlacementCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "provisionalRelationshipCount": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       }

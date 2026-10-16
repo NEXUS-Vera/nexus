@@ -9,6 +9,8 @@ ARTIFACT_TYPES = (
     "requirement-set",
     "functional-architecture",
     "component-plan",
+    "electrical-architecture",
+    "physical-architecture",
     "next-action",
 )
 
@@ -36,6 +38,49 @@ COMPONENT_PLAN_OPS = {
 }
 
 
+def _append_layered_cascade(
+    *,
+    affected: list[str],
+    stale: list[str],
+    regenerate: list[str],
+    reasons: list[dict[str, str]],
+    include_component_plan: bool = False,
+) -> None:
+    """Cascade Functional → Component Plan → Electrical → Physical when needed."""
+
+    if include_component_plan:
+        affected.append("component-plan")
+        stale.append("component-plan")
+        regenerate.append("component-plan")
+        reasons.append(
+            {
+                "artifactType": "component-plan",
+                "reason": "Component plan depends on architecture and requirements.",
+            }
+        )
+
+    affected.append("electrical-architecture")
+    stale.append("electrical-architecture")
+    regenerate.append("electrical-architecture")
+    reasons.append(
+        {
+            "artifactType": "electrical-architecture",
+            "reason": (
+                "Electrical Architecture depends on Functional Architecture and Component Plan."
+            ),
+        }
+    )
+    affected.append("physical-architecture")
+    stale.append("physical-architecture")
+    regenerate.append("physical-architecture")
+    reasons.append(
+        {
+            "artifactType": "physical-architecture",
+            "reason": "Physical Architecture depends on Electrical Architecture.",
+        }
+    )
+
+
 def analyze_impact(
     *,
     operation: str,
@@ -59,6 +104,13 @@ def analyze_impact(
                 "artifactType": "component-plan",
                 "reason": f"Component plan revised due to {operation}.",
             }
+        )
+        _append_layered_cascade(
+            affected=affected,
+            stale=stale,
+            regenerate=regenerate,
+            reasons=reasons,
+            include_component_plan=False,
         )
         affected.append("next-action")
         regenerate.append("next-action")
@@ -127,14 +179,12 @@ def analyze_impact(
                 "reason": "Architecture impacted by requirement/category change.",
             }
         )
-        affected.append("component-plan")
-        stale.append("component-plan")
-        regenerate.append("component-plan")
-        reasons.append(
-            {
-                "artifactType": "component-plan",
-                "reason": "Component plan depends on architecture and requirements.",
-            }
+        _append_layered_cascade(
+            affected=affected,
+            stale=stale,
+            regenerate=regenerate,
+            reasons=reasons,
+            include_component_plan=True,
         )
 
     # Next action nearly always refreshes after a modification.

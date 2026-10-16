@@ -9,7 +9,9 @@ export type ArtifactType =
   | 'next-action'
   | 'component-plan'
   | 'code-scratch'
-  | 'firmware';
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture';
 export type ConsequenceLevel1 = 'low' | 'medium' | 'high' | 'safety-critical';
 
 export interface ArtifactProposal {

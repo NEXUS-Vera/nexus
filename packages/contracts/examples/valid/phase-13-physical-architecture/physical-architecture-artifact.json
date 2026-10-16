@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "1.0.0",
+  "artifactId": "art_03GREENHOUSEPHYS0000000000000001",
+  "projectId": "proj_03GREENHOUSEPROJ0000000000000001",
+  "artifactType": "physical-architecture",
+  "artifactVersion": 1,
+  "contentSchemaVersion": "1.0.0",
+  "lifecycleStatus": "drafted",
+  "evidenceStatus": "unverified",
+  "approvalStatus": "proposed",
+  "createdBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_03VERAACTOR0000000000000001",
+    "actorType": "vera",
+    "displayName": "Vera"
+  },
+  "createdAt": "2026-08-07T12:05:00Z",
+  "updatedAt": "2026-08-07T12:05:00Z",
+  "sourceTurnId": "turn_03USERMSG0000000000000001",
+  "workflowRunId": "run_03GREENHOUSERUN0000000000000001",
+  "content": {
+    "architectureId": "parch_03GREENHOUSEPHYS000000000001",
+    "maturity": "provisional",
+    "summary": "Provisional physical placement for a greenhouse sensing node with a main PCB assembly and an externally exposed environmental sensor.",
+    "nodes": [
+      {
+        "nodeId": "pnode_03GREENHOUSEMAINPCB0000000001",
+        "name": "Main sensing PCB",
+        "nodeType": "board",
+        "electricalNodeIds": [
+          "enode_03GREENHOUSEMCU00000000000001"
+        ],
+        "placementStatus": "provisional",
+        "zoneId": "pzone_03GREENHOUSEENCL000000000001",
+        "qualitativePlacement": "Inside weather-resistant enclosure near greenhouse canopy.",
+        "constraints": [
+          "Keep clear of irrigation splash zone"
+        ]
+      },
+      {
+        "nodeId": "pnode_03GREENHOUSETEMPMOD000000001",
+        "name": "Environmental sensor module",
+        "nodeType": "sensor",
+        "electricalNodeIds": [
+          "enode_03GREENHOUSETEMP0000000000001"
+        ],
+        "placementStatus": "provisional",
+        "zoneId": "pzone_03GREENHOUSEEXTSE0000000001",
+        "qualitativePlacement": "Mounted to sense ambient greenhouse air, ventilated from enclosure interior.",
+        "notes": "Exact standoff and cable routing unresolved."
+      }
+    ],
+    "zones": [
+      {
+        "zoneId": "pzone_03GREENHOUSEENCL000000000001",
+        "name": "Enclosure interior",
+        "zoneKind": "enclosure",
+        "memberNodeIds": [
+          "pnode_03GREENHOUSEMAINPCB0000000001"
+        ]
+      },
+      {
+        "zoneId": "pzone_03GREENHOUSEEXTSE0000000001",
+        "name": "External sensing zone",
+        "zoneKind": "external-sensing",
+        "memberNodeIds": [
+          "pnode_03GREENHOUSETEMPMOD000000001"
+        ]
+      }
+    ],
+    "relationships": [
+      {
+        "relationshipId": "prel_03GREENHOUSETEMPATT000000001",
+        "fromNodeId": "pnode_03GREENHOUSETEMPMOD000000001",
+        "toNodeId": "pnode_03GREENHOUSEMAINPCB0000000001",
+        "relationshipType": "attached-to",
+        "status": "provisional"
+      }
+    ],
+    "assumptions": [
+      {
+        "assumptionId": "assume_03GREENHOUSEENCLSIZE00000001",
+        "statement": "A compact IP-rated enclosure can house the main PCB while allowing a ventilated sensor path.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      }
+    ],
+    "unresolvedDecisions": [],
+    "warnings": [
+      {
+        "code": "provisional-placement",
+        "message": "Sensor module placement remains provisional pending enclosure selection.",
+        "severity": "info",
+        "relatedNodeIds": [
+          "pnode_03GREENHOUSETEMPMOD000000001"
+        ]
+      }
+    ],
+    "coverageSummary": {
+      "totalElectricalNodes": 2,
+      "coveredElectricalNodes": 2,
+      "uncoveredElectricalNodeIds": [],
+      "unresolvedPlacementCount": 0,
+      "provisionalRelationshipCount": 1
+    },
+    "evidenceStatus": "unverified"
+  }
+}

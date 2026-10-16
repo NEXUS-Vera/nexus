@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "1.0.0",
+  "turnId": "turn_05USERMSG0000000000000001",
+  "projectId": "proj_05ROBOTPROJ0000000000000001",
+  "rawUserMessage": "I want a golden Nexus circuit simulation project with an ESP32-class MCU and an IMU motion sensor for Wokwi surrogate simulation.",
+  "actor": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_05USERACTOR0000000000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "timestamp": "2026-07-28T13:24:30Z"
+}

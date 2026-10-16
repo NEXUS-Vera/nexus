@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "1.0.0",
+  "commandId": "cmd_02PHASE13BCMD0000000000001",
+  "commandType": "artifact.execute",
+  "projectId": "proj_02PHASE13BPROJ00000000001",
+  "artifactId": "art_02PHASE13BELEC00000000001",
+  "workspaceId": "ws_02PHASE13BWORK00000000001",
+  "baseArtifactVersion": 2,
+  "baseProjectStateVersion": 7,
+  "requestedBy": {
+    "schemaVersion": "1.0.0",
+    "actorId": "actor_02PHASE13BUSER00000000001",
+    "actorType": "user",
+    "displayName": "User"
+  },
+  "requestedAt": "2026-08-08T07:30:00Z",
+  "input": {
+    "snapshotId": "snap_02PHASE13BSNAP00000000001",
+    "capability": "circuit-simulation",
+    "maxDurationMs": 120000,
+    "maxOutputBytes": 10485760,
+    "executionMode": "simulate",
+    "expectedText": "Simulation completed",
+    "requestedOutputs": [
+      "serial-log",
+      "logic-trace",
+      "simulation-screenshot",
+      "provider-workspace"
+    ]
+  }
+}
