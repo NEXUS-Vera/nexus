@@ -1331,6 +1331,20 @@ async def admin_retention_gc(
         )
 
 
+def _missing_field_error(exc: KeyError, request_id: str) -> JSONResponse:
+    """422 for a required request-body field that is absent.
+
+    Only catch KeyError around reading the request body. A KeyError raised by the
+    kernel/runtime is a server bug and must reach the normal 500 path.
+    """
+    return _error(
+        422,
+        code="COMMAND_VALIDATION_FAILED",
+        message=f"Missing required field: {exc.args[0]}",
+        request_id=request_id,
+    )
+
+
 def _workspace_runtime_actor(body: dict[str, Any] | None) -> dict[str, Any]:
     raw = (body or {}).get("requestedBy")
     if isinstance(raw, dict) and raw.get("actorId"):
@@ -1477,6 +1491,12 @@ async def write_artifact_workspace_file(
             request_id=request_id,
         )
     try:
+        expected_draft_version = int(body["expectedDraftVersion"])
+        base_artifact_version = int(body["baseArtifactVersion"])
+        base_project_state_version = int(body["baseProjectStateVersion"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         actor = _workspace_runtime_actor(body)
         return _kernel.workspace_runtime.write_file(
             project_id=project_id,
@@ -1484,20 +1504,13 @@ async def write_artifact_workspace_file(
             path=str(body.get("path") or ""),
             content=content,
             actor=actor,
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
             origin=body.get("origin"),
             write_policy=body.get("writePolicy"),
             generated_from=body.get("generatedFrom"),
             media_type=body.get("mediaType"),
-        )
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
         )
     except BoardError as exc:
         status = 404 if exc.code.endswith("NOT_FOUND") else 422
@@ -1680,12 +1693,17 @@ async def start_artifact_workspace_execution(
             request_id=request_id,
         )
     try:
+        snapshot_id = str(body["snapshotId"])
+        command_spec = body["commandSpec"]
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         return _kernel.workspace_runtime.start_execution(
             project_id=project_id,
             artifact_type=artifact_type,
-            snapshot_id=str(body["snapshotId"]),
+            snapshot_id=snapshot_id,
             actor=_workspace_runtime_actor(body),
-            command_spec=body["commandSpec"],
+            command_spec=command_spec,
             base_artifact_version=(
                 int(body["baseArtifactVersion"])
                 if body.get("baseArtifactVersion") is not None
@@ -1700,13 +1718,6 @@ async def start_artifact_workspace_execution(
                 int(body["maxDurationMs"]) if body.get("maxDurationMs") is not None else None
             ),
             execution_kind=str(body.get("executionKind") or "sandbox-execution"),
-        )
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
         )
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
@@ -1852,27 +1863,27 @@ async def write_workspace_file(
                 message="Workspace not found.",
                 request_id=request_id,
             )
+        try:
+            requested_by = body["requestedBy"]
+            expected_draft_version = int(body["expectedDraftVersion"])
+            base_artifact_version = int(body["baseArtifactVersion"])
+            base_project_state_version = int(body["baseProjectStateVersion"])
+        except KeyError as exc:
+            return _missing_field_error(exc, request_id)
         result = _kernel.filesystem.write_file(
             workspace_id=workspace_id,
             path=str(body.get("path") or ""),
             content=content,
-            actor=body["requestedBy"],
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
+            actor=requested_by,
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
             origin=body.get("origin"),
             write_policy=body.get("writePolicy"),
             generated_from=body.get("generatedFrom"),
             media_type=body.get("mediaType"),
         )
         return result
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
-        )
     except WorkspaceNotFoundError:
         return _error(
             404, code="WORKSPACE_NOT_FOUND", message="Workspace not found.", request_id=request_id
@@ -1920,21 +1931,21 @@ async def rename_workspace_file(
                 message="Workspace not found.",
                 request_id=request_id,
             )
+        try:
+            requested_by = body["requestedBy"]
+            expected_draft_version = int(body["expectedDraftVersion"])
+            base_artifact_version = int(body["baseArtifactVersion"])
+            base_project_state_version = int(body["baseProjectStateVersion"])
+        except KeyError as exc:
+            return _missing_field_error(exc, request_id)
         return _kernel.filesystem.rename_file(
             workspace_id=workspace_id,
             from_path=str(body.get("fromPath") or ""),
             to_path=str(body.get("toPath") or ""),
-            actor=body["requestedBy"],
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
-        )
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
+            actor=requested_by,
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
         )
     except WorkspaceNotFoundError:
         return _error(
@@ -1975,20 +1986,20 @@ async def delete_workspace_file(
                 message="Workspace not found.",
                 request_id=request_id,
             )
+        try:
+            requested_by = body["requestedBy"]
+            expected_draft_version = int(body["expectedDraftVersion"])
+            base_artifact_version = int(body["baseArtifactVersion"])
+            base_project_state_version = int(body["baseProjectStateVersion"])
+        except KeyError as exc:
+            return _missing_field_error(exc, request_id)
         return _kernel.filesystem.delete_file(
             workspace_id=workspace_id,
             path=path,
-            actor=body["requestedBy"],
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
-        )
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
+            actor=requested_by,
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
         )
     except WorkspaceNotFoundError:
         return _error(
@@ -2214,6 +2225,12 @@ async def generate_artifact_workspace_scaffold(
             request_id=request_id,
         )
     try:
+        expected_draft_version = int(body["expectedDraftVersion"])
+        base_artifact_version = int(body["baseArtifactVersion"])
+        base_project_state_version = int(body["baseProjectStateVersion"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         actor = _workspace_runtime_actor(body)
         result = (
             _kernel.workspace_runtime.generate_analysis_scaffold
@@ -2223,9 +2240,9 @@ async def generate_artifact_workspace_scaffold(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=actor,
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
             profile_id=body.get("profileId"),
             causation_id=body.get("commandId") or body.get("causationId"),
         )
@@ -2241,13 +2258,6 @@ async def generate_artifact_workspace_scaffold(
             "draft": result.get("draft"),
             "workspace": result.get("workspace"),
         }
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
-        )
     except BoardError as exc:
         if exc.code == "WORKSPACE_SCAFFOLD_CONFLICT":
             status = 409
@@ -2312,13 +2322,6 @@ async def propose_artifact_workspace_patch(
             "baseSnapshotId": result.get("proposal", {}).get("baseSnapshotId"),
             "binding": result.get("binding"),
         }
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
-        )
     except BoardError as exc:
         if exc.code in {"FIRMWARE_PATCH_STALE"}:
             status = 409
@@ -2357,6 +2360,13 @@ async def apply_artifact_workspace_patch(
             request_id=request_id,
         )
     try:
+        proposal_id = str(body["proposalId"])
+        expected_draft_version = int(body["expectedDraftVersion"])
+        base_artifact_version = int(body["baseArtifactVersion"])
+        base_project_state_version = int(body["baseProjectStateVersion"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         result = (
             _kernel.workspace_runtime.apply_analysis_patch
             if artifact_type == "analysis"
@@ -2364,11 +2374,11 @@ async def apply_artifact_workspace_patch(
         )(
             project_id=project_id,
             artifact_type=artifact_type,
-            proposal_id=str(body["proposalId"]),
+            proposal_id=proposal_id,
             actor=_workspace_runtime_actor(body),
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {
@@ -2381,13 +2391,6 @@ async def apply_artifact_workspace_patch(
             "draft": result.get("draft"),
             "workspace": result.get("workspace"),
         }
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
-        )
     except BoardError as exc:
         if exc.code in {"FIRMWARE_PATCH_STALE"}:
             status = 409
@@ -2427,6 +2430,10 @@ async def discard_artifact_workspace_patch(
             request_id=request_id,
         )
     try:
+        proposal_id = str(body["proposalId"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         result = (
             _kernel.workspace_runtime.discard_analysis_patch
             if artifact_type == "analysis"
@@ -2434,7 +2441,7 @@ async def discard_artifact_workspace_patch(
         )(
             project_id=project_id,
             artifact_type=artifact_type,
-            proposal_id=str(body["proposalId"]),
+            proposal_id=proposal_id,
             actor=_workspace_runtime_actor(body),
             causation_id=body.get("commandId") or body.get("causationId"),
         )
@@ -2444,13 +2451,6 @@ async def discard_artifact_workspace_patch(
             "proposal": result.get("proposal"),
             "binding": result.get("binding"),
         }
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
-        )
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
@@ -2779,24 +2779,24 @@ async def upload_analysis_input_file(
         )
 
     try:
+        input_path = str(body["path"])
+        expected_draft_version = int(body["expectedDraftVersion"])
+        base_artifact_version = int(body["baseArtifactVersion"])
+        base_project_state_version = int(body["baseProjectStateVersion"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         return _kernel.workspace_runtime.write_analysis_input_file(
             project_id=project_id,
             artifact_type=artifact_type,
-            path=str(body["path"]),
+            path=input_path,
             content=content,
             actor=_workspace_runtime_actor(body),
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
             media_type=body.get("mediaType"),
             causation_id=body.get("commandId") or body.get("causationId"),
-        )
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
         )
     except BoardError as exc:
         status = 404 if exc.code.endswith("NOT_FOUND") else 422
@@ -2835,23 +2835,24 @@ async def import_produced_output_into_analysis_input(
         )
 
     try:
+        output_id = str(body["outputId"])
+        input_path = str(body["path"])
+        expected_draft_version = int(body["expectedDraftVersion"])
+        base_artifact_version = int(body["baseArtifactVersion"])
+        base_project_state_version = int(body["baseProjectStateVersion"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         return _kernel.workspace_runtime.import_produced_output_into_analysis_input(
             project_id=project_id,
             artifact_type=artifact_type,
-            output_id=str(body["outputId"]),
-            path=str(body["path"]),
+            output_id=output_id,
+            path=input_path,
             actor=_workspace_runtime_actor(body),
-            expected_draft_version=int(body["expectedDraftVersion"]),
-            base_artifact_version=int(body["baseArtifactVersion"]),
-            base_project_state_version=int(body["baseProjectStateVersion"]),
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
             causation_id=body.get("commandId") or body.get("causationId"),
-        )
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
         )
     except BoardError as exc:
         status = 404 if exc.code.endswith("NOT_FOUND") else 422
@@ -2934,10 +2935,14 @@ async def rerun_artifact_analysis(
             request_id=request_id,
         )
     try:
+        snapshot_id = str(body["snapshotId"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         result = _kernel.workspace_runtime.rerun_analysis(
             project_id=project_id,
             artifact_type=artifact_type,
-            snapshot_id=str(body["snapshotId"]),
+            snapshot_id=snapshot_id,
             actor=_workspace_runtime_actor(body),
             base_artifact_version=body.get("baseArtifactVersion"),
             base_project_state_version=body.get("baseProjectStateVersion"),
@@ -2956,13 +2961,6 @@ async def rerun_artifact_analysis(
             "accepted": result.get("accepted"),
             "startedAt": result.get("startedAt"),
         }
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
-        )
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
@@ -3006,17 +3004,15 @@ async def compare_artifact_analysis_outputs(
             request_id=request_id,
         )
     try:
+        baseline_execution_run_id = str(body["baselineExecutionRunId"])
+        rerun_execution_run_id = str(body["rerunExecutionRunId"])
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    try:
         return _kernel.workspace_runtime.compare_analysis_run_outputs(
             project_id=project_id,
-            baseline_execution_run_id=str(body["baselineExecutionRunId"]),
-            rerun_execution_run_id=str(body["rerunExecutionRunId"]),
-        )
-    except KeyError as exc:
-        return _error(
-            422,
-            code="COMMAND_VALIDATION_FAILED",
-            message=f"Missing required field: {exc.args[0]}",
-            request_id=request_id,
+            baseline_execution_run_id=baseline_execution_run_id,
+            rerun_execution_run_id=rerun_execution_run_id,
         )
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
