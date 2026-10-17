@@ -514,11 +514,11 @@ async def ensure_layered_architecture(
             ensure_layered_architecture_artifacts,
         )
 
-        project = _store.get_project(project_id)  # type: ignore[attr-defined]
-        artifacts = _store.get_artifacts(project_id)
         body = await _optional_json_body(request)
         if body is _INVALID_JSON_BODY:
             return _invalid_json_body_error(request_id)
+        project = _store.get_project(project_id)  # type: ignore[attr-defined]
+        artifacts = _store.get_artifacts(project_id)
         actor = body.get("requestedBy") or {
             "schemaVersion": "1.0.0",
             "actorId": new_id("actor"),

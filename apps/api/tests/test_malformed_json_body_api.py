@@ -98,7 +98,7 @@ def _spy(monkeypatch, project_id, target, attr):
     calls: list[dict] = []
 
     def reached(*args, **kwargs):
-        calls.append(kwargs)
+        calls.append({"args": args, **kwargs})
         if attr == "ensure_layered_architecture_artifacts":
             return {"skippedReason": "test sentinel"}
         raise BoardError("test sentinel", code="TEST_SENTINEL")
@@ -157,3 +157,13 @@ async def test_valid_json_body_is_still_used(client, project_id, monkeypatch):
     assert response.status_code == 422, response.text
     assert response.json()["error"]["code"] == "TEST_SENTINEL"
     assert calls[0]["reason"] == "before refactor"
+
+
+async def test_malformed_body_wins_over_missing_project(client):
+    response = await client.post(
+        "/v1/projects/proj_doesnotexist0000/ensure-layered-architecture",
+        content=b"{not json",
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["message"] == "Invalid JSON body."
