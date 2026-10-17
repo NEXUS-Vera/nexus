@@ -194,7 +194,6 @@ async def test_golden_lifecycle_over_http_only(monkeypatch: pytest.MonkeyPatch) 
         assert fw_run["status"] == "completed", fw_run
         fw_outputs = await client.get(
             f"/v1/projects/{project_id}/outputs",
-            params={"executionRunId": fw_run["executionRunId"]},
         )
         assert fw_outputs.status_code == 200, fw_outputs.text
         fw_names = {
@@ -286,6 +285,9 @@ async def test_golden_lifecycle_over_http_only(monkeypatch: pytest.MonkeyPatch) 
         assert promoted.status_code == 200, promoted.text
         assert promoted.json()["changed"] is True
         assert promoted.json()["accepted"] is True
+        # K6 stays open (monitoring) without physical evidence.
+        risks = promoted.json()["riskMitigationAnnotations"]
+        assert next(r for r in risks if r["displayId"] == "K6")["status"] == "monitoring"
         after = await client.get(f"/v1/projects/{project_id}/artifacts/test-plan")
         assert after.status_code == 200, after.text
         assert after.json()["artifactVersion"] > before.json()["artifactVersion"]
