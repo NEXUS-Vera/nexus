@@ -167,3 +167,47 @@ async def test_malformed_body_wins_over_missing_project(client):
     )
     assert response.status_code == 422, response.text
     assert response.json()["error"]["message"] == "Invalid JSON body."
+
+
+# Routes that read ``body.get(...)`` straight off the parsed body; valid JSON that is
+# not an object used to raise AttributeError there and surface as a 500.
+_OBJECT_BODY_ROUTES = _ROUTES[:2]
+
+
+@pytest.mark.parametrize(
+    "content", [b"[1, 2]", b'"x"', b"42", b"null"], ids=["list", "string", "number", "null"]
+)
+@pytest.mark.parametrize(("target", "attr", "method", "suffix"), _OBJECT_BODY_ROUTES)
+async def test_non_object_json_body_is_rejected(
+    client, project_id, monkeypatch, target, attr, method, suffix, content
+):
+    calls = _spy(monkeypatch, project_id, target, attr)
+    response = await client.request(
+        method,
+        f"/v1/projects/{project_id}{suffix}",
+        content=content,
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 422, response.text
+    assert response.json() == {
+        "error": {
+            "code": "COMMAND_VALIDATION_FAILED",
+            "message": "Body must be an object.",
+            "requestId": REQUEST_ID,
+        }
+    }
+    assert calls == []
+
+
+async def test_non_object_body_never_reads_the_store(client, project_id, monkeypatch):
+    def unexpected(*args, **kwargs):
+        raise AssertionError("store read before body validation")
+
+    monkeypatch.setattr(main._store, "get_project", unexpected)
+    response = await client.post(
+        f"/v1/projects/{project_id}/ensure-layered-architecture",
+        content=b"[1, 2]",
+        headers={"Content-Type": "application/json"},
+    )
+    assert response.status_code == 422, response.text
+    assert response.json()["error"]["message"] == "Body must be an object."
