@@ -393,7 +393,9 @@ def test_watchdog_keeps_the_parent_pid_read_before_the_handshake(
             return ("127.0.0.1", 50123)
 
     class _Thread:
-        def __init__(self, *, target, args, name, daemon) -> None:  # type: ignore[no-untyped-def]
+        def __init__(  # type: ignore[no-untyped-def]
+            self, *_args, target=None, args=(), name=None, daemon=None, **_kwargs
+        ) -> None:
             self._name = name
             if target is sidecar._watch_parent:
                 watched.append(args[1])

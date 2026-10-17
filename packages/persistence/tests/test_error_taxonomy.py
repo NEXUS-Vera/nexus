@@ -67,3 +67,10 @@ def test_package_root_exports_every_error_class() -> None:
     for name, cls in _error_classes().items():
         assert getattr(nexus_persistence, name) is cls, name
         assert name in nexus_persistence.__all__, name
+
+
+def test_marker_bases_have_their_own_default_codes() -> None:
+    assert errors.PersistenceNotFoundError("x").code == "PERSISTENCE_NOT_FOUND"
+    assert errors.PersistenceConflictError("x").code == "PERSISTENCE_CONFLICT"
+    assert errors.PersistenceError("x").code == "PROJECT_PERSISTENCE_FAILED"
+    assert errors.PersistenceNotFoundError("x", code="CUSTOM").code == "CUSTOM"

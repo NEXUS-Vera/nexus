@@ -16,9 +16,13 @@ class PersistenceError(Exception):
 class PersistenceNotFoundError(PersistenceError):
     """Marker base: the requested record does not exist (HTTP 404 at the API)."""
 
+    code = "PERSISTENCE_NOT_FOUND"
+
 
 class PersistenceConflictError(PersistenceError):
     """Marker base: the write conflicts with stored state (HTTP 409 at the API)."""
+
+    code = "PERSISTENCE_CONFLICT"
 
 
 class ProjectNotFoundError(PersistenceNotFoundError):
