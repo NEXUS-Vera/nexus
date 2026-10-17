@@ -296,6 +296,15 @@ def _invalid_json_body_error(request_id: str) -> JSONResponse:
     )
 
 
+def _non_object_body_error(request_id: str) -> JSONResponse:
+    return _error(
+        422,
+        code="COMMAND_VALIDATION_FAILED",
+        message="Body must be an object.",
+        request_id=request_id,
+    )
+
+
 @app.exception_handler(PersistenceError)
 async def persistence_exception_handler(request: Request, exc: PersistenceError) -> JSONResponse:
     request_id = _request_id(request)
@@ -517,6 +526,8 @@ async def ensure_layered_architecture(
         body = await _optional_json_body(request)
         if body is _INVALID_JSON_BODY:
             return _invalid_json_body_error(request_id)
+        if not isinstance(body, dict):
+            return _non_object_body_error(request_id)
         project = _store.get_project(project_id)  # type: ignore[attr-defined]
         artifacts = _store.get_artifacts(project_id)
         actor = body.get("requestedBy") or {
@@ -1019,6 +1030,8 @@ async def create_artifact_workspace(
         body = await _optional_json_body(request)
         if body is _INVALID_JSON_BODY:
             return _invalid_json_body_error(request_id)
+        if not isinstance(body, dict):
+            return _non_object_body_error(request_id)
         actor = body.get("requestedBy") or {
             "schemaVersion": "1.0.0",
             "actorId": new_id("actor"),
