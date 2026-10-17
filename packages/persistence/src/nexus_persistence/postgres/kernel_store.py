@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import select
@@ -20,6 +21,7 @@ from nexus_persistence.errors import (
     SnapshotNotFoundError,
     WorkspaceNotFoundError,
 )
+from nexus_persistence.file_store.local import default_sqlite_file_store_root
 from nexus_persistence.postgres.models import (
     ArtifactCommandRunRow,
     ArtifactProposalRow,
@@ -48,6 +50,12 @@ class PostgresKernelStore:
     ) -> None:
         self._session_factory = session_factory
         self.project_store = project_store or PostgresProjectStore(session_factory)
+
+    @property
+    def default_file_store_root(self) -> Path | None:
+        """Default blob directory for this store's actual database, if durable SQLite."""
+        with self._session_factory() as session:
+            return default_sqlite_file_store_root(session.get_bind().engine.url)
 
     def create_workspace(self, workspace: dict[str, Any], draft: dict[str, Any]) -> None:
         with self._session_factory() as session:

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 from collections.abc import Mapping
 from typing import Any
 
+from nexus_persistence.file_store.local import LocalFileStore
 from nexus_persistence.file_store.memory import InMemoryFileStore
 from nexus_persistence.file_store.protocol import FileStore
 
@@ -63,7 +65,12 @@ class ProjectKernel:
         self.artifact_types = artifact_types or default_artifact_type_registry()
         self.capabilities = capabilities or default_runtime_capability_registry()
         self.providers = providers or default_external_provider_registry()
-        self.file_store = file_store if file_store is not None else InMemoryFileStore()
+        if file_store is None:
+            root = os.environ.get("NEXUS_FILE_STORE_ROOT", "").strip() or getattr(
+                kernel_store, "default_file_store_root", None
+            )
+            file_store = LocalFileStore(root) if root else InMemoryFileStore()
+        self.file_store = file_store
         self.ledger = ProjectLedgerService(kernel_store)
         self.graph = ProjectGraphService(kernel_store)
         self.projection = ProjectBoardProjectionService(kernel_store, project_store)

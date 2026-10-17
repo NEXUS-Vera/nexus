@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from nexus_persistence.file_store.local import default_sqlite_file_store_root
+
 DEV_SESSION_TOKEN = "nexus-dev-session-token"
 
 #: Origins allowed while the session token is the published development
@@ -89,6 +91,17 @@ class Settings:
 
 def load_settings() -> Settings:
     session_token = _session_token()
+    backend = os.environ.get("NEXUS_STORAGE_BACKEND", "memory").strip().lower()
+    database_url = os.environ.get(
+        "NEXUS_DATABASE_URL",
+        "sqlite:///nexus.db"
+        if backend in {"sqlite", "sqlite3"}
+        else "postgresql+psycopg://nexus:nexus@localhost:5432/nexus",
+    )
+    file_root = os.environ.get("NEXUS_FILE_STORE_ROOT", "").strip()
+    if not file_root and backend in {"sqlite", "sqlite3"}:
+        root = default_sqlite_file_store_root(database_url)
+        file_root = str(root) if root else ""
     return Settings(
         cors_origins=_cors_origins(session_token),
         session_token=session_token,
@@ -97,18 +110,15 @@ def load_settings() -> Settings:
         initialization_provider=os.environ.get("NEXUS_INITIALIZATION_PROVIDER", "fixture")
         .strip()
         .lower(),
-        storage_backend=os.environ.get("NEXUS_STORAGE_BACKEND", "memory").strip().lower(),
-        database_url=os.environ.get(
-            "NEXUS_DATABASE_URL",
-            "postgresql+psycopg://nexus:nexus@localhost:5432/nexus",
-        ),
+        storage_backend=backend,
+        database_url=database_url,
         model_provider=os.environ.get("NEXUS_MODEL_PROVIDER", "openai"),
         model_name=os.environ.get("NEXUS_MODEL_NAME", "gpt-4.1-mini"),
         model_credential=os.environ.get("NEXUS_MODEL_API_KEY", ""),
         model_base_url=os.environ.get("NEXUS_MODEL_BASE_URL", "https://api.openai.com/v1"),
         model_timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
         model_max_repair_attempts=int(os.environ.get("NEXUS_MODEL_MAX_REPAIR_ATTEMPTS", "1")),
-        file_store_root=os.environ.get("NEXUS_FILE_STORE_ROOT", "").strip(),
+        file_store_root=file_root,
         workspace_max_file_bytes=int(os.environ.get("NEXUS_WORKSPACE_MAX_FILE_BYTES", "1048576")),
         workspace_max_bytes=int(os.environ.get("NEXUS_WORKSPACE_MAX_BYTES", "16777216")),
         workspace_max_file_count=int(os.environ.get("NEXUS_WORKSPACE_MAX_FILE_COUNT", "256")),

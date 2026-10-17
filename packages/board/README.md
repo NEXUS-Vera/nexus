@@ -58,7 +58,10 @@ artifact exists: `maturity`, `roleCount`, `candidateCount`, `selectedCount`,
 ## Filesystem workspaces and execution jobs
 
 The hidden `code-scratch` artifact provides generic editable files backed by a
-content-addressed file store. Acquire an edit lease before changing files or
+content-addressed file store. With file-backed SQLite, the default is a durable
+`files/` directory beside the database. `NEXUS_FILE_STORE_ROOT` overrides it;
+in-memory/no-file databases retain in-memory storage. Acquire an edit lease before
+changing files or
 creating/restoring an immutable snapshot. `kernel.workspace_runtime` exposes
 artifact-scoped files, snapshots, execution, logs, cancellation and outputs.
 

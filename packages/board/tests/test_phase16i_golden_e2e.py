@@ -38,7 +38,6 @@ from nexus_embedded_systems.workflows.project_initialization.materializer import
 )
 from nexus_persistence import InMemoryKernelStore, InMemoryProjectStore, LocalFileStore
 from nexus_persistence.factory import build_stores
-from nexus_persistence.file_store.errors import FileStoreNotFoundError
 
 GOLDEN_DIR = Path(__file__).resolve().parent / "golden" / "esp32_imu_vibration_monitor"
 FIXTURE_FAMILY = "esp32-imu-vibration-monitor"
@@ -652,20 +651,12 @@ def test_golden_g1_sqlite_restart_preserves_verification(
     )
 
 
-@pytest.mark.xfail(
-    strict=True,
-    raises=FileStoreNotFoundError,
-    reason=(
-        "Known gap: build_project_kernel (and the API when NEXUS_FILE_STORE_ROOT is "
-        "unset) defaults to InMemoryFileStore, so analysis input snapshot blobs are "
-        "lost on restart even though SQLite keeps the verification metadata"
-    ),
-)
-def test_golden_g1_sqlite_restart_default_file_store_loses_snapshots(
+def test_golden_g1_sqlite_restart_default_file_store_preserves_snapshots(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Documents the in-memory file store default; flips to XPASS once it is durable."""
+    """Default SQLite storage preserves immutable snapshot bytes after restart."""
+    monkeypatch.delenv("NEXUS_FILE_STORE_ROOT", raising=False)
     _assert_golden_restart_preserves_verification(
         monkeypatch, tmp_path, False, "VERIFIED", durable_files=False
     )
