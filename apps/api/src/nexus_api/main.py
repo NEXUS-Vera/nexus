@@ -2534,6 +2534,8 @@ async def promote_execution_evidence(
             actor=_workspace_runtime_actor(body),
             accept=bool(body.get("accept", True)),
         )
+    except ExecutionNotFoundError as exc:
+        return _error(404, code=exc.code, message=exc.message, request_id=request_id)
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)

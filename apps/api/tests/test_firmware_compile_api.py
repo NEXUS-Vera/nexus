@@ -8,6 +8,7 @@ import time
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api import main as api_main
 from nexus_api.main import app
 
 GREENHOUSE = (
@@ -27,6 +28,56 @@ def _actor() -> dict:
         "actorType": "user",
         "displayName": "User",
     }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing_job", [False, True], ids=["unknown-run", "missing-job"])
+async def test_promote_execution_not_found(
+    monkeypatch: pytest.MonkeyPatch, missing_job: bool
+) -> None:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"Authorization": "Bearer nexus-dev-session-token"},
+    ) as client:
+        created = await client.post(
+            "/v1/projects/initialize",
+            json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
+        )
+        assert created.status_code == 200
+        project_id = created.json()["project"]["projectId"]
+        run_id = f"run_{secrets.token_hex(16)}"
+        missing_id = run_id
+        if missing_job:
+            missing_id = f"job_{secrets.token_hex(16)}"
+            monkeypatch.setattr(
+                api_main._kernel.verification._kernel,
+                "get_execution_run",
+                lambda execution_run_id: {
+                    "executionRunId": execution_run_id,
+                    "projectId": project_id,
+                    "status": "completed",
+                    "executionJobId": missing_id,
+                },
+            )
+        response = await client.post(
+            f"/v1/projects/{project_id}/verify/promote-execution",
+            json={"executionRunId": run_id, "requestedBy": _actor()},
+            headers={"x-request-id": "promote-execution-not-found"},
+        )
+        assert response.status_code == 404, response.text
+        assert response.json() == {
+            "error": {
+                "code": "EXECUTION_NOT_FOUND",
+                "message": (
+                    f"Execution job not found: {missing_id}"
+                    if missing_job
+                    else f"Execution not found: {missing_id}"
+                ),
+                "requestId": "promote-execution-not-found",
+            }
+        }
 
 
 @pytest.mark.asyncio
