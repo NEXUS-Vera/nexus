@@ -45,3 +45,31 @@ def test_deterministic_assessment_is_authoritative() -> None:
 def test_unknown_stage_rejected() -> None:
     with pytest.raises(ValueError):
         new_investigation(title="x", lifecycle_stage="CUSTOM")
+
+
+def test_validate_investigation_dict_raises_value_error_for_bad_types() -> None:
+    import pytest
+
+    base = new_investigation(title="Noise check", purpose="verification").as_dict()
+    validate_investigation_dict(base)
+    bad_values = [
+        ("investigationId", "   "),
+        ("purpose", ["verification"]),
+        ("lifecycleStage", ["INPUTS"]),
+        ("question", 3),
+        ("linkedRequirementIds", "R7"),
+        ("linkedComponentIds", [1]),
+        ("linkedTestPlanIds", None),
+        ("linkedEvidenceIds", {"a": "b"}),
+        ("verificationCriterion", "metric < 0.1"),
+        ("stageVocabulary", ["INPUTS", "DONE"]),
+    ]
+    for field, value in bad_values:
+        with pytest.raises(ValueError):
+            validate_investigation_dict({**base, field: value})
+    with pytest.raises(ValueError):
+        validate_investigation_dict(["not", "a", "dict"])  # type: ignore[arg-type]
+    # Optional fields may be absent or null.
+    minimal = {k: base[k] for k in ("schemaVersion", "investigationId", "title", "purpose")}
+    validate_investigation_dict(minimal)
+    validate_investigation_dict({**minimal, "question": None, "verificationCriterion": None})

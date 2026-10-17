@@ -85,19 +85,52 @@ def new_investigation(
     )
 
 
+_INVESTIGATION_ID_LIST_FIELDS = (
+    "linkedRequirementIds",
+    "linkedComponentIds",
+    "linkedTestPlanIds",
+    "linkedEvidenceIds",
+)
+
+
 def validate_investigation_dict(raw: dict[str, Any]) -> None:
+    """Check investigation metadata against analysis-investigation.v1.
+
+    Every failure is a ValueError, whatever the input types, so API callers can
+    map it to a 422. Unknown extra keys are tolerated.
+    """
+    if not isinstance(raw, dict):
+        raise ValueError("investigation must be an object")
     if raw.get("schemaVersion") != "1.0.0":
         raise ValueError("investigation.schemaVersion must be 1.0.0")
-    if not isinstance(raw.get("investigationId"), str) or not raw["investigationId"]:
+    investigation_id = raw.get("investigationId")
+    if not isinstance(investigation_id, str) or not investigation_id.strip():
         raise ValueError("investigationId is required")
     if not isinstance(raw.get("title"), str) or not raw["title"].strip():
         raise ValueError("title is required")
-    if raw.get("purpose") not in {"exploration", "verification"}:
+    purpose = raw.get("purpose")
+    if not isinstance(purpose, str) or purpose not in {"exploration", "verification"}:
         raise ValueError("purpose must be exploration or verification")
     stage = raw.get("lifecycleStage", "INPUTS")
     if stage not in ANALYSIS_STAGE_IDS:
         raise ValueError(f"lifecycleStage must be one of {ANALYSIS_STAGE_IDS}")
+    question = raw.get("question")
+    if question is not None and not isinstance(question, str):
+        raise ValueError("question must be a string or null")
     # Empty linkedRequirementIds is explicitly valid for exploration.
+    for field in _INVESTIGATION_ID_LIST_FIELDS:
+        if field in raw and (
+            not isinstance(raw[field], list) or not all(isinstance(v, str) for v in raw[field])
+        ):
+            raise ValueError(f"{field} must be a list of strings")
+    criterion = raw.get("verificationCriterion")
+    if criterion is not None and not isinstance(criterion, dict):
+        raise ValueError("verificationCriterion must be an object or null")
+    if "stageVocabulary" in raw and (
+        not isinstance(raw["stageVocabulary"], list)
+        or not all(v in ANALYSIS_STAGE_IDS for v in raw["stageVocabulary"])
+    ):
+        raise ValueError(f"stageVocabulary must be a list of {ANALYSIS_STAGE_IDS}")
 
 
 def assess_metric(

@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from nexus_board import build_project_kernel
 from nexus_board.analysis.live_patch_generator import LiveAnalysisPatchGenerator
+from nexus_board.analysis.semantics import validate_investigation_dict
 from nexus_board.errors import BoardError
 from nexus_board.execution.limits import ExecutionLimits
 from nexus_board.execution.runtime_factory import build_execution_runtime
@@ -2967,6 +2968,83 @@ async def import_produced_output_into_analysis_input(
             base_artifact_version=base_artifact_version,
             base_project_state_version=base_project_state_version,
             causation_id=body.get("commandId") or body.get("causationId"),
+        )
+    except BoardError as exc:
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.put(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/investigation",
+    response_model=None,
+)
+async def upsert_analysis_investigation(
+    project_id: str,
+    artifact_type: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    """Write validated investigation metadata to analysis `nexus/investigation.json`.
+
+    Unlike the generic workspace file PUT, this validates the metadata and records
+    the file as GENERATED (analysis-investigation.v1).
+    """
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body.",
+            request_id=request_id,
+        )
+    if not isinstance(body, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Body must be an object.",
+            request_id=request_id,
+        )
+
+    try:
+        investigation = body["investigation"]
+        expected_draft_version = _require_int(body, "expectedDraftVersion")
+        base_artifact_version = _require_int(body, "baseArtifactVersion")
+        base_project_state_version = _require_int(body, "baseProjectStateVersion")
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
+    if not isinstance(investigation, dict):
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="investigation must be an object.",
+            request_id=request_id,
+        )
+    # Validate here so the ValueError catch cannot hide a ValueError from the kernel;
+    # the runtime validates again before writing.
+    try:
+        validate_investigation_dict(investigation)
+    except ValueError as exc:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message=str(exc),
+            request_id=request_id,
+        )
+    try:
+        return _kernel.workspace_runtime.upsert_analysis_investigation(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            investigation=investigation,
+            actor=_workspace_runtime_actor(body),
+            expected_draft_version=expected_draft_version,
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
         )
     except BoardError as exc:
         status = 404 if exc.code.endswith("NOT_FOUND") else 422
