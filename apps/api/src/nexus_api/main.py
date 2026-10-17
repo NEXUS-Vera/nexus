@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import secrets
@@ -267,6 +268,34 @@ def _request_id(request: Request) -> str:
     return request.headers.get("x-request-id") or str(uuid.uuid4())
 
 
+_INVALID_JSON_BODY = object()
+
+
+async def _optional_json_body(request: Request) -> Any:
+    """Parse a JSON body that the route treats as optional.
+
+    An empty or whitespace-only body means ``{}``. A non-empty body that is not
+    valid JSON returns ``_INVALID_JSON_BODY`` so the route can reject it with 422
+    instead of silently running with default options.
+    """
+    raw = await request.body()
+    if not raw.strip():
+        return {}
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return _INVALID_JSON_BODY
+
+
+def _invalid_json_body_error(request_id: str) -> JSONResponse:
+    return _error(
+        422,
+        code="COMMAND_VALIDATION_FAILED",
+        message="Invalid JSON body.",
+        request_id=request_id,
+    )
+
+
 @app.exception_handler(PersistenceError)
 async def persistence_exception_handler(request: Request, exc: PersistenceError) -> JSONResponse:
     request_id = _request_id(request)
@@ -485,13 +514,11 @@ async def ensure_layered_architecture(
             ensure_layered_architecture_artifacts,
         )
 
+        body = await _optional_json_body(request)
+        if body is _INVALID_JSON_BODY:
+            return _invalid_json_body_error(request_id)
         project = _store.get_project(project_id)  # type: ignore[attr-defined]
         artifacts = _store.get_artifacts(project_id)
-        body: dict[str, Any] = {}
-        try:
-            body = await request.json()
-        except Exception:  # noqa: BLE001
-            body = {}
         actor = body.get("requestedBy") or {
             "schemaVersion": "1.0.0",
             "actorId": new_id("actor"),
@@ -989,11 +1016,9 @@ async def create_artifact_workspace(
             request_id=request_id,
         )
     try:
-        body = {}
-        try:
-            body = await request.json()
-        except Exception:  # noqa: BLE001
-            body = {}
+        body = await _optional_json_body(request)
+        if body is _INVALID_JSON_BODY:
+            return _invalid_json_body_error(request_id)
         actor = body.get("requestedBy") or {
             "schemaVersion": "1.0.0",
             "actorId": new_id("actor"),
@@ -1486,12 +1511,11 @@ async def delete_artifact_workspace_file(
         return invalid
     try:
         body: dict[str, Any] = {}
-        try:
-            raw = await request.json()
-            if isinstance(raw, dict):
-                body = raw
-        except Exception:  # noqa: BLE001
-            body = {}
+        raw = await _optional_json_body(request)
+        if raw is _INVALID_JSON_BODY:
+            return _invalid_json_body_error(request_id)
+        if isinstance(raw, dict):
+            body = raw
         actor_body = body
         if actorId and not isinstance(body.get("requestedBy"), dict):
             actor_body = {
@@ -1552,10 +1576,9 @@ async def create_artifact_workspace_snapshot(
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
         return invalid
-    try:
-        body = await request.json()
-    except Exception:  # noqa: BLE001
-        body = {}
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
     if not isinstance(body, dict):
         body = {}
     try:
@@ -1589,10 +1612,9 @@ async def restore_artifact_workspace_snapshot(
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
         return invalid
-    try:
-        body = await request.json()
-    except Exception:  # noqa: BLE001
-        body = {}
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
     if not isinstance(body, dict):
         body = {}
     try:
@@ -1921,10 +1943,9 @@ async def delete_workspace_file(
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
         return invalid
-    try:
-        body = await request.json()
-    except Exception:  # noqa: BLE001
-        body = {}
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
     if not isinstance(body, dict):
         return _error(
             422,
@@ -2057,10 +2078,9 @@ async def cancel_project_execution(
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
         return invalid
-    try:
-        body = await request.json()
-    except Exception:  # noqa: BLE001
-        body = {}
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
     try:
         _store.get_project(project_id)  # type: ignore[attr-defined]
         run = _kernel.executions.get_run(execution_run_id)
@@ -2464,10 +2484,9 @@ async def compile_artifact_firmware(
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
         return invalid
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
     if not isinstance(body, dict):
         body = {}
     try:
@@ -2509,10 +2528,9 @@ async def test_artifact_firmware(
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
         return invalid
-    try:
-        body = await request.json()
-    except Exception:
-        body = {}
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
     if not isinstance(body, dict):
         body = {}
     try:
@@ -2834,10 +2852,9 @@ async def run_artifact_analysis(
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
         return invalid
-    try:
-        body = await request.json()
-    except Exception:  # noqa: BLE001
-        body = {}
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
     if not isinstance(body, dict):
         body = {}
     try:
