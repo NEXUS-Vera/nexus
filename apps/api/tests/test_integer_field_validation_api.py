@@ -164,6 +164,16 @@ _ROUTES = [
         "baseArtifactVersion",
         "base_artifact_version",
     ),
+    (
+        "execution-start-state-version",
+        _runtime,
+        "start_execution",
+        "POST",
+        "/artifacts/firmware/workspace/executions",
+        {"snapshotId": "snap_x", "commandSpec": {"argv": ["true"]}, "baseProjectStateVersion": 1},
+        "baseProjectStateVersion",
+        "base_project_state_version",
+    ),
 ]
 _IDS = [route[0] for route in _ROUTES]
 _PARAMS = ("name", "target", "attr", "method", "suffix", "body", "field", "kwarg")
