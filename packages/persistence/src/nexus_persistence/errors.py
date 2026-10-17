@@ -13,15 +13,23 @@ class PersistenceError(Exception):
         self.message = message
 
 
-class ProjectNotFoundError(PersistenceError):
+class PersistenceNotFoundError(PersistenceError):
+    """Marker base: the requested record does not exist (HTTP 404 at the API)."""
+
+
+class PersistenceConflictError(PersistenceError):
+    """Marker base: the write conflicts with stored state (HTTP 409 at the API)."""
+
+
+class ProjectNotFoundError(PersistenceNotFoundError):
     code = "PROJECT_NOT_FOUND"
 
 
-class ArtifactNotFoundError(PersistenceError):
+class ArtifactNotFoundError(PersistenceNotFoundError):
     code = "ARTIFACT_NOT_FOUND"
 
 
-class ArtifactVersionNotFoundError(PersistenceError):
+class ArtifactVersionNotFoundError(PersistenceNotFoundError):
     code = "ARTIFACT_VERSION_NOT_FOUND"
 
 
@@ -33,37 +41,37 @@ class ProjectRetrievalError(PersistenceError):
     code = "PROJECT_RETRIEVAL_FAILED"
 
 
-class WorkspaceNotFoundError(PersistenceError):
+class WorkspaceNotFoundError(PersistenceNotFoundError):
     code = "WORKSPACE_NOT_FOUND"
 
 
-class SnapshotNotFoundError(PersistenceError):
+class SnapshotNotFoundError(PersistenceNotFoundError):
     code = "SNAPSHOT_NOT_FOUND"
 
 
-class ProposalNotFoundError(PersistenceError):
+class ProposalNotFoundError(PersistenceNotFoundError):
     code = "PROPOSAL_NOT_FOUND"
 
 
-class ExecutionNotFoundError(PersistenceError):
+class ExecutionNotFoundError(PersistenceNotFoundError):
     code = "EXECUTION_NOT_FOUND"
 
 
-class SnapshotImmutableError(PersistenceError):
+class SnapshotImmutableError(PersistenceConflictError):
     code = "SNAPSHOT_IMMUTABLE"
 
 
-class LedgerImmutableError(PersistenceError):
+class LedgerImmutableError(PersistenceConflictError):
     code = "LEDGER_IMMUTABLE"
 
 
-class ArtifactVersionConflictError(PersistenceError):
+class ArtifactVersionConflictError(PersistenceConflictError):
     code = "ARTIFACT_VERSION_CONFLICT"
 
 
-class ProjectStateConflictError(PersistenceError):
+class ProjectStateConflictError(PersistenceConflictError):
     code = "PROJECT_STATE_CONFLICT"
 
 
-class FirmwarePatchNotFoundError(PersistenceError):
+class FirmwarePatchNotFoundError(PersistenceNotFoundError):
     code = "FIRMWARE_PATCH_NOT_FOUND"
