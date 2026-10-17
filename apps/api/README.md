@@ -15,7 +15,8 @@ API application only. Domain workflow logic lives in
 Every route requires the session token (see below). Path parameters are
 written in camelCase here (`{projectId}`); query parameters follow `?`. Request
 bodies are JSON. `apps/api/tests/test_api_readme_routes.py` fails when a route
-is added, removed or renamed without updating this list. For the order an
+or one of its declared query parameters is added, removed or renamed without
+updating this list. For the order an
 agent calls them in to take a project from prompt to verified evidence, see
 [Driving the golden flow over HTTP](../../docs/operations/agent-http-golden-flow.md).
 
@@ -70,13 +71,13 @@ Workspace-id addressed file routes (the workspace id comes from the runtime bind
 - `POST /v1/projects/{projectId}/workspaces/{workspaceId}/files/rename` - rename a draft file
 - `DELETE /v1/projects/{projectId}/workspaces/{workspaceId}/file?path=` - delete a draft file (versions and `requestedBy` in the JSON body)
 
-### Firmware workflow
+### Scaffold, patch, compile and test
 
-- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/scaffold` - generate the deterministic scaffold (Firmware; also Analysis)
-- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/propose` - propose a firmware patch against an immutable base snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/scaffold` - generate the deterministic Firmware or Analysis scaffold
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/propose` - propose a Firmware or Analysis patch against an immutable base snapshot
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/apply` - apply a proposed patch
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/discard` - discard a proposed patch without changing the workspace
-- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/compile` - compile against an immutable pre-compile snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/compile` - compile firmware against an immutable pre-compile snapshot
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/test` - run firmware tests against an immutable pre-test snapshot
 
 ### Analysis workflow
