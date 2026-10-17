@@ -12,21 +12,99 @@ API application only. Domain workflow logic lives in
 
 ## Endpoints
 
-- `GET /healthz`
-- `POST /v1/projects/initialize`
-- `GET /v1/projects/{projectId}`
-- `GET /v1/projects/{projectId}/artifacts`
-- `GET /v1/projects/{projectId}/artifacts/{artifactType}?version=`
-- `GET /v1/projects/{projectId}/history`
-- `POST /v1/projects/{projectId}/turns`
-- `GET /v1/artifact-types`
-- `GET /v1/projects/{projectId}/board`
-- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace`
-- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace`
-- `POST /v1/projects/{projectId}/artifact-commands`
-- `GET /v1/projects/{projectId}/executions?limit=&cursor=`
-- `GET /v1/projects/{projectId}/events?limit=&cursor=`
-- `GET /v1/projects/{projectId}/graph?root=&direction=&maxDepth=`
+Every route requires the session token (see below). Path parameters are
+written in camelCase here (`{projectId}`); query parameters follow `?`. Request
+bodies are JSON. `apps/api/tests/test_api_readme_routes.py` fails when a route
+or one of its declared query parameters is added, removed or renamed without
+updating this list. For the order an
+agent calls them in to take a project from prompt to verified evidence, see
+[Driving the golden flow over HTTP](../../docs/operations/agent-http-golden-flow.md).
+
+### Service
+
+- `GET /healthz` - liveness check
+- `GET /v1/runtime/health` - internal/dev scheduler and execution runtime availability (not a product dashboard)
+- `POST /v1/admin/retention/gc?dry_run=` - dev/admin reference-aware garbage collection; dry-run by default and never deletes protected references
+
+### Projects, artifacts and history
+
+- `POST /v1/projects/initialize` - create a project from a prompt (`ProjectInitializationResult`)
+- `GET /v1/projects/{projectId}` - current project state
+- `POST /v1/projects/{projectId}/ensure-layered-architecture` - idempotently materialize Electrical/Physical artifacts for projects created before Phase 13
+- `GET /v1/artifact-types` - registered artifact types
+- `GET /v1/projects/{projectId}/artifacts` - current artifacts
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}?version=` - one artifact, optionally at a past version
+- `GET /v1/projects/{projectId}/history?limit=` - project history
+- `POST /v1/projects/{projectId}/turns` - multi-turn modification (`ProjectTurnResult`, includes impact analysis)
+- `GET /v1/projects/{projectId}/board` - board summary, including Component Plan maturity/coverage counts
+- `POST /v1/projects/{projectId}/artifact-commands` - typed artifact commands such as `workspace.acquire-edit-lease` (`ArtifactCommandResult`)
+- `GET /v1/projects/{projectId}/events?limit=&cursor=` - project event feed
+- `GET /v1/projects/{projectId}/graph?root=&direction=&maxDepth=` - artifact dependency graph
+
+### Electrical architecture circuit simulation
+
+- `GET /v1/projects/{projectId}/artifacts/electrical-architecture/circuit-simulation/support` - simulator provider availability and support assessment
+- `GET /v1/projects/{projectId}/artifacts/electrical-architecture/circuit-simulation/preview` - translated simulation preview
+- `POST /v1/projects/{projectId}/artifacts/electrical-architecture/circuit-simulation/validate` - validate the translation
+- `GET /v1/projects/{projectId}/artifacts/electrical-architecture/circuit-simulation/export` - export the Wokwi workspace files and manifest
+
+### Artifact workspaces
+
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace` - the artifact's workspace
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace` - create the workspace if it is missing
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/runtime` - artifact-to-filesystem-workspace binding, current draft and capabilities
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/files` - list draft files
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/file?path=` - read a draft file
+- `PUT /v1/projects/{projectId}/artifacts/{artifactType}/workspace/file` - write a draft file
+- `DELETE /v1/projects/{projectId}/artifacts/{artifactType}/workspace/file?path=&expectedDraftVersion=&baseArtifactVersion=&baseProjectStateVersion=&actorId=` - delete a draft file
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/snapshots` - list immutable snapshots
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/snapshots` - take an immutable snapshot of the draft
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/snapshots/{snapshotId}/file?path=` - read a file from an immutable snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/snapshots/{snapshotId}/restore` - restore the draft from a snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/executions` - start a validated sandbox execution (not an unrestricted remote shell)
+
+Workspace-id addressed file routes (the workspace id comes from the runtime binding):
+
+- `GET /v1/projects/{projectId}/workspaces/{workspaceId}/files` - list draft files
+- `GET /v1/projects/{projectId}/workspaces/{workspaceId}/file?path=` - read a draft file
+- `PUT /v1/projects/{projectId}/workspaces/{workspaceId}/file` - write a draft file (body carries `requestedBy` and the expected versions)
+- `POST /v1/projects/{projectId}/workspaces/{workspaceId}/files/rename` - rename a draft file
+- `DELETE /v1/projects/{projectId}/workspaces/{workspaceId}/file?path=` - delete a draft file (versions and `requestedBy` in the JSON body)
+
+### Scaffold, patch, compile and test
+
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/scaffold` - generate the deterministic Firmware or Analysis scaffold
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/propose` - propose a Firmware or Analysis patch against an immutable base snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/apply` - apply a proposed patch
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/discard` - discard a proposed patch without changing the workspace
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/compile` - compile firmware against an immutable pre-compile snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/test` - run firmware tests against an immutable pre-test snapshot
+
+### Analysis workflow
+
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/inputs/upload` - upload an input file into the analysis `data/` directory
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/inputs/import-produced-output` - copy an existing produced output into `data/`
+- `PUT /v1/projects/{projectId}/artifacts/{artifactType}/workspace/investigation` - write validated investigation metadata to `nexus/investigation.json`
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/run` - run `analysis.py` against an immutable pre-run snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/rerun` - re-run analysis against a specific immutable snapshot
+- `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/compare-outputs` - compare produced-output content hashes between a baseline and a rerun
+- `GET /v1/projects/{projectId}/artifacts/analysis/workspace/outputs/{outputId}/preview` - bounded preview of a produced output
+
+### Executions and outputs
+
+- `GET /v1/projects/{projectId}/executions?limit=&cursor=` - list execution runs
+- `GET /v1/projects/{projectId}/executions/{executionRunId}` - one execution run, including its input snapshot and base versions
+- `GET /v1/projects/{projectId}/executions/{executionRunId}/logs?after=&limit=` - execution logs
+- `POST /v1/projects/{projectId}/executions/{executionRunId}/cancel` - cancel a run
+- `GET /v1/projects/{projectId}/outputs` - list produced outputs
+- `GET /v1/projects/{projectId}/outputs/{outputId}` - one produced output
+
+### Verification
+
+- `POST /v1/projects/{projectId}/verify/promote-execution` - promote an execution run's produced outputs into a Test Plan revision
+- `POST /v1/projects/{projectId}/verify/promote-analysis-summary` - promote a deterministic analysis summary into a Test Plan revision
+- `POST /v1/projects/{projectId}/verify/promote-structural` - promote Electrical/Wokwi pin maps into structural Test Plan evidence
+- `GET /v1/projects/{projectId}/verify/evidence-chain` - Requirement to TestCase to EvidenceReference chains and requirement verification states
 
 Successful initialize responses return `ProjectInitializationResult`.
 Successful turn responses return `ProjectTurnResult` (includes current state and
