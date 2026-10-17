@@ -368,3 +368,52 @@ def test_sidecar_exits_when_parent_dies() -> None:
             os.kill(sidecar_pid, 9)
         if parent.poll() is None:
             parent.kill()
+
+
+def test_watchdog_keeps_the_parent_pid_read_before_the_handshake(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The shell may die the instant it reads the handshake.
+
+    If the sidecar only read ``os.getppid()`` after announcing, a shell killed in
+    that window would already have been replaced by the reparent target, the
+    watchdog would wait on that pid forever, and the sidecar would be orphaned.
+    This drives ``main()`` with the death landing exactly at the handshake, so it
+    does not depend on scheduler timing the way the end-to-end test does.
+    """
+    from nexus_api import __main__ as sidecar
+
+    shell_pid, reparent_pid = 4242, 1
+    current_ppid = [shell_pid]
+    events: list[str] = []
+    watched: list[int] = []
+
+    class _Socket:
+        def getsockname(self) -> tuple[str, int]:
+            return ("127.0.0.1", 50123)
+
+    class _Thread:
+        def __init__(self, *, target, args, name, daemon) -> None:  # type: ignore[no-untyped-def]
+            self._name = name
+            if target is sidecar._watch_parent:
+                watched.append(args[1])
+
+        def start(self) -> None:
+            events.append(f"start:{self._name}")
+
+    def _announce(host: str, port: int) -> None:
+        events.append("announce")
+        current_ppid[0] = reparent_pid  # the shell is killed as soon as it reads this
+
+    monkeypatch.setattr(sidecar.os, "getppid", lambda: current_ppid[0])
+    monkeypatch.setattr(sidecar, "_bind_listening_socket", lambda host, port: _Socket())
+    monkeypatch.setattr(sidecar, "_announce", _announce)
+    monkeypatch.setattr(sidecar.threading, "Thread", _Thread)
+    monkeypatch.setattr(
+        sidecar.uvicorn.Server, "run", lambda self, sockets=None: events.append("run")
+    )
+
+    sidecar.main()
+
+    assert watched == [shell_pid]
+    assert events == ["start:parent-watchdog", "start:stdin-watchdog", "announce", "run"]
