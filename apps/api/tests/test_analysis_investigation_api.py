@@ -144,6 +144,15 @@ async def test_investigation_put_writes_generated_validated_metadata() -> None:
         # An unhashable purpose used to raise TypeError inside the validator (a 500).
         (_investigation(purpose=["verification"]), "purpose must be exploration or verification"),
         (_investigation(lifecycleStage="DONE"), "lifecycleStage must be one of"),
+        (_investigation(question=3), "question must be a string or null"),
+        (
+            _investigation(linkedRequirementIds="R7"),
+            "linkedRequirementIds must be a list of strings",
+        ),
+        (
+            _investigation(verificationCriterion="metric < 0.1"),
+            "verificationCriterion must be an object or null",
+        ),
     ],
 )
 async def test_investigation_put_rejects_invalid_metadata(
