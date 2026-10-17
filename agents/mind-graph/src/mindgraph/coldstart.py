@@ -115,7 +115,8 @@ def seed_project(
     nodes = [{"id": root, "type": "Question", "project_id": pid}]
     edges = []
     labels = {root: question}
-    for qid, text in zip(cs.subquestions, subs, strict=False):
+    # cs.subquestions is built one-for-one from subs above, so a length mismatch is a bug.
+    for qid, text in zip(cs.subquestions, subs, strict=True):
         nodes.append({"id": qid, "type": "Question", "project_id": pid})
         labels[qid] = text
         edges.append(
