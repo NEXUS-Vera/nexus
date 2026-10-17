@@ -1028,7 +1028,8 @@ def test_firmware_telemetry_parses_in_analysis(
 def _platformio_core_dir(tmp_path: Path) -> str:
     """PlatformIO core dir for the live build.
 
-    ``PLATFORMIO_CORE_DIR`` wins when set. Otherwise the ESP32 platform and
+    ``PLATFORMIO_CORE_DIR`` wins when set (an empty value counts as unset,
+    like ``${PLATFORMIO_CORE_DIR:-...}``). Otherwise the ESP32 platform and
     toolchain (about 1.5 GB) are cached once in a Nexus-owned directory under
     ``$XDG_CACHE_HOME`` (or ``~/.cache``) so later demo runs, including offline
     ones, reuse them; ``~/.platformio`` is never touched. If that cache cannot
@@ -1132,7 +1133,9 @@ def test_platformio_core_dir_relative_xdg_uses_home_cache(
     monkeypatch.delenv("PLATFORMIO_CORE_DIR", raising=False)
     monkeypatch.setenv("XDG_CACHE_HOME", "relative/cache")
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
-    assert _platformio_core_dir(tmp_path) == str(tmp_path / "home/.cache/nexus/platformio-core")
+    core_dir = _platformio_core_dir(tmp_path)
+    assert core_dir == str(tmp_path / "home/.cache/nexus/platformio-core")
+    assert Path(core_dir).is_dir()
 
 
 @pytest.mark.parametrize("blocker", ["file", "read-only"])
