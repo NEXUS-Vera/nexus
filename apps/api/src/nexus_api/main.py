@@ -48,21 +48,14 @@ from nexus_persistence import (
     ExecutionNotFoundError,
     InMemoryFileStore,
     LocalFileStore,
+    PersistenceConflictError,
+    PersistenceError,
+    PersistenceNotFoundError,
     ProjectNotFoundError,
     ProjectPersistenceError,
     ProjectRetrievalError,
     WorkspaceNotFoundError,
     build_stores,
-)
-from nexus_persistence.errors import (
-    ArtifactVersionConflictError,
-    FirmwarePatchNotFoundError,
-    LedgerImmutableError,
-    PersistenceError,
-    ProjectStateConflictError,
-    ProposalNotFoundError,
-    SnapshotImmutableError,
-    SnapshotNotFoundError,
 )
 from project_initialization_result_v1 import ProjectInitializationResultV1
 
@@ -277,29 +270,9 @@ def _request_id(request: Request) -> str:
 @app.exception_handler(PersistenceError)
 async def persistence_exception_handler(request: Request, exc: PersistenceError) -> JSONResponse:
     request_id = _request_id(request)
-    if isinstance(
-        exc,
-        (
-            ProjectNotFoundError,
-            ArtifactNotFoundError,
-            ArtifactVersionNotFoundError,
-            WorkspaceNotFoundError,
-            SnapshotNotFoundError,
-            ProposalNotFoundError,
-            ExecutionNotFoundError,
-            FirmwarePatchNotFoundError,
-        ),
-    ):
+    if isinstance(exc, PersistenceNotFoundError):
         status = 404
-    elif isinstance(
-        exc,
-        (
-            ArtifactVersionConflictError,
-            ProjectStateConflictError,
-            SnapshotImmutableError,
-            LedgerImmutableError,
-        ),
-    ):
+    elif isinstance(exc, PersistenceConflictError):
         status = 409
     else:
         status = 500
