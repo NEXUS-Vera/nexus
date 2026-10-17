@@ -142,14 +142,19 @@ def _is_pipe(stream: IO[str]) -> bool:
 
 
 def main() -> None:
+    # Read the spawning shell's pid before anything else. Once the handshake is
+    # out the shell may die at any moment, and a pid read after that is already
+    # the reparent target (init or a subreaper), so ``_watch_parent`` would wait
+    # for a change that never comes and the sidecar would outlive its shell.
+    parent_pid = os.getppid()
+
     sock = _bind_listening_socket(settings.host, settings.port)
     bound_host, bound_port = sock.getsockname()[:2]
-    _announce(bound_host, bound_port)
 
     server = uvicorn.Server(uvicorn.Config(app, access_log=False, log_level="info"))
     threading.Thread(
         target=_watch_parent,
-        args=(server, os.getppid()),
+        args=(server, parent_pid),
         name="parent-watchdog",
         daemon=True,
     ).start()
@@ -159,6 +164,10 @@ def main() -> None:
         name="stdin-watchdog",
         daemon=True,
     ).start()
+
+    # Announce only once both watchdogs are armed: the handshake is what lets the
+    # shell (or a test) treat the sidecar as supervised.
+    _announce(bound_host, bound_port)
     server.run(sockets=[sock])
 
 
