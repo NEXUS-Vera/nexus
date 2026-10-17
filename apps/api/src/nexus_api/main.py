@@ -1345,6 +1345,61 @@ def _missing_field_error(exc: KeyError, request_id: str) -> JSONResponse:
     )
 
 
+class _InvalidIntegerField(Exception):
+    """A client-supplied request field that should be an integer is not one.
+
+    Raised only by ``_require_int``/``_optional_int`` while reading the request,
+    never by kernel code, so catching it cannot hide a server bug.
+    """
+
+    def __init__(self, field: str) -> None:
+        super().__init__(field)
+        self.field = field
+
+
+def _require_int(body: dict[str, Any], field: str) -> int:
+    """Required integer field: KeyError if absent, _InvalidIntegerField if bad.
+
+    Keeps the old ``int()`` leniency where it is safe.
+
+    Accepted: ints, integer strings (``"3"``), and integral floats (``3.0``).
+    Rejected: bools (``True`` is an ``int`` in Python but is never a valid
+    version or duration), non-integral floats (``int(3.7)`` would silently
+    truncate), non-numeric strings, and any other type (lists, objects, ...).
+    """
+    value = body[field]
+    if isinstance(value, bool):
+        raise _InvalidIntegerField(field)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        if value.is_integer():
+            return int(value)
+        raise _InvalidIntegerField(field)
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
+            raise _InvalidIntegerField(field) from None
+    raise _InvalidIntegerField(field)
+
+
+def _optional_int(body: dict[str, Any], field: str) -> int | None:
+    """Optional integer field: None if absent or null, _InvalidIntegerField if bad."""
+    if body.get(field) is None:
+        return None
+    return _require_int(body, field)
+
+
+def _invalid_integer_error(exc: _InvalidIntegerField, request_id: str) -> JSONResponse:
+    return _error(
+        422,
+        code="COMMAND_VALIDATION_FAILED",
+        message=f"{exc.field} must be an integer.",
+        request_id=request_id,
+    )
+
+
 def _workspace_runtime_actor(body: dict[str, Any] | None) -> dict[str, Any]:
     raw = (body or {}).get("requestedBy")
     if isinstance(raw, dict) and raw.get("actorId"):
@@ -1491,11 +1546,13 @@ async def write_artifact_workspace_file(
             request_id=request_id,
         )
     try:
-        expected_draft_version = int(body["expectedDraftVersion"])
-        base_artifact_version = int(body["baseArtifactVersion"])
-        base_project_state_version = int(body["baseProjectStateVersion"])
+        expected_draft_version = _require_int(body, "expectedDraftVersion")
+        base_artifact_version = _require_int(body, "baseArtifactVersion")
+        base_project_state_version = _require_int(body, "baseProjectStateVersion")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
     try:
         actor = _workspace_runtime_actor(body)
         return _kernel.workspace_runtime.write_file(
@@ -1695,8 +1752,13 @@ async def start_artifact_workspace_execution(
     try:
         snapshot_id = str(body["snapshotId"])
         command_spec = body["commandSpec"]
+        base_artifact_version = _optional_int(body, "baseArtifactVersion")
+        base_project_state_version = _optional_int(body, "baseProjectStateVersion")
+        max_duration_ms = _optional_int(body, "maxDurationMs")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
     try:
         return _kernel.workspace_runtime.start_execution(
             project_id=project_id,
@@ -1704,19 +1766,9 @@ async def start_artifact_workspace_execution(
             snapshot_id=snapshot_id,
             actor=_workspace_runtime_actor(body),
             command_spec=command_spec,
-            base_artifact_version=(
-                int(body["baseArtifactVersion"])
-                if body.get("baseArtifactVersion") is not None
-                else None
-            ),
-            base_project_state_version=(
-                int(body["baseProjectStateVersion"])
-                if body.get("baseProjectStateVersion") is not None
-                else None
-            ),
-            max_duration_ms=(
-                int(body["maxDurationMs"]) if body.get("maxDurationMs") is not None else None
-            ),
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
+            max_duration_ms=max_duration_ms,
             execution_kind=str(body.get("executionKind") or "sandbox-execution"),
         )
     except BoardError as exc:
@@ -1865,11 +1917,13 @@ async def write_workspace_file(
             )
         try:
             requested_by = body["requestedBy"]
-            expected_draft_version = int(body["expectedDraftVersion"])
-            base_artifact_version = int(body["baseArtifactVersion"])
-            base_project_state_version = int(body["baseProjectStateVersion"])
+            expected_draft_version = _require_int(body, "expectedDraftVersion")
+            base_artifact_version = _require_int(body, "baseArtifactVersion")
+            base_project_state_version = _require_int(body, "baseProjectStateVersion")
         except KeyError as exc:
             return _missing_field_error(exc, request_id)
+        except _InvalidIntegerField as exc:
+            return _invalid_integer_error(exc, request_id)
         result = _kernel.filesystem.write_file(
             workspace_id=workspace_id,
             path=str(body.get("path") or ""),
@@ -1933,11 +1987,13 @@ async def rename_workspace_file(
             )
         try:
             requested_by = body["requestedBy"]
-            expected_draft_version = int(body["expectedDraftVersion"])
-            base_artifact_version = int(body["baseArtifactVersion"])
-            base_project_state_version = int(body["baseProjectStateVersion"])
+            expected_draft_version = _require_int(body, "expectedDraftVersion")
+            base_artifact_version = _require_int(body, "baseArtifactVersion")
+            base_project_state_version = _require_int(body, "baseProjectStateVersion")
         except KeyError as exc:
             return _missing_field_error(exc, request_id)
+        except _InvalidIntegerField as exc:
+            return _invalid_integer_error(exc, request_id)
         return _kernel.filesystem.rename_file(
             workspace_id=workspace_id,
             from_path=str(body.get("fromPath") or ""),
@@ -1988,11 +2044,13 @@ async def delete_workspace_file(
             )
         try:
             requested_by = body["requestedBy"]
-            expected_draft_version = int(body["expectedDraftVersion"])
-            base_artifact_version = int(body["baseArtifactVersion"])
-            base_project_state_version = int(body["baseProjectStateVersion"])
+            expected_draft_version = _require_int(body, "expectedDraftVersion")
+            base_artifact_version = _require_int(body, "baseArtifactVersion")
+            base_project_state_version = _require_int(body, "baseProjectStateVersion")
         except KeyError as exc:
             return _missing_field_error(exc, request_id)
+        except _InvalidIntegerField as exc:
+            return _invalid_integer_error(exc, request_id)
         return _kernel.filesystem.delete_file(
             workspace_id=workspace_id,
             path=path,
@@ -2225,11 +2283,13 @@ async def generate_artifact_workspace_scaffold(
             request_id=request_id,
         )
     try:
-        expected_draft_version = int(body["expectedDraftVersion"])
-        base_artifact_version = int(body["baseArtifactVersion"])
-        base_project_state_version = int(body["baseProjectStateVersion"])
+        expected_draft_version = _require_int(body, "expectedDraftVersion")
+        base_artifact_version = _require_int(body, "baseArtifactVersion")
+        base_project_state_version = _require_int(body, "baseProjectStateVersion")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
     try:
         actor = _workspace_runtime_actor(body)
         result = (
@@ -2361,11 +2421,13 @@ async def apply_artifact_workspace_patch(
         )
     try:
         proposal_id = str(body["proposalId"])
-        expected_draft_version = int(body["expectedDraftVersion"])
-        base_artifact_version = int(body["baseArtifactVersion"])
-        base_project_state_version = int(body["baseProjectStateVersion"])
+        expected_draft_version = _require_int(body, "expectedDraftVersion")
+        base_artifact_version = _require_int(body, "baseArtifactVersion")
+        base_project_state_version = _require_int(body, "baseProjectStateVersion")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
     try:
         result = (
             _kernel.workspace_runtime.apply_analysis_patch
@@ -2780,11 +2842,13 @@ async def upload_analysis_input_file(
 
     try:
         input_path = str(body["path"])
-        expected_draft_version = int(body["expectedDraftVersion"])
-        base_artifact_version = int(body["baseArtifactVersion"])
-        base_project_state_version = int(body["baseProjectStateVersion"])
+        expected_draft_version = _require_int(body, "expectedDraftVersion")
+        base_artifact_version = _require_int(body, "baseArtifactVersion")
+        base_project_state_version = _require_int(body, "baseProjectStateVersion")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
     try:
         return _kernel.workspace_runtime.write_analysis_input_file(
             project_id=project_id,
@@ -2837,11 +2901,13 @@ async def import_produced_output_into_analysis_input(
     try:
         output_id = str(body["outputId"])
         input_path = str(body["path"])
-        expected_draft_version = int(body["expectedDraftVersion"])
-        base_artifact_version = int(body["baseArtifactVersion"])
-        base_project_state_version = int(body["baseProjectStateVersion"])
+        expected_draft_version = _require_int(body, "expectedDraftVersion")
+        base_artifact_version = _require_int(body, "baseArtifactVersion")
+        base_project_state_version = _require_int(body, "baseProjectStateVersion")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
     try:
         return _kernel.workspace_runtime.import_produced_output_into_analysis_input(
             project_id=project_id,
