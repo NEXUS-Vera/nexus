@@ -38,6 +38,12 @@ Phase 12 initialize packages include five artifact types, including
 counts. Fixture-mode turns support component-plan operations (approve/reject
 candidates, constraints, alternatives) in addition to requirement edits.
 
+Persistence not-found errors return HTTP 404; version/state conflicts and
+snapshot/ledger immutability errors return HTTP 409. Responses use the standard
+`error.code`, `error.message`, and `error.requestId` envelope and preserve the
+persistence error code. Unclassified persistence and retrieval failures remain
+HTTP 500 and are logged.
+
 ## Configuration
 
 | Variable | Default | Notes |

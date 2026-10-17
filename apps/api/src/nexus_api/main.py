@@ -54,6 +54,16 @@ from nexus_persistence import (
     WorkspaceNotFoundError,
     build_stores,
 )
+from nexus_persistence.errors import (
+    ArtifactVersionConflictError,
+    FirmwarePatchNotFoundError,
+    LedgerImmutableError,
+    PersistenceError,
+    ProjectStateConflictError,
+    ProposalNotFoundError,
+    SnapshotImmutableError,
+    SnapshotNotFoundError,
+)
 from project_initialization_result_v1 import ProjectInitializationResultV1
 
 from .circuit_simulation import (
@@ -264,6 +274,39 @@ def _request_id(request: Request) -> str:
     return request.headers.get("x-request-id") or str(uuid.uuid4())
 
 
+@app.exception_handler(PersistenceError)
+async def persistence_exception_handler(request: Request, exc: PersistenceError) -> JSONResponse:
+    request_id = _request_id(request)
+    if isinstance(
+        exc,
+        (
+            ProjectNotFoundError,
+            ArtifactNotFoundError,
+            ArtifactVersionNotFoundError,
+            WorkspaceNotFoundError,
+            SnapshotNotFoundError,
+            ProposalNotFoundError,
+            ExecutionNotFoundError,
+            FirmwarePatchNotFoundError,
+        ),
+    ):
+        status = 404
+    elif isinstance(
+        exc,
+        (
+            ArtifactVersionConflictError,
+            ProjectStateConflictError,
+            SnapshotImmutableError,
+            LedgerImmutableError,
+        ),
+    ):
+        status = 409
+    else:
+        status = 500
+        logger.exception("persistence_failed code=%s request_id=%s", exc.code, request_id)
+    return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
 #: The expected credential as bytes, encoded once at import.
 EXPECTED_SESSION_TOKEN = settings.session_token.encode("utf-8")
 
@@ -424,6 +467,7 @@ async def initialize_project(
             request_id=request_id,
         )
     except ProjectPersistenceError as exc:
+        logger.exception("project_persistence_failed request_id=%s", request_id)
         return _error(
             500,
             code=exc.code,
@@ -442,6 +486,8 @@ async def get_project(project_id: str, request: Request) -> dict[str, Any] | JSO
         return cast(dict[str, Any], _store.get_current_state(project_id))
     except ProjectNotFoundError as exc:
         return _error(404, code=exc.code, message="Project not found.", request_id=request_id)
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         logger.exception("project_retrieval_failed request_id=%s", request_id)
         return _error(
@@ -532,6 +578,8 @@ async def ensure_layered_architecture(
             message="Project not found.",
             request_id=request_id,
         )
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         logger.exception("ensure_layered_architecture_failed request_id=%s", request_id)
         return _error(
@@ -727,6 +775,8 @@ async def get_project_artifacts(project_id: str, request: Request) -> dict[str, 
             message="Project not found.",
             request_id=request_id,
         )
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         return _error(
             500,
@@ -770,6 +820,8 @@ async def get_project_artifact(
         return _error(404, code=exc.code, message=exc.message, request_id=request_id)
     except ArtifactNotFoundError as exc:
         return _error(404, code=exc.code, message=exc.message, request_id=request_id)
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         return _error(
             500,
@@ -798,6 +850,8 @@ async def get_project_history(
             message="Project not found.",
             request_id=request_id,
         )
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         return _error(
             500,
@@ -843,6 +897,7 @@ async def submit_project_turn(
             status = 500
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
     except ProjectRetrievalError as exc:
+        logger.exception("project_retrieval_failed request_id=%s", request_id)
         return _error(500, code=exc.code, message=exc.message, request_id=request_id)
 
 
@@ -867,6 +922,8 @@ async def get_project_board(project_id: str, request: Request) -> dict[str, Any]
             message="Project not found.",
             request_id=request_id,
         )
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         logger.exception("board_retrieval_failed request_id=%s", request_id)
         return _error(
@@ -928,6 +985,8 @@ async def get_artifact_workspace(
         )
     except BoardError as exc:
         return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         logger.exception("workspace_resolve_failed request_id=%s", request_id)
         return _error(
@@ -982,6 +1041,8 @@ async def create_artifact_workspace(
         )
     except BoardError as exc:
         return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         logger.exception("workspace_create_failed request_id=%s", request_id)
         return _error(
@@ -1087,6 +1148,8 @@ async def dispatch_artifact_command(
         )
     except BoardError as exc:
         return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         logger.exception("artifact_command_failed request_id=%s", request_id)
         return _error(
@@ -1220,6 +1283,8 @@ async def runtime_health(request: Request) -> dict[str, Any] | JSONResponse:
             **_kernel.jobs.health(),
             "executionRuntimeConfigured": settings.execution_runtime,
         }
+    except PersistenceError:
+        raise
     except Exception as exc:  # noqa: BLE001
         return _error(
             500,
@@ -1240,6 +1305,8 @@ async def admin_retention_gc(
         plan = _kernel.retention.plan()
         result = _kernel.retention.apply(plan, dry_run=dry_run)
         return {"requestId": request_id, **result}
+    except PersistenceError:
+        raise
     except Exception as exc:  # noqa: BLE001
         return _error(
             500,
@@ -2644,6 +2711,8 @@ async def get_verification_evidence_chain(
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+    except PersistenceError:
+        raise
     except Exception:  # noqa: BLE001
         logger.exception("evidence_chain_failed request_id=%s", request_id)
         return _error(
