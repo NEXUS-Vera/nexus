@@ -171,7 +171,11 @@ async def test_malformed_body_wins_over_missing_project(client):
 
 # Routes that read ``body.get(...)`` straight off the parsed body; valid JSON that is
 # not an object used to raise AttributeError there and surface as a 500.
-_OBJECT_BODY_ROUTES = _ROUTES[:2]
+_OBJECT_BODY_ROUTES = [
+    route
+    for route in _ROUTES
+    if route[1] in {"ensure_layered_architecture_artifacts", "create_if_missing"}
+]
 
 
 @pytest.mark.parametrize(
