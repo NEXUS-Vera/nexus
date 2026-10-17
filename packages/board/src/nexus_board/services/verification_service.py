@@ -172,9 +172,26 @@ class VerificationService:
         execution_run_id: str | None = None,
         accept: bool = True,
     ) -> dict[str, Any]:
-        """Hermetic/product helper: promote an Analysis summary without requiring file I/O."""
+        """Promote an Analysis summary backed by a completed execution run."""
 
-        run_id = execution_run_id or new_id("exec")
+        if not execution_run_id:
+            raise VerificationError(
+                "execution_run_id is required to promote verification evidence."
+            )
+        run = self._kernel.get_execution_run(execution_run_id)
+        if run.get("projectId") != project_id:
+            raise VerificationError("ExecutionRun does not belong to this project.")
+        if run.get("status") not in {"completed", "completed-with-warnings"}:
+            raise VerificationError(
+                "Only completed ExecutionRuns may promote verification evidence."
+            )
+        job_id = run.get("executionJobId")
+        if job_id:
+            job = self._kernel.get_execution_job(job_id)
+            if job.get("logTruncated"):
+                raise VerificationError("ExecutionRun logs were truncated; evidence is incomplete.")
+
+        run_id = execution_run_id
         test_plan = self._projects.get_artifact(project_id, "test-plan")
         requirements = self._load_requirements(project_id)
         content = dict(test_plan["content"])

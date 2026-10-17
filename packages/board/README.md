@@ -106,7 +106,11 @@ execution with the configured runtime and preinstalled analysis dependencies.
 
 `kernel.verification` promotes evidence only from completed execution runs into
 new Test Plan revisions and projects requirement coverage separately from
-verification. Metric criteria are assessed by deterministic code. Repeated promotion is idempotent, and the
+verification. Analysis summary promotion also requires an existing run in the same
+project with status `completed` or `completed-with-warnings` and no truncated job
+logs; missing run IDs are rejected rather than generated. The HTTP summary route
+requires `executionRunId` and returns 422 for gate failures (404 for unknown runs).
+Metric criteria are assessed by deterministic code. Repeated promotion is idempotent, and the
 Risk Register retains monitoring for risks requiring physical evidence. Mitigation
 verification requires every declared verification test to exist and pass. The API
 and Evidence Explorer expose the resulting evidence chain.

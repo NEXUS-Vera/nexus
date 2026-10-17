@@ -189,8 +189,71 @@ def _seed() -> tuple[Any, InMemoryProjectStore, str, dict[str, Any]]:
     return kernel, project_store, project_id, actor("user")
 
 
-def test_g1_analysis_promotion_closes_r7_and_r8() -> None:
+def _seed_summary_run(kernel: Any, project_id: str, run_id: str, status: str = "completed") -> None:
+    kernel.kernel_store.create_execution_run(
+        {
+            "schemaVersion": "1.0.0",
+            "executionRunId": run_id,
+            "projectId": project_id,
+            "artifactType": "analysis",
+            "status": "completed" if status == "truncated" else status,
+            "createdAt": utc_now_iso(),
+            "outputReferences": [],
+            "runtimeKind": "process",
+            "executionJobId": "execjob_SUMMARY",
+        }
+    )
+    kernel.kernel_store.create_execution_job(
+        {
+            "executionJobId": "execjob_SUMMARY",
+            "executionRunId": run_id,
+            "projectId": project_id,
+            "status": "succeeded",
+            "logTruncated": status == "truncated",
+        }
+    )
+
+
+@pytest.mark.parametrize(
+    "case,message",
+    [
+        ("missing", "execution_run_id is required"),
+        ("empty", "execution_run_id is required"),
+        ("foreign", "does not belong to this project"),
+        ("failed", "Only completed ExecutionRuns"),
+        ("timed-out", "Only completed ExecutionRuns"),
+        ("cancelled", "Only completed ExecutionRuns"),
+        ("running", "Only completed ExecutionRuns"),
+        ("queued", "Only completed ExecutionRuns"),
+        ("truncated", "logs were truncated"),
+    ],
+)
+def test_analysis_summary_rejects_invalid_run(case: str, message: str) -> None:
+    kernel, projects, project_id, user = _seed()
+    run_id = "exec_SUMMARY_GATE"
+    _seed_summary_run(
+        kernel,
+        "proj_FOREIGN" if case == "foreign" else project_id,
+        run_id,
+        "completed" if case in {"missing", "empty", "foreign"} else case,
+    )
+    before = copy.deepcopy(projects.get_artifact(project_id, "test-plan"))
+    kwargs = {} if case == "missing" else {"execution_run_id": "" if case == "empty" else run_id}
+    with pytest.raises(VerificationError, match=message):
+        kernel.verification.promote_analysis_summary(
+            project_id=project_id,
+            summary={"accel_x_rms_noise_g": 0.0157},
+            produced_output_names=["outputs/summary.json"],
+            actor=user,
+            **kwargs,
+        )
+    assert projects.get_artifact(project_id, "test-plan") == before
+
+
+@pytest.mark.parametrize("run_status", ["completed", "completed-with-warnings"])
+def test_g1_analysis_promotion_closes_r7_and_r8(run_status: str) -> None:
     kernel, project_store, project_id, user = _seed()
+    _seed_summary_run(kernel, project_id, "exec_GOLDEN_ANALYSIS_R7_PROMOTION01", run_status)
     before = project_store.get_artifact(project_id, "test-plan")
     t7 = next(c for c in before["content"]["testCases"] if c["displayId"] == "T7")
     assert t7["status"] == "ready"
@@ -423,6 +486,7 @@ def test_n9_k6_remains_monitoring() -> None:
 
 def test_evidence_chain_exposes_r7_links() -> None:
     kernel, _ps, project_id, user = _seed()
+    _seed_summary_run(kernel, project_id, "exec_CHAIN_R7")
     kernel.verification.promote_analysis_summary(
         project_id=project_id,
         summary={"accel_x_rms_noise_g": 0.0157},
