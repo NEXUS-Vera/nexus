@@ -92,7 +92,8 @@ def validate_investigation_dict(raw: dict[str, Any]) -> None:
         raise ValueError("investigationId is required")
     if not isinstance(raw.get("title"), str) or not raw["title"].strip():
         raise ValueError("title is required")
-    if raw.get("purpose") not in {"exploration", "verification"}:
+    purpose = raw.get("purpose")
+    if not isinstance(purpose, str) or purpose not in {"exploration", "verification"}:
         raise ValueError("purpose must be exploration or verification")
     stage = raw.get("lifecycleStage", "INPUTS")
     if stage not in ANALYSIS_STAGE_IDS:
