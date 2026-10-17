@@ -957,7 +957,8 @@ async def get_artifact_workspace(
             request_id=request_id,
         )
     except BoardError as exc:
-        return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
     except PersistenceError:
         raise
     except Exception:  # noqa: BLE001
@@ -1013,7 +1014,8 @@ async def create_artifact_workspace(
             request_id=request_id,
         )
     except BoardError as exc:
-        return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
     except PersistenceError:
         raise
     except Exception:  # noqa: BLE001
@@ -1120,7 +1122,8 @@ async def dispatch_artifact_command(
             request_id=request_id,
         )
     except BoardError as exc:
-        return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
     except PersistenceError:
         raise
     except Exception:  # noqa: BLE001
@@ -1243,7 +1246,8 @@ async def get_project_graph(
             request_id=request_id,
         )
     except BoardError as exc:
-        return _error(422, code=exc.code, message=exc.message, request_id=request_id)
+        status = 404 if exc.code.endswith("NOT_FOUND") else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
 
 
 @app.get("/v1/runtime/health", response_model=None)
@@ -2036,7 +2040,7 @@ async def get_project_execution_logs(
         )
     except BoardError as exc:
         return _error(
-            422,
+            404 if exc.code.endswith("NOT_FOUND") else 422,
             code=exc.code,
             message=exc.message,
             request_id=request_id,
@@ -2085,7 +2089,7 @@ async def cancel_project_execution(
         )
     except BoardError as exc:
         return _error(
-            422,
+            404 if exc.code.endswith("NOT_FOUND") else 422,
             code=exc.code,
             message=exc.message,
             request_id=request_id,
