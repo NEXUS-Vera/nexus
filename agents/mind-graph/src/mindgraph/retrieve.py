@@ -125,6 +125,8 @@ def seed(
 
         def cos(v):
             d = math.sqrt(sum(a * a for a in q)) * math.sqrt(sum(b * b for b in v))
+            # Not strict: the vector sidecar can hold rows from an older embedder
+            # with a different dimension, which must not crash retrieval.
             return sum(a * b for a, b in zip(q, v, strict=False)) / d if d else 0.0
 
         knn = sorted(((nid, cos(v)) for nid, v in vectors.items()), key=lambda t: (-t[1], t[0]))[

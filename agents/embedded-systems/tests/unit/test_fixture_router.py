@@ -82,3 +82,11 @@ def test_fixture_router_prefers_golden_vibration_monitor_over_generic() -> None:
     assert decision.outcome is FixtureRouteOutcome.MATCHED
     assert decision.family == "esp32-imu-vibration-monitor"
     assert "vibration-monitoring-device" in decision.matched_families
+
+
+def test_fixture_route_outcome_values_are_stable_strings() -> None:
+    # StrEnum: members are plain strings with stable values (issue #55).
+    assert [o.value for o in FixtureRouteOutcome] == ["matched", "unsupported", "ambiguous"]
+    assert FixtureRouteOutcome.MATCHED == "matched"
+    assert str(FixtureRouteOutcome.AMBIGUOUS) == "ambiguous"
+    assert FixtureRouteOutcome("unsupported") is FixtureRouteOutcome.UNSUPPORTED
