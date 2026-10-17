@@ -1400,6 +1400,35 @@ def _invalid_integer_error(exc: _InvalidIntegerField, request_id: str) -> JSONRe
     )
 
 
+class _InvalidStringField(Exception):
+    """A client-supplied optional text field is present but not a string.
+
+    Raised only by ``_optional_str`` while reading the request, never by kernel
+    code, so catching it cannot hide a server bug.
+    """
+
+    def __init__(self, field: str) -> None:
+        super().__init__(field)
+        self.field = field
+
+
+def _optional_str(body: dict[str, Any], field: str) -> str | None:
+    """Optional text field: None if absent or null, _InvalidStringField if not a string."""
+    value = body.get(field)
+    if value is None or isinstance(value, str):
+        return value
+    raise _InvalidStringField(field)
+
+
+def _invalid_string_error(exc: _InvalidStringField, request_id: str) -> JSONResponse:
+    return _error(
+        422,
+        code="COMMAND_VALIDATION_FAILED",
+        message=f"{exc.field} must be a string.",
+        request_id=request_id,
+    )
+
+
 def _workspace_runtime_actor(body: dict[str, Any] | None) -> dict[str, Any]:
     raw = (body or {}).get("requestedBy")
     if isinstance(raw, dict) and raw.get("actorId"):
@@ -1665,6 +1694,10 @@ async def create_artifact_workspace_snapshot(
     if not isinstance(body, dict):
         body = {}
     try:
+        reason = _optional_str(body, "reason")
+    except _InvalidStringField as exc:
+        return _invalid_string_error(exc, request_id)
+    try:
         create = (
             _kernel.workspace_runtime.create_firmware_snapshot
             if artifact_type == "firmware"
@@ -1674,7 +1707,7 @@ async def create_artifact_workspace_snapshot(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
-            reason=body.get("reason"),
+            reason=reason,
         )
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
@@ -2286,10 +2319,13 @@ async def generate_artifact_workspace_scaffold(
         expected_draft_version = _require_int(body, "expectedDraftVersion")
         base_artifact_version = _require_int(body, "baseArtifactVersion")
         base_project_state_version = _require_int(body, "baseProjectStateVersion")
+        profile_id = _optional_str(body, "profileId")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
     except _InvalidIntegerField as exc:
         return _invalid_integer_error(exc, request_id)
+    except _InvalidStringField as exc:
+        return _invalid_string_error(exc, request_id)
     try:
         actor = _workspace_runtime_actor(body)
         result = (
@@ -2303,7 +2339,7 @@ async def generate_artifact_workspace_scaffold(
             expected_draft_version=expected_draft_version,
             base_artifact_version=base_artifact_version,
             base_project_state_version=base_project_state_version,
-            profile_id=body.get("profileId"),
+            profile_id=profile_id,
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {
