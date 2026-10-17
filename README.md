@@ -124,8 +124,11 @@ Fixture/fake gates and live gates are printed separately. When `platformio` or
 `platformio.ini` and verifies nonempty ELF/BIN outputs. Initial builds require
 PlatformIO's ESP32 platform/toolchain downloads (network access); build errors
 and timeouts fail the command. Without the CLI it explicitly reports a GAP.
-The build uses `PLATFORMIO_CORE_DIR` when set; otherwise it uses a writable
-directory under the demo's temporary artifacts, avoiding `~/.platformio`.
+The build uses `PLATFORMIO_CORE_DIR` when set; otherwise it caches the ESP32
+platform/toolchain (about 1.5 GB) once in `${XDG_CACHE_HOME:-~/.cache}/nexus/platformio-core`,
+so later runs reuse it and can build offline, and it never touches `~/.platformio`.
+If that cache cannot be created or written, the build falls back to a throwaway
+directory under the demo's temporary artifacts (downloading again each run).
 Wokwi execution always remains a GAP in this no-key demo; diagram translation
 is not simulation or hardware validation. Fixture compilation is never live
 compile evidence. Synthetic CSV analysis is not evidence from a physical IMU.

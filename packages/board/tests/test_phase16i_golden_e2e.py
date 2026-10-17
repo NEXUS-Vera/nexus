@@ -1025,6 +1025,32 @@ def test_firmware_telemetry_parses_in_analysis(
     assert [float(row["time_s"]) for row in rows] == [0.02, 0.04]
 
 
+def _platformio_core_dir(tmp_path: Path) -> str:
+    """PlatformIO core dir for the live build.
+
+    ``PLATFORMIO_CORE_DIR`` wins when set (an empty value counts as unset,
+    like ``${PLATFORMIO_CORE_DIR:-...}``). Otherwise the ESP32 platform and
+    toolchain (about 1.5 GB) are cached once in a Nexus-owned directory under
+    ``$XDG_CACHE_HOME`` (or ``~/.cache``) so later demo runs, including offline
+    ones, reuse them; ``~/.platformio`` is never touched. If that cache cannot
+    be created or written, fall back to a throwaway directory under the demo's
+    temporary artifacts.
+    """
+    override = os.environ.get("PLATFORMIO_CORE_DIR")
+    if override:
+        return override
+    xdg = os.environ.get("XDG_CACHE_HOME", "")
+    try:
+        base = Path(xdg) if os.path.isabs(xdg) else Path.home() / ".cache"
+        cache = base / "nexus" / "platformio-core"
+        cache.mkdir(parents=True, exist_ok=True)
+        if os.access(cache, os.W_OK | os.X_OK):
+            return str(cache)
+    except (OSError, RuntimeError):
+        pass
+    return str(tmp_path / "platformio-core")
+
+
 @pytest.mark.skipif(
     os.environ.get("NEXUS_DEMO_LIVE_COMPILE") != "1",
     reason="Live compile runs through make demo-golden, outside offline tests",
@@ -1038,6 +1064,8 @@ def test_golden_local_platformio(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     shutil.copyfile(GOLDEN_DIR / "main.cpp", tmp_path / "src/main.cpp")
     shutil.copyfile(GOLDEN_DIR / "platformio.ini", tmp_path / "platformio.ini")
+    core_dir = _platformio_core_dir(tmp_path)
+    print(f"LIVE PlatformIO: core dir {core_dir}")
     try:
         result = subprocess.run(
             [cli, "run", "--project-dir", str(tmp_path)],
@@ -1045,11 +1073,7 @@ def test_golden_local_platformio(tmp_path: Path) -> None:
             text=True,
             timeout=300,
             check=False,
-            env={
-                **os.environ,
-                "PLATFORMIO_CORE_DIR": os.environ.get("PLATFORMIO_CORE_DIR")
-                or str(tmp_path / "platformio-core"),
-            },
+            env={**os.environ, "PLATFORMIO_CORE_DIR": core_dir},
         )
     except subprocess.TimeoutExpired:
         pytest.fail("LIVE PlatformIO: FAILED — build timed out after 300 seconds")
@@ -1069,13 +1093,14 @@ def test_platformio_harness_core_dir_and_build_failure(
         monkeypatch.delenv("PLATFORMIO_CORE_DIR", raising=False)
     else:
         monkeypatch.setenv("PLATFORMIO_CORE_DIR", core_dir)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
     monkeypatch.setattr(shutil, "which", lambda _: "/fake/pio")
 
     def run(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        expected = core_dir or str(tmp_path / "platformio-core")
+        expected = core_dir or str(tmp_path / "xdg/nexus/platformio-core")
         assert kwargs["env"]["PLATFORMIO_CORE_DIR"] == expected
         if not core_dir:
-            Path(expected).mkdir()
+            assert Path(expected).is_dir()
             (Path(expected) / "writable").write_text("ok")
         build = tmp_path / ".pio/build/nexus"
         build.mkdir(parents=True)
@@ -1089,6 +1114,43 @@ def test_platformio_harness_core_dir_and_build_failure(
             test_golden_local_platformio(tmp_path)
     else:
         test_golden_local_platformio(tmp_path)
+
+
+def test_platformio_core_dir_reuses_nexus_cache_across_runs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("PLATFORMIO_CORE_DIR", raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "xdg"))
+    first = _platformio_core_dir(tmp_path / "run1")
+    second = _platformio_core_dir(tmp_path / "run2")
+    assert first == second == str(tmp_path / "xdg/nexus/platformio-core")
+    assert Path(first).is_dir()
+
+
+def test_platformio_core_dir_relative_xdg_uses_home_cache(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.delenv("PLATFORMIO_CORE_DIR", raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", "relative/cache")
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+    core_dir = _platformio_core_dir(tmp_path)
+    assert core_dir == str(tmp_path / "home/.cache/nexus/platformio-core")
+    assert Path(core_dir).is_dir()
+
+
+@pytest.mark.parametrize("blocker", ["file", "read-only"])
+def test_platformio_core_dir_falls_back_to_temp_when_cache_unusable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, blocker: str
+) -> None:
+    monkeypatch.delenv("PLATFORMIO_CORE_DIR", raising=False)
+    xdg = tmp_path / "xdg"
+    if blocker == "file":
+        xdg.write_text("not a directory")
+    else:
+        (xdg / "nexus/platformio-core").mkdir(parents=True)
+        monkeypatch.setattr(os, "access", lambda *_args, **_kwargs: False)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(xdg))
+    assert _platformio_core_dir(tmp_path) == str(tmp_path / "platformio-core")
 
 
 def test_platformio_harness_missing_cli_is_gap(
