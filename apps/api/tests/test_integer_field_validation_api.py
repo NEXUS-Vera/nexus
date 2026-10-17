@@ -175,6 +175,24 @@ _ROUTES = [
         "base_project_state_version",
     ),
 ]
+
+# Compile/test/run/rerun read the same three optional integers before the runtime call.
+_OPTIONAL_INTEGER_ROUTES = [
+    ("compile", "compile_firmware", "/artifacts/firmware/workspace/compile", {}),
+    ("test", "test_firmware", "/artifacts/firmware/workspace/test", {}),
+    ("run", "run_analysis", "/artifacts/analysis/workspace/run", {}),
+    ("rerun", "rerun_analysis", "/artifacts/analysis/workspace/rerun", {"snapshotId": "snap_x"}),
+]
+_OPTIONAL_INTEGER_FIELDS = [
+    ("baseArtifactVersion", "base_artifact_version"),
+    ("baseProjectStateVersion", "base_project_state_version"),
+    ("maxDurationMs", "max_duration_ms"),
+]
+_ROUTES += [
+    (f"{name}-{field}", _runtime, attr, "POST", suffix, {**body, field: 1}, field, kwarg)
+    for name, attr, suffix, body in _OPTIONAL_INTEGER_ROUTES
+    for field, kwarg in _OPTIONAL_INTEGER_FIELDS
+]
 _IDS = [route[0] for route in _ROUTES]
 _PARAMS = ("name", "target", "attr", "method", "suffix", "body", "field", "kwarg")
 
@@ -278,6 +296,26 @@ async def test_optional_execution_integers_may_be_null_or_absent(
     assert calls[0]["base_artifact_version"] is None
     assert calls[0]["base_project_state_version"] is None
     assert calls[0]["max_duration_ms"] is None
+
+
+@pytest.mark.parametrize("absent", [pytest.param(None, id="null"), pytest.param(..., id="missing")])
+@pytest.mark.parametrize(
+    ("name", "attr", "suffix", "body"),
+    _OPTIONAL_INTEGER_ROUTES,
+    ids=[route[0] for route in _OPTIONAL_INTEGER_ROUTES],
+)
+async def test_optional_workspace_run_integers_may_be_null_or_absent(
+    client, project_id, monkeypatch, name, attr, suffix, body, absent
+):
+    calls = _patch(monkeypatch, project_id, _runtime, attr)
+    body = dict(body)
+    if absent is None:
+        body.update({field: None for field, _ in _OPTIONAL_INTEGER_FIELDS})
+    response = await client.post(f"/v1/projects/{project_id}{suffix}", json=body)
+    assert response.status_code == 200, response.text
+    assert len(calls) == 1
+    for _, kwarg in _OPTIONAL_INTEGER_FIELDS:
+        assert calls[0][kwarg] is None
 
 
 @pytest.mark.parametrize("error", [ValueError("boom"), TypeError("boom")], ids=["value", "type"])

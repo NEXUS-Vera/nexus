@@ -2565,13 +2565,19 @@ async def compile_artifact_firmware(
     if not isinstance(body, dict):
         body = {}
     try:
+        base_artifact_version = _optional_int(body, "baseArtifactVersion")
+        base_project_state_version = _optional_int(body, "baseProjectStateVersion")
+        max_duration_ms = _optional_int(body, "maxDurationMs")
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
+    try:
         result = _kernel.workspace_runtime.compile_firmware(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
-            base_artifact_version=body.get("baseArtifactVersion"),
-            base_project_state_version=body.get("baseProjectStateVersion"),
-            max_duration_ms=body.get("maxDurationMs"),
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
+            max_duration_ms=max_duration_ms,
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {
@@ -2609,13 +2615,19 @@ async def test_artifact_firmware(
     if not isinstance(body, dict):
         body = {}
     try:
+        base_artifact_version = _optional_int(body, "baseArtifactVersion")
+        base_project_state_version = _optional_int(body, "baseProjectStateVersion")
+        max_duration_ms = _optional_int(body, "maxDurationMs")
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
+    try:
         result = _kernel.workspace_runtime.test_firmware(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
-            base_artifact_version=body.get("baseArtifactVersion"),
-            base_project_state_version=body.get("baseProjectStateVersion"),
-            max_duration_ms=body.get("maxDurationMs"),
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
+            max_duration_ms=max_duration_ms,
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {
@@ -2945,13 +2957,19 @@ async def run_artifact_analysis(
     if not isinstance(body, dict):
         body = {}
     try:
+        base_artifact_version = _optional_int(body, "baseArtifactVersion")
+        base_project_state_version = _optional_int(body, "baseProjectStateVersion")
+        max_duration_ms = _optional_int(body, "maxDurationMs")
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
+    try:
         result = _kernel.workspace_runtime.run_analysis(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
-            base_artifact_version=body.get("baseArtifactVersion"),
-            base_project_state_version=body.get("baseProjectStateVersion"),
-            max_duration_ms=body.get("maxDurationMs"),
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
+            max_duration_ms=max_duration_ms,
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {
@@ -3002,17 +3020,22 @@ async def rerun_artifact_analysis(
         )
     try:
         snapshot_id = str(body["snapshotId"])
+        base_artifact_version = _optional_int(body, "baseArtifactVersion")
+        base_project_state_version = _optional_int(body, "baseProjectStateVersion")
+        max_duration_ms = _optional_int(body, "maxDurationMs")
     except KeyError as exc:
         return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
     try:
         result = _kernel.workspace_runtime.rerun_analysis(
             project_id=project_id,
             artifact_type=artifact_type,
             snapshot_id=snapshot_id,
             actor=_workspace_runtime_actor(body),
-            base_artifact_version=body.get("baseArtifactVersion"),
-            base_project_state_version=body.get("baseProjectStateVersion"),
-            max_duration_ms=body.get("maxDurationMs"),
+            base_artifact_version=base_artifact_version,
+            base_project_state_version=base_project_state_version,
+            max_duration_ms=max_duration_ms,
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {
