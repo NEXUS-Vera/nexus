@@ -414,8 +414,6 @@ async def initialize_project(
                 new_id("evt"),
             )
             _kernel.projection.update_after_write(project_id)
-        except PersistenceError:
-            raise
         except Exception:  # noqa: BLE001
             logger.exception(
                 "initialization_graph_materialization_failed request_id=%s",
@@ -561,8 +559,6 @@ async def ensure_layered_architecture(
                     new_id("evt"),
                 )
                 _kernel.projection.update_after_write(project_id)
-            except PersistenceError:
-                raise
             except Exception:  # noqa: BLE001
                 logger.exception(
                     "ensure_layered_graph_materialization_failed request_id=%s",

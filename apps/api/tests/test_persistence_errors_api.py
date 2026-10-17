@@ -239,3 +239,19 @@ async def test_missing_snapshot_from_real_store(client):
     )
     assert response.status_code == 404, response.text
     assert response.json()["error"]["code"] == "SNAPSHOT_NOT_FOUND"
+
+
+async def test_initialize_graph_materialization_stays_best_effort(client, monkeypatch):
+    def fail(*args, **kwargs):
+        raise errors.ProjectStateConflictError("graph write raced")
+
+    monkeypatch.setattr(main, "materialize_layered_architecture_graph", fail)
+    response = await client.post(
+        "/v1/projects/initialize",
+        json={
+            "message": "Build a greenhouse temperature monitoring node.",
+            "autonomyMode": "collaborate",
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["project"]["projectId"]
