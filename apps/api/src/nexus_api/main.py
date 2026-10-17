@@ -1430,6 +1430,28 @@ def _invalid_string_error(exc: _InvalidStringField, request_id: str) -> JSONResp
     )
 
 
+def _accept_flag(body: dict[str, Any]) -> bool | None:
+    """The promote routes' ``accept`` flag: True when absent, else a JSON boolean.
+
+    ``bool()`` coercion would read the string ``"false"`` as True and promote
+    evidence into an accepted Test Plan revision the client declined, so any
+    non-boolean value (including null) returns None and the route answers 422.
+    """
+    if "accept" not in body:
+        return True
+    value = body["accept"]
+    return value if isinstance(value, bool) else None
+
+
+def _invalid_accept_error(request_id: str) -> JSONResponse:
+    return _error(
+        422,
+        code="COMMAND_VALIDATION_FAILED",
+        message="accept must be a boolean.",
+        request_id=request_id,
+    )
+
+
 def _workspace_runtime_actor(body: dict[str, Any] | None) -> dict[str, Any]:
     raw = (body or {}).get("requestedBy")
     if isinstance(raw, dict) and raw.get("actorId"):
@@ -2713,12 +2735,15 @@ async def promote_execution_evidence(
             message="executionRunId is required.",
             request_id=request_id,
         )
+    accept = _accept_flag(body)
+    if accept is None:
+        return _invalid_accept_error(request_id)
     try:
         return _kernel.verification.promote_execution_evidence(
             project_id=project_id,
             execution_run_id=str(body["executionRunId"]),
             actor=_workspace_runtime_actor(body),
-            accept=bool(body.get("accept", True)),
+            accept=accept,
         )
     except ExecutionNotFoundError as exc:
         return _error(404, code=exc.code, message=exc.message, request_id=request_id)
@@ -2760,6 +2785,9 @@ async def promote_analysis_summary(
             message="executionRunId is required.",
             request_id=request_id,
         )
+    accept = _accept_flag(body)
+    if accept is None:
+        return _invalid_accept_error(request_id)
     try:
         return _kernel.verification.promote_analysis_summary(
             project_id=project_id,
@@ -2767,7 +2795,7 @@ async def promote_analysis_summary(
             produced_output_names=list(body.get("producedOutputNames") or []),
             actor=_workspace_runtime_actor(body),
             execution_run_id=str(body["executionRunId"]),
-            accept=bool(body.get("accept", True)),
+            accept=accept,
         )
     except (BoardError, ExecutionNotFoundError) as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
@@ -2800,6 +2828,9 @@ async def promote_structural_mapping(
             message="signalMap object is required.",
             request_id=request_id,
         )
+    accept = _accept_flag(body)
+    if accept is None:
+        return _invalid_accept_error(request_id)
     try:
         signal_map = {str(k): str(v) for k, v in body["signalMap"].items()}
         return _kernel.verification.promote_structural_mapping(
@@ -2807,7 +2838,7 @@ async def promote_structural_mapping(
             signal_map=signal_map,
             actor=_workspace_runtime_actor(body),
             source_id=body.get("sourceId"),
-            accept=bool(body.get("accept", True)),
+            accept=accept,
         )
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
