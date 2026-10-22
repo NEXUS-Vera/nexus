@@ -11,6 +11,8 @@ RequirementVerificationState = Literal[
     "FAILED",
     "BLOCKED",
     "INCONCLUSIVE",
+    "STALE",
+    "RECHECK_REQUIRED",
 ]
 
 
@@ -31,8 +33,9 @@ def compute_requirement_coverage(
 
     Rules:
     - no linked test → UNCOVERED
-    - any linked test failed → FAILED
-    - all linked tests passed → VERIFIED
+    - any current linked test failed → FAILED
+    - otherwise unknown applicability → RECHECK_REQUIRED, then stale → STALE
+    - all linked tests currently passed → VERIFIED
     - no failures and any blocked → BLOCKED
     - no failures and any inconclusive → INCONCLUSIVE
     - otherwise (planned/ready/running only) → UNVERIFIED
@@ -83,6 +86,7 @@ def compute_requirement_coverage(
                         "displayId": c.get("displayId"),
                         "status": c.get("status"),
                         "assessment": c.get("assessment"),
+                        "applicability": c.get("applicability"),
                         "verificationMethod": c.get("verificationMethod"),
                     }
                     for c in linked
@@ -96,6 +100,14 @@ def compute_requirement_coverage(
 def _aggregate(linked: list[dict[str, Any]]) -> RequirementVerificationState:
     if not linked:
         return "UNCOVERED"
+    states = [(c.get("applicability") or {}).get("state", "CURRENT") for c in linked]
+    current = [c for c, state in zip(linked, states, strict=True) if state == "CURRENT"]
+    if any(c.get("status") == "failed" or c.get("assessment") == "FAIL" for c in current):
+        return "FAILED"
+    if "RECHECK_REQUIRED" in states:
+        return "RECHECK_REQUIRED"
+    if "STALE" in states:
+        return "STALE"
     statuses = [str(c.get("status") or "") for c in linked]
     assessments = [str(c.get("assessment") or "") for c in linked]
     if any(s == "failed" or a == "FAIL" for s, a in zip(statuses, assessments, strict=False)):
@@ -125,6 +137,8 @@ def compute_test_plan_coverage_summary(
         "FAILED": 0,
         "BLOCKED": 0,
         "INCONCLUSIVE": 0,
+        "STALE": 0,
+        "RECHECK_REQUIRED": 0,
     }
     for row in coverage_rows:
         state = str(row.get("verificationState") or "UNCOVERED")
@@ -134,6 +148,8 @@ def compute_test_plan_coverage_summary(
         "totalRequirements": total,
         "coveredRequirements": covered,
         "verifiedRequirements": counts["VERIFIED"],
+        "staleRequirements": counts["STALE"],
+        "recheckRequiredRequirements": counts["RECHECK_REQUIRED"],
         "failedRequirements": counts["FAILED"],
         "blockedRequirements": counts["BLOCKED"],
         "unverifiedRequirements": counts["UNVERIFIED"] + counts["INCONCLUSIVE"],

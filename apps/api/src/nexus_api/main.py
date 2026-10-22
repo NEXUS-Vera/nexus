@@ -553,7 +553,7 @@ async def ensure_layered_architecture(
         now = created[0]["createdAt"] if created else None
         state_version = int(project["currentStateVersion"])
         for art in created:
-            state_version += 1
+            state_version = int(_store.get_project(project_id)["currentStateVersion"]) + 1  # type: ignore[attr-defined]
             stamp = str(art.get("updatedAt") or art.get("createdAt") or now)
             _store.apply_accepted_artifact_revision(  # type: ignore[attr-defined]
                 project_id=project_id,
@@ -562,6 +562,7 @@ async def ensure_layered_architecture(
                 updated_at=stamp,
                 expected_project_state_version=state_version - 1,
             )
+            _kernel.invalidation.process(project_id, None, art)
         if created:
             try:
                 materialize_layered_architecture_graph(

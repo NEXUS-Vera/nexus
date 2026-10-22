@@ -74,6 +74,7 @@ class Payload(TypedDict, closed=True):
         ]
     ]
     decisionId: NotRequired[str]
+    eventId: NotRequired[str]
     evidenceId: NotRequired[str]
     evidenceStatus: NotRequired[
         Literal[
@@ -86,6 +87,7 @@ class Payload(TypedDict, closed=True):
         ]
     ]
     executionRunId: NotRequired[str]
+    fromVersion: NotRequired[int]
     generatedFiles: NotRequired[list[GeneratedFile]]
     generationId: NotRequired[str]
     generationKind: NotRequired[Literal['scaffold', 'patch']]
@@ -106,10 +108,12 @@ class Payload(TypedDict, closed=True):
     ]
     patchOperations: NotRequired[list[PatchOperation]]
     patchProposalId: NotRequired[str]
+    path: NotRequired[list[str]]
     proposalId: NotRequired[str]
     questionId: NotRequired[str]
     reason: NotRequired[str]
     requestedChange: NotRequired[str]
+    requirementIds: NotRequired[list[str]]
     resultingArtifactId: NotRequired[str]
     resultingArtifactVersion: NotRequired[int]
     scaffoldProfileId: NotRequired[str]
@@ -118,6 +122,10 @@ class Payload(TypedDict, closed=True):
     status: NotRequired[str]
     summary: NotRequired[str]
     supersededBy: NotRequired[str]
+    testId: NotRequired[str]
+    toVersion: NotRequired[int]
+    triggerArtifactId: NotRequired[str]
+    triggerArtifactType: NotRequired[str]
     workspaceId: NotRequired[str]
 
 class Subject(TypedDict, closed=True):
@@ -173,6 +181,8 @@ class ProjectEventV1(TypedDict, closed=True):
         'workspace.patch-proposed',
         'workspace.patch-applied',
         'workspace.patch-discarded',
+        'verification.invalidated',
+        'verification.revalidated',
     ]
     occurredAt: str
     payload: Payload

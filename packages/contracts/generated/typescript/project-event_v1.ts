@@ -66,7 +66,9 @@ export interface ProjectEvent {
     | 'workspace.scaffold-generated'
     | 'workspace.patch-proposed'
     | 'workspace.patch-applied'
-    | 'workspace.patch-discarded';
+    | 'workspace.patch-discarded'
+    | 'verification.invalidated'
+    | 'verification.revalidated';
   occurredAt: string;
   payload: {
     artifactId?: string;
@@ -84,9 +86,11 @@ export interface ProjectEvent {
       | 'architecture-export'
       | 'sandbox-execution';
     decisionId?: string;
+    eventId?: string;
     evidenceId?: string;
     evidenceStatus?: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
     executionRunId?: string;
+    fromVersion?: number;
     generatedFiles?: {
       contentHash: string;
       path: string;
@@ -116,10 +120,12 @@ export interface ProjectEvent {
       path: string;
     }[];
     patchProposalId?: string;
+    path?: string[];
     proposalId?: string;
     questionId?: string;
     reason?: string;
     requestedChange?: string;
+    requirementIds?: string[];
     resultingArtifactId?: string;
     resultingArtifactVersion?: number;
     scaffoldProfileId?: string;
@@ -128,6 +134,10 @@ export interface ProjectEvent {
     status?: string;
     summary?: string;
     supersededBy?: string;
+    testId?: string;
+    toVersion?: number;
+    triggerArtifactId?: string;
+    triggerArtifactType?: string;
     workspaceId?: string;
   };
   projectId: string;

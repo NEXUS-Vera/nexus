@@ -62,7 +62,9 @@
         "workspace.scaffold-generated",
         "workspace.patch-proposed",
         "workspace.patch-applied",
-        "workspace.patch-discarded"
+        "workspace.patch-discarded",
+        "verification.invalidated",
+        "verification.revalidated"
       ]
     },
     "occurredAt": {
@@ -327,6 +329,38 @@
                 "pattern": "^sha256:[a-f0-9]{64}$"
               }
             }
+          }
+        },
+        "triggerArtifactType": {
+          "type": "string"
+        },
+        "triggerArtifactId": {
+          "type": "string"
+        },
+        "testId": {
+          "type": "string"
+        },
+        "eventId": {
+          "type": "string"
+        },
+        "fromVersion": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "toVersion": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requirementIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
           }
         }
       }

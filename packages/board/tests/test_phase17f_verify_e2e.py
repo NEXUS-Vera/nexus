@@ -190,11 +190,15 @@ def _seed() -> tuple[Any, InMemoryProjectStore, str, dict[str, Any]]:
 
 
 def _seed_summary_run(kernel: Any, project_id: str, run_id: str, status: str = "completed") -> None:
+    provenance = {}
+    if project_id != "proj_FOREIGN":
+        provenance = _seed_run_inputs(kernel, project_id)
     kernel.kernel_store.create_execution_run(
         {
             "schemaVersion": "1.0.0",
             "executionRunId": run_id,
             "projectId": project_id,
+            **provenance,
             "artifactType": "analysis",
             "status": "completed" if status == "truncated" else status,
             "createdAt": utc_now_iso(),
@@ -212,6 +216,26 @@ def _seed_summary_run(kernel: Any, project_id: str, run_id: str, status: str = "
             "logTruncated": status == "truncated",
         }
     )
+
+    if provenance:
+        kernel.invalidation.record_run(kernel.kernel_store.get_execution_run(run_id))
+
+
+def _seed_run_inputs(kernel: Any, project_id: str) -> dict[str, Any]:
+    user = actor()
+    binding = kernel.workspace_runtime.resolve_binding(
+        project_id=project_id, artifact_type="analysis", actor=user
+    )
+    kernel.workspaces.acquire_edit_lease(workspace_id=binding["workspaceId"], actor=user)
+    snapshot = kernel.workspaces.create_snapshot(
+        workspace_id=binding["workspaceId"], reason="Verification fixture", actor=user
+    )
+    return {
+        "workspaceId": binding["workspaceId"],
+        "artifactId": binding["artifactId"],
+        "baseArtifactVersion": binding["baseArtifactVersion"],
+        "inputSnapshotId": snapshot["snapshotId"],
+    }
 
 
 @pytest.mark.parametrize(
@@ -543,11 +567,13 @@ def test_g1_product_path_execution_run_promotion(run_status: str) -> None:
                 "createdAt": now,
             }
         )
+    provenance = _seed_run_inputs(kernel, project_id)
     ks.create_execution_run(
         {
             "schemaVersion": "1.0.0",
             "executionRunId": run_id,
             "projectId": project_id,
+            **provenance,
             "artifactType": "analysis",
             "status": "completed" if run_status == "truncated" else run_status,
             **({"executionJobId": "execjob_TRUNCATED"} if run_status == "truncated" else {}),
@@ -558,6 +584,8 @@ def test_g1_product_path_execution_run_promotion(run_status: str) -> None:
             "runtimeKind": "process",
         }
     )
+
+    kernel.invalidation.record_run(ks.get_execution_run(run_id))
 
     if run_status == "truncated":
         ks.create_execution_job(

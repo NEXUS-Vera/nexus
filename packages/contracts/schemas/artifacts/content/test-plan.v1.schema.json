@@ -29,6 +29,119 @@
     }
   },
   "$defs": {
+    "verificationBasis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executionRunId",
+        "inputSnapshotId",
+        "dependencies"
+      ],
+      "properties": {
+        "executionRunId": {
+          "type": "string"
+        },
+        "inputSnapshotId": {
+          "type": "string"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "artifactType",
+              "artifactId",
+              "artifactVersion",
+              "contentHash"
+            ],
+            "properties": {
+              "artifactType": {
+                "type": "string"
+              },
+              "artifactId": {
+                "type": "string"
+              },
+              "artifactVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "contentHash": {
+                "type": "string"
+              },
+              "entryId": {
+                "type": "string"
+              },
+              "snapshotId": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "reasons"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "CURRENT",
+            "STALE",
+            "RECHECK_REQUIRED"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "triggerArtifactType",
+              "triggerArtifactId",
+              "fromVersion",
+              "toVersion",
+              "path",
+              "reason",
+              "eventId"
+            ],
+            "properties": {
+              "triggerArtifactType": {
+                "type": "string"
+              },
+              "triggerArtifactId": {
+                "type": "string"
+              },
+              "fromVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "toVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "path": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reason": {
+                "type": "string"
+              },
+              "eventId": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
     "verificationMethod": {
       "type": "string",
       "enum": [
@@ -143,6 +256,8 @@
         },
         "actualResult": { "type": "string" },
         "finding": { "type": "string" },
+        "verificationBasis": { "$ref": "#/$defs/verificationBasis" },
+        "applicability": { "$ref": "#/$defs/applicability" },
         "evidenceReferences": {
           "type": "array",
           "items": {
@@ -172,6 +287,8 @@
         "totalRequirements": { "type": "integer", "minimum": 0 },
         "coveredRequirements": { "type": "integer", "minimum": 0 },
         "verifiedRequirements": { "type": "integer", "minimum": 0 },
+        "staleRequirements": { "type": "integer", "minimum": 0 },
+        "recheckRequiredRequirements": { "type": "integer", "minimum": 0 },
         "failedRequirements": { "type": "integer", "minimum": 0 },
         "blockedRequirements": { "type": "integer", "minimum": 0 },
         "unverifiedRequirements": { "type": "integer", "minimum": 0 },

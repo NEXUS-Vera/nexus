@@ -118,6 +118,14 @@ Risk Register retains monitoring for risks requiring physical evidence. Mitigati
 verification requires every declared verification test to exist and pass. The API
 and Evidence Explorer expose the resulting evidence chain.
 
+Verification promotions pin requirement-entry and criterion hashes, producer snapshots,
+and graph dependencies in each case's `verificationBasis`. Accepted artifact changes
+write a system Test Plan revision marking affected cases `STALE`; missing or unresolved
+basis yields `RECHECK_REQUIRED`, including a recorded backfill on projection reads.
+Historical observations and evidence remain intact. Only a completed, non-truncated
+run against current inputs can restore `CURRENT`; model-authored revisions cannot
+edit applicability or basis. These states persist in existing artifacts, graph and ledger.
+
 The golden ESP32/MPU6050 fixture uses `time_s` (seconds) and `accel_*_g`
 (acceleration in g) throughout firmware telemetry and analysis CSVs. Firmware
 emits the CSV header at startup; strip the `TEL,` frame prefix when capturing

@@ -11,8 +11,11 @@ import json
 from contextlib import suppress
 from typing import Any, Protocol
 
+from nexus_persistence.errors import PersistenceNotFoundError
+
 from nexus_board.errors import BoardError
 from nexus_board.ids import new_id, utc_now_iso
+from nexus_board.services.command_service import VERIFICATION_WRITE
 from nexus_board.verification.close import (
     annotate_risk_mitigation_verification,
     content_fingerprint,
@@ -68,6 +71,7 @@ class VerificationService:
         ledger: Any,
         projection: Any,
         file_store: Any | None = None,
+        invalidation: Any | None = None,
     ) -> None:
         self._kernel: _KernelStore = kernel_store
         self._projects = project_store
@@ -76,6 +80,7 @@ class VerificationService:
         self._ledger = ledger
         self._projection = projection
         self._files = file_store
+        self._invalidation = invalidation
 
     def promote_execution_evidence(
         self,
@@ -124,6 +129,8 @@ class VerificationService:
                 requirements=requirements,
                 run_occurred=True,
             )
+        if self._invalidation is not None:
+            self._invalidation.stamp(project_id, test_plan["content"], content, execution_run_id)
         after = content_fingerprint(content)
         if before == after:
             return {
@@ -204,6 +211,8 @@ class VerificationService:
             project_id=project_id,
             expected_project_id=project_id,
         )
+        if changed and self._invalidation is not None:
+            self._invalidation.stamp(project_id, test_plan["content"], content, run_id)
         if not changed:
             return {
                 "schemaVersion": "1.0.0",
@@ -251,6 +260,7 @@ class VerificationService:
         """Promote Electrical/Wokwi translation pin maps into inspection TestCases."""
 
         source = source_id or f"structural_{project_id}"
+        self._check_optional_run(project_id, source)
         test_plan = self._projects.get_artifact(project_id, "test-plan")
         requirements = self._load_requirements(project_id)
         content, changed = promote_structural_evidence_into_test_plan(
@@ -259,6 +269,8 @@ class VerificationService:
             source_id=source,
             requirements=requirements,
         )
+        if changed and self._invalidation is not None:
+            self._invalidation.stamp(project_id, test_plan["content"], content, source)
         if not changed:
             return {
                 "schemaVersion": "1.0.0",
@@ -288,6 +300,7 @@ class VerificationService:
         accept: bool = True,
     ) -> dict[str, Any]:
         run_id = execution_run_id or new_id("exec")
+        self._check_optional_run(project_id, run_id)
         test_plan = self._projects.get_artifact(project_id, "test-plan")
         requirements = self._load_requirements(project_id)
         content, changed = promote_marker_evidence_into_test_plan(
@@ -297,6 +310,8 @@ class VerificationService:
             requirements=requirements,
             run_occurred=run_occurred,
         )
+        if changed and self._invalidation is not None:
+            self._invalidation.stamp(project_id, test_plan["content"], content, run_id)
         if not changed:
             return {
                 "schemaVersion": "1.0.0",
@@ -314,7 +329,26 @@ class VerificationService:
         )
         return {"schemaVersion": "1.0.0", "changed": True, "idempotent": False, **revision}
 
+    def _check_optional_run(self, project_id: str, run_id: str) -> None:
+        # Legacy inspection/log sources remain historical observations, never CURRENT.
+        try:
+            run = self._kernel.get_execution_run(run_id)
+        except (KeyError, PersistenceNotFoundError):
+            return
+        if run.get("projectId") != project_id:
+            raise VerificationError("ExecutionRun does not belong to this project.")
+        if run.get("status") not in {"completed", "completed-with-warnings"}:
+            raise VerificationError(
+                "Only completed ExecutionRuns may promote verification evidence."
+            )
+        if run.get("executionJobId") and self._kernel.get_execution_job(run["executionJobId"]).get(
+            "logTruncated"
+        ):
+            raise VerificationError("ExecutionRun logs were truncated; evidence is incomplete.")
+
     def requirement_verification_projection(self, project_id: str) -> list[dict[str, Any]]:
+        if self._invalidation is not None:
+            self._invalidation.backfill(project_id)
         test_plan = self._projects.get_artifact(project_id, "test-plan")
         requirements = self._load_requirements(project_id)
         return compute_requirement_coverage(
@@ -345,6 +379,7 @@ class VerificationService:
                         "verificationState": row.get("verificationState"),
                         "testId": tid,
                         "testStatus": case.get("status"),
+                        "applicability": case.get("applicability"),
                         "assessment": case.get("assessment"),
                         "assessmentAuthority": case.get("assessmentAuthority"),
                         "actualResult": case.get("actualResult"),
@@ -429,7 +464,14 @@ class VerificationService:
                     return None
         return None
 
-    def _revise_test_plan(
+    def _revise_test_plan(self, **kwargs: Any) -> dict[str, Any]:
+        token = VERIFICATION_WRITE.set(True)
+        try:
+            return self._revise_test_plan_trusted(**kwargs)
+        finally:
+            VERIFICATION_WRITE.reset(token)
+
+    def _revise_test_plan_trusted(
         self,
         *,
         project_id: str,

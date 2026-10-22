@@ -954,6 +954,8 @@ export interface TestPlanContent {
     blockedRequirements: number;
     coveredRequirements: number;
     failedRequirements: number;
+    recheckRequiredRequirements?: number;
+    staleRequirements?: number;
     totalRequirements: number;
     uncoveredRequirements: number;
     unverifiedRequirements: number;
@@ -971,6 +973,18 @@ export interface TestPlanContent {
   testCases: [
     {
       actualResult?: string;
+      applicability?: {
+        reasons: {
+          eventId: string;
+          fromVersion: number;
+          path: string[];
+          reason: string;
+          toVersion: number;
+          triggerArtifactId: string;
+          triggerArtifactType: string;
+        }[];
+        state: 'CURRENT' | 'STALE' | 'RECHECK_REQUIRED';
+      };
       assessment?: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
       assessmentAuthority?: 'deterministic-code' | 'manual' | 'none';
       criterion?: {
@@ -1004,10 +1018,34 @@ export interface TestPlanContent {
       status: 'planned' | 'ready' | 'running' | 'passed' | 'failed' | 'blocked' | 'inconclusive';
       testId: string;
       title: string;
+      verificationBasis?: {
+        dependencies: {
+          artifactId: string;
+          artifactType: string;
+          artifactVersion: number;
+          contentHash: string;
+          entryId?: string;
+          snapshotId?: string;
+        }[];
+        executionRunId: string;
+        inputSnapshotId: string;
+      };
       verificationMethod: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
     },
     ...{
       actualResult?: string;
+      applicability?: {
+        reasons: {
+          eventId: string;
+          fromVersion: number;
+          path: string[];
+          reason: string;
+          toVersion: number;
+          triggerArtifactId: string;
+          triggerArtifactType: string;
+        }[];
+        state: 'CURRENT' | 'STALE' | 'RECHECK_REQUIRED';
+      };
       assessment?: 'PASS' | 'FAIL' | 'INCONCLUSIVE';
       assessmentAuthority?: 'deterministic-code' | 'manual' | 'none';
       criterion?: {
@@ -1041,6 +1079,18 @@ export interface TestPlanContent {
       status: 'planned' | 'ready' | 'running' | 'passed' | 'failed' | 'blocked' | 'inconclusive';
       testId: string;
       title: string;
+      verificationBasis?: {
+        dependencies: {
+          artifactId: string;
+          artifactType: string;
+          artifactVersion: number;
+          contentHash: string;
+          entryId?: string;
+          snapshotId?: string;
+        }[];
+        executionRunId: string;
+        inputSnapshotId: string;
+      };
       verificationMethod: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
     }[]
   ];

@@ -175,6 +175,15 @@ def _execute_golden_g1(
     else:
         project_store, ks = build_stores("sqlite", sqlite_url)
     package["artifacts"] = init_artifacts
+    package["project"]["currentArtifactReferences"] = [
+        {
+            "artifactType": a["artifactType"],
+            "artifactId": a["artifactId"],
+            "artifactVersion": a["artifactVersion"],
+            "contentSchemaVersion": a["contentSchemaVersion"],
+        }
+        for a in init_artifacts
+    ]
     project_store.save_initialization_package(package)
     kernel_kwargs: dict[str, Any] = {}
     if file_store_root is not None:
@@ -544,6 +553,11 @@ def _execute_golden_g1(
     requirement = project_store.get_artifact(project_id, "requirement-set")
     basis_version = requirement["artifactVersion"]
     changed = copy.deepcopy(requirement)
+    from nexus_board.ids import new_id
+
+    changed["artifactId"] = new_id("art")
+    changed["supersedesArtifactId"] = requirement["artifactId"]
+    changed["supersedesArtifactVersion"] = basis_version
     changed["artifactVersion"] += 1
     r7_requirement = next(r for r in changed["content"]["requirements"] if r["displayId"] == "R7")
     r7_requirement["statement"] = "Stationary accel_x RMS noise shall be below 0.01 g."
@@ -553,13 +567,18 @@ def _execute_golden_g1(
         next_state_version=project_store.get_project(project_id)["currentStateVersion"] + 1,
         updated_at=changed["updatedAt"],
     )
+    kernel.invalidation.process(project_id, requirement, changed)
+    stale_rows = kernel.verification.requirement_verification_projection(project_id)
+    r7_state = next(r for r in stale_rows if r["displayId"] == "R7")["verificationState"]
+    assert r7_state == "STALE"
     current_version = project_store.get_artifact(project_id, "requirement-set")["artifactVersion"]
     assert current_version > basis_version
+    report["requirementVerification"] = stale_rows
     report["evidenceFreshness"] = {
-        "status": "STALE",
+        "status": r7_state,
         "basisRequirementVersion": basis_version,
         "currentRequirementVersion": current_version,
-        "note": "Demo basis comparison; coverage projection does not yet invalidate old evidence.",
+        "note": "Accepted requirement revision invalidates the product verification projection.",
     }
     _write_report(tmp_path / "golden-g1.json", report)
     print("FIXTURE: R7 VERIFIED; RMS=" + str(summary_preview["accel_x_rms_noise_g"]))

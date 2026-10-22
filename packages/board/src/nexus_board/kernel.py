@@ -31,6 +31,7 @@ from nexus_board.services.execution_service import CapabilityExecutor, Execution
 from nexus_board.services.filesystem_limits import WorkspaceFilesystemLimits
 from nexus_board.services.filesystem_service import FilesystemWorkspaceService
 from nexus_board.services.graph_service import ProjectGraphService
+from nexus_board.services.invalidation_service import InvalidationService
 from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.projection_service import ProjectBoardProjectionService
 from nexus_board.services.retention import RetentionPolicy, RetentionService
@@ -127,6 +128,11 @@ class ProjectKernel:
             self.projection,
             self.graph,
         )
+        self.invalidation = InvalidationService(
+            project_store, kernel_store, self.graph, self.ledger, self.projection
+        )
+        self.commands.invalidation = self.invalidation
+        self.executions.invalidation = self.invalidation
         self.workspace_runtime = WorkspaceRuntimeService(
             kernel_store=kernel_store,
             project_store=project_store,
@@ -138,6 +144,7 @@ class ProjectKernel:
             firmware_patch_generator=firmware_patch_generator,
             analysis_patch_generator=analysis_patch_generator,
         )
+        self.workspace_runtime.invalidation = self.invalidation
         self.verification = VerificationService(
             kernel_store=kernel_store,
             project_store=project_store,
@@ -146,12 +153,14 @@ class ProjectKernel:
             ledger=self.ledger,
             projection=self.projection,
             file_store=self.file_store,
+            invalidation=self.invalidation,
         )
 
     def list_artifact_types(self) -> list[dict[str, Any]]:
         return self.artifact_types.list()
 
     def get_board(self, project_id: str) -> dict[str, Any]:
+        self.invalidation.backfill(project_id)
         return self.projection.get_board(project_id)
 
     def dispatch(self, command: dict[str, Any]) -> dict[str, Any]:

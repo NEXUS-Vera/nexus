@@ -28,6 +28,7 @@ class ProjectGraphReader(Protocol):
         max_depth: int = 5,
         max_nodes: int = 100,
         max_edges: int = 200,
+        edge_type: str | None = None,
     ) -> dict[str, Any]: ...
 
     def get_upstream(
@@ -49,6 +50,7 @@ class ProjectGraphReader(Protocol):
         max_depth: int = 5,
         max_nodes: int = 100,
         max_edges: int = 200,
+        edge_type: str | None = None,
     ) -> dict[str, Any]: ...
 
 
@@ -94,6 +96,7 @@ class InMemoryProjectGraphReader:
         max_depth: int = 5,
         max_nodes: int = 100,
         max_edges: int = 200,
+        edge_type: str | None = None,
     ) -> dict[str, Any]:
         return self.get_subgraph(
             project_id,
@@ -102,6 +105,7 @@ class InMemoryProjectGraphReader:
             max_depth=max_depth,
             max_nodes=max_nodes,
             max_edges=max_edges,
+            edge_type=edge_type,
         )
 
     def get_upstream(
@@ -131,9 +135,14 @@ class InMemoryProjectGraphReader:
         max_depth: int = 5,
         max_nodes: int = 100,
         max_edges: int = 200,
+        edge_type: str | None = None,
     ) -> dict[str, Any]:
         nodes = {n["nodeId"]: n for n in self._store.list_graph_nodes(project_id)}
-        edges = self._store.list_graph_edges(project_id)
+        edges = [
+            e
+            for e in self._store.list_graph_edges(project_id)
+            if edge_type is None or e["edgeType"] == edge_type
+        ]
         if root_node_id not in nodes:
             return {
                 "schemaVersion": "1.0.0",
@@ -265,6 +274,46 @@ class ProjectGraphService:
             "targetNodeId": target["nodeId"],
             "edgeType": "supersedes",
             "createdByEventId": created_by_event_id,
+            "validFrom": utc_now_iso(),
+        }
+        self._store.create_graph_edge(edge)
+        return edge
+
+    def ensure_dependency_node(
+        self, project_id: str, ref_id: str, node_type: str, label: str
+    ) -> dict[str, Any]:
+        for node in self._store.list_graph_nodes(project_id):
+            if node.get("refId") == ref_id:
+                return node
+        node = {
+            "schemaVersion": "1.0.0",
+            "nodeId": new_id("gnode"),
+            "projectId": project_id,
+            "nodeType": node_type,
+            "refId": ref_id,
+            "label": label,
+            "createdAt": utc_now_iso(),
+        }
+        self._store.create_graph_node(node)
+        return node
+
+    def link_depends_on(
+        self, *, project_id: str, source: dict[str, Any], target: dict[str, Any]
+    ) -> dict[str, Any]:
+        for edge in self._store.list_graph_edges(project_id):
+            if (
+                edge.get("edgeType") == "depends-on"
+                and edge.get("sourceNodeId") == source["nodeId"]
+                and edge.get("targetNodeId") == target["nodeId"]
+            ):
+                return edge
+        edge = {
+            "schemaVersion": "1.0.0",
+            "edgeId": new_id("gedge"),
+            "projectId": project_id,
+            "sourceNodeId": source["nodeId"],
+            "targetNodeId": target["nodeId"],
+            "edgeType": "depends-on",
             "validFrom": utc_now_iso(),
         }
         self._store.create_graph_edge(edge)
