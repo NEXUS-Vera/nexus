@@ -184,6 +184,7 @@ class WorkspaceRuntimeService:
         firmware_patch_generator: _FirmwarePatchGenerator | None = None,
         analysis_patch_generator: Any | None = None,
     ) -> None:
+        self.invalidation: Any | None = None
         self._kernel = kernel_store
         self._projects = project_store
         self._types = artifact_types
@@ -237,6 +238,9 @@ class WorkspaceRuntimeService:
         else:
             workspace = existing["workspace"]
             draft = existing["draft"]
+
+        if self.invalidation is not None:
+            self.invalidation.bind_workspace(project_id, artifact_type)
 
         # Capabilities remain registry-driven; filesystem ops still gate on them.
         filesystem_enabled = bool(caps["filesystem"] and is_filesystem_workspace(workspace))

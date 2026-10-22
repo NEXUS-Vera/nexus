@@ -84,6 +84,7 @@ class ExecutionService:
         self._projection = projection
         self._capability_executors = dict(capability_executors or {})
         self._jobs = job_service
+        self.invalidation: Any | None = None
 
     def list_runs(
         self, project_id: str, *, limit: int = 50, cursor: str | None = None
@@ -215,6 +216,8 @@ class ExecutionService:
             "evidenceReferences": [],
         }
         self._kernel.create_execution_run(run)
+        if self.invalidation is not None:
+            self.invalidation.record_run(run)
         self._ledger.append(
             project_id=project_id,
             event_type="execution.queued",
@@ -470,6 +473,8 @@ class ExecutionService:
             "evidenceReferences": [],
         }
         self._kernel.create_execution_run(run)
+        if self.invalidation is not None:
+            self.invalidation.record_run(run)
         self._ledger.append(
             project_id=project_id,
             event_type="execution.queued",

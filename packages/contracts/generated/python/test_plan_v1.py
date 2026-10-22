@@ -10,6 +10,8 @@ class CoverageSummary(TypedDict, closed=True):
     blockedRequirements: int
     coveredRequirements: int
     failedRequirements: int
+    recheckRequiredRequirements: NotRequired[int]
+    staleRequirements: NotRequired[int]
     totalRequirements: int
     uncoveredRequirements: int
     unverifiedRequirements: int
@@ -18,6 +20,19 @@ class CoverageSummary(TypedDict, closed=True):
 class Provenance(TypedDict, closed=True):
     generatedBy: NotRequired[Literal['fixture', 'llm', 'user', 'derived']]
     notes: NotRequired[str]
+
+class Reason(TypedDict, closed=True):
+    eventId: str
+    fromVersion: int
+    path: list[str]
+    reason: str
+    toVersion: int
+    triggerArtifactId: str
+    triggerArtifactType: str
+
+class Applicability(TypedDict, closed=True):
+    reasons: list[Reason]
+    state: Literal['CURRENT', 'STALE', 'RECHECK_REQUIRED']
 
 class Criterion(TypedDict, closed=True):
     criterionType: Literal[
@@ -65,8 +80,22 @@ class EvidenceReference(TypedDict, closed=True):
     ]
     supportedClaim: NotRequired[str]
 
+class Dependency(TypedDict, closed=True):
+    artifactId: str
+    artifactType: str
+    artifactVersion: int
+    contentHash: str
+    entryId: NotRequired[str]
+    snapshotId: NotRequired[str]
+
+class VerificationBasis(TypedDict, closed=True):
+    dependencies: list[Dependency]
+    executionRunId: str
+    inputSnapshotId: str
+
 class TestCase(TypedDict, closed=True):
     actualResult: NotRequired[str]
+    applicability: NotRequired[Applicability]
     assessment: NotRequired[Literal['PASS', 'FAIL', 'INCONCLUSIVE']]
     assessmentAuthority: NotRequired[Literal['deterministic-code', 'manual', 'none']]
     criterion: NotRequired[Criterion]
@@ -88,6 +117,7 @@ class TestCase(TypedDict, closed=True):
     ]
     testId: str
     title: str
+    verificationBasis: NotRequired[VerificationBasis]
     verificationMethod: Literal[
         'inspection',
         'simulation',
@@ -105,6 +135,14 @@ class TestPlanV1(TypedDict, closed=True):
     testCases: list[TestCase]
     testPlanId: str
     title: NotRequired[str]
+
+class Applicability1(TypedDict, closed=True):
+    reasons: list[Reason]
+    state: Literal['CURRENT', 'STALE', 'RECHECK_REQUIRED']
+
+class Applicability2(TypedDict, closed=True):
+    reasons: list[Reason]
+    state: Literal['CURRENT', 'STALE', 'RECHECK_REQUIRED']
 
 class EvidenceReference1(TypedDict, closed=True):
     attribution: NotRequired[Attribution]
@@ -124,8 +162,14 @@ class EvidenceReference1(TypedDict, closed=True):
     ]
     supportedClaim: NotRequired[str]
 
+class VerificationBasis1(TypedDict, closed=True):
+    dependencies: list[Dependency]
+    executionRunId: str
+    inputSnapshotId: str
+
 class TestCase1(TypedDict, closed=True):
     actualResult: NotRequired[str]
+    applicability: NotRequired[Applicability2]
     assessment: NotRequired[Literal['PASS', 'FAIL', 'INCONCLUSIVE']]
     assessmentAuthority: NotRequired[Literal['deterministic-code', 'manual', 'none']]
     criterion: NotRequired[Criterion]
@@ -147,6 +191,7 @@ class TestCase1(TypedDict, closed=True):
     ]
     testId: str
     title: str
+    verificationBasis: NotRequired[VerificationBasis1]
     verificationMethod: Literal[
         'inspection',
         'simulation',
@@ -159,6 +204,11 @@ class TestCase1(TypedDict, closed=True):
 TestStatus: TypeAlias = Literal[
     'planned', 'ready', 'running', 'passed', 'failed', 'blocked', 'inconclusive'
 ]
+
+class VerificationBasis2(TypedDict, closed=True):
+    dependencies: list[Dependency]
+    executionRunId: str
+    inputSnapshotId: str
 
 VerificationMethod: TypeAlias = Literal[
     'inspection',

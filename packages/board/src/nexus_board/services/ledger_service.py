@@ -36,10 +36,11 @@ class ProjectLedgerService:
         causation_id: str | None = None,
         correlation_id: str | None = None,
         occurred_at: str | None = None,
+        event_id: str | None = None,
     ) -> dict[str, Any]:
         event: dict[str, Any] = {
             "schemaVersion": "1.0.0",
-            "eventId": new_id("evt"),
+            "eventId": event_id or new_id("evt"),
             "projectId": project_id,
             "eventType": event_type,
             "occurredAt": occurred_at or utc_now_iso(),

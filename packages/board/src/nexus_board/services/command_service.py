@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import re
+from contextvars import ContextVar
 from typing import Any, Protocol
+
+from nexus_persistence.errors import ArtifactNotFoundError
 
 from nexus_board.errors import (
     ApprovalRequiredError,
@@ -31,9 +34,12 @@ from nexus_board.services.deletion_impact import inspect_functional_node_deletio
 from nexus_board.services.draft_lease import DEFAULT_LEASE_TTL_SECONDS
 from nexus_board.services.execution_service import ExecutionService
 from nexus_board.services.graph_service import ProjectGraphService
+from nexus_board.services.invalidation_service import protected_fields
 from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.projection_service import ProjectBoardProjectionService
 from nexus_board.services.workspace_service import WorkspaceService
+
+VERIFICATION_WRITE: ContextVar[bool] = ContextVar("verification_write", default=False)
 
 COMMAND_ID_RE = re.compile(r"^cmd_[A-Za-z0-9]{16,}$")
 COMMAND_TYPES = {
@@ -113,6 +119,7 @@ class ArtifactCommandService:
         self._ledger = ledger
         self._projection = projection
         self._graph = graph
+        self.invalidation: Any | None = None
 
     def dispatch(self, command: dict[str, Any]) -> dict[str, Any]:
         self._validate_command_shape(command)
@@ -213,6 +220,10 @@ class ArtifactCommandService:
 
     def _update_draft(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
         del actor_kind
+        workspace = self._kernel.get_workspace(command["workspaceId"])
+        self._validate_verification_fields(
+            command["projectId"], workspace["artifactType"], command["input"]["content"]
+        )
         updated = self._workspaces.update_draft(
             workspace_id=command["workspaceId"],
             content=command["input"]["content"],
@@ -327,6 +338,12 @@ class ArtifactCommandService:
             consequence,  # type: ignore[arg-type]
             project.get("autonomyMode") or "collaborate",
         )
+        snapshot = self._kernel.get_snapshot(command["input"]["snapshotId"])
+        self._validate_verification_fields(
+            command["projectId"],
+            workspace["artifactType"],
+            snapshot["content"].get("structuredContent") or {},
+        )
         now = utc_now_iso()
         status = "awaiting-approval" if approval["required"] else "proposed"
         proposal = {
@@ -430,6 +447,29 @@ class ArtifactCommandService:
 
         snapshot = self._kernel.get_snapshot(proposal["snapshotId"])
         content = snapshot["content"].get("structuredContent") or {}
+        promotion_run = (
+            self._promotion_run(command["projectId"], proposal_id)
+            if proposal["artifactType"] == "test-plan"
+            else None
+        )
+        self._validate_verification_fields(
+            command["projectId"],
+            proposal["artifactType"],
+            content,
+            promoted=promotion_run is not None,
+        )
+        if (
+            (promotion_run or VERIFICATION_WRITE.get())
+            and self.invalidation is not None
+            and proposal["artifactType"] == "test-plan"
+        ):
+            for case in content.get("testCases", []):
+                if (case.get("applicability") or {}).get(
+                    "state"
+                ) == "CURRENT" and not self.invalidation.basis_is_current(
+                    command["projectId"], case
+                ):
+                    raise StaleExecutionResultError("Verification basis is no longer current.")
         now = utc_now_iso()
         previous = None
         try:
@@ -591,6 +631,10 @@ class ArtifactCommandService:
                 accept_event["eventId"],
             )
 
+        if self.invalidation is not None:
+            self.invalidation.process(command["projectId"], previous, new_artifact)
+            if previous and proposal["artifactType"] == "test-plan":
+                self.invalidation.revalidated(command["projectId"], previous["content"], content)
         self._projection.update_after_write(command["projectId"])
         return {
             "workspace_id": proposal["workspaceId"],
@@ -602,6 +646,31 @@ class ArtifactCommandService:
                 "artifactVersion": next_version,
             },
         }
+
+    def _promotion_run(self, project_id: str, proposal_id: str) -> str | None:
+        events, cursor = self._ledger.list_events(project_id, limit=1000)
+        while True:
+            for event in events:
+                if (
+                    event["eventType"] == "verification.evidence-promoted"
+                    and event.get("payload", {}).get("proposalId") == proposal_id
+                ):
+                    return event["payload"].get("sourceExecutionRunId")
+            if not cursor:
+                return None
+            events, cursor = self._ledger.list_events(project_id, limit=1000, cursor=cursor)
+
+    def _validate_verification_fields(
+        self, project_id: str, kind: str, content: dict[str, Any], *, promoted: bool = False
+    ) -> None:
+        if kind != "test-plan" or VERIFICATION_WRITE.get() or promoted:
+            return
+        try:
+            current = self._projects.get_artifact(project_id, kind)["content"]
+        except (KeyError, ArtifactNotFoundError):
+            current = {}
+        if protected_fields(current) != protected_fields(content):
+            raise CommandValidationError("applicability and verificationBasis are system-managed.")
 
     def _reject_revision(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
         if actor_kind != "user":

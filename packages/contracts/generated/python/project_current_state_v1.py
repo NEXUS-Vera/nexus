@@ -1169,6 +1169,8 @@ class CoverageSummary3(TypedDict, closed=True):
     blockedRequirements: int
     coveredRequirements: int
     failedRequirements: int
+    recheckRequiredRequirements: NotRequired[int]
+    staleRequirements: NotRequired[int]
     totalRequirements: int
     uncoveredRequirements: int
     unverifiedRequirements: int
@@ -1177,6 +1179,19 @@ class CoverageSummary3(TypedDict, closed=True):
 class Provenance5(TypedDict, closed=True):
     generatedBy: NotRequired[Literal['fixture', 'llm', 'user', 'derived']]
     notes: NotRequired[str]
+
+class Reason(TypedDict, closed=True):
+    eventId: str
+    fromVersion: int
+    path: list[str]
+    reason: str
+    toVersion: int
+    triggerArtifactId: str
+    triggerArtifactType: str
+
+class Applicability(TypedDict, closed=True):
+    reasons: list[Reason]
+    state: Literal['CURRENT', 'STALE', 'RECHECK_REQUIRED']
 
 class Criterion(TypedDict, closed=True):
     criterionType: Literal[
@@ -1218,8 +1233,22 @@ class EvidenceReference3(TypedDict, closed=True):
     ]
     supportedClaim: NotRequired[str]
 
+class Dependency(TypedDict, closed=True):
+    artifactId: str
+    artifactType: str
+    artifactVersion: int
+    contentHash: str
+    entryId: NotRequired[str]
+    snapshotId: NotRequired[str]
+
+class VerificationBasis(TypedDict, closed=True):
+    dependencies: list[Dependency]
+    executionRunId: str
+    inputSnapshotId: str
+
 class TestCase(TypedDict, closed=True):
     actualResult: NotRequired[str]
+    applicability: NotRequired[Applicability]
     assessment: NotRequired[Literal['PASS', 'FAIL', 'INCONCLUSIVE']]
     assessmentAuthority: NotRequired[Literal['deterministic-code', 'manual', 'none']]
     criterion: NotRequired[Criterion]
@@ -1241,6 +1270,7 @@ class TestCase(TypedDict, closed=True):
     ]
     testId: str
     title: str
+    verificationBasis: NotRequired[VerificationBasis]
     verificationMethod: Literal[
         'inspection',
         'simulation',
@@ -1399,7 +1429,7 @@ class Artifacts8(TypedDict, closed=True):
 class Artifacts9(TypedDict):
     pass
 
-class Dependency(TypedDict, closed=True):
+class Dependency1(TypedDict, closed=True):
     createdAt: str
     dependencyId: str
     dependencyKind: Literal[
@@ -1720,7 +1750,7 @@ class ProjectCurrentStateV1(TypedDict, closed=True):
         ]
         | Artifacts9
     )
-    dependencies: NotRequired[list[Dependency]]
+    dependencies: NotRequired[list[Dependency1]]
     openQuestions: list[OpenQuestion1]
     previousTurnIds: NotRequired[list[str]]
     project: Project
