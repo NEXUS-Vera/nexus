@@ -163,6 +163,17 @@ class ProjectKernel:
         self.invalidation.backfill(project_id)
         return self.projection.get_board(project_id)
 
+    def list_verification_invalidations(self, project_id: str) -> list[dict[str, Any]]:
+        """Read invalidation history from the existing append-only project ledger."""
+        self.invalidation.backfill(project_id)
+        events: list[dict[str, Any]] = []
+        cursor = None
+        while True:
+            page, cursor = self.ledger.list_events(project_id, limit=100, cursor=cursor)
+            events.extend(e for e in page if e["eventType"] == "verification.invalidated")
+            if cursor is None:
+                return events
+
     def dispatch(self, command: dict[str, Any]) -> dict[str, Any]:
         return self.commands.dispatch(command)
 

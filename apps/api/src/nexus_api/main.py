@@ -2846,6 +2846,27 @@ async def promote_structural_mapping(
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
 
 
+@app.get("/v1/projects/{project_id}/verify/invalidations", response_model=None)
+async def get_verification_invalidations(
+    project_id: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Ledger-backed verification invalidation history."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        return {
+            "schemaVersion": "1.0.0",
+            "projectId": project_id,
+            "items": _kernel.list_verification_invalidations(project_id),
+        }
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
 @app.get("/v1/projects/{project_id}/verify/evidence-chain", response_model=None)
 async def get_verification_evidence_chain(
     project_id: str,

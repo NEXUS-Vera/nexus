@@ -11,6 +11,15 @@ type ChainRow = {
   verificationState?: string;
   testId: string;
   testStatus?: string;
+  applicability?: {
+    state: string;
+    reasons: Array<{
+      reason: string;
+      triggerArtifactType: string;
+      fromVersion: number;
+      toVersion: number;
+    }>;
+  };
   assessment?: string;
   assessmentAuthority?: string;
   actualResult?: string;
@@ -82,6 +91,16 @@ export function EvidenceExplorer({ projectId, isDark, onOpenTestPlan, onOpenAnal
             <div style={{ fontSize: 12, color: t.textSec, marginTop: 6 }}>
               Assessment: {row.assessment ?? '—'} · Authority: {row.assessmentAuthority ?? 'none'}
             </div>
+            {row.applicability && row.applicability.state !== 'CURRENT' ? (
+              <div style={{ fontSize: 12, color: t.text, marginTop: 6 }}>
+                Applicability: {row.applicability.state}
+                {row.applicability.reasons.map((reason, index) => (
+                  <div key={index}>
+                    {reason.reason} · {reason.triggerArtifactType} v{reason.fromVersion} → v{reason.toVersion}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {row.actualResult ? (
               <div style={{ fontSize: 12, color: t.text, marginTop: 4 }}>Actual: {row.actualResult}</div>
             ) : null}
