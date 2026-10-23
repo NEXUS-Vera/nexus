@@ -107,6 +107,8 @@ class LiveAnalysisPatchGenerator:
     ) -> dict[str, Any]:
         payload = {
             "requestedChange": context["requestedChange"],
+            "inputArtifactReferences": context.get("inputArtifactReferences", []),
+            "artifacts": context.get("artifacts", {}),
             "baseSnapshotId": context["baseSnapshotId"],
             "snapshotFiles": context["snapshotFiles"],
             "fileContents": context["fileContents"],

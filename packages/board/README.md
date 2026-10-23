@@ -139,3 +139,31 @@ samples as CSV. Golden G1 runs real Python analysis and promotes its execution
 outputs into R7/R8 verification; a failed execution is rejected. Its report is
 written under pytest's temporary directory. Firmware stub outputs and unavailable
 live compile/Wokwi gates remain explicit gaps.
+
+W6 handoffs reuse `ExecutionRun.inputOutputReferences` for the simulator's ELF
+and snapshot manifest `generatedFrom: imported-output:<outputId>` for analysis
+observations. Dependency edges connect consuming runs to producing runs; the
+assessment basis retains each producer's exact snapshot hash and revision.
+Foreign, missing, or byte-mismatched imported output basis remains unresolved
+and yields `RECHECK_REQUIRED`, while direct user datasets have no invented
+simulation parent. Inline output digests cover structured content; imported
+file hashes cover the actual text bytes, so these are compared in their proper
+representations.
+
+N162 map decisions: W3 already supplies electrical/approved-plan content and W4
+already delivers explicit ELF bytes. No new output graph node type or delivery
+protocol is needed: output records retain IDs/digests, existing execution nodes
+capture causality. Analysis must follow the actual imported output rather than
+pin every analysis to whichever firmware happens to be current. Firmware
+requests retain reviewed plan source content in `artifacts` and also expose
+`currentArtifacts`; `inputArtifactReferences` names every inspected revision,
+including both versions when they differ. Analysis requests include current
+requirements, components, interfaces, plan and test criteria, plus imported-output
+markers and hashes in snapshot files. Ordinary authoring and repair use the same
+context assembly and proposal store; there is no second context ledger.
+
+The HTTP W6 regression uses a scripted compiler and simulator with real Python
+analysis and durable SQLite/blob storage. It proves identity/hash/byte continuity
+through restart, not live engineering acceptance. Live model/build/simulator
+acceptance remains unresolved unless separately executed. W7's accepted-change,
+replay and revalidation lifecycle gate remains separate.

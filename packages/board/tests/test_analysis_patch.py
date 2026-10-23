@@ -190,7 +190,12 @@ def test_propose_records_immutable_base_snapshot_and_context() -> None:
     proposal = result["proposal"]
     assert proposal["status"] == "proposed"
     assert proposal["baseSnapshotId"].startswith("snap_")
-    assert len(proposal["inputArtifactReferences"]) == 0
+    requirement = _ps.get_artifact(project_id, "requirement-set")
+    assert proposal["inputArtifactReferences"] == [
+        {key: requirement[key] for key in ("artifactType", "artifactId", "artifactVersion")}
+    ]
+    stored = kernel_store.get_firmware_patch_proposal(proposal["proposalId"])
+    assert stored["inputArtifactReferences"] == proposal["inputArtifactReferences"]
     assert proposal["generatorId"] == ANALYSIS_PATCH_GENERATOR_ID
 
     after_files = kernel_store.list_workspace_files(binding["workspaceId"])

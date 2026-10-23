@@ -7,6 +7,7 @@ from collections import deque
 from typing import Any
 
 from nexus_persistence.errors import PersistenceNotFoundError
+from nexus_persistence.file_store.hashing import blob_digest
 
 from nexus_board.ids import content_digest, new_id, utc_now_iso
 from nexus_board.verification.coverage import (
@@ -76,6 +77,55 @@ class InvalidationService:
         producer = self._node(pid, run["artifactId"], "artifact", workspace["artifactType"])
         self._link(pid, execution, snapshot)
         self._link(pid, snapshot, producer)
+        # Follow exact consumed outputs, not the latest upstream workspace.
+        captured = self._store.get_snapshot(run["inputSnapshotId"])
+        entries = (captured.get("content", {}).get("filesystemManifest") or {}).get("entries", [])
+        inputs = [(oid, None) for oid in run.get("inputOutputReferences", [])]
+        for entry in entries:
+            marker = str(entry.get("generatedFrom", ""))
+            if marker.startswith("imported-output:"):
+                inputs.append((marker.partition(":")[2], entry.get("contentHash")))
+            elif entry.get("origin") == "RUNTIME_OUTPUT":
+                inputs.append(("missing-basis:" + entry["path"], entry.get("contentHash")))
+        for output_id, expected_hash in inputs:
+            try:
+                output = self._store.get_produced_output(output_id)
+                upstream = self._store.get_execution_run(output["executionRunId"])
+                imported_hash = output.get("contentDigest")
+                content = output.get("content") or {}
+                structured = content.get("structuredResult")
+                if content.get("kind") == "inline-structured":
+                    # Match the existing analysis import serialization exactly.
+                    if isinstance(structured, dict) and isinstance(structured.get("text"), str):
+                        text = structured["text"]
+                    elif isinstance(structured, dict) and isinstance(
+                        structured.get("value"), (str, int, float, bool, type(None))
+                    ):
+                        text = str(structured["value"])
+                    else:
+                        text = str(structured)
+                    imported_hash = blob_digest(text.encode("utf-8"))
+                if (
+                    output.get("projectId") != pid
+                    or upstream.get("projectId") != pid
+                    or output_id not in upstream.get("outputReferences", [])
+                    or upstream.get("status") not in {"completed", "completed-with-warnings"}
+                    or (expected_hash and expected_hash != imported_hash)
+                ):
+                    raise ValueError("Unresolved consumed output")
+                self._link(
+                    pid,
+                    execution,
+                    self._node(pid, upstream["executionRunId"], "execution", "ExecutionRun"),
+                )
+            except (KeyError, ValueError, PersistenceNotFoundError):
+                self._link(
+                    pid,
+                    execution,
+                    self._node(
+                        pid, f"unresolved:output:{output_id}", "artifact", "Consumed output"
+                    ),
+                )
         for artifact in self._projects.get_artifacts(pid):
             kind = artifact["artifactType"]
             if kind not in {"requirement-set", "test-plan"}:
@@ -226,10 +276,30 @@ class InvalidationService:
         resolved_requirements: set[str] = set()
         resolved_criterion = False
         for node in closure["nodes"]:
+            if node["nodeType"] != "execution" or node.get("refId") == run["executionRunId"]:
+                continue
+            try:
+                upstream = self._store.get_execution_run(node["refId"])
+                snap = self._store.get_snapshot(upstream["inputSnapshotId"])
+                ws = self._store.get_workspace(upstream["workspaceId"])
+                if upstream["projectId"] != pid or snap["projectId"] != pid:
+                    return []
+                deps.append(
+                    {
+                        "artifactType": ws["artifactType"],
+                        "artifactId": upstream["artifactId"],
+                        "artifactVersion": upstream["baseArtifactVersion"],
+                        "snapshotId": snap["snapshotId"],
+                        "contentHash": content_digest(snap["content"]),
+                    }
+                )
+            except (KeyError, PersistenceNotFoundError):
+                return []
+        for node in closure["nodes"]:
             ref = str(node.get("refId", ""))
             aid, _, entry_id = ref.partition("#")
             artifact = artifacts.get(aid)
-            if aid == run["artifactId"]:
+            if aid in {d["artifactId"] for d in deps if d.get("snapshotId")}:
                 continue
             if artifact is None:
                 if node["nodeType"] in {"artifact", "artifact-revision", "requirement"}:

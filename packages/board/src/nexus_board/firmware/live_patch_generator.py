@@ -104,6 +104,7 @@ class LiveFirmwarePatchGenerator:
             "baseSnapshotId": context["baseSnapshotId"],
             "inputArtifactReferences": context["inputArtifactReferences"],
             "artifacts": context["artifacts"],
+            "currentArtifacts": context.get("currentArtifacts", context["artifacts"]),
             "snapshotFiles": context["snapshotFiles"],
             "fileContents": context["fileContents"],
             "toolchainProfile": {

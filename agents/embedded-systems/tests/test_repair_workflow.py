@@ -117,6 +117,11 @@ def repair_env(monkeypatch, tmp_path):
     def reply(_task, payload, _schema):
         requests.append(copy.deepcopy(payload))
         assert "INJECTED_DEFECT" in payload["requestedChange"]
+        for kind in ("requirement-set", "electrical-architecture", "test-plan"):
+            current = ps.get_artifact(pid, kind)
+            assert {
+                k: current[k] for k in ("artifactType", "artifactId", "artifactVersion")
+            } in payload["inputArtifactReferences"]
         return {
             "operations": [
                 {"operationType": "replace-file", "path": "analysis.py", "content": source}
@@ -169,6 +174,8 @@ def test_injected_failure_review_rerun_and_preserved_evidence(repair_env, tmp_pa
     initial = copy.deepcopy(state)
     state = advance(workflow, state, user)
     assert state["status"] == "review" and requests
+    proposal = kernel.kernel_store.get_firmware_patch_proposal(state["proposalId"])
+    assert proposal["inputArtifactReferences"] == requests[-1]["inputArtifactReferences"]
     assert advance(workflow, state, user) == state  # no approval, no rerun
     apply(kernel, pid, user, state)
     state = advance(workflow, state, user)
@@ -457,6 +464,11 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
     def correction(_task, payload, _schema):
         assert "INJECTED_DEFECT: compiler regression error" in payload["requestedChange"]
         assert failed["executionRunId"] in payload["requestedChange"]
+        for kind in ("requirement-set", "electrical-architecture", "test-plan"):
+            current = kernel.project_store.get_artifact(pid, kind)
+            assert {
+                k: current[k] for k in ("artifactType", "artifactId", "artifactVersion")
+            } in payload["inputArtifactReferences"]
         return {
             "operations": [
                 {"operationType": "replace-file", "path": "src/main.cpp", "content": source}

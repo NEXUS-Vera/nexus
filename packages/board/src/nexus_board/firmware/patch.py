@@ -165,6 +165,26 @@ def assemble_firmware_generation_context(
         )
         artifacts[artifact_type] = artifact.get("content")
 
+    # Reviewed plan sources remain explicit; current revisions are also supplied to
+    # authoring/repair so a historical approval cannot hide newer project context.
+    current_artifacts = {}
+    for kind in CONTEXT_ARTIFACT_TYPES:
+        try:
+            current = project_store.get_artifact(project_id, kind)
+        except ArtifactNotFoundError:
+            continue
+        ref = {
+            "artifactType": kind,
+            "artifactId": current["artifactId"],
+            "artifactVersion": current["artifactVersion"],
+        }
+        current_artifacts[kind] = current["content"]
+        context_bytes += len(json.dumps(current["content"], ensure_ascii=False).encode("utf-8"))
+        if context_bytes > MAX_CONTEXT_ARTIFACT_BYTES:
+            raise FirmwarePatchGenerationError("Firmware artifact context exceeds byte limit")
+        if ref not in input_refs:
+            input_refs.append(ref)
+
     manifest = snapshot_manifest_index(base_snapshot)
     if len(manifest) > MAX_CONTEXT_SNAPSHOT_FILES:
         raise FirmwarePatchGenerationError("Firmware snapshot exceeds context file limit")
@@ -209,6 +229,7 @@ def assemble_firmware_generation_context(
         "requestedChange": requested_change,
         "inputArtifactReferences": input_refs,
         "artifacts": artifacts,
+        "currentArtifacts": current_artifacts,
         "baseSnapshotId": base_snapshot["snapshotId"],
         "snapshotFiles": snapshot_files,
         "fileContents": file_contents,

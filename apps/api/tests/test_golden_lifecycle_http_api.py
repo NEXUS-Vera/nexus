@@ -130,10 +130,12 @@ async def test_golden_lifecycle_over_http_only(monkeypatch: pytest.MonkeyPatch) 
     await run_golden_lifecycle_over_http(monkeypatch)
 
 
-async def run_golden_lifecycle_over_http(monkeypatch: pytest.MonkeyPatch) -> str:
+async def run_golden_lifecycle_over_http(
+    monkeypatch: pytest.MonkeyPatch, *, simulation_handoff: Any = None
+) -> str:
     from nexus_api.main import app
 
-    monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
+    monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0" if simulation_handoff else "1")
     monkeypatch.setenv("NEXUS_ANALYSIS_USE_STUB", "0")
     firmware_src = (GOLDEN_DIR / "main.cpp").read_bytes()
     analysis_src = (GOLDEN_DIR / "analysis.py").read_bytes()
@@ -208,6 +210,11 @@ async def run_golden_lifecycle_over_http(monkeypatch: pytest.MonkeyPatch) -> str
         }
         assert any("firmware.elf" in n for n in fw_names), fw_names
 
+        serial = None
+        if simulation_handoff:
+            serial = await simulation_handoff(client, project_id, actor, fw_outputs.json()["items"])
+            dataset = serial["content"]["structuredResult"]["text"].encode()
+
         # 3. Analysis: lease, scaffold, investigation, dataset upload, golden script.
         an_body = await _binding(client, project_id, "analysis")
         an = an_body["binding"]
@@ -219,12 +226,17 @@ async def run_golden_lifecycle_over_http(monkeypatch: pytest.MonkeyPatch) -> str
         assert scaffold.status_code == 200, scaffold.text
         assert "analysis.py" in {f["path"] for f in scaffold.json()["generatedFiles"]}
         draft = int(scaffold.json()["draft"]["draftVersion"])
+        input_path = "data/serial.log" if serial else "data/stationary_imu.csv"
         uploaded = await client.post(
-            f"/v1/projects/{project_id}/artifacts/analysis/workspace/inputs/upload",
+            f"/v1/projects/{project_id}/artifacts/analysis/workspace/inputs/"
+            + ("import-produced-output" if serial else "upload"),
             json={
-                "path": "data/stationary_imu.csv",
-                "contentBase64": _b64(dataset),
-                "mediaType": "text/csv",
+                "path": input_path,
+                **(
+                    {"outputId": serial["outputId"]}
+                    if serial
+                    else {"contentBase64": _b64(dataset), "mediaType": "text/csv"}
+                ),
                 "requestedBy": actor,
                 **_versions(an, draft),
             },
@@ -269,7 +281,7 @@ async def run_golden_lifecycle_over_http(monkeypatch: pytest.MonkeyPatch) -> str
             f"/v1/projects/{project_id}/artifacts/analysis/workspace/snapshots/"
             f"{an_run['inputSnapshotId']}/file"
         )
-        snap_csv = await client.get(snapshot_url, params={"path": "data/stationary_imu.csv"})
+        snap_csv = await client.get(snapshot_url, params={"path": input_path})
         assert snap_csv.status_code == 200, snap_csv.text
         assert snap_csv.json()["content"].encode() == dataset
         snap_py = await client.get(snapshot_url, params={"path": "analysis.py"})
