@@ -1426,6 +1426,128 @@ class ArtifactV19(TypedDict, closed=True):
     updatedAt: str
     workflowRunId: str
 
+class Component(TypedDict, closed=True):
+    candidateId: str
+    componentRoleId: str
+
+class I2c(TypedDict, closed=True):
+    connectionId: str
+    sclPin: Literal[21, 22, 25, 26, 27, 32, 33]
+    sdaPin: Literal[21, 22, 25, 26, 27, 32, 33]
+
+class Configuration(TypedDict, closed=True):
+    analysisProfileId: Literal['python-analysis-v1']
+    buildProfileId: Literal['platformio-arduino-esp32-v1']
+    components: list[Component]
+    i2c: I2c
+
+class Assumption4(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class Component1(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class Interface1(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class Requirement1(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class SourceArtifact(TypedDict, closed=True):
+    artifactId: str
+    artifactVersion: int
+
+class Step(TypedDict, closed=True):
+    dependsOn: list[str]
+    objectiveIds: list[str]
+    requiresApproval: Literal[True]
+    stepId: str
+    title: str
+    workspaceKeys: list[str]
+
+class VerificationObjective(TypedDict, closed=True):
+    acceptanceCriteria: list[str]
+    method: str
+    objectiveId: str
+    requirementId: str
+    workspaceKey: str
+
+class Workspace(TypedDict, closed=True):
+    artifactType: Literal[
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
+        'code-scratch',
+        'firmware',
+        'electrical-architecture',
+        'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
+        'execution-plan',
+    ]
+    availability: Literal['artifact-available', 'planned']
+    workspaceKey: str
+
+class Plan(TypedDict, closed=True):
+    assumptions: list[Assumption4]
+    basisProjectStateVersion: int
+    components: list[Component1]
+    interfaces: list[Interface1]
+    openDecisionIds: list[str]
+    requirements: list[Requirement1]
+    schemaVersion: Literal['1.0.0']
+    sourceArtifacts: list[SourceArtifact]
+    status: Literal['proposed']
+    steps: list[Step]
+    verificationObjectives: list[VerificationObjective]
+    workspaces: list[Workspace]
+
+class Content9(TypedDict, closed=True):
+    configuration: Configuration
+    plan: Plan
+
+class ArtifactV110(TypedDict, closed=True):
+    approvalStatus: Literal[
+        'not-required',
+        'proposed',
+        'awaiting-user',
+        'user-approved',
+        'agent-decided',
+        'rejected',
+    ]
+    artifactId: str
+    artifactType: Literal['execution-plan']
+    artifactVersion: int
+    content: Content9
+    contentSchemaVersion: Literal['1.0.0']
+    createdAt: str
+    createdBy: CreatedBy
+    evidenceStatus: Literal[
+        'unverified',
+        'inferred',
+        'partially-grounded',
+        'grounded',
+        'calculated',
+        'tested',
+    ]
+    lifecycleStatus: Literal[
+        'drafted', 'ready', 'affected', 'stale', 'blocked', 'superseded', 'archived'
+    ]
+    projectId: str
+    schemaVersion: Literal['1.0.0']
+    sourceTurnId: str
+    supersedesArtifactId: NotRequired[str]
+    supersedesArtifactVersion: NotRequired[int]
+    updatedAt: str
+    workflowRunId: str
+
 ArtifactV1: TypeAlias = (
     ArtifactV11
     | ArtifactV12
@@ -1436,4 +1558,5 @@ ArtifactV1: TypeAlias = (
     | ArtifactV17
     | ArtifactV18
     | ArtifactV19
+    | ArtifactV110
 )

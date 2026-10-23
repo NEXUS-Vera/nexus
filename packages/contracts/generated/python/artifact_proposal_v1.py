@@ -42,6 +42,7 @@ class ArtifactProposalV1(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     baseArtifactVersion: int
     baseProjectStateVersion: int

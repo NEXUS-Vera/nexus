@@ -1,0 +1,572 @@
+"""W2/P1 HTTP regression evidence only: fixture intent and scripted user review.
+
+No live model, real toolchain, or agent-authored firmware acceptance is claimed.
+"""
+
+from __future__ import annotations
+
+import copy
+import json
+import secrets
+from typing import Any
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from test_golden_lifecycle_http_api import AUTH, GOLDEN_PROMPT, _actor
+
+
+def _id() -> str:
+    return f"cmd_{secrets.token_hex(16)}"
+
+
+async def _command(
+    client: AsyncClient,
+    pid: str,
+    actor: dict[str, Any],
+    kind: str,
+    workspace: dict[str, Any],
+    data: dict[str, Any],
+    expected_status: int = 200,
+) -> dict[str, Any]:
+    state = (await client.get(f"/v1/projects/{pid}")).json()
+    response = await client.post(
+        f"/v1/projects/{pid}/artifact-commands",
+        json={
+            "schemaVersion": "1.0.0",
+            "commandId": _id(),
+            "commandType": kind,
+            "projectId": pid,
+            "workspaceId": workspace["workspaceId"],
+            "artifactId": workspace["artifactId"],
+            "baseArtifactVersion": workspace["baseArtifactVersion"],
+            "baseProjectStateVersion": state["project"]["currentStateVersion"],
+            "requestedBy": actor,
+            "requestedAt": "2026-10-22T00:00:00Z",
+            "input": data,
+        },
+    )
+    assert response.status_code == expected_status, response.text
+    return response.json()
+
+
+async def _revise_candidates(
+    client: AsyncClient, pid: str, actor: dict[str, Any], sda_pin: int = 21
+) -> None:
+    """Explicit user component edit over normal API; never pretend fixture parts are real."""
+    state = (await client.get(f"/v1/projects/{pid}")).json()
+    component = next(a for a in state["artifacts"] if a["artifactType"] == "component-plan")
+    content = copy.deepcopy(component["content"])
+    for candidate in content["candidates"]:
+        if candidate["candidateCategory"] == "compute":
+            candidate.update(partNumber="ESP32-DEVKIT-V1", displayName="ESP32 DevKit V1")
+            for spec in candidate["specifications"]:
+                if spec["specKey"] == "gpio-sda":
+                    spec["value"] = sda_pin
+        else:
+            candidate.update(partNumber="MPU6050", displayName="MPU6050")
+    result = await _command(
+        client,
+        pid,
+        actor,
+        "workspace.create",
+        {
+            "workspaceId": "unused",
+            "artifactId": component["artifactId"],
+            "baseArtifactVersion": component["artifactVersion"],
+        },
+        {"artifactType": "component-plan", "initialContent": content},
+    )
+    workspace = (await client.get(f"/v1/projects/{pid}/artifacts/component-plan/workspace")).json()[
+        "workspace"
+    ]
+    assert result["status"] == "completed"
+    await _command(client, pid, actor, "workspace.acquire-edit-lease", workspace, {})
+    draft = (await client.get(f"/v1/projects/{pid}/artifacts/component-plan/workspace")).json()[
+        "draft"
+    ]
+    await _command(
+        client,
+        pid,
+        actor,
+        "workspace.update-draft",
+        workspace,
+        {"content": content, "expectedDraftVersion": draft["draftVersion"]},
+    )
+    snap = await _command(
+        client, pid, actor, "workspace.create-snapshot", workspace, {"reason": "manual"}
+    )
+    proposed = await _command(
+        client,
+        pid,
+        actor,
+        "artifact.propose-revision",
+        workspace,
+        {"snapshotId": snap["snapshotId"], "consequenceLevel": "high"},
+    )
+    accepted = await _command(
+        client,
+        pid,
+        actor,
+        "artifact.accept-revision",
+        workspace,
+        {"proposalId": proposed["proposalId"]},
+    )
+    assert accepted["status"] == "completed", accepted
+
+
+async def _setup(client: AsyncClient, actor: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    created = await client.post("/v1/projects/initialize", json={"message": GOLDEN_PROMPT})
+    assert created.status_code == 200, created.text
+    pid = created.json()["project"]["projectId"]
+    await _revise_candidates(client, pid, actor)
+    state = (await client.get(f"/v1/projects/{pid}")).json()
+    cp = next(a["content"] for a in state["artifacts"] if a["artifactType"] == "component-plan")
+    electrical = next(
+        a["content"] for a in state["artifacts"] if a["artifactType"] == "electrical-architecture"
+    )
+    i2c = next(c for c in electrical["connections"] if c["interfaceType"] == "i2c")
+    return pid, {
+        "buildProfileId": "platformio-arduino-esp32-v1",
+        "analysisProfileId": "python-analysis-v1",
+        "components": [
+            {"componentRoleId": c["componentRoleId"], "candidateId": c["candidateId"]}
+            for c in cp["candidates"]
+        ],
+        "i2c": {"connectionId": i2c["connectionId"], "sdaPin": 21, "sclPin": 22},
+    }
+
+
+async def _propose(
+    client: AsyncClient, pid: str, actor: dict[str, Any], config: dict[str, Any], **extra: Any
+) -> Any:
+    state = (await client.get(f"/v1/projects/{pid}")).json()
+    return await client.post(
+        f"/v1/projects/{pid}/execution-plan/propose",
+        json={
+            "requestedBy": actor,
+            "baseProjectStateVersion": state["project"]["currentStateVersion"],
+            "basePlanVersion": 0,
+            "configuration": config,
+            **extra,
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_plan_reject_revise_approve_materializes_consistent_workspaces() -> None:
+    from nexus_api.main import app
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        before = (await client.get(f"/v1/projects/{pid}")).json()
+        proposed = await _propose(client, pid, actor, config)
+        assert proposed.status_code == 200, proposed.text
+        proposal = proposed.json()
+        result = proposal["commandResult"]
+        assert result["status"] in {"completed", "completed-with-warnings"}, result
+        rejected = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.reject-revision",
+            proposal["workspace"],
+            {"proposalId": result["proposalId"], "reason": "Review the sequence"},
+        )
+        assert rejected["status"] == "completed", rejected
+        after = (await client.get(f"/v1/projects/{pid}")).json()
+        assert after["project"] == before["project"]
+        assert after["artifacts"] == before["artifacts"]
+        # Reading runtime creates an empty workspace; rejection must leave it empty.
+        for kind in ("firmware", "analysis"):
+            binding = (
+                await client.get(f"/v1/projects/{pid}/artifacts/{kind}/workspace/runtime")
+            ).json()
+            assert binding["draft"]["draftVersion"] == 1
+        # A consequential revision: explicitly change the component pin choice,
+        # then review a fresh plan against that accepted component revision.
+        await _revise_candidates(client, pid, actor, sda_pin=25)
+        config["i2c"]["sdaPin"] = 25
+        revised = await _propose(client, pid, actor, config)
+        assert revised.status_code == 200, revised.text
+        reviewed = revised.json()
+        revised_plan = reviewed["content"]["plan"]
+        accepted = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            reviewed["workspace"],
+            {"proposalId": reviewed["commandResult"]["proposalId"]},
+        )
+        assert accepted["status"] == "completed", accepted
+        state = (await client.get(f"/v1/projects/{pid}")).json()
+        plan_art = next(a for a in state["artifacts"] if a["artifactType"] == "execution-plan")
+        assert plan_art["approvalStatus"] == "user-approved"
+        assert plan_art["content"] == reviewed["content"]
+        assert (
+            plan_art["content"]["plan"]["verificationObjectives"]
+            == revised_plan["verificationObjectives"]
+        )
+        for kind in ("firmware", "analysis"):
+            binding = (
+                await client.get(f"/v1/projects/{pid}/artifacts/{kind}/workspace/runtime")
+            ).json()
+            assert "binding" in binding, binding
+            response = await client.get(
+                f"/v1/projects/{pid}/workspaces/{binding['binding']['workspaceId']}/file",
+                params={"path": "nexus/approved-plan.json"},
+            )
+            assert response.status_code == 200, response.text
+            assert json.loads(response.json()["content"]) == plan_art["content"]
+        firmware = (
+            await client.get(f"/v1/projects/{pid}/artifacts/firmware/workspace/runtime")
+        ).json()
+
+        async def read(path: str) -> str:
+            response = await client.get(
+                f"/v1/projects/{pid}/workspaces/{firmware['binding']['workspaceId']}/file",
+                params={"path": path},
+            )
+            assert response.status_code == 200, response.text
+            return response.json()["content"]
+
+        assert "board = esp32dev" in await read("platformio.ini")
+        assert "NEXUS_SDA_PIN = 25" in await read("include/nexus_plan.h")
+        assert "NEXUS_SCL_PIN = 22" in await read("include/nexus_plan.h")
+        assert "Wire.begin(NEXUS_SDA_PIN, NEXUS_SCL_PIN)" in await read("src/main.cpp")
+        retry = await client.post(
+            f"/v1/projects/{pid}/execution-plan/materialize",
+            json={
+                "requestedBy": actor,
+                "planArtifactId": plan_art["artifactId"],
+                "baseProjectStateVersion": state["project"]["currentStateVersion"],
+            },
+        )
+        assert retry.status_code == 200, retry.text
+        stale = await _propose(client, pid, actor, config)
+        assert stale.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_stale_plan_and_base_versions_rejected() -> None:
+    from nexus_api.main import app
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        proposed = await _propose(client, pid, actor, config)
+        assert proposed.status_code == 200, proposed.text
+        old = proposed.json()
+        await _revise_candidates(client, pid, actor)
+        stale = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            old["workspace"],
+            {"proposalId": old["commandResult"]["proposalId"]},
+            expected_status=409,
+        )
+        assert stale["error"]["code"] == "PROJECT_STATE_CONFLICT"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "change",
+    [
+        "duplicate-pin",
+        "dangling-candidate",
+        "unsupported-build",
+        "pins-disagree",
+        "wrong-objective",
+        "unsupported-version",
+        "stale-basis",
+    ],
+)
+async def test_invalid_plan_is_rejected_before_workspace_changes(change: str) -> None:
+    from nexus_api.main import app
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        valid = await _propose(client, pid, actor, config)
+        assert valid.status_code == 200, valid.text
+        plan = valid.json()["content"]["plan"]
+        before = (await client.get(f"/v1/projects/{pid}")).json()
+        if change == "duplicate-pin":
+            config["i2c"]["sclPin"] = 21
+        elif change == "dangling-candidate":
+            config["components"][0]["candidateId"] = "missing"
+        elif change == "unsupported-build":
+            config["buildProfileId"] = "another-board"
+        elif change == "pins-disagree":
+            config["i2c"]["sdaPin"] = 25
+        elif change == "wrong-objective":
+            plan["verificationObjectives"][0]["acceptanceCriteria"] = ["invented criterion"]
+        elif change == "unsupported-version":
+            plan["schemaVersion"] = "2.0.0"
+        else:
+            plan["basisProjectStateVersion"] -= 1
+        response = await _propose(client, pid, actor, config, plan=plan)
+        assert response.status_code == (409 if change == "stale-basis" else 422), response.text
+        after = (await client.get(f"/v1/projects/{pid}")).json()
+        assert before["project"] == after["project"]
+        assert before["artifacts"] == after["artifacts"]
+
+
+@pytest.mark.asyncio
+async def test_approved_plan_files_survive_sqlite_restart(monkeypatch, tmp_path) -> None:
+    import nexus_api.main as main
+    from nexus_board import build_project_kernel
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        ExecutionPlanWorkflow,
+    )
+    from nexus_persistence import LocalFileStore, build_stores
+
+    def restart() -> None:
+        store, kernel_store = build_stores(
+            backend="sqlite", database_url=f"sqlite:///{tmp_path / 'actionable.db'}"
+        )
+        kernel = build_project_kernel(
+            kernel_store, project_store=store, file_store=LocalFileStore(str(tmp_path / "files"))
+        )
+        workflow = ExecutionPlanWorkflow(kernel)
+        kernel.commands.revision_validator = workflow.validate_revision
+        kernel.commands.revision_materializer = workflow.materialize
+        for name, value in {
+            "_store": store,
+            "_kernel_store": kernel_store,
+            "_kernel": kernel,
+            "_plan_workflow": workflow,
+        }.items():
+            monkeypatch.setattr(main, name, value)
+        monkeypatch.setattr(main, "_init_service", main._build_init_service())
+
+    actor = _actor()
+    restart()
+    async with AsyncClient(
+        transport=ASGITransport(app=main.app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        proposed = (await _propose(client, pid, actor, config)).json()
+        accepted = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            proposed["workspace"],
+            {"proposalId": proposed["commandResult"]["proposalId"]},
+        )
+        assert accepted["status"] == "completed", accepted
+        before = (await client.get(f"/v1/projects/{pid}")).json()
+        files = {}
+        for kind in ("firmware", "analysis"):
+            binding = (
+                await client.get(f"/v1/projects/{pid}/artifacts/{kind}/workspace/runtime")
+            ).json()["binding"]
+            files[kind] = (
+                await client.get(f"/v1/projects/{pid}/workspaces/{binding['workspaceId']}/files")
+            ).json()
+    restart()
+    async with AsyncClient(
+        transport=ASGITransport(app=main.app), base_url="http://test", headers=AUTH
+    ) as client:
+        after = (await client.get(f"/v1/projects/{pid}")).json()
+        assert after == before
+        for kind, expected in files.items():
+            binding = (
+                await client.get(f"/v1/projects/{pid}/artifacts/{kind}/workspace/runtime")
+            ).json()["binding"]
+            actual = (
+                await client.get(f"/v1/projects/{pid}/workspaces/{binding['workspaceId']}/files")
+            ).json()
+            assert actual == expected
+            content = await client.get(
+                f"/v1/projects/{pid}/workspaces/{binding['workspaceId']}/file",
+                params={"path": "nexus/approved-plan.json"},
+            )
+            assert content.status_code == 200
+            assert json.loads(content.json()["content"]) == proposed["content"]
+
+
+@pytest.mark.asyncio
+async def test_opt_in_real_build_of_approved_scaffold(monkeypatch) -> None:
+    import os
+
+    if os.environ.get("NEXUS_W2_REAL_BUILD") != "1":
+        pytest.skip("opt-in actual PlatformIO build; fixture intent remains regression evidence")
+    from nexus_api.main import app
+    from test_golden_lifecycle_http_api import _wait_run
+
+    monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0")
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        proposed = (await _propose(client, pid, actor, config)).json()
+        accepted = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            proposed["workspace"],
+            {"proposalId": proposed["commandResult"]["proposalId"]},
+        )
+        assert accepted["status"] == "completed", accepted
+        binding = (
+            await client.get(f"/v1/projects/{pid}/artifacts/firmware/workspace/runtime")
+        ).json()["binding"]
+        await _command(client, pid, actor, "workspace.acquire-edit-lease", binding, {})
+        compiled = await client.post(
+            f"/v1/projects/{pid}/artifacts/firmware/workspace/compile", json={"requestedBy": actor}
+        )
+        assert compiled.status_code == 200, compiled.text
+        assert compiled.json()["toolchainProfile"]["executionMode"] == "platformio"
+        run = await _wait_run(client, pid, compiled.json()["executionRun"]["executionRunId"])
+        logs = (
+            await client.get(f"/v1/projects/{pid}/executions/{run['executionRunId']}/logs")
+        ).json()
+        assert run["status"] == "completed", json.dumps({"run": run, "logs": logs})
+        outputs = (await client.get(f"/v1/projects/{pid}/outputs")).json()["items"]
+        built = [o for o in outputs if o["executionRunId"] == run["executionRunId"]]
+        assert {o["name"] for o in built} >= {
+            ".pio/build/nexus/firmware.elf",
+            ".pio/build/nexus/firmware.bin",
+        }
+        assert all(o["sizeBytes"] > 0 for o in built)
+
+
+@pytest.mark.asyncio
+async def test_existing_files_block_approval_without_overwrite() -> None:
+    from nexus_api.main import app
+    from test_golden_lifecycle_http_api import _put_file
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        proposed = (await _propose(client, pid, actor, config)).json()
+        binding = (
+            await client.get(f"/v1/projects/{pid}/artifacts/firmware/workspace/runtime")
+        ).json()
+        await _command(client, pid, actor, "workspace.acquire-edit-lease", binding["binding"], {})
+        await _put_file(
+            client,
+            pid,
+            binding["binding"],
+            binding["draft"]["draftVersion"],
+            actor,
+            "src/main.cpp",
+            b"// user code must survive\n",
+        )
+        before = (await client.get(f"/v1/projects/{pid}")).json()
+        result = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            proposed["workspace"],
+            {"proposalId": proposed["commandResult"]["proposalId"]},
+        )
+        assert result["status"] == "failed", result
+        assert result["error"]["code"] == "COMMAND_VALIDATION_FAILED"
+        after = (await client.get(f"/v1/projects/{pid}")).json()
+        assert after == before
+        read = await client.get(
+            f"/v1/projects/{pid}/workspaces/{binding['binding']['workspaceId']}/file",
+            params={"path": "src/main.cpp"},
+        )
+        assert read.json()["content"] == "// user code must survive\n"
+
+
+@pytest.mark.asyncio
+async def test_interrupted_materialization_retains_approval_and_can_retry(monkeypatch) -> None:
+    import nexus_api.main as main
+    from nexus_board.errors import BoardError
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=main.app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        proposed = (await _propose(client, pid, actor, config)).json()
+        original = main._kernel.filesystem.write_file
+        calls = 0
+
+        def interrupted(**kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                raise BoardError("Controlled storage interruption")
+            return original(**kwargs)
+
+        monkeypatch.setattr(main._kernel.filesystem, "write_file", interrupted)
+        result = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            proposed["workspace"],
+            {"proposalId": proposed["commandResult"]["proposalId"]},
+        )
+        assert result["status"] == "failed", result
+        state = (await client.get(f"/v1/projects/{pid}")).json()
+        approved = next(a for a in state["artifacts"] if a["artifactType"] == "execution-plan")
+        assert approved["approvalStatus"] == "user-approved"
+        monkeypatch.setattr(main._kernel.filesystem, "write_file", original)
+        retry = await client.post(
+            f"/v1/projects/{pid}/execution-plan/materialize",
+            json={
+                "requestedBy": actor,
+                "planArtifactId": approved["artifactId"],
+                "baseProjectStateVersion": state["project"]["currentStateVersion"],
+            },
+        )
+        assert retry.status_code == 200, retry.text
+        for kind in ("firmware", "analysis"):
+            binding = (
+                await client.get(f"/v1/projects/{pid}/artifacts/{kind}/workspace/runtime")
+            ).json()["binding"]
+            context = await client.get(
+                f"/v1/projects/{pid}/workspaces/{binding['workspaceId']}/file",
+                params={"path": "nexus/approved-plan.json"},
+            )
+            assert json.loads(context.json()["content"]) == approved["content"]
+
+
+@pytest.mark.asyncio
+async def test_agent_proposal_requires_user_approval() -> None:
+    from nexus_api.main import app
+
+    user = _actor()
+    agent = {**_actor(), "actorType": "agent", "displayName": "Embedded agent"}
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, user)
+        proposed = await _propose(client, pid, agent, config)
+        assert proposed.status_code == 200, proposed.text
+        proposal = proposed.json()
+        assert proposal["commandResult"]["status"] == "completed-with-warnings"
+        denied = await _command(
+            client,
+            pid,
+            agent,
+            "artifact.accept-revision",
+            proposal["workspace"],
+            {"proposalId": proposal["commandResult"]["proposalId"]},
+            expected_status=403,
+        )
+        # Non-user acceptance is a governance denial, matching the existing M4/M9 contract.
+        assert denied["error"]["code"] == "GOVERNANCE_REJECTED"
+        state = (await client.get(f"/v1/projects/{pid}")).json()
+        assert not any(a["artifactType"] == "execution-plan" for a in state["artifacts"])

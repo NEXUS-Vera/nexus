@@ -21,6 +21,7 @@ class ArtifactEntityReferenceV1(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     artifactVersion: NotRequired[int]
     displayLabel: NotRequired[str]

@@ -21,6 +21,7 @@ class ProjectGraphNodeV1(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
     createdAt: str

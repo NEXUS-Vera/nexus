@@ -31,6 +31,7 @@ class InputArtifactReference(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     artifactVersion: int
 
@@ -56,6 +57,7 @@ class Payload(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
     artifactVersion: NotRequired[int]
@@ -183,6 +185,7 @@ class ProjectEventV1(TypedDict, closed=True):
         'workspace.patch-discarded',
         'verification.invalidated',
         'verification.revalidated',
+        'workspace.plan-materialized',
     ]
     occurredAt: str
     payload: Payload

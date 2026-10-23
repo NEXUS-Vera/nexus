@@ -201,6 +201,28 @@
           ]
         }
       ]
+    },
+    {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": {
+              "const": "execution-plan"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/actionable-execution-plan.v1.schema.json"
+            }
+          },
+          "required": [
+            "artifactType",
+            "content"
+          ]
+        }
+      ]
     }
   ]
 }

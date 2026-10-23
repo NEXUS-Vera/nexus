@@ -124,7 +124,8 @@ class WorkspaceService:
             artifact = self._projects.get_artifact(project_id, artifact_type)
         except Exception:  # noqa: BLE001
             if (
-                artifact_type not in {"component-plan", "code-scratch", "firmware"}
+                artifact_type
+                not in {"component-plan", "code-scratch", "firmware", "execution-plan"}
                 and definition.get("workspaceType") != "code-workspace"
             ):
                 raise

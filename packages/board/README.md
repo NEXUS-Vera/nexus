@@ -41,6 +41,12 @@ Commands are dispatched through a single service:
 kernel.dispatch(artifact_command_dict)
 ```
 
+The hidden `execution-plan` structured artifact uses ordinary snapshot/proposal
+revision governance. The application injects the owning embedded workflow's
+revision validator and materializer; the shared kernel imports no domain agent.
+Plan acceptance always requires a user and its original project/artifact basis.
+A missing workflow handler blocks approval rather than accepting an inert plan.
+
 ## Component Plan (Phase 12)
 
 The default artifact-type registry includes `component-plan` in the DESIGN phase

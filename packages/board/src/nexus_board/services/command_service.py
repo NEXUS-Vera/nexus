@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from contextvars import ContextVar
 from typing import Any, Protocol
 
@@ -39,6 +40,8 @@ from nexus_board.services.ledger_service import ProjectLedgerService
 from nexus_board.services.projection_service import ProjectBoardProjectionService
 from nexus_board.services.workspace_service import WorkspaceService
 
+# Domain workflows register revision validation/materialization without introducing
+# a dependency from the shared kernel to an individual agent.
 VERIFICATION_WRITE: ContextVar[bool] = ContextVar("verification_write", default=False)
 
 COMMAND_ID_RE = re.compile(r"^cmd_[A-Za-z0-9]{16,}$")
@@ -120,6 +123,26 @@ class ArtifactCommandService:
         self._projection = projection
         self._graph = graph
         self.invalidation: Any | None = None
+
+    revision_validator: Callable[[str, str, dict[str, Any], bool, dict[str, Any]], None] | None = (
+        None
+    )
+    revision_materializer: Callable[[str, dict[str, Any], dict[str, Any]], None] | None = None
+
+    def _validate_domain_revision(
+        self,
+        project_id: str,
+        kind: str,
+        content: dict[str, Any],
+        accepting: bool,
+        actor: dict[str, Any],
+    ) -> None:
+        if kind == "execution-plan" and (
+            self.revision_validator is None or self.revision_materializer is None
+        ):
+            raise CommandValidationError("Execution-plan workflow is not configured.")
+        if self.revision_validator is not None:
+            self.revision_validator(project_id, kind, content, accepting, actor)
 
     def dispatch(self, command: dict[str, Any]) -> dict[str, Any]:
         self._validate_command_shape(command)
@@ -338,11 +361,32 @@ class ArtifactCommandService:
             consequence,  # type: ignore[arg-type]
             project.get("autonomyMode") or "collaborate",
         )
+        if workspace["artifactType"] == "execution-plan":
+            approval = {
+                "schemaVersion": "1.0.0",
+                "required": True,
+                "reason": "Execution plan materialization requires explicit user approval",
+                "consequenceLevel": "high",
+                "allowedApproverKinds": ["user"],
+                "autoAcceptAllowed": False,
+            }
         snapshot = self._kernel.get_snapshot(command["input"]["snapshotId"])
         self._validate_verification_fields(
             command["projectId"],
             workspace["artifactType"],
             snapshot["content"].get("structuredContent") or {},
+        )
+        if (
+            snapshot["projectId"] != command["projectId"]
+            or snapshot["workspaceId"] != workspace["workspaceId"]
+        ):
+            raise CommandValidationError("Snapshot workspace/project mismatch.")
+        self._validate_domain_revision(
+            command["projectId"],
+            workspace["artifactType"],
+            snapshot["content"].get("structuredContent") or {},
+            False,
+            command["requestedBy"],
         )
         now = utc_now_iso()
         status = "awaiting-approval" if approval["required"] else "proposed"
@@ -435,6 +479,22 @@ class ArtifactCommandService:
         if actor_kind == "external-provider":
             raise GovernanceRejectedError("External providers may not mutate accepted artifacts.")
 
+        if proposal["artifactType"] == "execution-plan":
+            workspace = self._kernel.get_workspace(proposal["workspaceId"])
+            check_artifact_and_project_versions(
+                expected_artifact_version=int(command["baseArtifactVersion"]),
+                actual_artifact_version=int(proposal["baseArtifactVersion"]),
+                expected_project_state_version=int(command["baseProjectStateVersion"]),
+                actual_project_state_version=int(project["currentStateVersion"]),
+            )
+            check_artifact_and_project_versions(
+                expected_artifact_version=int(proposal["baseArtifactVersion"]),
+                actual_artifact_version=int(workspace["baseArtifactVersion"]),
+                expected_project_state_version=int(proposal["baseProjectStateVersion"]),
+                actual_project_state_version=int(project["currentStateVersion"]),
+            )
+            if actor_kind != "user":
+                raise GovernanceRejectedError("Only users may approve execution plans.")
         # Competing open proposals on same base → conflict the others after accept
         open_proposals = [
             p
@@ -447,6 +507,9 @@ class ArtifactCommandService:
 
         snapshot = self._kernel.get_snapshot(proposal["snapshotId"])
         content = snapshot["content"].get("structuredContent") or {}
+        self._validate_domain_revision(
+            command["projectId"], proposal["artifactType"], content, True, command["requestedBy"]
+        )
         promotion_run = (
             self._promotion_run(command["projectId"], proposal_id)
             if proposal["artifactType"] == "test-plan"
@@ -635,6 +698,8 @@ class ArtifactCommandService:
             self.invalidation.process(command["projectId"], previous, new_artifact)
             if previous and proposal["artifactType"] == "test-plan":
                 self.invalidation.revalidated(command["projectId"], previous["content"], content)
+        if proposal["artifactType"] == "execution-plan" and self.revision_materializer is not None:
+            self.revision_materializer(command["projectId"], new_artifact, command["requestedBy"])
         self._projection.update_after_write(command["projectId"])
         return {
             "workspace_id": proposal["workspaceId"],

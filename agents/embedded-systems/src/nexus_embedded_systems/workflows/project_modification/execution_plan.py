@@ -1,0 +1,323 @@
+"""Bounded, provider-independent plan review and scaffold materialization.
+
+Uses artifact revision governance; never interprets arbitrary follow-up prose or
+runs tools. Candidate selection authorizes a prototype, not physical validation.
+"""
+
+from __future__ import annotations
+
+import json
+from typing import Any
+
+from nexus_board.analysis.scaffold import get_analysis_scaffold_profile
+from nexus_board.errors import (
+    ArtifactVersionConflictError,
+    CommandValidationError,
+    DraftEditLeaseHeldError,
+    ProjectStateConflictError,
+)
+from nexus_board.firmware.scaffold import get_firmware_scaffold_profile
+from nexus_board.ids import content_digest, new_id
+from nexus_board.services.draft_lease import is_lease_active
+from nexus_contracts.validation.execution_plan_validator import validate_execution_plan
+from nexus_contracts.validation.schema_validator import validate_against_schema_id
+from nexus_persistence.file_store.hashing import blob_digest
+
+from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+    compose_execution_plan,
+)
+
+CONTENT_SCHEMA = (
+    "https://nexus.local/schemas/artifacts/content/actionable-execution-plan.v1.schema.json"
+)
+
+
+class ExecutionPlanWorkflow:
+    def __init__(self, kernel: Any) -> None:
+        self.kernel = kernel
+        self.projects = kernel.project_store
+
+    def propose(
+        self,
+        project_id: str,
+        actor: dict[str, Any],
+        base: int,
+        plan_version: int,
+        configuration: Any,
+        plan: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        current = self.projects.get_current_state(project_id)
+        if current["project"]["currentStateVersion"] != base:
+            raise ProjectStateConflictError("Stale plan basis.")
+        previous = next(
+            (a for a in current["artifacts"] if a["artifactType"] == "execution-plan"), None
+        )
+        if plan_version != (previous["artifactVersion"] if previous else 0):
+            raise ArtifactVersionConflictError("Stale plan version.")
+        current["artifacts"] = [
+            a for a in current["artifacts"] if a["artifactType"] != "execution-plan"
+        ]
+        content = {
+            "plan": plan or compose_execution_plan(current),
+            "configuration": configuration,
+        }
+        self.validate_revision(project_id, "execution-plan", content, False, actor)
+        created = self.kernel.workspaces.create_if_missing(
+            project_id=project_id,
+            artifact_type="execution-plan",
+            actor=actor,
+            initial_content=content,
+        )
+        workspace = created["workspace"]
+        self.kernel.workspaces.acquire_edit_lease(
+            workspace_id=workspace["workspaceId"], actor=actor
+        )
+        updated = self.kernel.workspaces.update_draft(
+            workspace_id=workspace["workspaceId"],
+            content=content,
+            expected_draft_version=created["draft"]["draftVersion"],
+            actor=actor,
+            base_artifact_version=workspace["baseArtifactVersion"],
+            base_project_state_version=base,
+        )
+        snapshot = self.kernel.workspaces.create_snapshot(
+            workspace_id=workspace["workspaceId"],
+            reason="execution-plan-review",
+            actor=actor,
+        )
+        result = self.kernel.dispatch(
+            {
+                "schemaVersion": "1.0.0",
+                "commandId": new_id("cmd"),
+                "commandType": "artifact.propose-revision",
+                "projectId": project_id,
+                "workspaceId": workspace["workspaceId"],
+                "artifactId": workspace["artifactId"],
+                "baseArtifactVersion": workspace["baseArtifactVersion"],
+                "baseProjectStateVersion": base,
+                "requestedBy": actor,
+                "requestedAt": snapshot["createdAt"],
+                "input": {"snapshotId": snapshot["snapshotId"], "consequenceLevel": "high"},
+            }
+        )
+        return {
+            "schemaVersion": "1.0.0",
+            "content": content,
+            "commandResult": result,
+            "workspace": updated["workspace"],
+        }
+
+    def retry_materialization(
+        self, project_id: str, actor: dict[str, Any], plan_artifact_id: Any, base: int
+    ) -> dict[str, Any]:
+        artifact = self.projects.get_artifact(project_id, "execution-plan")
+        project = self.projects.get_project(project_id)
+        if (
+            plan_artifact_id != artifact["artifactId"]
+            or base != project["currentStateVersion"]
+            or project["currentStateVersion"]
+            != artifact["content"]["plan"]["basisProjectStateVersion"] + 1
+        ):
+            raise ProjectStateConflictError("Approved plan is stale.")
+        self.materialize(project_id, artifact, actor)
+        return {
+            "schemaVersion": "1.0.0",
+            "status": "materialized",
+            "planArtifactId": artifact["artifactId"],
+            "executionMode": "deterministic-scaffold",
+        }
+
+    def validate_revision(
+        self,
+        project_id: str,
+        kind: str,
+        content: dict[str, Any],
+        accepting: bool,
+        actor: dict[str, Any],
+    ) -> None:
+        if kind != "execution-plan":
+            return
+        errors = validate_against_schema_id(content, CONTENT_SCHEMA)
+        if errors:
+            raise CommandValidationError("Invalid actionable execution plan: " + errors[0].message)
+        current = self.projects.get_current_state(project_id)
+        plan = content["plan"]
+        if plan["basisProjectStateVersion"] != current["project"]["currentStateVersion"]:
+            raise ProjectStateConflictError(
+                "Execution plan basis is stale; review a refreshed plan."
+            )
+        artifacts = [a for a in current["artifacts"] if a["artifactType"] != "execution-plan"]
+        errors = validate_execution_plan(plan, artifacts, current["openQuestions"])
+        if errors:
+            raise CommandValidationError(errors[0].message)
+        by_type = {a["artifactType"]: a["content"] for a in artifacts}
+        config = content["configuration"]
+        candidates = {c["candidateId"]: c for c in by_type["component-plan"]["candidates"]}
+        chosen = []
+        roles = set()
+        for selection in config["components"]:
+            candidate = candidates.get(selection["candidateId"])
+            if (
+                candidate is None
+                or candidate["componentRoleId"] != selection["componentRoleId"]
+                or candidate["candidateState"] in {"blocked", "rejected", "superseded"}
+                or selection["componentRoleId"] in roles
+            ):
+                raise CommandValidationError(
+                    "Selection must name distinct current, usable candidates."
+                )
+            roles.add(selection["componentRoleId"])
+            chosen.append(candidate)
+        if {c["partNumber"].upper() for c in chosen} != {"ESP32-DEVKIT-V1", "MPU6050"}:
+            raise CommandValidationError(
+                "Only ESP32-DEVKIT-V1 + MPU6050 materialization is supported."
+            )
+        electrical = by_type.get("electrical-architecture", {})
+        connection = next(
+            (
+                c
+                for c in electrical.get("connections", [])
+                if c["connectionId"] == config["i2c"]["connectionId"]
+            ),
+            None,
+        )
+        if (
+            connection is None
+            or connection["interfaceType"] != "i2c"
+            or connection["status"] in {"unresolved", "needs-resolution"}
+        ):
+            raise CommandValidationError(
+                "Select an existing I2C connection; unresolved buses cannot be scaffolded."
+            )
+        nodes = {n["nodeId"]: n for n in electrical["nodes"]}
+        endpoint_roles = set()
+        for key in ("fromNodeId", "toNodeId"):
+            endpoint_roles.update(nodes.get(connection[key], {}).get("componentRoleIds", []))
+        endpoint_candidates = {
+            nodes.get(connection[key], {}).get("componentCandidateId")
+            for key in ("fromNodeId", "toNodeId")
+        }
+        if endpoint_candidates != {c["candidateId"] for c in chosen}:
+            raise CommandValidationError("Electrical endpoints must bind the selected candidates.")
+        for candidate in chosen:
+            specs = {spec["specKey"]: spec["value"] for spec in candidate["specifications"]}
+            for spec_key, pin_key in (("gpio-sda", "sdaPin"), ("gpio-scl", "sclPin")):
+                if spec_key in specs and specs[spec_key] != config["i2c"][pin_key]:
+                    raise CommandValidationError(
+                        "Plan pins conflict with component specifications."
+                    )
+        if not roles <= endpoint_roles:
+            raise CommandValidationError("I2C connection must link the selected component roles.")
+        if config["i2c"]["sdaPin"] == config["i2c"]["sclPin"]:
+            raise CommandValidationError("SDA and SCL must use distinct pins.")
+        if not {"firmware", "analysis"} <= {w["artifactType"] for w in plan["workspaces"]}:
+            raise CommandValidationError("Plan must include firmware and analysis workspaces.")
+        requirements = {r["requirementId"]: r for r in by_type["requirement-set"]["requirements"]}
+        for objective in plan["verificationObjectives"]:
+            req = requirements[objective["requirementId"]]
+            if objective["acceptanceCriteria"] != (
+                req.get("acceptanceCriteria") or []
+            ) or objective["method"] != (
+                req.get("verificationMethod") or "Verification method requires review."
+            ):
+                raise CommandValidationError(
+                    "Objectives must match the current requirement criteria and methods."
+                )
+        if accepting:
+            self._preflight(project_id, self.render(content))
+            self._check_leases(project_id, actor)
+
+    def render(self, content: dict[str, Any]) -> dict[str, dict[str, bytes]]:
+        config = content["configuration"]
+        firmware = {
+            f.path: f.content for f in get_firmware_scaffold_profile(config["buildProfileId"]).files
+        }
+        analysis = {
+            f.path: f.content
+            for f in get_analysis_scaffold_profile(config["analysisProfileId"]).files
+        }
+        # This is deterministic workspace preparation, not sensor firmware generation (W3).
+        firmware["include/nexus_plan.h"] = (
+            "#pragma once\n"
+            f"constexpr int NEXUS_SDA_PIN = {config['i2c']['sdaPin']};\n"
+            f"constexpr int NEXUS_SCL_PIN = {config['i2c']['sclPin']};\n"
+        ).encode()
+        firmware["src/main.cpp"] = (
+            b'#include <Arduino.h>\n#include <Wire.h>\n#include "nexus_plan.h"\n\n'
+            b"void setup() {\n    Serial.begin(115200);\n"
+            b"    Wire.begin(NEXUS_SDA_PIN, NEXUS_SCL_PIN);\n}\n\nvoid loop() {\n}\n"
+        )
+        context = json.dumps(content, sort_keys=True, indent=2).encode() + b"\n"
+        firmware["nexus/approved-plan.json"] = context
+        analysis["nexus/approved-plan.json"] = context
+        return {"firmware": firmware, "analysis": analysis}
+
+    def _preflight(self, project_id: str, files: dict[str, dict[str, bytes]]) -> None:
+        for kind, expected in files.items():
+            existing = self.kernel.workspaces.get_or_none(project_id, kind)
+            if existing is None:
+                continue
+            for record in self.kernel.filesystem.list_files(existing["workspace"]["workspaceId"]):
+                if record["path"] not in expected or record["contentHash"] != blob_digest(
+                    expected[record["path"]]
+                ):
+                    raise CommandValidationError(
+                        "Materialization conflicts with existing workspace files; "
+                        "preserve/reconcile them first."
+                    )
+
+    def _check_leases(self, project_id: str, actor: dict[str, Any]) -> None:
+        for kind in ("firmware", "analysis"):
+            existing = self.kernel.workspaces.get_or_none(project_id, kind)
+            if existing:
+                lease = existing["draft"].get("editLease")
+                if is_lease_active(lease) and lease["ownerActorId"] != actor["actorId"]:
+                    raise DraftEditLeaseHeldError("Workspace lease is held by another actor.")
+
+    def materialize(self, project_id: str, artifact: dict[str, Any], actor: dict[str, Any]) -> None:
+        """Retry-safe writes after the durable user approval; never overwrite differing bytes."""
+        if actor.get("actorType") != "user" or artifact.get("approvalStatus") != "user-approved":
+            raise CommandValidationError("User-approved plan required for materialization.")
+        content = artifact["content"]
+        files = self.render(content)
+        self._preflight(project_id, files)
+        self._check_leases(project_id, actor)
+        for kind, expected in files.items():
+            binding = self.kernel.workspace_runtime.resolve_binding(
+                project_id=project_id, artifact_type=kind, actor=actor
+            )
+            workspace_id = binding["workspaceId"]
+            self.kernel.workspaces.acquire_edit_lease(workspace_id=workspace_id, actor=actor)
+            for path, data in expected.items():
+                if self.kernel.kernel_store.get_workspace_file(workspace_id, path) is not None:
+                    continue
+                draft = self.kernel.kernel_store.get_draft(workspace_id)
+                self.kernel.filesystem.write_file(
+                    workspace_id=workspace_id,
+                    path=path,
+                    content=data,
+                    actor=actor,
+                    expected_draft_version=draft["draftVersion"],
+                    base_artifact_version=binding["baseArtifactVersion"],
+                    base_project_state_version=self.projects.get_project(project_id)[
+                        "currentStateVersion"
+                    ],
+                    origin="GENERATED",
+                    write_policy="USER_EDITABLE",
+                    generated_from=f"execution-plan:{artifact['artifactId']}",
+                    media_type="application/json" if path.endswith(".json") else "text/plain",
+                )
+            self.kernel.workspaces.release_edit_lease(workspace_id=workspace_id, actor=actor)
+        self.kernel.ledger.append(
+            project_id=project_id,
+            event_type="workspace.plan-materialized",
+            actor=actor,
+            subject_type="artifact",
+            subject_id=artifact["artifactId"],
+            payload={
+                "planArtifactId": artifact["artifactId"],
+                "contentDigest": content_digest(content),
+                "executionMode": "deterministic-scaffold",
+                "workspaceTypes": list(files),
+            },
+        )

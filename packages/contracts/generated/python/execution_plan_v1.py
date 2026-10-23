@@ -55,6 +55,7 @@ class Workspace(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     availability: Literal['artifact-available', 'planned']
     workspaceKey: str

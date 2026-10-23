@@ -29,6 +29,7 @@ class ArtifactDependencyV1(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     targetArtifactId: NotRequired[str]
     targetArtifactType: Literal[
@@ -44,6 +45,7 @@ class ArtifactDependencyV1(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
 
 ArtifactType: TypeAlias = Literal[
@@ -59,4 +61,5 @@ ArtifactType: TypeAlias = Literal[
     'analysis',
     'test-plan',
     'risk-register',
+    'execution-plan',
 ]

@@ -49,6 +49,7 @@ async def test_phase11_kernel_api_flow() -> None:
             "analysis",
             "test-plan",
             "risk-register",
+            "execution-plan",
             "firmware",
             "electrical-architecture",
             "physical-architecture",

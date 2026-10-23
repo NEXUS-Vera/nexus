@@ -13,7 +13,8 @@ export type ArtifactType =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -26,7 +27,8 @@ export type ArtifactType1 =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 
 export interface ArtifactTypeDefinition {
   approvalPolicyId: string;

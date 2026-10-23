@@ -10,7 +10,8 @@ export type Artifact =
   | ArtifactEnvelope5
   | ArtifactEnvelope6
   | ArtifactEnvelope7
-  | ArtifactEnvelope8;
+  | ArtifactEnvelope8
+  | ArtifactEnvelope9;
 export type ComponentCategory =
   | 'sensor'
   | 'compute'
@@ -46,7 +47,8 @@ export type ArtifactType =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -59,7 +61,8 @@ export type ArtifactType1 =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 export type ArtifactType2 =
   | 'project-brief'
   | 'requirement-set'
@@ -72,7 +75,8 @@ export type ArtifactType2 =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 export type ArtifactType3 =
   | 'project-brief'
   | 'requirement-set'
@@ -85,7 +89,8 @@ export type ArtifactType3 =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 export type ArtifactType4 =
   | 'project-brief'
   | 'requirement-set'
@@ -98,7 +103,22 @@ export type ArtifactType4 =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
+export type ArtifactType5 =
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register'
+  | 'execution-plan';
 
 /**
  * Canonical wrapper for a successful fixture-backed embedded project initialization package.
@@ -1512,60 +1532,53 @@ export interface ActorReference22 {
   displayName?: string;
   schemaVersion: '1.0.0';
 }
-export interface OpenQuestion {
-  blocks: string[];
+export interface ArtifactEnvelope9 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'execution-plan';
+  artifactVersion: number;
+  content: ActionableExecutionPlanContent;
+  contentSchemaVersion: '1.0.0';
   createdAt: string;
+  createdBy: ActorReference23;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
   projectId: string;
-  question: string;
-  questionId: string;
-  reason: string;
-  requestedFrom: ActorReference23;
   schemaVersion: '1.0.0';
-  /**
-   * @minItems 1
-   */
-  sourceReferences: [
-    {
-      artifactId?: string;
-      kind: 'artifact' | 'requirement';
-      requirementId?: string;
-    },
-    ...{
-      artifactId?: string;
-      kind: 'artifact' | 'requirement';
-      requirementId?: string;
-    }[]
-  ];
-  status: 'open' | 'answered' | 'resolved' | 'dismissed';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
   updatedAt: string;
+  workflowRunId: string;
 }
-export interface ActorReference23 {
-  actorId: string;
-  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
-  displayName?: string;
-  schemaVersion: '1.0.0';
-}
-export interface Project {
-  autonomyMode: 'collaborate' | 'delegate';
-  blockerOrValidationIssueReferences: {
-    issueId: string;
-  }[];
-  createdAt: string;
-  currentArtifactReferences: {
-    artifactId: string;
-    artifactType: ArtifactType;
-    artifactVersion: number;
-    contentSchemaVersion: '1.0.0';
-  }[];
-  currentStateVersion: number;
-  domain: 'embedded-products';
-  executionPlan?: ExecutionPlan;
-  openQuestionReferences: OpenQuestionReference6[];
-  projectId: string;
-  projectPhase: 'concept' | 'prototype-planning';
-  schemaVersion: '1.0.0';
-  title: string;
-  updatedAt: string;
+/**
+ * Reviewed initialization plan and explicit bounded ESP32/MPU6050 materialization choices. Approval belongs to the artifact envelope and proposal decision.
+ */
+export interface ActionableExecutionPlanContent {
+  configuration: {
+    analysisProfileId: 'python-analysis-v1';
+    buildProfileId: 'platformio-arduino-esp32-v1';
+    /**
+     * @minItems 2
+     * @maxItems 2
+     */
+    components: [
+      {
+        candidateId: string;
+        componentRoleId: string;
+      },
+      {
+        candidateId: string;
+        componentRoleId: string;
+      }
+    ];
+    i2c: {
+      connectionId: string;
+      sclPin: 21 | 22 | 25 | 26 | 27 | 32 | 33;
+      sdaPin: 21 | 22 | 25 | 26 | 27 | 32 | 33;
+    };
+  };
+  plan: ExecutionPlan;
 }
 /**
  * Initialization review proposal pinned to source revisions; workspace keys are plan-local targets, not runtime workspace IDs.
@@ -1658,12 +1671,175 @@ export interface ExecutionPlan {
    */
   workspaces: [
     {
-      artifactType: ArtifactType1;
+      artifactType: ArtifactType;
       availability: 'artifact-available' | 'planned';
       workspaceKey: string;
     },
     ...{
-      artifactType: ArtifactType1;
+      artifactType: ArtifactType;
+      availability: 'artifact-available' | 'planned';
+      workspaceKey: string;
+    }[]
+  ];
+}
+export interface ActorReference23 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface OpenQuestion {
+  blocks: string[];
+  createdAt: string;
+  projectId: string;
+  question: string;
+  questionId: string;
+  reason: string;
+  requestedFrom: ActorReference24;
+  schemaVersion: '1.0.0';
+  /**
+   * @minItems 1
+   */
+  sourceReferences: [
+    {
+      artifactId?: string;
+      kind: 'artifact' | 'requirement';
+      requirementId?: string;
+    },
+    ...{
+      artifactId?: string;
+      kind: 'artifact' | 'requirement';
+      requirementId?: string;
+    }[]
+  ];
+  status: 'open' | 'answered' | 'resolved' | 'dismissed';
+  updatedAt: string;
+}
+export interface ActorReference24 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface Project {
+  autonomyMode: 'collaborate' | 'delegate';
+  blockerOrValidationIssueReferences: {
+    issueId: string;
+  }[];
+  createdAt: string;
+  currentArtifactReferences: {
+    artifactId: string;
+    artifactType: ArtifactType1;
+    artifactVersion: number;
+    contentSchemaVersion: '1.0.0';
+  }[];
+  currentStateVersion: number;
+  domain: 'embedded-products';
+  executionPlan?: ExecutionPlan1;
+  openQuestionReferences: OpenQuestionReference6[];
+  projectId: string;
+  projectPhase: 'concept' | 'prototype-planning';
+  schemaVersion: '1.0.0';
+  title: string;
+  updatedAt: string;
+}
+/**
+ * Initialization review proposal pinned to source revisions; workspace keys are plan-local targets, not runtime workspace IDs.
+ */
+export interface ExecutionPlan1 {
+  assumptions: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  basisProjectStateVersion: number;
+  components: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  interfaces: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  openDecisionIds: string[];
+  /**
+   * @minItems 1
+   */
+  requirements: [
+    {
+      artifactId: string;
+      entityId: string;
+    },
+    ...{
+      artifactId: string;
+      entityId: string;
+    }[]
+  ];
+  schemaVersion: '1.0.0';
+  /**
+   * @minItems 1
+   */
+  sourceArtifacts: [
+    {
+      artifactId: string;
+      artifactVersion: number;
+    },
+    ...{
+      artifactId: string;
+      artifactVersion: number;
+    }[]
+  ];
+  status: 'proposed';
+  /**
+   * @minItems 1
+   */
+  steps: [
+    {
+      dependsOn: string[];
+      objectiveIds: string[];
+      requiresApproval: true;
+      stepId: string;
+      title: string;
+      workspaceKeys: string[];
+    },
+    ...{
+      dependsOn: string[];
+      objectiveIds: string[];
+      requiresApproval: true;
+      stepId: string;
+      title: string;
+      workspaceKeys: string[];
+    }[]
+  ];
+  /**
+   * @minItems 1
+   */
+  verificationObjectives: [
+    {
+      acceptanceCriteria: string[];
+      method: string;
+      objectiveId: string;
+      requirementId: string;
+      workspaceKey: string;
+    },
+    ...{
+      acceptanceCriteria: string[];
+      method: string;
+      objectiveId: string;
+      requirementId: string;
+      workspaceKey: string;
+    }[]
+  ];
+  /**
+   * @minItems 1
+   */
+  workspaces: [
+    {
+      artifactType: ArtifactType2;
+      availability: 'artifact-available' | 'planned';
+      workspaceKey: string;
+    },
+    ...{
+      artifactType: ArtifactType2;
       availability: 'artifact-available' | 'planned';
       workspaceKey: string;
     }[]
@@ -1707,7 +1883,7 @@ export interface TurnRoute {
   unsupportedReason?: string;
 }
 export interface UserTurn {
-  actor: ActorReference24;
+  actor: ActorReference25;
   attachmentReferences?: EvidenceReference11[];
   parentTurnId?: string;
   projectId: string;
@@ -1716,14 +1892,14 @@ export interface UserTurn {
   timestamp: string;
   turnId: string;
 }
-export interface ActorReference24 {
+export interface ActorReference25 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
   schemaVersion: '1.0.0';
 }
 export interface EvidenceReference11 {
-  attribution?: ActorReference25;
+  attribution?: ActorReference26;
   evidenceId: string;
   evidenceStrength: 'direct' | 'supporting' | 'inferred' | 'contradicting';
   schemaVersion: '1.0.0';
@@ -1733,7 +1909,7 @@ export interface EvidenceReference11 {
     'user-turn' | 'project-policy' | 'document' | 'external-source' | 'calculation' | 'test-result' | 'agent-inference';
   supportedClaim?: string;
 }
-export interface ActorReference25 {
+export interface ActorReference26 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;
@@ -1766,20 +1942,20 @@ export interface VeraResponse {
   createdArtifactReferences: [
     {
       artifactId: string;
-      artifactType: ArtifactType2;
+      artifactType: ArtifactType3;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     },
     ...{
       artifactId: string;
-      artifactType: ArtifactType2;
+      artifactType: ArtifactType3;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[]
   ];
   nextActionArtifactReference: {
     artifactId: string;
-    artifactType: ArtifactType3;
+    artifactType: ArtifactType4;
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   };
@@ -1820,7 +1996,7 @@ export interface WorkflowRun {
     };
     outputArtifactReferences?: {
       artifactId: string;
-      artifactType: ArtifactType4;
+      artifactType: ArtifactType5;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[];

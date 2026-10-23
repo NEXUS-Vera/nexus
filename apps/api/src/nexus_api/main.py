@@ -43,6 +43,9 @@ from nexus_embedded_systems.workflows.project_modification import (
     ModificationError,
     ModificationService,
 )
+from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+    ExecutionPlanWorkflow,
+)
 from nexus_model_gateway import AnthropicGateway, ModelPolicy, OpenAICompatibleGateway
 from nexus_persistence import (
     ArtifactNotFoundError,
@@ -77,6 +80,7 @@ logger = logging.getLogger("nexus.api")
 
 PROJECT_ID_RE = re.compile(r"^proj_[A-Za-z0-9]{16,}$")
 ARTIFACT_TYPES = {
+    "execution-plan",
     "analysis",
     "test-plan",
     "risk-register",
@@ -233,6 +237,11 @@ _kernel = build_project_kernel(
     firmware_patch_generator=_firmware_patch_generator,
     analysis_patch_generator=_analysis_patch_generator,
 )
+
+
+_plan_workflow = ExecutionPlanWorkflow(_kernel)
+_kernel.commands.revision_validator = _plan_workflow.validate_revision
+_kernel.commands.revision_materializer = _plan_workflow.materialize
 
 
 def _build_init_service() -> InitializationService:
@@ -2308,6 +2317,83 @@ async def get_project_output(
             404,
             code="OUTPUT_NOT_FOUND",
             message="Produced output not found.",
+            request_id=request_id,
+        )
+
+
+@app.post("/v1/projects/{project_id}/execution-plan/propose", response_model=None)
+async def propose_execution_plan(
+    project_id: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Refresh the review basis and propose typed choices using normal revision governance."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError("Body must be an object.")
+        actor = _workspace_runtime_actor(body)
+        base = _require_int(body, "baseProjectStateVersion")
+        plan_version = _require_int(body, "basePlanVersion")
+        return _plan_workflow.propose(
+            project_id, actor, base, plan_version, body.get("configuration"), body.get("plan")
+        )
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
+    except (KeyError, ValueError, TypeError) as exc:
+        return _error(
+            422, code="COMMAND_VALIDATION_FAILED", message=str(exc), request_id=request_id
+        )
+    except BoardError as exc:
+        return _error(
+            409 if "CONFLICT" in exc.code else 422,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+    except ProjectNotFoundError:
+        return _error(
+            404, code="PROJECT_NOT_FOUND", message="Project not found.", request_id=request_id
+        )
+
+
+@app.post("/v1/projects/{project_id}/execution-plan/materialize", response_model=None)
+async def materialize_execution_plan(
+    project_id: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Retry an interrupted approved scaffold operation without a second approval."""
+    request_id = _request_id(request)
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError("Body must be an object.")
+        actor = _workspace_runtime_actor(body)
+        return _plan_workflow.retry_materialization(
+            project_id,
+            actor,
+            body.get("planArtifactId"),
+            _require_int(body, "baseProjectStateVersion"),
+        )
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
+    except (KeyError, ValueError, TypeError) as exc:
+        return _error(
+            422, code="COMMAND_VALIDATION_FAILED", message=str(exc), request_id=request_id
+        )
+    except BoardError as exc:
+        return _error(
+            409 if "CONFLICT" in exc.code else 422,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+    except (ProjectNotFoundError, ArtifactNotFoundError):
+        return _error(
+            404,
+            code="ARTIFACT_NOT_FOUND",
+            message="Approved execution plan not found.",
             request_id=request_id,
         )
 

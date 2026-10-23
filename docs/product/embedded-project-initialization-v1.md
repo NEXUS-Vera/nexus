@@ -274,3 +274,60 @@ regression`: their model responses are scripted from case expectations. They
 prove assembly, validation and question preservation, not live intent understanding
 or P1 acceptance. A configured live-model run, plan review UI, rejection/revision,
 approved workspace materialization and startable build remain open product gates.
+
+
+## Actionable review and workspace preparation (W2 / P1)
+
+W2 adds a bounded typed modification path in the embedded workflow, independent
+of initialization provider mode. It uses the existing immutable snapshot,
+revision proposal, user acceptance/rejection, ledger, workspace lease and file
+operations. The fixture-only restriction on free-form `/turns` modification
+remains; it does not apply to typed plan, component and interface revision review.
+No general conversational interpreter or UI is added.
+
+A new `execution-plan` artifact content contract wraps the unchanged W1 proposal
+with explicit materialization configuration. The original project-level proposal
+is retained as history, not silently reconciled. Proposal refresh pins current
+source revisions, requirements/objectives, component roles/candidates, connection
+and workspace targets. Source/objective mismatch, stale project/plan versions,
+unsupported boards/parts, unresolved bus selection and conflicting pins fail
+visibly. Fixture candidates must be explicitly revised to actual supported part
+numbers through normal artifact governance; there is no alias/fallback that
+turns FX parts into real component evidence. Approval authorizes prototype
+selection and wiring only; existing provisional/unverified evidence stays so.
+
+Rejection preserves accepted artifacts and scaffold bytes. A revised approval
+creates the accepted plan artifact and deterministic firmware/analysis workspaces
+with identical reviewed context, matching ESP32 build profile, explicit I2C pin
+constants used by `Wire.begin`, and preserved verification methods/criteria.
+Analysis remains the existing scaffold, not claimed sensor-noise verification.
+Existing different files are never overwritten. Metadata acceptance and file
+materialization are separate existing storage operations: an infrastructure
+failure can leave an approved plan with partial files and a failed command. The
+explicit materialization retry completes matching missing files without another
+approval; stale bases and differing files remain blocked. This is not an atomic
+cross-store filesystem transaction. Subsequent edits to already materialized
+projects require workspace reconciliation; W2 does not overwrite user firmware.
+
+### W2 verification and remaining live gate
+
+`apps/api/tests/test_actionable_execution_plan.py` drives initialization, explicit
+scripted component review, plan proposal/rejection/revision/acceptance, matching
+firmware/analysis files, negative validation and stale rejection over HTTP.
+SQLite restart checks retain accepted plan identities, file metadata/hashes and
+actual context bytes. Shared contract tests retain legacy W1 compatibility and
+reject unsupported actionable configurations. These are **regression evidence**:
+fixture initialization and scripted reviewer choices do not prove live intent
+interpretation. The opt-in real skeleton build, when executed, proves compilation
+of that scaffold only; it is not agent-authored sensing firmware or P2 evidence.
+
+**Remaining P1 live acceptance gate:** record one novel live intent → configured
+model-generated artifacts → reviewed/rejected/revised/approved plan → startable
+real build, without developer source injection. Record commit, model/provider,
+project/source/plan/snapshot/run/output IDs, tool versions, actual execution modes
+and limitations outside Git. No live-model acceptance run was performed for W2;
+this gate remains open. Current candidate generation can still propose fixture
+parts; their conversion must be an explicit reviewed component edit, never a
+silent scaffold fallback. Model-supported component choice and review UI remain
+product gaps. Firmware generation/repair and the real tool loop belong to W3–W5;
+UI belongs to W8. This implementation does not close P1 product acceptance.

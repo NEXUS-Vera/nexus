@@ -13,7 +13,8 @@ export type ArtifactType =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 
 export interface GraphTraversalResult {
   direction: 'upstream' | 'downstream' | 'neighbors' | 'subgraph';

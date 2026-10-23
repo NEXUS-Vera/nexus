@@ -17,4 +17,5 @@ ArtifactTypeV1: TypeAlias = Literal[
     'analysis',
     'test-plan',
     'risk-register',
+    'execution-plan',
 ]

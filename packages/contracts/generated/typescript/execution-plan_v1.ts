@@ -13,7 +13,8 @@ export type ArtifactType =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 
 /**
  * Initialization review proposal pinned to source revisions; workspace keys are plan-local targets, not runtime workspace IDs.

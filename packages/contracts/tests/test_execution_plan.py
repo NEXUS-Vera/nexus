@@ -149,3 +149,35 @@ def test_old_golden_project_still_valid():
     assert not validate_against_schema_id(
         json.loads(path.read_text()), "https://nexus.local/schemas/project/project.v1.schema.json"
     )
+
+
+@pytest.mark.parametrize(
+    "mutation", [None, "unsupported-version", "unsupported-build", "boolean-pin"]
+)
+def test_actionable_plan_contract_preserves_initialization_plan(package, mutation):
+    content = {
+        "plan": deepcopy(package["project"]["executionPlan"]),
+        "configuration": {
+            "buildProfileId": "platformio-arduino-esp32-v1",
+            "analysisProfileId": "python-analysis-v1",
+            "components": [
+                {"componentRoleId": "compute", "candidateId": "esp32"},
+                {"componentRoleId": "sensor", "candidateId": "mpu6050"},
+            ],
+            "i2c": {"connectionId": "i2c", "sdaPin": 21, "sclPin": 22},
+        },
+    }
+    if mutation == "unsupported-version":
+        content["plan"]["schemaVersion"] = "2.0.0"
+    elif mutation == "unsupported-build":
+        content["configuration"]["buildProfileId"] = "unsupported"
+    elif mutation == "boolean-pin":
+        content["configuration"]["i2c"]["sdaPin"] = True
+    errors = validate_against_schema_id(
+        content,
+        "https://nexus.local/schemas/artifacts/content/actionable-execution-plan.v1.schema.json",
+    )
+    assert bool(errors) == (mutation is not None)
+    assert not validate_against_schema_id(
+        package["project"], "https://nexus.local/schemas/project/project.v1.schema.json"
+    )

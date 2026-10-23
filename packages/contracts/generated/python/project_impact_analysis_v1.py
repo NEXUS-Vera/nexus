@@ -20,6 +20,7 @@ class ReasonByArtifactItem(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     reason: str
 
@@ -38,6 +39,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
     changed: list[
@@ -54,6 +56,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
     reasonByArtifact: list[ReasonByArtifactItem]
@@ -71,6 +74,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
     schemaVersion: Literal['1.0.0']
@@ -88,6 +92,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
     unchanged: list[
@@ -104,6 +109,7 @@ class ProjectImpactAnalysisV1(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
 
@@ -120,6 +126,7 @@ ArtifactType: TypeAlias = Literal[
     'analysis',
     'test-plan',
     'risk-register',
+    'execution-plan',
 ]
 
 ArtifactTypeList: TypeAlias = list[
@@ -136,5 +143,6 @@ ArtifactTypeList: TypeAlias = list[
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
 ]
