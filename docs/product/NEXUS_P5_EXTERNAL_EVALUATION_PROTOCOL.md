@@ -1,6 +1,9 @@
 # Nexus Product MVP — External-User Evaluation Protocol (P5)
 
-Status: Proposed Protocol (W9 preparation).
+Status: Approved by Pranay (2026-10-23) as the W9/W10 evaluation framework, with the refinements below incorporated. Part of the approved P5 roadmap.
+
+> [!IMPORTANT]
+> **Scope & Gating**: This approval does **not** authorize participant sessions before the W8 gate (usable golden workflow) is reached and verified, and does not expand scope beyond Product MVP criteria P1–P5. Recruitment and contact with participants remain exclusively Pranay's responsibility.
 Approved Reference: [Nexus Product MVP Contract](./NEXUS_PRODUCT_MVP_CONTRACT.md), [Implementation Plan (W9/W10)](./NEXUS_PRODUCT_MVP_IMPLEMENTATION_PLAN.md), [Gap Analysis](./NEXUS_PRODUCT_MVP_GAP_ANALYSIS.md).
 Governing Principle: Real-world empirical observation of external target users attempting the golden workflow. Internal sign-off, developer demonstrations, scripted personas, and automated tests cannot substitute for P5 validation.
 
@@ -23,12 +26,15 @@ Participants must possess baseline domain competency so the session evaluates Ne
 - **Physical/Sensor Concepts**: Basic understanding of sensor data streams, coordinate axes, and noise filtering/metrics (e.g., stationary RMS acceleration).
 - **Tooling Comfort**: Ability to operate an interactive desktop or browser-based IDE/workspace on a standard laptop.
 
-### 1.3 Strict Exclusion Rules
-To ensure unbiased evidence and prevent accidental coaching:
-- **No Nexus Team Members**: No current or former contributors, core team members, or contract developers of the Nexus repository.
-- **No Coached Individuals**: Anyone who has seen an internal walkthrough, preliminary demonstration, recorded screen share, or architecture briefing of the Nexus golden workflow is strictly disqualified.
-- **No Prior Knowledge of Golden Test Fixtures**: Individuals who have had access to Nexus test harnesses, the specific ESP32+MPU6050 sample project, or the injected failure definitions cannot participate.
+### 1.3 Exclusion Rules
+General prior awareness of Nexus (e.g., having heard of the product, read public descriptions, or seen general marketing/overview material) does **not** disqualify a participant. To ensure unbiased evidence, the following do:
+- **No Development Involvement**: No current or former contributors, core team members, or contract developers of the Nexus repository, and no one otherwise involved in building Nexus.
+- **No Golden-Workflow Coaching**: Anyone who has been walked through, demonstrated, or coached on the ESP32 + MPU6050 golden workflow (internal walkthroughs, demos, screen shares, or briefings of that workflow) is excluded.
+- **No Exposure to the Injected Failure**: Anyone who has seen or had access to the injected failure definition, its symptoms, or its fix (including via Nexus test harnesses or golden fixtures) is excluded.
 - **No Coached Facilitation**: Participants must not be prompted with answers or guided through the sequence.
+
+### 1.4 Transparent Recording of Prior Exposure
+Each session record must state the participant's prior exposure to Nexus (none / general awareness / other, with a short description) so readers can judge any bias. Prior exposure is reported in the sanitized W10 aggregate.
 
 ---
 
@@ -68,15 +74,36 @@ Requirements:
 1. Connect the ESP32 and MPU6050 over I2C.
 2. Author firmware to stream acceleration telemetry over serial at 115200 baud.
 3. Build the firmware and simulate the circuit to capture telemetry observations.
-4. Run analysis on stationary sensor noise to verify that X-axis RMS acceleration noise remains below 0.10 g.
+4. Run analysis on stationary sensor noise to verify that X-axis RMS acceleration noise remains below 0.10 g
+   (RMS of X-axis acceleration after subtracting the stationary mean, in g).
 5. Inspect any detected issues, review any proposed fixes, and verify the final system state in the product UI.
 ```
+
+#### 2.3 Stationary Noise Metric Definition
+The pass criterion in task step 4 is defined precisely as:
+
+$$\text{RMS}_x = \sqrt{\frac{1}{N}\sum_{i=1}^{N}\left(a_{x,i} - \bar{a}_x\right)^2}, \qquad \bar{a}_x = \frac{1}{N}\sum_{i=1}^{N} a_{x,i}$$
+
+- $a_{x,i}$ is the X-axis acceleration sample in **g** (converted from raw MPU6050 counts using the configured full-scale range, e.g. 16384 LSB/g at ±2 g).
+- Subtracting the stationary mean removes static offset/gravity projection, so the metric measures noise only (equivalent to the population standard deviation). Units: **g**. Pass: $\text{RMS}_x < 0.10$ g.
+- **Observation & sampling assumptions must be fixed and recorded before any testing begins** (W8 gate checklist), and must not be tuned after observing results:
+  - Sampling rate (proposed default: 100 Hz).
+  - Observation duration of the stationary window (proposed default: 10 s, excluding any start-up/settling period, proposed 1 s).
+  - Resulting sample count N (proposed default: N = 1000; minimum acceptable N must be stated alongside).
+  - Accelerometer full-scale range and conversion factor.
+- Final values are recorded in the session record (Section 3 of the template). The defaults above are proposals until confirmed at the W8 gate.
 
 #### Facilitator Operating Boundaries
 - The facilitator must remain silent during normal operation.
 - Do not point to buttons (e.g., do not say "Click Approve Proposal" or "Go to the Evidence Explorer").
 - Do not explain why a build or test failed while the participant is inspecting it.
 - If the participant asks "What do I do next?", respond with a non-leading probe: *"What does the workspace currently indicate?"* or *"What would you normally do at this stage in an IDE?"*
+
+### 2.4 Session Modalities
+Both moderated and appropriately instrumented unmoderated sessions are permitted, provided the following can be assessed reliably:
+- **Moderated** (remote or in-person): facilitator observes live, follows the non-leading boundaries above, and logs assistance per Section 3.
+- **Instrumented Unmoderated**: allowed only if the session captures enough evidence to assess (a) actual workflow completion per step, from real product event/execution logs; (b) any assistance received (in an unmoderated session, help requests and any external help must be self-reported and logged, and a built-in "I'm stuck" mechanism or equivalent must exist); (c) blockers, via timestamped product logs plus think-aloud or post-step notes; and (d) comprehension, via the Section 6 comprehension questions answered in writing or a short follow-up interview.
+- If any of (a)–(d) cannot be assessed reliably for a session, that session is reported as inconclusive and is not counted as P5 evidence.
 
 ---
 
@@ -114,7 +141,8 @@ Every evaluation session must produce a completed record following this exact ma
 - **Session Identifier**: EXT-USER-[001/002/003/...]
 - **Evaluation Date**: YYYY-MM-DD
 - **Facilitator Name**: [Name]
-- **Session Modality**: [Remote Moderated Screen Share / In-Person Lab]
+- **Session Modality**: [Remote Moderated / In-Person Moderated / Instrumented Unmoderated]
+- **Recording Consent**: [Audio/Video recording consented: Yes/No — if No, evidence is anonymized observation notes]
 - **Session Duration**: [Total Minutes]
 
 ## 2. Participant Qualification Profile
@@ -125,7 +153,8 @@ Every evaluation session must produce a completed record following this exact ma
 - **Confirmation of Exclusions**:
   - [ ] No prior involvement with Nexus repository or development team.
   - [ ] No prior demonstrations, coaching, or walkthroughs received.
-  - [ ] No inside knowledge of golden test fixtures or injected failures.
+  - [ ] No exposure to the injected failure, golden test fixtures, or their fix.
+- **Prior Nexus Exposure (record transparently)**: [None / General awareness — describe source / Other — describe]
 
 ## 3. Environment & Technical Verification
 - **Workstation OS & Architecture**: [e.g., Ubuntu 22.04 LTS x86_64 / macOS 14.2 ARM64]
@@ -135,6 +164,7 @@ Every evaluation session must produce a completed record following this exact ma
 - **PlatformIO Version**: [e.g., pio 6.1.15] (Firmware stub disabled: Yes/No)
 - **Wokwi CLI Version**: [e.g., wokwi-cli 0.1.19] (Token verified: Yes/No)
 - **Host Python Version**: [e.g., Python 3.11.8] (Analysis stub disabled: Yes/No)
+- **Noise Metric Parameters (fixed before testing)**: [Sampling rate Hz / Window duration s / Settling s / Sample count N / Full-scale range]
 
 ## 4. Workflow Progression & Assistance Log
 
@@ -193,7 +223,8 @@ Strict compliance with privacy, participant rights, and monorepo security polici
 ### 5.1 Informed Participant Consent
 Prior to starting an evaluation session, each participant must review and sign an evaluation consent agreement covering:
 - **Purpose**: Observation of engineering workflows to improve developer tooling.
-- **Data Capture**: Permission to record session audio, screen activity, user interaction timestamps, and product-generated execution logs.
+- **Consent to Participate (required)**: Agreement to take part, have observation notes taken, and have product-generated execution logs and interaction timestamps captured.
+- **Consent to Audio/Video Recording (separate and optional)**: Recording of audio, video, and/or screen is requested separately. A participant who declines recording may still participate; in that case anonymized observation notes (plus product logs) serve as the session evidence. Declining recording has no effect on eligibility.
 - **Voluntary Participation**: Unconditional right to pause, take breaks, or terminate the session at any moment without providing a reason.
 - **Confidentiality**: Explicit guarantee that the participant’s name, personal details, employer/institution, and unredacted recordings will never be made public or committed to a public repository.
 
@@ -264,6 +295,14 @@ The deliverable for W10 will format all blockers into an executive triage matrix
 
 ## 7. Integrity & Gate Statements
 
+### 7.0 Preserved Non-Negotiable Requirements
+The approved refinements do not relax any of the following:
+- **Real providers**: live model provider; no fake/stub gateways.
+- **Real execution**: real PlatformIO builds, real Wokwi simulation, and real analysis; no stubs or pre-canned outputs.
+- **Honest limitations**: tool unavailability and simulator-surrogate limits are surfaced truthfully.
+- **External users**: real external target participants only. **No mocked, scripted, or persona-driven sessions** may be substituted, in either modality.
+- **Gating**: no participant sessions before the W8 gate; no expansion beyond P1–P5.
+
 ### 7.1 No Invented Pass Thresholds
 Under the approved direction (October 22, 2026), no artificial satisfaction threshold (e.g., "80% CSAT", "3 out of 3 users must finish in under 30 minutes") has been established, and none may be invented by engineering agents.
 - Outright success, assisted completions, usability deadlocks, and task abandonments must be reported with 100% empirical honesty.
@@ -283,7 +322,7 @@ In strict accordance with the approved direction:
 The following governance and logistical decisions can only be made by Pranay:
 1. **Recruitment Channels & Outreach**: Which communities, university departments, or founder networks to contact (e.g., university robotics labs, hardware accelerator cohorts, embedded developer forums).
 2. **Participant Compensation & Honorarium**: Whether participants receive financial compensation, gift cards, Nexus platform credits, or participate on a voluntary basis.
-3. **Session Modality & Coordination**: Whether sessions will be conducted as live remote video sessions (e.g., over Google Meet/Zoom), in-person observational sessions, or unmoderated recorded test flights.
+3. **Session Modality & Coordination**: Which of the permitted modalities (Section 2.4: moderated remote/in-person, or instrumented unmoderated) to use per participant, and the scheduling tools.
 4. **Workstation Environment Provisioning**: Whether participants will be provided with a pre-configured cloud VM / desktop environment accessible via browser, or if participants will clone and run Nexus locally on their personal hardware.
 5. **Secure Off-Git Storage Designate**: Designation of the exact cloud storage location or encrypted drive for storing raw participant video recordings, audio transcripts, and signed consent forms.
 6. **Execution Schedule**: Establishing the calendar dates for participant sessions once Work Package W8 (UI integration gate) is completed and verified.
