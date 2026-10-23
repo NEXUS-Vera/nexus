@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/artifacts/content/actionable-execution-plan.v1.schema.json",
+  "title": "ActionableExecutionPlanContent",
+  "description": "Reviewed initialization plan and explicit bounded ESP32/MPU6050 materialization choices. Approval belongs to the artifact envelope and proposal decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plan",
+    "configuration"
+  ],
+  "properties": {
+    "plan": {
+      "$ref": "https://nexus.local/schemas/project/execution-plan.v1.schema.json"
+    },
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "buildProfileId",
+        "analysisProfileId",
+        "components",
+        "i2c"
+      ],
+      "properties": {
+        "buildProfileId": {
+          "const": "platformio-arduino-esp32-v1"
+        },
+        "analysisProfileId": {
+          "const": "python-analysis-v1"
+        },
+        "components": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "componentRoleId",
+              "candidateId"
+            ],
+            "properties": {
+              "componentRoleId": {
+                "type": "string"
+              },
+              "candidateId": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "i2c": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "connectionId",
+            "sdaPin",
+            "sclPin"
+          ],
+          "properties": {
+            "connectionId": {
+              "type": "string"
+            },
+            "sdaPin": {
+              "type": "integer",
+              "enum": [
+                21,
+                22,
+                25,
+                26,
+                27,
+                32,
+                33
+              ]
+            },
+            "sclPin": {
+              "type": "integer",
+              "enum": [
+                21,
+                22,
+                25,
+                26,
+                27,
+                32,
+                33
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

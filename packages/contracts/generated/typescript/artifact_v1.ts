@@ -10,7 +10,8 @@ export type Artifact =
   | ArtifactEnvelope5
   | ArtifactEnvelope6
   | ArtifactEnvelope7
-  | ArtifactEnvelope8;
+  | ArtifactEnvelope8
+  | ArtifactEnvelope9;
 export type ComponentCategory =
   | 'sensor'
   | 'compute'
@@ -34,6 +35,20 @@ export type ComponentCategory1 =
   | 'mechanical'
   | 'supporting-electronics';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
+export type ArtifactType =
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register'
+  | 'execution-plan';
 
 export interface ArtifactEnvelope {
   approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
@@ -1403,6 +1418,162 @@ export interface ActorReference21 {
   schemaVersion: '1.0.0';
 }
 export interface ActorReference22 {
+  actorId: string;
+  actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
+export interface ArtifactEnvelope9 {
+  approvalStatus: 'not-required' | 'proposed' | 'awaiting-user' | 'user-approved' | 'agent-decided' | 'rejected';
+  artifactId: string;
+  artifactType: 'execution-plan';
+  artifactVersion: number;
+  content: ActionableExecutionPlanContent;
+  contentSchemaVersion: '1.0.0';
+  createdAt: string;
+  createdBy: ActorReference23;
+  evidenceStatus: 'unverified' | 'inferred' | 'partially-grounded' | 'grounded' | 'calculated' | 'tested';
+  lifecycleStatus: 'drafted' | 'ready' | 'affected' | 'stale' | 'blocked' | 'superseded' | 'archived';
+  projectId: string;
+  schemaVersion: '1.0.0';
+  sourceTurnId: string;
+  supersedesArtifactId?: string;
+  supersedesArtifactVersion?: number;
+  updatedAt: string;
+  workflowRunId: string;
+}
+/**
+ * Reviewed initialization plan and explicit bounded ESP32/MPU6050 materialization choices. Approval belongs to the artifact envelope and proposal decision.
+ */
+export interface ActionableExecutionPlanContent {
+  configuration: {
+    analysisProfileId: 'python-analysis-v1';
+    buildProfileId: 'platformio-arduino-esp32-v1';
+    /**
+     * @minItems 2
+     * @maxItems 2
+     */
+    components: [
+      {
+        candidateId: string;
+        componentRoleId: string;
+      },
+      {
+        candidateId: string;
+        componentRoleId: string;
+      }
+    ];
+    i2c: {
+      connectionId: string;
+      sclPin: 21 | 22 | 25 | 26 | 27 | 32 | 33;
+      sdaPin: 21 | 22 | 25 | 26 | 27 | 32 | 33;
+    };
+  };
+  plan: ExecutionPlan;
+}
+/**
+ * Initialization review proposal pinned to source revisions; workspace keys are plan-local targets, not runtime workspace IDs.
+ */
+export interface ExecutionPlan {
+  assumptions: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  basisProjectStateVersion: number;
+  components: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  interfaces: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  openDecisionIds: string[];
+  /**
+   * @minItems 1
+   */
+  requirements: [
+    {
+      artifactId: string;
+      entityId: string;
+    },
+    ...{
+      artifactId: string;
+      entityId: string;
+    }[]
+  ];
+  schemaVersion: '1.0.0';
+  /**
+   * @minItems 1
+   */
+  sourceArtifacts: [
+    {
+      artifactId: string;
+      artifactVersion: number;
+    },
+    ...{
+      artifactId: string;
+      artifactVersion: number;
+    }[]
+  ];
+  status: 'proposed';
+  /**
+   * @minItems 1
+   */
+  steps: [
+    {
+      dependsOn: string[];
+      objectiveIds: string[];
+      requiresApproval: true;
+      stepId: string;
+      title: string;
+      workspaceKeys: string[];
+    },
+    ...{
+      dependsOn: string[];
+      objectiveIds: string[];
+      requiresApproval: true;
+      stepId: string;
+      title: string;
+      workspaceKeys: string[];
+    }[]
+  ];
+  /**
+   * @minItems 1
+   */
+  verificationObjectives: [
+    {
+      acceptanceCriteria: string[];
+      method: string;
+      objectiveId: string;
+      requirementId: string;
+      workspaceKey: string;
+    },
+    ...{
+      acceptanceCriteria: string[];
+      method: string;
+      objectiveId: string;
+      requirementId: string;
+      workspaceKey: string;
+    }[]
+  ];
+  /**
+   * @minItems 1
+   */
+  workspaces: [
+    {
+      artifactType: ArtifactType;
+      availability: 'artifact-available' | 'planned';
+      workspaceKey: string;
+    },
+    ...{
+      artifactType: ArtifactType;
+      availability: 'artifact-available' | 'planned';
+      workspaceKey: string;
+    }[]
+  ];
+}
+export interface ActorReference23 {
   actorId: string;
   actorType: 'user' | 'vera' | 'embedded-systems-agent' | 'shared' | 'system';
   displayName?: string;

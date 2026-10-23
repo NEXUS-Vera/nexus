@@ -24,6 +24,7 @@ class CurrentArtifactReference(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -77,6 +78,7 @@ class Workspace(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     availability: Literal['artifact-available', 'planned']
     workspaceKey: str

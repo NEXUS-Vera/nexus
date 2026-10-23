@@ -37,6 +37,8 @@ agent calls them in to take a project from prompt to verified evidence, see
 - `GET /v1/projects/{projectId}/history?limit=` - project history
 - `POST /v1/projects/{projectId}/turns` - multi-turn modification (`ProjectTurnResult`, includes impact analysis)
 - `GET /v1/projects/{projectId}/board` - board summary, including Component Plan maturity/coverage counts
+- `POST /v1/projects/{projectId}/execution-plan/propose` - refresh and propose an actionable plan against explicit project/plan versions
+- `POST /v1/projects/{projectId}/execution-plan/materialize` - retry interrupted materialization of the current user-approved plan
 - `POST /v1/projects/{projectId}/artifact-commands` - typed artifact commands such as `workspace.acquire-edit-lease` (`ArtifactCommandResult`)
 - `GET /v1/projects/{projectId}/events?limit=&cursor=` - project event feed
 - `GET /v1/projects/{projectId}/graph?root=&direction=&maxDepth=` - artifact dependency graph
@@ -265,3 +267,39 @@ Configure `NEXUS_WOKWI_CLI`, `WOKWI_CLI_TOKEN`, and
 `NEXUS_WOKWI_FIRMWARE_ELF` for live execution. Missing provider credentials or
 firmware are reported as availability gaps. Surrogate simulation output does
 not establish real component compatibility or requirement verification.
+
+## Actionable execution plans (W2 / P1)
+
+`POST /v1/projects/{projectId}/execution-plan/propose` takes `requestedBy`,
+`baseProjectStateVersion`, `basePlanVersion` (0 before first acceptance),
+`configuration`, and optionally a revised `plan`. Omitting `plan` composes a
+fresh W1 checklist from current artifacts and questions. Configuration follows
+`artifacts/content/actionable-execution-plan.v1.schema.json`: select two current
+candidate/role IDs, an existing I2C connection, distinct supported SDA/SCL GPIOs,
+`buildProfileId: platformio-arduino-esp32-v1` and
+`analysisProfileId: python-analysis-v1`. Only explicit ESP32-DEVKIT-V1/MPU6050
+candidates are supported; fixture part numbers are rejected. Candidate and
+interface edits use existing typed artifact revisions, including in LLM mode;
+free-form live conversation modification remains unsupported.
+
+The response includes reviewed `content`, `workspace` and `commandResult` with
+`proposalId`. Review the immutable snapshot through existing workspace routes;
+use `artifact.reject-revision` or `artifact.accept-revision` on `/artifact-commands`
+with that workspace and current base versions. Rejection changes proposal audit
+history only. Acceptance always requires a user, checks the proposal's original
+project/artifact basis, and writes an immutable `execution-plan` artifact before
+preparing firmware/analysis files. The project-level W1 `executionPlan` remains
+the original initialization proposal; the accepted artifact is the authoritative
+review decision. No new state store or migration is introduced.
+
+Scaffolds contain identical `nexus/approved-plan.json` context, a PlatformIO
+ESP32 Arduino build configuration, and explicit pin constants used by the Wire
+initialization skeleton. Requirement criteria/methods are copied unchanged.
+This is deterministic workspace preparation; sensor firmware authoring is W3.
+Existing different files block application. Interrupted writes leave durable
+approval and visible command failure; retry `/execution-plan/materialize` with
+`planArtifactId`, `baseProjectStateVersion` and `requestedBy`. Matching files are
+preserved; a changed accepted project basis requires renewed review. Normal
+compile/analysis workspace APIs remain the execution entry points. Scaffold
+creation runs no model, compiler, simulator or analysis and proves no hardware
+compatibility. See the W2 live-evidence gate in the initialization boundary doc.

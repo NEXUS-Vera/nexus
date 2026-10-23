@@ -40,6 +40,14 @@ each run is a stateless request/response over the supplied prompt.
   result to the caller, and records the LLM outcome (success or failure)
   through `nexus_observability` without ever propagating an LLM error.
 
+### Typed execution-plan review (W2)
+
+`workflows/project_modification/execution_plan.py` handles provider-independent,
+bounded typed review and ESP32/MPU6050 workspace preparation using shared board
+revision and file services. It does not extend the fixture prose interpreter to
+live conversation. See the W2 section of the initialization boundary document for
+supported selections, failure/retry semantics and the open live acceptance gate.
+
 ### Staged generation and repair
 
 `LlmInitializationProvider` generates artifacts in stages, minting all IDs

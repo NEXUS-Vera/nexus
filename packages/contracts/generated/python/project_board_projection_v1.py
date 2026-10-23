@@ -30,6 +30,7 @@ class ArtifactSummary(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     artifactVersion: int
     awaitingApprovalCount: NotRequired[int]
@@ -149,6 +150,7 @@ class RecentExecutionSummary(TypedDict, closed=True):
             'analysis',
             'test-plan',
             'risk-register',
+            'execution-plan',
         ]
     ]
     capability: Literal[

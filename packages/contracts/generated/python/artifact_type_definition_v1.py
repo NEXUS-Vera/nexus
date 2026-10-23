@@ -20,6 +20,7 @@ class Dependency(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     relationship: Literal['depends-on', 'derives-from', 'constrains', 'covers']
     required: NotRequired[bool]
@@ -39,6 +40,7 @@ class ArtifactTypeDefinitionV1(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     boardVisibility: Literal['primary', 'global', 'hidden']
     dependencies: list[Dependency]

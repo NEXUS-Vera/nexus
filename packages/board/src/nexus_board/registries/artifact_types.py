@@ -57,6 +57,18 @@ def _definition(
 
 DEFAULT_ARTIFACT_TYPE_DEFINITIONS: list[dict[str, Any]] = [
     _definition(
+        artifact_type="execution-plan",
+        display_name="Execution Plan",
+        phase="DEFINE",
+        workspace_type="structured-document",
+        supported_command_types=_WORKSPACE_COMMANDS,
+        required_capabilities=[],
+        dependencies=[],
+        editable=True,
+        executable=False,
+        board_visibility="hidden",
+    ),
+    _definition(
         artifact_type="project-brief",
         display_name="Project Brief",
         phase="DEFINE",

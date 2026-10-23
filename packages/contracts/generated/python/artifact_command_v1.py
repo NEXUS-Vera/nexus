@@ -20,6 +20,7 @@ class Input(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     initialContent: NotRequired[dict[str, Any]]
 

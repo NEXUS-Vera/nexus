@@ -21,6 +21,7 @@ class ArtifactRevision(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     artifactVersion: int
     createdAt: str

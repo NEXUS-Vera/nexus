@@ -24,6 +24,7 @@ class CreatedArtifactReference(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
@@ -43,6 +44,7 @@ class NextActionArtifactReference(TypedDict, closed=True):
         'analysis',
         'test-plan',
         'risk-register',
+        'execution-plan',
     ]
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']

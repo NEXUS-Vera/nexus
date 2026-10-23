@@ -14,6 +14,7 @@ def test_default_registry_has_runtime_artifacts() -> None:
     registry = default_artifact_type_registry()
     types = {item["artifactType"] for item in registry.list()}
     assert types == {
+        "execution-plan",
         "project-brief",
         "requirement-set",
         "functional-architecture",

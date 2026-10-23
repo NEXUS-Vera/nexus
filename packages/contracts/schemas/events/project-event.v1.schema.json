@@ -64,7 +64,8 @@
         "workspace.patch-applied",
         "workspace.patch-discarded",
         "verification.invalidated",
-        "verification.revalidated"
+        "verification.revalidated",
+        "workspace.plan-materialized"
       ]
     },
     "occurredAt": {

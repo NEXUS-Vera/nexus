@@ -13,7 +13,8 @@ export type ArtifactType =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 export type ArtifactType1 =
   | 'project-brief'
   | 'requirement-set'
@@ -26,7 +27,8 @@ export type ArtifactType1 =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 
 export interface ProjectEvent {
   actor: ActorReference;
@@ -68,7 +70,8 @@ export interface ProjectEvent {
     | 'workspace.patch-applied'
     | 'workspace.patch-discarded'
     | 'verification.invalidated'
-    | 'verification.revalidated';
+    | 'verification.revalidated'
+    | 'workspace.plan-materialized';
   occurredAt: string;
   payload: {
     artifactId?: string;

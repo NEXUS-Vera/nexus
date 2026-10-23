@@ -256,7 +256,8 @@ export type ArtifactType =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 export type ConsequenceLevel = 'low' | 'medium' | 'high' | 'safety-critical';
 
 export interface ActorReference {

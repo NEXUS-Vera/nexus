@@ -13,7 +13,8 @@ export type ArtifactType =
   | 'physical-architecture'
   | 'analysis'
   | 'test-plan'
-  | 'risk-register';
+  | 'risk-register'
+  | 'execution-plan';
 
 /**
  * Lightweight append-only history of a project: the turns that were submitted, the workflow runs they triggered, every artifact revision produced, and the user-facing responses returned.
