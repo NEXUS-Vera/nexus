@@ -80,6 +80,7 @@ from nexus_board.firmware.toolchain import (
     SNAPSHOT_REASON_PATCH_BASE,
     build_firmware_command_spec,
     firmware_toolchain_profile,
+    require_firmware_toolchain,
     snapshot_reason_for_operation,
     validate_firmware_snapshot_for_toolchain,
 )
@@ -684,6 +685,7 @@ class WorkspaceRuntimeService:
         artifact_type: str,
         actor: dict[str, Any],
         requested_change: str,
+        allow_fixture: bool = False,
         causation_id: str | None = None,
     ) -> dict[str, Any]:
         """Generate a validated patch proposal against an immutable base snapshot.
@@ -696,6 +698,14 @@ class WorkspaceRuntimeService:
             )
         if not isinstance(requested_change, str) or not requested_change.strip():
             raise CommandValidationError("requestedChange is required")
+
+        if not isinstance(allow_fixture, bool):
+            raise CommandValidationError("allowFixture must be a boolean")
+        if self._firmware_patch_generator is None and not allow_fixture:
+            raise FirmwarePatchGenerationError(
+                "Configure a model provider for firmware authoring.",
+                code="MODEL_PROVIDER_UNAVAILABLE",
+            )
 
         binding = self._require_binding(
             project_id=project_id,
@@ -741,6 +751,7 @@ class WorkspaceRuntimeService:
             if isinstance(metadata, dict):
                 generator_metadata = metadata
         else:
+            generator_metadata = {"mode": "fixture"}
             operations = generate_firmware_patch_operations(
                 requested_change=requested_change.strip(),
                 base_snapshot=base_snapshot,
@@ -1184,11 +1195,15 @@ class WorkspaceRuntimeService:
         project_id: str,
         artifact_type: str,
         actor: dict[str, Any],
+        require_real: bool = False,
         base_artifact_version: int | None = None,
         base_project_state_version: int | None = None,
         max_duration_ms: int | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any]:
+        if not isinstance(require_real, bool):
+            raise CommandValidationError("requireReal must be a boolean")
+        require_firmware_toolchain(require_real=require_real)
         return self._start_firmware_toolchain_execution(
             project_id=project_id,
             artifact_type=artifact_type,
@@ -1259,6 +1274,7 @@ class WorkspaceRuntimeService:
             file_store=self._filesystem.file_store,
             operation=operation,
         )
+        require_firmware_toolchain()
         command_spec = build_firmware_command_spec(operation)
         workspace = binding["workspace"]
         project = self._projects.get_project(project_id)

@@ -103,6 +103,7 @@ class LiveFirmwarePatchGenerator:
             "requestedChange": context["requestedChange"],
             "baseSnapshotId": context["baseSnapshotId"],
             "inputArtifactReferences": context["inputArtifactReferences"],
+            "artifacts": context["artifacts"],
             "snapshotFiles": context["snapshotFiles"],
             "fileContents": context["fileContents"],
             "toolchainProfile": {
@@ -131,11 +132,12 @@ class LiveFirmwarePatchGenerator:
             )
         except ModelGatewayError as exc:
             raise FirmwarePatchGenerationError(
-                f"Model patch generation failed: {exc.code}"
+                f"Model patch generation failed: {exc.code}", code="MODEL_PROVIDER_UNAVAILABLE"
             ) from exc
         except Exception as exc:  # noqa: BLE001
             raise FirmwarePatchGenerationError(
-                f"Model patch generation failed: {type(exc).__name__}"
+                f"Model patch generation failed: {type(exc).__name__}",
+                code="MODEL_PROVIDER_UNAVAILABLE",
             ) from exc
         parsed = getattr(generated, "parsed_output", None)
         if not isinstance(parsed, dict):
@@ -149,7 +151,11 @@ class LiveFirmwarePatchGenerator:
             "generatorId": self.generator_id,
             "generatorVersion": self.generator_version,
             "generatorMetadata": {
-                "mode": "llm",
+                "mode": (
+                    "regression"
+                    if getattr(generated, "provider", self.model_policy.provider) == "fake"
+                    else "llm"
+                ),
                 "provider": getattr(generated, "provider", self.model_policy.provider),
                 "model": getattr(generated, "model", self.model_policy.model),
                 "promptId": self.prompt_id,

@@ -63,12 +63,18 @@ def firmware_toolchain_profile() -> dict[str, Any]:
 
 
 def _use_platformio_stub() -> bool:
-    raw = (
-        os.environ.get("NEXUS_FIRMWARE_USE_STUB", "0" if shutil.which("pio") else "1")
-        .strip()
-        .lower()
-    )
+    raw = os.environ.get("NEXUS_FIRMWARE_USE_STUB", "0").strip().lower()
     return raw in {"1", "true", "yes", "on"}
+
+
+def require_firmware_toolchain(*, require_real: bool = False) -> None:
+    if (require_real and _use_platformio_stub()) or (
+        not _use_platformio_stub() and shutil.which("pio") is None
+    ):
+        raise FirmwareToolchainValidationError(
+            "Real firmware build requires PlatformIO CLI (pio) and fixture mode disabled.",
+            code="FIRMWARE_TOOLCHAIN_UNAVAILABLE",
+        )
 
 
 def _pio_executable_and_args(operation: str) -> tuple[str, list[str]]:

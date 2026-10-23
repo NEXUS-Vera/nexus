@@ -92,6 +92,7 @@ async def test_firmware_patch_propose_apply_and_stale() -> None:
         proposed = await client.post(
             f"/v1/projects/{project_id}/artifacts/firmware/workspace/patch/propose",
             json={
+                "allowFixture": True,
                 "requestedChange": "Change serial baud to 9600.",
                 "requestedBy": actor,
             },
@@ -133,6 +134,7 @@ async def test_firmware_patch_propose_apply_and_stale() -> None:
         proposed2 = await client.post(
             f"/v1/projects/{project_id}/artifacts/firmware/workspace/patch/propose",
             json={
+                "allowFixture": True,
                 "requestedChange": "Change serial baud to 9600.",
                 "requestedBy": actor,
             },
@@ -218,6 +220,7 @@ async def test_firmware_patch_discard() -> None:
         proposed = await client.post(
             f"/v1/projects/{project_id}/artifacts/firmware/workspace/patch/propose",
             json={
+                "allowFixture": True,
                 "requestedChange": "Change serial baud to 9600.",
                 "requestedBy": actor,
             },

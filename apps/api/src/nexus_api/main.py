@@ -2519,6 +2519,11 @@ async def propose_artifact_workspace_patch(
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
             requested_change=requested_change,
+            **(
+                {"allow_fixture": body.get("allowFixture", False)}
+                if artifact_type == "firmware"
+                else {}
+            ),
             causation_id=body.get("commandId") or body.get("causationId"),
         )
         return {
@@ -2721,6 +2726,7 @@ async def compile_artifact_firmware(
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
+            require_real=body.get("requireReal", False),
             base_artifact_version=base_artifact_version,
             base_project_state_version=base_project_state_version,
             max_duration_ms=max_duration_ms,

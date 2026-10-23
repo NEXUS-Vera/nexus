@@ -81,6 +81,7 @@ def test_phase15_g1_hermetic_fixture_e2e() -> None:
     )
     before_hashes = {f["path"]: f["contentHash"] for f in ks.list_workspace_files(ws_id)}
     proposed = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -105,6 +106,7 @@ def test_phase15_g1_hermetic_fixture_e2e() -> None:
     )
 
     stale = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -136,6 +138,7 @@ def test_phase15_g1_hermetic_fixture_e2e() -> None:
             base_project_state_version=int(binding["baseProjectStateVersion"]),
         )
     discard = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,

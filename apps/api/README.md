@@ -303,3 +303,33 @@ preserved; a changed accepted project basis requires renewed review. Normal
 compile/analysis workspace APIs remain the execution entry points. Scaffold
 creation runs no model, compiler, simulator or analysis and proves no hardware
 compatibility. See the W2 live-evidence gate in the initialization boundary doc.
+
+### Firmware authoring gates (W3 / P2)
+
+Firmware patch proposals use the existing model generator and guarded review/apply
+routes. Missing configuration or provider invocation failure returns
+`MODEL_PROVIDER_UNAVAILABLE`; there is no automatic canned patch. Offline regression
+callers must explicitly send `allowFixture: true` to permit the deterministic
+fallback. Its proposal metadata says `mode: fixture`; scripted fake gateway replies
+say `mode: regression` and cannot demonstrate live authoring.
+
+The current user-approved `execution-plan` artifact is authoritative generation
+context, including its configuration, verification objectives and the domain
+artifact versions listed in its reviewed source references. Missing referenced
+sources fail visibly. Only projects without that artifact fall back to project
+brief, requirements, components, functional/electrical/physical architecture and
+test plan. Unapproved plans and oversized
+context fail visibly rather than silently discarding approved decisions. The model
+receives artifact content and version/identity references, at most 128 KiB of
+artifact JSON, 256 manifest entries, 32 eligible source files of at most 32 KiB
+each, and an 8 KiB request. The workspace copy of the approved plan is not used as
+an alternative authority. This avoids preferring a user-edited or stale file over
+the accepted artifact.
+
+Compile requests may send `requireReal: true`; this rejects explicit stub mode.
+With `NEXUS_FIRMWARE_USE_STUB` unset, PlatformIO is always selected, and missing
+`pio` returns `FIRMWARE_TOOLCHAIN_UNAVAILABLE` before accepting an execution.
+Offline compile regressions must explicitly set `NEXUS_FIRMWARE_USE_STUB=1` and
+retain the returned `executionMode: fixture` label. Neither fixture outputs nor
+scripted authoring close the live P2 gate. W3 does not implement simulation or the
+repair loop (W4/W5).

@@ -178,6 +178,7 @@ def test_propose_records_immutable_base_snapshot_and_context() -> None:
     before_hashes = {item["path"]: item["contentHash"] for item in before_files}
 
     result = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -200,6 +201,7 @@ def test_apply_replace_patch_updates_workspace() -> None:
     user = actor("user")
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -232,6 +234,7 @@ def test_stale_patch_rejected_after_manual_edit() -> None:
     user = actor("user")
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -273,6 +276,7 @@ def test_discard_leaves_workspace_unchanged() -> None:
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     before = copy.deepcopy(kernel_store.list_workspace_files(binding["workspaceId"]))
     proposed = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -294,6 +298,7 @@ def test_wrong_base_snapshot_workspace_rejected() -> None:
     user = actor("user")
     _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -357,6 +362,7 @@ def test_deterministic_generator_mpu6050() -> None:
     user = actor("user")
     _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
+        allow_fixture=True,
         project_id=project_id,
         artifact_type="firmware",
         actor=user,
@@ -405,4 +411,4 @@ def test_propose_uses_injected_live_generator() -> None:
     )
     proposal = proposed["proposal"]
     assert proposal["generatorId"] == "firmware-patch-generator-llm-v1"
-    assert proposal["generatorMetadata"]["mode"] == "llm"
+    assert proposal["generatorMetadata"]["mode"] == "regression"
