@@ -368,3 +368,72 @@ before simulation: the restricted process runtime could not find `pio`
 shell. The live gate remains unresolved; no sandbox changes or live success claim
 are made. W5 repair orchestration and W6/W7 full dependency invalidation remain
 separate work packages.
+
+### Bounded repair (W5 / P2)
+
+- `POST /v1/projects/{projectId}/repair` - start, get, advance or cancel a bounded embedded repair
+
+Send `action: start`, `executionRunId`, `target: firmware|analysis`, and optional
+`maxAttempts` (1–3, including the original failed attempt), `requireReal` (default
+true). Subsequent `get` requests name `repairId`; `advance` and `cancel` also
+require the returned `revision`. Progress is retained in the existing append-only
+project events, including diagnosis excerpts, proposal IDs and every run ID.
+Concurrent stale advances return `REPAIR_CONFLICT`. Reconstruct after restart with
+`get`; an interrupted launch stops for inspection rather than resubmitting work.
+
+Advance inspects stored job diagnostics and deterministic failed test cases,
+then pauses in `review`. Use the ordinary guarded patch apply/discard endpoints;
+advance never approves a patch. Stale patch bases still require a new review.
+After apply, advance schedules/polls the existing jobs. Firmware corrections rerun
+compile → simulation using that exact ELF → observation import → Python analysis
+→ deterministic evidence promotion. Analysis corrections rerun analysis against
+its existing input. Leases on affected workspaces are still required. Only linked
+cases with deterministic PASS and passed status finish the loop. Exhaustion,
+rejection, timeout, cancellation and unavailable prerequisites remain explicit
+terminal outcomes; none becomes PASS. `requireReal: false` permits regression
+execution only, not a live acceptance claim.
+
+N161 map decisions verified against W3/W4: automatic compiler/analysis fallback
+has already been removed; analysis repair additionally requires a model and real
+mode rejects analysis fixtures. Metric failures do not identify causality: the
+caller selects the correction target explicitly for review. Compiler/simulator
+failures target firmware. Diagnostic excerpts are bounded to 4,000 characters;
+full retained logs/output IDs remain available. Synchronous simulator errors
+currently retain only the existing 500-character error message; no fuller stderr
+is invented. Simulator cancellation is available between synchronous steps;
+in-flight compiler/analysis cancellation uses existing job cancellation. A live
+model/tool repair gate remains unresolved until separately executed with all
+prerequisites; fake-provider tests are regression evidence only. W6 is excluded.
+
+The local process runtime has an observed cancellation race: SIGKILL can finish
+as `failed / NONZERO_EXIT (-9)` before its cancel flag is read. The repair state
+records the cancellation request and stops; the original job diagnosis is retained
+without relabeling it. Fixing that runtime behavior is outside this task's sandbox
+code boundary. The checked-in golden analysis also omits the `sampling_hz` metric
+required by T6; the repair gate keeps that INCONCLUSIVE rather than claiming PASS.
+The scripted W5 regression uses an explicit measured timestamp-rate calculation
+in its analysis setup. A real workflow still needs a reviewed model correction for
+that missing metric. No live repair was attempted locally: the model credential
+was absent, although PlatformIO/Wokwi CLIs and the simulator token were present.
+
+An initial `firmware.test` failure also reruns the configured firmware tests
+between compile and simulation. Diagnosis and simulator calls are synchronous
+bounded steps; cancellation is observed between them, while active compiler,
+firmware-test and analysis jobs use the existing cancellation API. Advances are
+serialized within the existing single-process sidecar; this is not a distributed
+workflow scheduler. Diagnostic/generation intent is recorded before invoking the
+model, so an interrupted request stops for inspection rather than automatically
+issuing another model call.
+
+Progress snapshots conform to the existing shared `ProjectEvent` contract:
+`decision.accepted`, subject type `decision`, subject ID `repairId`, and payload
+`status: repair.<status>` with the workflow's versioned JSON in `summary`. These
+record accepted execution-control requests, including their failed outcomes;
+they do not approve a correction. Only this embedded workflow interprets the
+summary. Patch review remains the existing independent apply/discard decision.
+No shared schema or generated contract types change in W5.
+
+The diagnosis request also respects the existing patch contract's 4,096-character
+limit. Longer log excerpts retain their beginning/end and set
+`logExcerptLimited`; the original run logs remain unchanged. Oversized criteria
+stop explicitly instead of silently dropping verification objectives.

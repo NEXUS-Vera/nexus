@@ -319,3 +319,10 @@ def get_prompt(prompt_id: str) -> PromptSpec:
 
 def list_prompt_ids() -> tuple[str, ...]:
     return tuple(PROMPT_CATALOG.keys())
+
+
+# Request fragment for the bounded execution repair workflow (W5 / P2).
+EXECUTION_REPAIR_REQUEST = (
+    "Inspect the recorded failure and propose a causally relevant correction. "
+    "Preserve verification criteria.\n"
+)

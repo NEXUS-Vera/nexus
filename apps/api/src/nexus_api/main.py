@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from nexus_board import build_project_kernel
 from nexus_board.analysis.live_patch_generator import LiveAnalysisPatchGenerator
 from nexus_board.analysis.semantics import validate_investigation_dict
-from nexus_board.errors import BoardError
+from nexus_board.errors import BoardError, CommandValidationError
 from nexus_board.execution.limits import ExecutionLimits
 from nexus_board.execution.runtime_factory import build_execution_runtime
 from nexus_board.execution.scheduler import SchedulerConfig
@@ -63,6 +63,7 @@ from nexus_persistence import (
     build_stores,
 )
 from project_initialization_result_v1 import ProjectInitializationResultV1
+from starlette.concurrency import run_in_threadpool
 
 from .circuit_simulation import (
     CircuitSimulationExecutionAdapter,
@@ -2532,9 +2533,12 @@ async def propose_artifact_workspace_patch(
         )
     try:
         result = await asyncio.to_thread(
-            _kernel.workspace_runtime.propose_analysis_patch
-            if artifact_type == "analysis"
-            else _kernel.workspace_runtime.propose_firmware_patch,
+            cast(
+                Any,
+                _kernel.workspace_runtime.propose_analysis_patch
+                if artifact_type == "analysis"
+                else _kernel.workspace_runtime.propose_firmware_patch,
+            ),
             project_id=project_id,
             artifact_type=artifact_type,
             actor=_workspace_runtime_actor(body),
@@ -3409,3 +3413,66 @@ async def preview_analysis_produced_output(
     except BoardError as exc:
         status = 404 if "NOT_FOUND" in exc.code else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post("/v1/projects/{project_id}/repair", response_model=None)
+async def advance_embedded_repair(
+    project_id: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Start, advance, inspect or cancel the bounded embedded repair workflow."""
+    from nexus_embedded_systems.workflows.repair import RepairWorkflow
+
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise CommandValidationError("Body must be an object")
+        workflow = RepairWorkflow(_kernel)
+        actor = _workspace_runtime_actor(body)
+        action = body.get("action", "start")
+        if not isinstance(action, str):
+            raise CommandValidationError("action must be a string")
+        if action == "start":
+            return workflow.start(
+                project_id,
+                actor,
+                body["executionRunId"],
+                body["target"],
+                body.get("maxAttempts", 3),
+                body.get("requireReal", True),
+            )
+        if action == "get":
+            return workflow.get(project_id, body["repairId"])
+        if action not in {"advance", "cancel"}:
+            raise CommandValidationError("Unsupported repair action")
+        revision = _require_int(body, "revision")
+        result = await run_in_threadpool(
+            workflow.advance,
+            project_id,
+            body["repairId"],
+            actor,
+            revision,
+            cancel=action == "cancel",
+        )
+        return result
+    except KeyError as exc:
+        return _missing_field_error(exc, request_id)
+    except _InvalidIntegerField as exc:
+        return _invalid_integer_error(exc, request_id)
+    except BoardError as exc:
+        return _error(
+            409 if exc.code == "REPAIR_CONFLICT" else 422,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
+    except ValueError:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="Invalid JSON body",
+            request_id=request_id,
+        )
