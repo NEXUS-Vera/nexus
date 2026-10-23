@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from helpers import acquire_edit_lease, actor, build_test_kernel
 from nexus_board.firmware.live_patch_generator import LiveFirmwarePatchGenerator
 from nexus_board.firmware.patch import assemble_firmware_generation_context
@@ -65,3 +67,79 @@ def test_live_generator_materializes_replace_operation() -> None:
     assert out["operations"][0]["operationType"] == "replace-file"
     assert out["operations"][0]["expectedBaseHash"].startswith("sha256:")
     assert out["operations"][0]["contentHash"].startswith("sha256:")
+
+
+def test_context_rejects_oversized_approved_artifacts_and_missing_sources() -> None:
+    """Do not silently truncate approved decisions or substitute unreviewed context."""
+    import pytest
+    from nexus_board.errors import FirmwarePatchGenerationError
+    from nexus_board.firmware.patch import MAX_CONTEXT_ARTIFACT_BYTES
+    from nexus_persistence.errors import ArtifactNotFoundError
+
+    class Store:
+        def __init__(self):
+            self.plan: dict[str, Any] = {
+                "artifactType": "execution-plan",
+                "artifactVersion": 1,
+                "artifactId": "plan",
+                "approvalStatus": "user-approved",
+                "content": {"plan": {"sourceArtifacts": []}},
+            }
+
+        def get_artifact(self, project_id, artifact_type, *, version=None):
+            if artifact_type == "execution-plan":
+                return self.plan
+            if artifact_type == "requirement-set" and version == 1:
+                return {
+                    "artifactType": artifact_type,
+                    "artifactVersion": 1,
+                    "artifactId": "reviewed-requirements",
+                    "content": {"requirement": "reviewed"},
+                }
+            raise ArtifactNotFoundError("missing")
+
+    class Files:
+        def get(self, content_hash: str) -> bytes:
+            raise AssertionError("No file reads expected")
+
+    store = Store()
+    snapshot = {
+        "snapshotId": "base",
+        "content": {"kind": "filesystem", "filesystemManifest": {"entries": []}},
+    }
+
+    def assemble(change="author firmware"):
+        return assemble_firmware_generation_context(
+            project_store=store,
+            project_id="project",
+            base_snapshot=snapshot,
+            requested_change=change,
+            file_store=Files(),
+        )
+
+    store.plan["content"]["plan"]["sourceArtifacts"] = [
+        {"artifactId": "reviewed-requirements", "artifactVersion": 1}
+    ]
+    assert assemble()["artifacts"]["requirement-set"] == {"requirement": "reviewed"}
+    store.plan["content"]["padding"] = "x" * MAX_CONTEXT_ARTIFACT_BYTES
+    with pytest.raises(FirmwarePatchGenerationError, match="artifact context exceeds"):
+        assemble()
+    del store.plan["content"]["padding"]
+    store.plan["content"]["plan"]["sourceArtifacts"] = [
+        {"artifactId": "missing", "artifactVersion": 1}
+    ]
+    with pytest.raises(FirmwarePatchGenerationError, match="source artifact is unavailable"):
+        assemble()
+    store.plan["approvalStatus"] = "pending"
+    with pytest.raises(FirmwarePatchGenerationError, match="user-approved"):
+        assemble()
+    with pytest.raises(FirmwarePatchGenerationError, match="request exceeds"):
+        assemble("x" * 8193)
+
+    store.plan["approvalStatus"] = "user-approved"
+    store.plan["content"]["plan"]["sourceArtifacts"] = []
+    snapshot["content"]["filesystemManifest"]["entries"] = [
+        {"path": f"src/file_{index}.cpp"} for index in range(257)
+    ]
+    with pytest.raises(FirmwarePatchGenerationError, match="snapshot exceeds"):
+        assemble()

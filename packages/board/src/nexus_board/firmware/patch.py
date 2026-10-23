@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any, Protocol
 
+from nexus_persistence.errors import ArtifactNotFoundError, ArtifactVersionNotFoundError
 from nexus_persistence.file_store.hashing import blob_digest
 
 from nexus_board.errors import (
@@ -24,12 +26,18 @@ FIRMWARE_PATCH_GENERATOR_VERSION = "1.0.0"
 MAX_PATCH_OPERATIONS = 32
 MAX_CONTEXT_FILES = 32
 MAX_CONTEXT_FILE_BYTES = 32_768
+MAX_CONTEXT_ARTIFACT_BYTES = 131_072
+MAX_CONTEXT_SNAPSHOT_FILES = 256
+MAX_REQUEST_BYTES = 8_192
 
 CONTEXT_ARTIFACT_TYPES = (
     "project-brief",
     "requirement-set",
     "component-plan",
     "functional-architecture",
+    "electrical-architecture",
+    "physical-architecture",
+    "test-plan",
 )
 
 
@@ -95,13 +103,59 @@ def assemble_firmware_generation_context(
     file_store: _FileStore,
 ) -> dict[str, Any]:
     """Structured generation context for the firmware patch generator."""
+    if len(requested_change.encode("utf-8")) > MAX_REQUEST_BYTES:
+        raise FirmwarePatchGenerationError("Firmware request exceeds byte limit")
     input_refs: list[dict[str, Any]] = []
     artifacts: dict[str, Any] = {}
-    for artifact_type in CONTEXT_ARTIFACT_TYPES:
-        try:
-            artifact = project_store.get_artifact(project_id, artifact_type)
-        except Exception:  # noqa: BLE001 — missing artifact is acceptable
-            continue
+    try:
+        approved_plan = project_store.get_artifact(project_id, "execution-plan")
+    except ArtifactNotFoundError:
+        approved_plan = None
+    if approved_plan is not None and approved_plan.get("approvalStatus") != "user-approved":
+        raise FirmwarePatchGenerationError("Firmware context requires a user-approved plan")
+    selected = []
+    if approved_plan is not None:
+        selected.append(approved_plan)
+        # Resolve the reviewed versions, never silently substitute current domain content.
+        sources = approved_plan["content"]["plan"]["sourceArtifacts"]
+        if len(sources) > 32:
+            raise FirmwarePatchGenerationError("Approved plan has too many source artifacts")
+        for source in sources:
+            for kind in (
+                *CONTEXT_ARTIFACT_TYPES,
+                "next-action",
+                "risk-register",
+                "firmware",
+                "analysis",
+            ):
+                try:
+                    candidate = project_store.get_artifact(
+                        project_id, kind, version=source["artifactVersion"]
+                    )
+                except (ArtifactNotFoundError, ArtifactVersionNotFoundError):
+                    continue
+                if candidate["artifactId"] == source["artifactId"]:
+                    if kind in CONTEXT_ARTIFACT_TYPES:
+                        selected.append(candidate)
+                    break
+            else:
+                raise FirmwarePatchGenerationError(
+                    f"Approved plan source artifact is unavailable: {source}"
+                )
+    else:
+        for kind in CONTEXT_ARTIFACT_TYPES:
+            try:
+                selected.append(project_store.get_artifact(project_id, kind))
+            except ArtifactNotFoundError:
+                continue
+    context_bytes = 0
+    for artifact in selected:
+        artifact_type = artifact["artifactType"]
+        context_bytes += len(
+            json.dumps(artifact.get("content"), ensure_ascii=False).encode("utf-8")
+        )
+        if context_bytes > MAX_CONTEXT_ARTIFACT_BYTES:
+            raise FirmwarePatchGenerationError("Firmware artifact context exceeds byte limit")
         input_refs.append(
             {
                 "artifactType": artifact_type,
@@ -112,6 +166,8 @@ def assemble_firmware_generation_context(
         artifacts[artifact_type] = artifact.get("content")
 
     manifest = snapshot_manifest_index(base_snapshot)
+    if len(manifest) > MAX_CONTEXT_SNAPSHOT_FILES:
+        raise FirmwarePatchGenerationError("Firmware snapshot exceeds context file limit")
     snapshot_files: list[dict[str, Any]] = []
     for path in sorted(manifest):
         entry = manifest[path]
