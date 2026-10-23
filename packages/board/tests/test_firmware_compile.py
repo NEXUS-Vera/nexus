@@ -207,3 +207,63 @@ def test_missing_platformio_ini_rejected_before_execution() -> None:
             artifact_type="firmware",
             actor=user,
         )
+
+
+def test_real_pio_path_and_core_directory(monkeypatch: pytest.MonkeyPatch, tmp_path: Any) -> None:
+    import shutil
+
+    from nexus_board.execution.command_spec import environment_entries_to_mapping
+    from nexus_board.execution.env import build_sandbox_environment
+
+    pio = tmp_path / "pio"
+    pio.write_text("#!/bin/sh\nexit 0\n")
+    pio.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0")
+    monkeypatch.setenv("PLATFORMIO_CORE_DIR", str(tmp_path / "core"))
+    spec = build_firmware_command_spec("compile")
+    env = build_sandbox_environment(environment_entries_to_mapping(spec["environment"]))
+    assert shutil.which(spec["executable"], path=env["PATH"]) == str(pio)
+    assert env["PLATFORMIO_CORE_DIR"] == str(tmp_path / "core")
+    monkeypatch.delenv("PLATFORMIO_CORE_DIR")
+    default_spec = build_firmware_command_spec("compile")
+    from pathlib import Path
+
+    default_env = environment_entries_to_mapping(default_spec["environment"])
+    assert default_env["PLATFORMIO_CORE_DIR"] == str(Path("~/.platformio").expanduser().resolve())
+    pio.unlink()
+    with pytest.raises(FirmwareToolchainValidationError, match="pio is not installed"):
+        build_firmware_command_spec("compile")
+    monkeypatch.delenv("NEXUS_FIRMWARE_USE_STUB")
+    with pytest.raises(FirmwareToolchainValidationError):
+        build_firmware_command_spec("compile")
+
+
+@pytest.mark.parametrize(
+    "elf_bytes, expected_status", [(6_300_000, "completed"), (11_000_000, "failed")]
+)
+def test_compile_stores_real_sized_elf(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any, elf_bytes: int, expected_status: str
+) -> None:
+    pio = tmp_path / "pio"
+    pio.write_text(
+        "#!/usr/bin/python3\nfrom pathlib import Path\n"
+        f"p=Path({BUILD_ELF_PATH!r}); p.parent.mkdir(parents=True, exist_ok=True)\n"
+        f"p.write_bytes(b'\\x7fELF' + bytes({elf_bytes}))\n"
+        f"Path({BUILD_BIN_PATH!r}).write_bytes(bytes(1_000_000))\n"
+    )
+    pio.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0")
+    kernel, *_rest, project_id = build_test_kernel(auto_start_scheduler=True)
+    user = actor("user")
+    _setup_scaffolded_firmware(kernel, project_id, user)
+    started = kernel.workspace_runtime.compile_firmware(
+        project_id=project_id, artifact_type="firmware", actor=user
+    )
+    run_id = started["executionRun"]["executionRunId"]
+    assert _wait_run(kernel, run_id)["status"] == expected_status
+    outputs = kernel.workspace_runtime.list_outputs_for_run(
+        project_id=project_id, execution_run_id=run_id
+    )["outputs"]
+    assert len(outputs) == (2 if expected_status == "completed" else 0)

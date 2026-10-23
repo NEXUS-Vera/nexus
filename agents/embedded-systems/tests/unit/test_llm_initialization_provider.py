@@ -278,3 +278,17 @@ async def test_prompt_injection_attempt_does_not_leak_components() -> None:
     assert "ESP32" not in responsibilities_text
     assert "BMI270" not in responsibilities_text
     assert result["userTurn"]["rawUserMessage"] == injected_message
+
+
+async def test_semantic_failure_names_node_and_component() -> None:
+    from fake_generation_scripts import component_leaking_architecture_draft
+
+    gateway = build_success_gateway(architecture=component_leaking_architecture_draft())
+    provider = LlmInitializationProvider(gateway=gateway, model_policy=MODEL_POLICY)
+    with pytest.raises(LlmInitializationError) as exc_info:
+        await provider.initialize(WEARABLE_TREMOR_PROMPT, "collaborate", _context())
+    assert exc_info.value.code == "LLM_INITIALIZATION_VALIDATION_FAILED"
+    details = " ".join(exc_info.value.details)
+    assert "COMPONENT_SPECIFIC_ARCHITECTURE" in details
+    assert "functionalArchitecture.nodes[" in details
+    assert "ESP32" in details

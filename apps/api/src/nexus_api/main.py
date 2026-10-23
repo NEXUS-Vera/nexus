@@ -140,9 +140,6 @@ _file_store = (
 
 
 def _build_firmware_patch_generator() -> LiveFirmwarePatchGenerator | None:
-    mode = settings.initialization_provider
-    if mode not in {"llm", "shadow"}:
-        return None
     credential = settings.model_credential.strip()
     if not credential:
         return None
@@ -168,9 +165,6 @@ def _build_firmware_patch_generator() -> LiveFirmwarePatchGenerator | None:
 
 def _build_analysis_patch_generator() -> LiveAnalysisPatchGenerator | None:
     """Reuse the same Nexus model gateway config as firmware (Phase 16G)."""
-    mode = settings.initialization_provider
-    if mode not in {"llm", "shadow"}:
-        return None
     credential = settings.model_credential.strip()
     if not credential:
         return None

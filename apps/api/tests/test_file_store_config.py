@@ -29,3 +29,23 @@ def test_sqlite_without_database_url(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     settings = load_settings()
     assert settings.database_url == "sqlite:///nexus.db"
     assert settings.file_store_root == str(tmp_path / "files")
+
+
+@pytest.mark.parametrize("mode", ["fixture", "llm", "shadow"])
+def test_authoring_independent_of_initialization(
+    monkeypatch: pytest.MonkeyPatch, mode: str
+) -> None:
+    from dataclasses import replace
+
+    from nexus_api import main
+
+    monkeypatch.setattr(
+        main,
+        "settings",
+        replace(main.settings, initialization_provider=mode, model_credential="test-only"),
+    )
+    assert main._build_firmware_patch_generator() is not None
+    assert main._build_analysis_patch_generator() is not None
+    monkeypatch.setattr(main, "settings", replace(main.settings, model_credential=""))
+    assert main._build_firmware_patch_generator() is None
+    assert main._build_analysis_patch_generator() is None
