@@ -89,10 +89,14 @@ proposals pinned to immutable snapshots, guarded patch application, history and
 compile/test operations through `kernel.workspace_runtime`. Compile consumes a
 pre-compile snapshot and promotes only declared successful outputs.
 
-`NEXUS_FIRMWARE_USE_STUB=1` runs offline fixtures; when unset, Nexus uses
-PlatformIO if `pio` is available and otherwise falls back to the stub. Fixture
-outputs are not real build or device evidence. Set it to `0` to run PlatformIO
-and configure the execution runtime/image for the preinstalled toolchain.
+`NEXUS_FIRMWARE_USE_STUB=1` runs offline fixtures; when unset, Nexus requires
+PlatformIO and fails preflight if `pio` is missing. Fixture
+outputs are not real build or device evidence. Firmware compile outputs have a bounded
+10 MiB aggregate limit for ESP32 ELF and BIN files; other jobs retain their default limits.
+Process execution uses the discovered `pio` directory on its approved PATH.
+`PLATFORMIO_CORE_DIR` defaults to the host user’s `~/.platformio` and can be overridden
+explicitly; it is resolved before the sandbox changes `HOME`. Configure the
+execution runtime/image for the preinstalled toolchain.
 Live toolchain/container acceptance tests require explicit opt-in.
 
 ## Layered architecture

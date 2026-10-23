@@ -86,7 +86,7 @@ def _component_specific_hits(text: str) -> list[str]:
     hits: list[str] = []
     for pattern in _COMPONENT_SPECIFIC_PATTERNS:
         if re.search(pattern, text, flags=re.IGNORECASE):
-            hits.append(pattern)
+            hits.extend(match.group(0) for match in re.finditer(pattern, text, flags=re.IGNORECASE))
     return hits
 
 
@@ -621,7 +621,10 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
                     errors.append(
                         SemanticValidationError(
                             code="COMPONENT_SPECIFIC_ARCHITECTURE",
-                            message="Concrete component identifier in functional architecture.",
+                            message=(
+                                f"Node {node_id!r} ({node_name}): concrete component "
+                                f"identifier(s): {', '.join(sorted(set(name_hits + resp_hits)))}."
+                            ),
                             path=f"functionalArchitecture.nodes[{node_id}]",
                             blocking=True,
                         )

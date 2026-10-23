@@ -17,6 +17,7 @@ from nexus_board.errors import (
     FirmwareToolchainValidationError,
 )
 from nexus_board.execution.command_spec import validate_command_spec
+from nexus_board.execution.env import default_sandbox_path
 from nexus_board.firmware.patch import read_snapshot_file_text, snapshot_manifest_index
 from nexus_board.firmware.scaffold import (
     MAIN_CPP_PATH,
@@ -105,9 +106,26 @@ def build_firmware_command_spec(operation: str) -> dict[str, Any]:
     if operation == "test":
         declared = []
     env_entries: list[dict[str, str]] = [
-        {"name": "PLATFORMIO_CORE_DIR", "value": "/opt/platformio"},
+        {
+            "name": "PLATFORMIO_CORE_DIR",
+            "value": str(
+                Path(os.environ.get("PLATFORMIO_CORE_DIR") or "~/.platformio")
+                .expanduser()
+                .resolve()
+            ),
+        },
         {"name": "NEXUS_FIRMWARE_PROFILE", "value": PLATFORMIO_ARDUINO_ESP32_V1},
     ]
+    if not _use_platformio_stub():
+        pio = shutil.which("pio")
+        if pio is None:
+            raise FirmwareToolchainValidationError("PlatformIO executable pio is not installed")
+        env_entries.append(
+            {
+                "name": "PATH",
+                "value": str(Path(pio).absolute().parent) + os.pathsep + default_sandbox_path(),
+            }
+        )
     spec = {
         "schemaVersion": "1.0.0",
         "executable": executable,

@@ -286,3 +286,33 @@ async def test_corrupted_package_returns_structured_500(
     assert "artifacts" not in body
     assert "Traceback" not in response.text
     assert "traceback" not in response.text.lower()
+
+
+async def test_validation_error_response_keeps_node_and_terms(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nexus_api import main
+    from nexus_embedded_systems.workflows.project_initialization.service import (
+        InitializationProviderError,
+    )
+
+    detail = "COMPONENT_SPECIFIC_ARCHITECTURE: functionalArchitecture.nodes[node_sensor]: MPU6050"
+
+    async def fail(**_kwargs: Any) -> None:
+        raise InitializationProviderError(
+            code="LLM_INITIALIZATION_VALIDATION_FAILED",
+            message="Semantic validation failed.",
+            workflow_run=None,
+            details=[detail],
+        )
+
+    monkeypatch.setattr(main._init_service, "initialize_embedded_project", fail)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH_HEADERS
+    ) as client:
+        response = await client.post(
+            "/v1/projects/initialize",
+            json={"message": PROMPTS["wearable-tremor-monitor"], "autonomyMode": "collaborate"},
+        )
+    assert response.status_code == 500
+    assert detail in response.json()["error"]["details"]

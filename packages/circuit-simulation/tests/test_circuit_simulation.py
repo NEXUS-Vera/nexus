@@ -591,3 +591,20 @@ def test_imu_mapping_defines_correct_sensor_pin_profile() -> None:
         "SDA": "SDA",
         "SCL": "SCL",
     }
+
+
+@pytest.mark.parametrize("source", ["user-provided", "agent-inference", "fixture"])
+def test_real_golden_parts_have_exact_i2c_mappings(source: str) -> None:
+    request = simulation_request(
+        source=source, manufacturer="Espressif", part_number="ESP32-DEVKIT-V1"
+    )
+    content = request.component_plan["content"]
+    assert isinstance(content, dict)
+    imu = content["candidates"][1]
+    imu.update(source=source, manufacturer="InvenSense", partNumber="MPU6050")
+    provider = FakeCircuitSimulationProvider()
+    assert provider.assess_support(request).status is SupportStatus.SUPPORTED
+    diagram = json.loads(provider.materialize(request).text("diagram.json"))
+    assert {p["type"] for p in diagram["parts"]} == {"wokwi-esp32-devkit-v1", "wokwi-mpu6050"}
+    assert ["mcu1:D21", "imu1:SDA", "green", []] in diagram["connections"]
+    assert ["mcu1:D22", "imu1:SCL", "blue", []] in diagram["connections"]

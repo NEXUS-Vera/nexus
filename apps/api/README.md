@@ -437,3 +437,6 @@ The diagnosis request also respects the existing patch contract's 4,096-characte
 limit. Longer log excerpts retain their beginning/end and set
 `logExcerptLimited`; the original run logs remain unchanged. Oversized criteria
 stop explicitly instead of silently dropping verification objectives.
+
+Firmware and analysis authoring use the configured model provider and credential
+independently of `NEXUS_INITIALIZATION_PROVIDER`, including fixture initialization.

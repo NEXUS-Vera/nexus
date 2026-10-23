@@ -353,7 +353,7 @@ class LlmInitializationProvider:
                     code="LLM_INITIALIZATION_VALIDATION_FAILED",
                     message="Assembled LLM package failed semantic validation.",
                     workflow_run=ledger.to_workflow_run(),
-                    details=codes,
+                    details=[f"{e.code}: {e.path}: {e.message}" for e in blocking],
                 )
             ledger.complete_step(step)
 
@@ -576,12 +576,11 @@ class LlmInitializationProvider:
         blocking = [e for e in semantic_errors if getattr(e, "blocking", True)]
         if blocking:
             ledger.fail_step(step)
-            codes = sorted({e.code for e in blocking})
             raise LlmInitializationError(
                 code="LLM_INITIALIZATION_VALIDATION_FAILED",
                 message="Component plan failed semantic validation.",
                 workflow_run=ledger.to_workflow_run(),
-                details=codes,
+                details=[f"{e.code}: {e.path}: {e.message}" for e in blocking],
             )
         ledger.complete_step(step)
 

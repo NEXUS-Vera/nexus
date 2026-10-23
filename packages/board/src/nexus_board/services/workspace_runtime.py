@@ -1298,7 +1298,12 @@ class WorkspaceRuntimeService:
             ),
             causation_id=causation_id or new_id("cmd"),
             max_duration_ms=max_duration_ms,
-            options={"commandSpec": command_spec, "productOperation": product_operation},
+            options={
+                "commandSpec": command_spec,
+                "productOperation": product_operation,
+                # ESP32 Arduino ELF (~6.3 MB) plus BIN, bounded by the execution API cap.
+                **({"maxOutputBytes": 10_485_760} if operation == "compile" else {}),
+            },
         )
         return {
             "binding": _public_binding(binding),
