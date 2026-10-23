@@ -282,6 +282,14 @@
       "minLength": 1,
       "maxLength": 500,
       "description": "Infrastructure cleanup warning after a successful or terminal run."
+    },
+    "inputOutputReferences": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^out_[A-Za-z0-9]{16,}$"
+      },
+      "uniqueItems": true
     }
   }
 }

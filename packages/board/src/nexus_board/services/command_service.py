@@ -795,6 +795,7 @@ class ArtifactCommandService:
                     "commandSpec",
                     "executionMode",
                     "expectedText",
+                    "firmwareOutputId",
                     "requestedOutputs",
                 )
                 if key in command["input"]

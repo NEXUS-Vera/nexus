@@ -151,6 +151,7 @@ export type ArtifactCommand =
         commandSpec?: ExecutionCommandSpec;
         executionMode?: 'validate' | 'simulate';
         expectedText?: string;
+        firmwareOutputId?: string;
         maxDurationMs?: number;
         maxOutputBytes?: number;
         /**

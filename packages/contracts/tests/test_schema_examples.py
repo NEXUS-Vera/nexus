@@ -818,3 +818,32 @@ def test_user_explicit_wrong_turn_reference_fails() -> None:
     assert any(e.code == "REQ_USER_EXPLICIT_REFERENCE_WRONG_TURN" and e.blocking for e in errors), (
         f"Expected wrong-turn provenance error, got {[e.code for e in errors]}"
     )
+
+
+def test_simulation_firmware_handoff_optional_contract_fields() -> None:
+    schema = json.loads((SCHEMA_DIR / "executions/execution-run.v1.schema.json").read_text())
+    run = json.loads((EXAMPLES_DIR / "valid/phase-11-kernel/execution-run.json").read_text())
+    validator = Draft202012Validator(schema)
+    assert not list(validator.iter_errors(run))  # Existing v1 payload stays compatible.
+    run["inputOutputReferences"] = ["out_" + "a" * 16]
+    assert not list(validator.iter_errors(run))
+    run["inputOutputReferences"] = ["not-an-output"]
+    assert list(validator.iter_errors(run))
+    command_schema = json.loads(
+        (SCHEMA_DIR / "artifacts/artifact-command.v1.schema.json").read_text()
+    )
+    execute = next(
+        branch
+        for branch in command_schema["oneOf"]
+        if branch.get("properties", {}).get("commandType", {}).get("const") == "artifact.execute"
+    )
+    input_schema = execute["properties"]["input"]
+    validator = Draft202012Validator(input_schema, resolver=RefResolver.from_schema(command_schema))
+    data = {
+        "snapshotId": "snap_" + "a" * 16,
+        "capability": "circuit-simulation",
+        "firmwareOutputId": "out_" + "b" * 16,
+    }
+    assert not list(validator.iter_errors(data))
+    data["firmwareOutputId"] = "wrong"
+    assert list(validator.iter_errors(data))

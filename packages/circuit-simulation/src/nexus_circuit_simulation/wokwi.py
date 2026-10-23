@@ -126,13 +126,16 @@ class WokwiProvider:
                 message="Wokwi CLI credential is not configured",
             )
         firmware = self._firmware_elf_path
-        if firmware is None or not firmware.is_file():
+        if request.firmware_elf_bytes is None and (firmware is None or not firmware.is_file()):
             raise CircuitConfigurationError(
                 code="FIRMWARE_ELF_MISSING",
                 message="A readable firmware ELF is required for simulation",
             )
         files = dict(request.workspace.files)
-        firmware_content = firmware.read_bytes()
+        firmware_content = request.firmware_elf_bytes
+        if firmware_content is None:
+            assert firmware is not None
+            firmware_content = firmware.read_bytes()
         files["firmware.elf"] = firmware_content
         simulation_timeout_seconds = max(
             0.1,

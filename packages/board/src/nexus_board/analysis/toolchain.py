@@ -47,7 +47,7 @@ _STUB_SCRIPT = Path(__file__).resolve().parent / "analysis_stub.py"
 
 
 def _use_analysis_stub() -> bool:
-    raw = os.environ.get("NEXUS_ANALYSIS_USE_STUB", "1").strip().lower()
+    raw = os.environ.get("NEXUS_ANALYSIS_USE_STUB", "0").strip().lower()
     return raw in {"1", "true", "yes", "on"}
 
 
@@ -81,6 +81,7 @@ def build_analysis_command_spec() -> dict[str, Any]:
 def analysis_toolchain_profile() -> dict[str, Any]:
     return {
         "schemaVersion": "1.0.0",
+        "executionMode": "fixture" if _use_analysis_stub() else "python",
         "profileId": "python-analysis-v1",
         "profileVersion": "1.0.0",
         "language": "python",

@@ -225,6 +225,8 @@ def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
     provider.materialize.return_value.manifest = {"mappings": []}
     provider.validate.return_value.valid = True
     provider.validate.return_value.findings = ()
+    provider.availability.return_value.ready = True
+    provider.availability.return_value.provider = "wokwi"
     provider.execute.return_value = ExecutionResult(
         succeeded=False,
         exit_code=None,
@@ -233,6 +235,7 @@ def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
     adapter = CircuitSimulationExecutionAdapter(
         provider=provider, project_store=store, firmware_ready=True
     )
+    adapter._resolve_firmware = Mock(return_value=({"outputId": "out_test"}, b"\x7fELF"))
     with pytest.raises(CircuitExecutionError) as error:
         adapter.execute(
             {
@@ -246,3 +249,141 @@ def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
     assert error.value.code == "SIMULATION_TIMEOUT"
     # Preserve the execution service's timed-out status classification.
     assert isinstance(error.value, TimeoutError)
+
+
+@pytest.mark.parametrize("status", ["WOKWI_CLI_MISSING", "WOKWI_CREDENTIAL_MISSING"])
+def test_simulation_unavailable_is_explicit(status):
+    from unittest.mock import Mock
+
+    from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+    from nexus_circuit_simulation import (
+        AvailabilityStatus,
+        CircuitExecutionError,
+        FakeCircuitSimulationProvider,
+        ProviderAvailability,
+    )
+
+    provider = FakeCircuitSimulationProvider(
+        availability_result=ProviderAvailability(AvailabilityStatus(status), "wokwi", "Unavailable")
+    )
+    # A supported materialization is tested by the end-to-end regression. Isolate the gate here.
+    provider.assess_support = Mock(return_value=Mock(status="SUPPORTED"))
+    adapter = CircuitSimulationExecutionAdapter(provider=provider, project_store=Mock())
+    with pytest.raises(CircuitExecutionError) as error:
+        adapter.execute(_w4_request())
+    assert error.value.code == status
+    assert not any(call[0] == "execute" for call in provider.calls)
+
+
+def _w4_request():
+    return {
+        "projectId": "proj_test",
+        "artifactId": "art_test",
+        "artifactType": "electrical-architecture",
+        "artifactVersion": 1,
+        "snapshot": {
+            "projectId": "proj_test",
+            "snapshotId": "snap_test",
+            "content": {"structuredContent": {}},
+        },
+    }
+
+
+def test_fixture_provider_cannot_satisfy_real_simulation():
+    from unittest.mock import Mock
+
+    from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+    from nexus_circuit_simulation import CircuitExecutionError, FakeCircuitSimulationProvider
+
+    provider = FakeCircuitSimulationProvider()
+    provider.assess_support = Mock(return_value=Mock(status="SUPPORTED"))
+    adapter = CircuitSimulationExecutionAdapter(provider=provider, project_store=Mock())
+    with pytest.raises(CircuitExecutionError) as error:
+        adapter.execute(_w4_request())
+    assert error.value.code == "SIMULATOR_FIXTURE_REJECTED"
+    assert not any(call[0] == "execute" for call in provider.calls)
+
+
+@pytest.mark.parametrize("invalid", ["missing", "project", "fixture", "failed", "name", "digest"])
+def test_explicit_firmware_output_validation(invalid):
+    import hashlib
+    from unittest.mock import Mock
+
+    from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+    from nexus_circuit_simulation import CircuitExecutionError
+
+    kernel, files = Mock(), Mock()
+    data = b"\x7fELF\x00test"
+    output = {
+        "projectId": "proj_test",
+        "outputId": "out_test",
+        "executionRunId": "exec_test",
+        "workspaceId": "ws_test",
+        "name": ".pio/build/nexus/firmware.elf",
+        "content": {"kind": "storage-reference", "uri": "hash"},
+        "contentDigest": "sha256:" + hashlib.sha256(data).hexdigest(),
+    }
+    run = {
+        "projectId": "proj_test",
+        "executionRunId": "exec_test",
+        "status": "completed",
+        "outputReferences": ["out_test"],
+    }
+    spec = {"executable": "pio", "arguments": ["run", "-e", "nexus"]}
+    if invalid == "project":
+        output["projectId"] = "proj_other"
+    if invalid == "fixture":
+        spec["executable"] = "python3"
+    if invalid == "failed":
+        run["status"] = "failed"
+    if invalid == "name":
+        output["name"] = "firmware.bin"
+    if invalid == "digest":
+        output["contentDigest"] = "wrong"
+    kernel.get_produced_output.return_value = output
+    kernel.get_execution_run.return_value = run
+    kernel.get_workspace.return_value = {"artifactType": "firmware"}
+    kernel.get_execution_job_by_run.return_value = {"commandSpec": spec}
+    files.get.return_value = data
+    adapter = CircuitSimulationExecutionAdapter(
+        provider=Mock(), project_store=Mock(), kernel_store=kernel, file_store=files
+    )
+    request = _w4_request()
+    if invalid != "missing":
+        request["options"] = {"firmwareOutputId": "out_test"}
+    with pytest.raises(CircuitExecutionError) as error:
+        adapter._resolve_firmware(request)
+    assert error.value.code in {"FIRMWARE_ELF_REQUIRED", "FIRMWARE_ELF_INVALID"}
+
+
+@pytest.mark.parametrize("scenario", ["empty", "truncated", "failed"])
+def test_simulation_requires_successful_complete_observations(scenario):
+    from unittest.mock import Mock
+
+    from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+    from nexus_circuit_simulation import CircuitExecutionError, ExecutionOutput, ExecutionResult
+
+    provider = Mock()
+    provider.availability.return_value.ready = True
+    provider.availability.return_value.provider = "wokwi"
+    provider.assess_support.return_value.status = "SUPPORTED"
+    provider.validate.return_value.valid = True
+    provider.validate.return_value.findings = ()
+    observations = (
+        ()
+        if scenario == "empty"
+        else (ExecutionOutput("serial.log", b"TEL,0,0,0,1", truncated=True),)
+    )
+    provider.execute.return_value = ExecutionResult(
+        succeeded=scenario != "failed",
+        exit_code=1 if scenario == "failed" else 0,
+        timed_out=False,
+        outputs=observations,
+    )
+    adapter = CircuitSimulationExecutionAdapter(provider=provider, project_store=Mock())
+    adapter._resolve_firmware = Mock(return_value=({"outputId": "out_test"}, b"\x7fELF"))
+    with pytest.raises(CircuitExecutionError) as error:
+        adapter.execute(_w4_request())
+    assert error.value.code == (
+        "SIMULATION_FAILED" if scenario == "failed" else "SIMULATION_OBSERVATIONS_MISSING"
+    )

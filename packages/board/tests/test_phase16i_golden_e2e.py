@@ -20,7 +20,7 @@ from golden.esp32_imu_vibration_monitor.consistency import (
     GOLDEN_PROMPT,
     validate_golden_consistency,
 )
-from helpers import acquire_edit_lease, actor, build_test_kernel
+from helpers import acquire_edit_lease, actor, build_test_kernel, cmd
 from nexus_board.analysis.semantics import assess_metric
 from nexus_board.execution.runtime_factory import build_execution_runtime
 from nexus_board.kernel import build_project_kernel
@@ -80,6 +80,7 @@ def _run_golden_g1(
     *,
     sqlite_url: str | None = None,
     file_store_root: Path | None = None,
+    simulation_handoff: bool | str = False,
 ) -> dict[str, Any] | None:
     with ExitStack() as cleanup:
         return _execute_golden_g1(
@@ -89,6 +90,7 @@ def _run_golden_g1(
             fail_analysis,
             sqlite_url=sqlite_url,
             file_store_root=file_store_root,
+            simulation_handoff=simulation_handoff,
         )
 
 
@@ -100,10 +102,37 @@ def _execute_golden_g1(
     *,
     sqlite_url: str | None = None,
     file_store_root: Path | None = None,
+    simulation_handoff: bool | str = False,
 ) -> dict[str, Any] | None:
     """GOLDEN G1 — fixture generation, compile stub, real analysis and VERIFY."""
     monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
     monkeypatch.setenv("NEXUS_ANALYSIS_USE_STUB", "0")
+    if simulation_handoff:
+        monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0")
+    if simulation_handoff == "regression" or simulation_handoff is True:
+        # Scripted compiler/runner regression evidence, never a live toolchain claim.
+        monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0")
+        pio = tmp_path / "pio"
+        pio.write_text(
+            "#!/usr/bin/env python3\n"
+            "from pathlib import Path\n"
+            "p = Path('.pio/build/nexus')\n"
+            "p.mkdir(parents=True, exist_ok=True)\n"
+            "(p / 'firmware.elf').write_bytes(b'\\x7fELF\\x00REGRESSION_BUILD')\n"
+            "(p / 'firmware.bin').write_bytes(b'REGRESSION_BIN')\n"
+        )
+        pio.chmod(0o755)
+        from nexus_board.execution import process_runtime
+
+        original_environment = process_runtime.build_sandbox_environment
+
+        def regression_environment(entries):
+            env = original_environment(entries)
+            env["PATH"] = str(tmp_path) + os.pathsep + env["PATH"]
+            return env
+
+        monkeypatch.setattr(process_runtime, "build_sandbox_environment", regression_environment)
+        monkeypatch.setenv("PATH", str(tmp_path) + os.pathsep + os.environ["PATH"])
 
     decision = route_fixture_family(GOLDEN_PROMPT)
     assert decision.family == FIXTURE_FAMILY
@@ -240,12 +269,102 @@ def _execute_golden_g1(
         project_id=project_id, artifact_type="firmware", actor=user
     )
     fw_run = _wait_run(kernel, compiled["executionRun"]["executionRunId"])
-    assert fw_run["status"] == "completed"
+    assert fw_run["status"] == "completed", fw_run.get("error")
     fw_outputs = kernel.workspace_runtime.list_outputs_for_run(
         project_id=project_id, execution_run_id=fw_run["executionRunId"]
     )["outputs"]
     fw_names = {o.get("name") for o in fw_outputs}
     assert any("firmware.elf" in str(n) for n in fw_names)
+
+    serial_output = None
+    if simulation_handoff:
+        import hashlib
+
+        from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+        from nexus_circuit_simulation import RunnerResult, WokwiProvider
+
+        elf = next(o for o in fw_outputs if o["name"].endswith("firmware.elf"))
+        elf_bytes = kernel.filesystem.file_store.get(elf["content"]["uri"])
+        telemetry = b"NEXUS_MPU_READY\n" + b"".join(
+            f"TEL,{i / 50},0.01,0,1\n".encode() for i in range(100)
+        )
+
+        class RegressionRunner:
+            def run(self, request):
+                if request.arguments[0] == "lint":
+                    return RunnerResult(exit_code=0, timed_out=False)
+                assert request.files["firmware.elf"] == elf_bytes
+                assert (
+                    "sha256:" + hashlib.sha256(request.files["firmware.elf"]).hexdigest()
+                    == elf["contentDigest"]
+                )
+                return RunnerResult(exit_code=0, timed_out=False, outputs={"serial.log": telemetry})
+
+        provider = (
+            WokwiProvider(token=os.environ.get("WOKWI_CLI_TOKEN"))
+            if simulation_handoff == "live"
+            else WokwiProvider(executable=pio, token="regression-only", runner=RegressionRunner())
+        )
+        adapter = CircuitSimulationExecutionAdapter(
+            provider=provider,
+            project_store=project_store,
+            kernel_store=ks,
+            file_store=kernel.filesystem.file_store,
+        )
+        kernel.executions._capability_executors["circuit-simulation"] = adapter
+        cap = kernel.executions._capabilities
+        cap.register(
+            {
+                "schemaVersion": "1.0.0",
+                "capabilityId": "circuit-simulation",
+                "displayName": "Regression simulator",
+                "providerId": "wokwi",
+                "available": True,
+            }
+        )
+        electrical = kernel.workspace_runtime.resolve_binding(
+            project_id=project_id, artifact_type="electrical-architecture", actor=user
+        )
+        acquire_edit_lease(
+            kernel,
+            project_id=project_id,
+            artifact_id=electrical["artifactId"],
+            workspace_id=electrical["workspaceId"],
+            requested_by=user,
+        )
+        snap = kernel.workspaces.create_snapshot(
+            workspace_id=electrical["workspaceId"], actor=user, reason="before-execution"
+        )
+        dispatched = kernel.dispatch(
+            cmd(
+                command_type="artifact.execute",
+                project_id=project_id,
+                artifact_id=electrical["artifactId"],
+                workspace_id=electrical["workspaceId"],
+                requested_by=user,
+                input_data={
+                    "snapshotId": snap["snapshotId"],
+                    "capability": "circuit-simulation",
+                    "firmwareOutputId": elf["outputId"],
+                },
+            )
+        )
+        assert dispatched["status"] == "completed", dispatched
+        simulated = {
+            "executionRun": ks.get_execution_run(dispatched["executionRunId"]),
+            "outputs": kernel.workspace_runtime.list_outputs_for_run(
+                project_id=project_id, execution_run_id=dispatched["executionRunId"]
+            )["outputs"],
+        }
+        assert simulated["executionRun"]["inputOutputReferences"] == [elf["outputId"]]
+        serial_output = next(o for o in simulated["outputs"] if o["name"] == "serial.log")
+        if simulation_handoff == "live":
+            telemetry = serial_output["content"]["structuredResult"]["text"].encode()
+            assert b"TEL," in telemetry
+        else:
+            assert serial_output["content"]["structuredResult"]["text"].encode() == telemetry
+        assert elf["outputId"] in serial_output["provenance"]["derivedFromIds"]
+        assert all(o["evidenceStatus"] == "unverified" for o in simulated["outputs"])
 
     # Analysis path
     an = kernel.workspace_runtime.resolve_binding(
@@ -304,17 +423,29 @@ def _execute_golden_g1(
             + "\n".join(f"{i / 50},{0.2 if i % 2 else -0.2},0,1" for i in range(100))
             + "\n"
         ).encode()
-    kernel.workspace_runtime.write_analysis_input_file(
-        project_id=project_id,
-        artifact_type="analysis",
-        path="data/stationary_imu.csv",
-        content=dataset,
-        actor=user,
-        expected_draft_version=int(draft["draftVersion"]),
-        base_artifact_version=int(an["baseArtifactVersion"]),
-        base_project_state_version=int(an["baseProjectStateVersion"]),
-        media_type="text/csv",
-    )
+    if serial_output:
+        kernel.workspace_runtime.import_produced_output_into_analysis_input(
+            project_id=project_id,
+            artifact_type="analysis",
+            output_id=serial_output["outputId"],
+            path="data/serial.log",
+            actor=user,
+            expected_draft_version=int(draft["draftVersion"]),
+            base_artifact_version=int(an["baseArtifactVersion"]),
+            base_project_state_version=int(an["baseProjectStateVersion"]),
+        )
+    else:
+        kernel.workspace_runtime.write_analysis_input_file(
+            project_id=project_id,
+            artifact_type="analysis",
+            path="data/stationary_imu.csv",
+            content=dataset,
+            actor=user,
+            expected_draft_version=int(draft["draftVersion"]),
+            base_artifact_version=int(an["baseArtifactVersion"]),
+            base_project_state_version=int(an["baseProjectStateVersion"]),
+            media_type="text/csv",
+        )
     draft = ks.get_draft(an["workspaceId"])
     kernel.filesystem.write_file(
         workspace_id=an["workspaceId"],
@@ -333,6 +464,32 @@ def _execute_golden_g1(
         project_id=project_id, artifact_type="analysis", actor=user
     )
     an_run = _wait_run(kernel, started["executionRun"]["executionRunId"])
+    if simulation_handoff:
+        assert serial_output is not None
+        analysis_outputs = kernel.workspace_runtime.list_outputs_for_run(
+            project_id=project_id, execution_run_id=an_run["executionRunId"]
+        )["outputs"]
+        summary_output = next(o for o in analysis_outputs if o["name"] == "outputs/summary.json")
+        content = summary_output["content"]
+        summary = json.loads(
+            kernel.filesystem.file_store.get(content["uri"])
+            if content["kind"] == "storage-reference"
+            else content["structuredResult"]["text"]
+        )
+        snapshot = ks.get_snapshot(an_run["inputSnapshotId"])
+        imported_entry = next(
+            entry
+            for entry in snapshot["content"]["filesystemManifest"]["entries"]
+            if entry["path"] == "data/serial.log"
+        )
+        assert imported_entry["generatedFrom"] == f"imported-output:{serial_output['outputId']}"
+        assert summary_output["executionRunId"] == an_run["executionRunId"]
+        assert summary["inputSha256"] == hashlib.sha256(telemetry).hexdigest()
+        assert summary["sampleCount"] > 0
+        if simulation_handoff != "live":
+            assert summary["sampleCount"] == 100
+        assert summary["assessment"] == "PASS"
+        return None
     if fail_analysis is True:
         assert an_run["status"] == "failed", an_run
         before = project_store.get_artifact(project_id, "test-plan")
@@ -1179,3 +1336,39 @@ def test_platformio_harness_missing_cli_is_gap(
     with pytest.raises(pytest.skip.Exception, match="GAP: CLI absent"):
         test_golden_local_platformio(tmp_path)
     assert "GAP — CLI absent; no live compile pass" in capsys.readouterr().out
+
+
+def test_w4_firmware_simulation_import_analysis_regression(monkeypatch, tmp_path):
+    """Fake compiler and Wokwi runner; real output import and Python analysis."""
+    _run_golden_g1(monkeypatch, tmp_path, False, simulation_handoff=True)
+
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_WOKWI_INTEGRATION") != "1", reason="Opt-in live W4 toolchain gate"
+)
+def test_w4_live_built_firmware_simulation_import_analysis(monkeypatch, tmp_path):
+    if (
+        not shutil.which("pio")
+        or not shutil.which("wokwi-cli")
+        or not os.environ.get("WOKWI_CLI_TOKEN")
+    ):
+        pytest.skip("Live W4 needs PlatformIO, Wokwi CLI and token")
+    _run_golden_g1(monkeypatch, tmp_path, False, simulation_handoff="live")
+
+
+@pytest.mark.parametrize(
+    "telemetry", [b"", b"NEXUS_MPU_INIT_FAIL\n", b"TEL,0,nan,0,1\n", b"TEL,0,invalid,0,1\n"]
+)
+def test_w4_analysis_rejects_missing_or_invalid_telemetry(tmp_path, telemetry):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data/serial.log").write_bytes(telemetry)
+    python = shutil.which("python3")
+    assert python is not None
+    result = subprocess.run(
+        [python, str(GOLDEN_DIR / "analysis.py")],
+        cwd=tmp_path,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode != 0
+    assert not (tmp_path / "outputs/summary.json").exists()

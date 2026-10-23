@@ -30,6 +30,7 @@ export interface ExecutionRun {
   executionJobId?: string;
   executionRequestId: string;
   executionRunId: string;
+  inputOutputReferences?: string[];
   inputSnapshotId: string;
   logReference?: string;
   outputReferences: string[];
