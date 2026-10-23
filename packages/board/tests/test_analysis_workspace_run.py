@@ -164,3 +164,17 @@ def test_rerun_against_existing_snapshot() -> None:
     run = _wait_run(kernel, rerun_id)
     assert run["status"] == "completed"
     assert run["inputSnapshotId"] == snap_id
+
+
+def test_analysis_defaults_to_python_and_labels_explicit_fixture(monkeypatch):
+    from nexus_board.analysis.toolchain import (
+        analysis_toolchain_profile,
+        build_analysis_command_spec,
+    )
+
+    monkeypatch.delenv("NEXUS_ANALYSIS_USE_STUB", raising=False)
+    assert build_analysis_command_spec()["arguments"] == ["analysis.py"]
+    assert analysis_toolchain_profile()["executionMode"] == "python"
+    monkeypatch.setenv("NEXUS_ANALYSIS_USE_STUB", "1")
+    assert "analysis_stub.py" in build_analysis_command_spec()["arguments"][0]
+    assert analysis_toolchain_profile()["executionMode"] == "fixture"

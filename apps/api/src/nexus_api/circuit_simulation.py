@@ -19,6 +19,7 @@ from nexus_circuit_simulation import (
     SupportAssessment,
     SupportStatus,
 )
+from nexus_persistence.errors import PersistenceNotFoundError
 
 
 def _finding(value: Finding) -> dict[str, Any]:
@@ -174,11 +175,15 @@ class CircuitSimulationExecutionAdapter:
         *,
         provider: CircuitSimulationProvider,
         project_store: Any,
-        firmware_ready: bool,
+        firmware_ready: bool = False,
+        kernel_store: Any = None,
+        file_store: Any = None,
     ) -> None:
         self._provider = provider
         self._projects = project_store
         self._firmware_ready = firmware_ready
+        self._kernel = kernel_store
+        self._files = file_store
 
     def execute(self, request: dict[str, Any]) -> dict[str, Any]:
         snapshot = request.get("snapshot")
@@ -213,6 +218,24 @@ class CircuitSimulationExecutionAdapter:
                 code="ARCHITECTURE_UNSUPPORTED",
                 message="Electrical Architecture is not supported by the configured provider",
             )
+        options = request.get("options") or {}
+        if options.get("executionMode", "simulate") not in {"simulate", "validate"}:
+            raise CircuitExecutionError(
+                code="SIMULATION_MODE_INVALID", message="Use simulate or validate"
+            )
+        firmware = None
+        firmware_bytes = None
+        if options.get("executionMode", "simulate") == "simulate":
+            availability = self._provider.availability()
+            if not availability.ready:
+                raise CircuitExecutionError(
+                    code=availability.status.value, message=availability.message
+                )
+            if availability.provider != "wokwi":
+                raise CircuitExecutionError(
+                    code="SIMULATOR_FIXTURE_REJECTED", message="Real simulation requires Wokwi"
+                )
+            firmware, firmware_bytes = self._resolve_firmware(request)
         workspace = self._provider.materialize(materialization)
         validation = self._provider.validate(workspace)
         outputs = [
@@ -246,6 +269,7 @@ class CircuitSimulationExecutionAdapter:
             result = self._provider.execute(
                 ExecutionRequest(
                     workspace=workspace,
+                    firmware_elf_bytes=firmware_bytes,
                     timeout_seconds=timeout_seconds,
                     expect_text=(
                         (str(options["expectedText"]),) if options.get("expectedText") else ()
@@ -264,6 +288,23 @@ class CircuitSimulationExecutionAdapter:
                 raise CircuitExecutionError(
                     code="SIMULATION_FAILED",
                     message=result.diagnostic or "Circuit simulation failed",
+                )
+            required = {"serial.log"}
+            if "logic-trace" in (options.get("requestedOutputs") or []):
+                required.add("trace.vcd")
+            if "simulation-screenshot" in (options.get("requestedOutputs") or []):
+                required.add("screenshot.png")
+            observed = {
+                item.name
+                for item in result.outputs
+                if item.content
+                and not item.truncated
+                and len(item.content) <= int(options.get("maxOutputBytes") or 1_000_000)
+            }
+            if not required <= observed:
+                raise CircuitExecutionError(
+                    code="SIMULATION_OBSERVATIONS_MISSING",
+                    message="Declared observations missing, empty or truncated",
                 )
             max_bytes = max(1, min(int(options.get("maxOutputBytes") or 1_000_000), 10_000_000))
             outputs.extend(
@@ -313,7 +354,21 @@ class CircuitSimulationExecutionAdapter:
             )
         now = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
         digest = workspace_digest(workspace)
+        if firmware is not None:
+            for output in outputs:
+                output["provenance"] = {
+                    "schemaVersion": "1.0.0",
+                    "sourceType": "external-provider",
+                    "sourceReference": self._provider.availability().provider,
+                    "derivedFromIds": [
+                        firmware["outputId"],
+                        firmware["executionRunId"],
+                        request["snapshot"]["snapshotId"],
+                    ],
+                    "notes": "Surrogate simulation; fake providers are regression evidence only.",
+                }
         return {
+            "inputOutputReferences": [firmware["outputId"]] if firmware else [],
             "providerId": self._provider.availability().provider,
             "status": ("completed-with-warnings" if workspace.findings else "completed"),
             "outputs": outputs,
@@ -328,6 +383,48 @@ class CircuitSimulationExecutionAdapter:
                 "updatedAt": now,
             },
         }
+
+    def _resolve_firmware(self, request: dict[str, Any]) -> tuple[dict[str, Any], bytes]:
+        output_id = (request.get("options") or {}).get("firmwareOutputId")
+        if not output_id or self._kernel is None or self._files is None:
+            raise CircuitExecutionError(
+                code="FIRMWARE_ELF_REQUIRED", message="Name a compiled firmwareOutputId explicitly"
+            )
+        try:
+            output = self._kernel.get_produced_output(output_id)
+            run = self._kernel.get_execution_run(output["executionRunId"])
+            workspace = self._kernel.get_workspace(output["workspaceId"])
+            job = self._kernel.get_execution_job_by_run(run["executionRunId"])
+            spec = (job or {}).get("commandSpec") or {}
+            if (
+                output["projectId"] != request["projectId"]
+                or run["projectId"] != request["projectId"]
+                or workspace["artifactType"] != "firmware"
+                or output["name"] != ".pio/build/nexus/firmware.elf"
+                or run["status"] != "completed"
+                or output_id not in run["outputReferences"]
+                or spec.get("executable") != "pio"
+                or spec.get("arguments") != ["run", "-e", "nexus"]
+            ):
+                raise ValueError("Expected a successful project PlatformIO compile output")
+            content = output["content"]
+            data = (
+                self._files.get(content["uri"])
+                if content["kind"] == "storage-reference"
+                else content["structuredResult"]["text"].encode()
+            )
+            if workspace.get("projectId", request["projectId"]) != request["projectId"]:
+                raise ValueError("Firmware workspace belongs to another project")
+            if not data.startswith(b"\x7fELF") or b"NEXUS_FIRMWARE_STUB" in data:
+                raise ValueError("Expected non-fixture ELF bytes")
+            if (
+                content["kind"] == "storage-reference"
+                and "sha256:" + hashlib.sha256(data).hexdigest() != output["contentDigest"]
+            ):
+                raise ValueError("Firmware digest mismatch")
+            return output, data
+        except (KeyError, ValueError, PersistenceNotFoundError) as exc:
+            raise CircuitExecutionError(code="FIRMWARE_ELF_INVALID", message=str(exc)) from exc
 
 
 def _entity_references(workspace: ProviderWorkspace) -> list[dict[str, object]]:

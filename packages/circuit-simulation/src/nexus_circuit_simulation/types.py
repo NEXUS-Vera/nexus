@@ -135,6 +135,7 @@ class ExecutionRequest:
     workspace: ProviderWorkspace
     timeout_seconds: float = 30.0
     expect_text: tuple[str, ...] = ()
+    firmware_elf_bytes: bytes | None = None
     capture_vcd: bool = False
     capture_screenshot: bool = False
 

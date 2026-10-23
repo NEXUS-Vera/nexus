@@ -333,3 +333,38 @@ Offline compile regressions must explicitly set `NEXUS_FIRMWARE_USE_STUB=1` and
 retain the returned `executionMode: fixture` label. Neither fixture outputs nor
 scripted authoring close the live P2 gate. W3 does not implement simulation or the
 repair loop (W4/W5).
+
+W4 simulation handoff requires `firmwareOutputId` in the existing `artifact.execute`
+command input (`capability: circuit-simulation`, `executionMode: simulate`). The
+caller names the exact successful project PlatformIO compile output
+`.pio/build/nexus/firmware.elf`; there is no automatic latest-build selection or
+fallback to `NEXUS_WOKWI_FIRMWARE_ELF` on this API path. The adapter reads and
+checks the stored ELF bytes and passes them to the existing Wokwi runner. Standalone
+Wokwi callers can still use a configured ELF. Simulation runs record the firmware
+output in optional v1 `inputOutputReferences`; observations carry output/build
+provenance. This additive contract preserves older v1 payloads.
+
+Missing CLI/token, invalid or fixture firmware, failed simulation, and missing,
+empty or truncated declared observations fail explicitly and produce no accepted
+simulation evidence. Configuration failures retain their error codes and failed
+run history rather than becoming stale results. Simulation remains surrogate
+behavior, never proof of physical sensor performance. Fake-provider tests are
+regression evidence only.
+
+Import the resulting `serial.log` output using the existing analysis
+`inputs/import-produced-output` route with destination `data/serial.log`.
+The golden analysis script parses `TEL,time_s,accel_x_g,accel_y_g,accel_z_g` frames,
+rejects missing/failed/nonfinite telemetry, and reports the exact input SHA256 in
+its summary. CSV remains available for separate synthetic regressions. Analysis
+now runs Python by default; `NEXUS_ANALYSIS_USE_STUB=1` is an explicit fixture
+opt-in and its toolchain profile is labeled `fixture`.
+
+W4 regression: `test_w4_firmware_simulation_import_analysis_regression` uses a
+scripted compiler and Wokwi runner with real output import and Python computation.
+The opt-in `test_w4_live_built_firmware_simulation_import_analysis` uses actual
+PlatformIO/Wokwi (`RUN_WOKWI_INTEGRATION=1`). The N163 local live attempt stopped
+before simulation: the restricted process runtime could not find `pio`
+(`PROCESS_START_FAILED`), although both CLIs and a token were available to the
+shell. The live gate remains unresolved; no sandbox changes or live success claim
+are made. W5 repair orchestration and W6/W7 full dependency invalidation remain
+separate work packages.

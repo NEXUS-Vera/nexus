@@ -206,6 +206,8 @@ _kernel = build_project_kernel(
             provider=_wokwi_provider,
             project_store=_store,
             firmware_ready=_firmware_ready,
+            kernel_store=_kernel_store,
+            file_store=_file_store,
         )
     },
     file_store=_file_store,
@@ -635,17 +637,35 @@ async def get_circuit_simulation_support(
         return invalid
     try:
         electrical, materialization = _circuit_materialization(project_id)
+        firmware_ready = False
+        adapter = CircuitSimulationExecutionAdapter(
+            provider=_wokwi_provider,
+            project_store=_store,
+            kernel_store=_kernel_store,
+            file_store=_file_store,
+        )
+        for output in _kernel_store.list_produced_outputs(project_id):
+            if output.get("name") != ".pio/build/nexus/firmware.elf":
+                continue
+            try:
+                adapter._resolve_firmware(
+                    {"projectId": project_id, "options": {"firmwareOutputId": output["outputId"]}}
+                )
+                firmware_ready = True
+                break
+            except CircuitSimulationError:
+                continue
         assessment = _wokwi_provider.assess_support(materialization)
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,
             "artifactId": electrical["artifactId"],
             "providerAvailability": serialize_availability(
-                _wokwi_provider, firmware_ready=_firmware_ready
+                _wokwi_provider, firmware_ready=firmware_ready
             ),
             "assessment": serialize_support_assessment(
                 assessment,
-                firmware_ready=_firmware_ready,
+                firmware_ready=firmware_ready,
                 provider_id="wokwi",
             ),
         }

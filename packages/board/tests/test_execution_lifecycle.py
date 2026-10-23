@@ -189,3 +189,43 @@ def test_agent_claim_cannot_promote_execution_evidence() -> None:
     evidence = [e for e in events if e["eventType"] == "evidence.attached"]
     assert evidence
     assert all(e["payload"]["evidenceStatus"] == "unverified" for e in evidence)
+
+
+def test_configuration_failure_is_failed_not_stale() -> None:
+    from nexus_circuit_simulation import CircuitConfigurationError
+
+    class UnavailableExecutor:
+        def execute(self, request):
+            raise CircuitConfigurationError(
+                message="Simulator credential missing", code="WOKWI_CREDENTIAL_MISSING"
+            )
+
+    kernel, projects, store, pid = build_test_kernel(
+        capability_executors={"fake-execution": UnavailableExecutor()}
+    )
+    art = projects.get_artifact(pid, "requirement-set")
+    editor = actor()
+    ws = kernel.workspaces.create_workspace(
+        project_id=pid, artifact_type="requirement-set", actor=editor
+    )["workspace"]["workspaceId"]
+    acquire_edit_lease(
+        kernel, project_id=pid, artifact_id=art["artifactId"], workspace_id=ws, requested_by=editor
+    )
+    snap = kernel.workspaces.create_snapshot(
+        workspace_id=ws, reason="configuration gate", actor=editor
+    )
+    result = kernel.dispatch(
+        cmd(
+            command_type="artifact.execute",
+            project_id=pid,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"snapshotId": snap["snapshotId"], "capability": "fake-execution"},
+        )
+    )
+    assert result["error"]["code"] == "WOKWI_CREDENTIAL_MISSING"
+    runs, _ = store.list_execution_runs(pid)
+    assert runs[0]["status"] == "failed"
+    assert runs[0]["error"]["code"] == "WOKWI_CREDENTIAL_MISSING"
+    assert runs[0]["outputReferences"] == []
+    assert runs[0]["evidenceReferences"] == []

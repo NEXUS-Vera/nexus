@@ -58,6 +58,7 @@ class ExecutionRunV1(TypedDict, closed=True):
     executionJobId: NotRequired[str]
     executionRequestId: str
     executionRunId: str
+    inputOutputReferences: NotRequired[list[str]]
     inputSnapshotId: str
     logReference: NotRequired[str]
     outputReferences: list[str]

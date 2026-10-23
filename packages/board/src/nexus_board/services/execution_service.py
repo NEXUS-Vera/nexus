@@ -6,7 +6,7 @@ import json
 from collections.abc import Mapping
 from typing import Any, Protocol
 
-from nexus_board.errors import StaleExecutionResultError
+from nexus_board.errors import BoardError, StaleExecutionResultError
 from nexus_board.execution.limits import ExecutionLimits
 from nexus_board.ids import content_digest, new_id, utc_now_iso
 from nexus_board.registries.runtime_capabilities import RuntimeCapabilityRegistry
@@ -152,15 +152,19 @@ class ExecutionService:
         options: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if max_duration_ms is not None and not 1 <= max_duration_ms <= 300_000:
-            raise StaleExecutionResultError("maxDurationMs must be between 1 and 300000")
+            raise BoardError(
+                "maxDurationMs must be between 1 and 300000", code="COMMAND_VALIDATION_FAILED"
+            )
         execution_options = dict(options or {})
         max_output_bytes = execution_options.get("maxOutputBytes")
         if max_output_bytes is not None and (
             not isinstance(max_output_bytes, int) or not 1 <= max_output_bytes <= 10_485_760
         ):
-            raise StaleExecutionResultError("maxOutputBytes must be between 1 and 10485760")
-        if not self._capabilities.is_available(capability):
-            raise StaleExecutionResultError(f"Capability unavailable: {capability}")
+            raise BoardError(
+                "maxOutputBytes must be between 1 and 10485760", code="COMMAND_VALIDATION_FAILED"
+            )
+        if not self._capabilities.is_available(capability) and capability != "circuit-simulation":
+            raise BoardError(f"Capability unavailable: {capability}", code="CAPABILITY_UNAVAILABLE")
         required = self._artifact_types.get(artifact_type).get("requiredCapabilities") or []
         if capability not in required:
             raise StaleExecutionResultError(
@@ -215,6 +219,8 @@ class ExecutionService:
             "outputReferences": [],
             "evidenceReferences": [],
         }
+        if capability == "circuit-simulation" and execution_options.get("firmwareOutputId"):
+            run["inputOutputReferences"] = [execution_options["firmwareOutputId"]]
         self._kernel.create_execution_run(run)
         if self.invalidation is not None:
             self.invalidation.record_run(run)
@@ -300,7 +306,7 @@ class ExecutionService:
                 occurred_at=failed["completedAt"],
             )
             self._projection.update_after_write(project_id)
-            raise StaleExecutionResultError(failed["error"]["message"]) from exc
+            raise BoardError(failed["error"]["message"], code=failed["error"]["code"]) from exc
 
         # Check staleness against current heads at completion time.
         project = self._projects.get_project(project_id)
@@ -375,6 +381,8 @@ class ExecutionService:
                 )
 
         run = dict(run)
+        if provider_result is not None and provider_result.get("inputOutputReferences"):
+            run["inputOutputReferences"] = provider_result["inputOutputReferences"]
         run["completedAt"] = completed
         run["outputReferences"] = [o["outputId"] for o in outputs]
         run["evidenceReferences"] = [f"ev_{o['outputId'][4:]}" for o in outputs]

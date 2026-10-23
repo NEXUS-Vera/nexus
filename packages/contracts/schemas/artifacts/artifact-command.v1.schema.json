@@ -711,6 +711,10 @@
                   "provider-workspace"
                 ]
               }
+            },
+            "firmwareOutputId": {
+              "type": "string",
+              "pattern": "^out_[A-Za-z0-9]{16,}$"
             }
           }
         }

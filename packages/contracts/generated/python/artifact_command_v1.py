@@ -187,6 +187,7 @@ class Input8(TypedDict, closed=True):
     commandSpec: NotRequired[CommandSpec]
     executionMode: NotRequired[Literal['validate', 'simulate']]
     expectedText: NotRequired[str]
+    firmwareOutputId: NotRequired[str]
     maxDurationMs: NotRequired[int]
     maxOutputBytes: NotRequired[int]
     requestedOutputs: NotRequired[

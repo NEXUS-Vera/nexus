@@ -20,10 +20,19 @@ REQUIRED = ("time_s", "accel_x_g", "accel_y_g", "accel_z_g")
 
 
 def main() -> None:
-    if not DATA.is_file():
+    data_path = Path("data/serial.log") if Path("data/serial.log").is_file() else DATA
+    if not data_path.is_file():
         raise SystemExit(f"missing input: {DATA}")
-    with DATA.open(encoding="utf-8", newline="") as handle:
-        rows = list(csv.DictReader(handle))
+    import hashlib
+
+    raw = data_path.read_bytes()
+    lines = raw.decode("utf-8").splitlines()
+    if data_path.name == "serial.log":
+        frames = [line.removeprefix("TEL,") for line in lines if line.startswith("TEL,")]
+        if not frames or any("NEXUS_MPU_" in line and "FAIL" in line for line in lines):
+            raise SystemExit("missing or failed telemetry")
+        lines = [",".join(REQUIRED), *frames]
+    rows = list(csv.DictReader(lines))
     if not rows:
         raise SystemExit("empty dataset")
     for col in REQUIRED:
@@ -34,12 +43,16 @@ def main() -> None:
     ys = [float(r["accel_y_g"]) for r in rows]
     zs = [float(r["accel_z_g"]) for r in rows]
     ts = [float(r["time_s"]) for r in rows]
+    if not all(math.isfinite(value) for value in xs + ys + zs + ts):
+        raise SystemExit("nonfinite telemetry")
     mean_x = sum(xs) / len(xs)
     rms = math.sqrt(sum((v - mean_x) ** 2 for v in xs) / len(xs))
     assessment = "PASS" if rms < THRESHOLD_G else "FAIL"
 
     OUT.mkdir(parents=True, exist_ok=True)
     summary = {
+        "inputPath": str(data_path),
+        "inputSha256": hashlib.sha256(raw).hexdigest(),
         "status": "ok",
         "requirementId": "R7",
         "metricId": "accel_x_rms_noise_g",
