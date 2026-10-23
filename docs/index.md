@@ -52,3 +52,4 @@ Durable long-form documentation for Nexus lives under `docs/`. Module-level purp
 - [Product MVP contract (P1–P5, proposed)](./product/NEXUS_PRODUCT_MVP_CONTRACT.md)
 - [Product MVP gap analysis (proposed)](./product/NEXUS_PRODUCT_MVP_GAP_ANALYSIS.md)
 - [Product MVP implementation plan (proposed)](./product/NEXUS_PRODUCT_MVP_IMPLEMENTATION_PLAN.md)
+- [Product MVP P5 external-user evaluation protocol (proposed)](./product/NEXUS_P5_EXTERNAL_EVALUATION_PROTOCOL.md)
