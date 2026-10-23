@@ -31,6 +31,7 @@ from ..assembly import (
     normalize_requirement_draft,
 )
 from ..boundary import deterministic_boundary_check
+from ..execution_plan import compose_execution_plan
 from ..generation.repair import repair_artifact
 from ..generation.schemas import (
     FUNCTIONAL_ARCHITECTURE_DRAFT_SCHEMA,
@@ -320,6 +321,9 @@ class LlmInitializationProvider:
             step = ledger.start_step("validate-complete-package")
             result["workflowRun"] = ledger.to_workflow_run()
             schema_errors = validate_initialization_result_schema(result)
+            if not schema_errors:
+                result["project"]["executionPlan"] = compose_execution_plan(result)
+                schema_errors = validate_initialization_result_schema(result)
             if schema_errors:
                 ledger.fail_step(step)
                 logger.error(
@@ -724,7 +728,7 @@ class LlmInitializationProvider:
         def _build_envelope(validated_draft: dict[str, Any]) -> dict[str, Any]:
             content = normalize(
                 validated_draft,
-                open_questions=open_questions or [],
+                open_questions=open_questions if open_questions is not None else [],
                 project_id=project_id,
                 artifact_id=artifact_id,
                 now=now,

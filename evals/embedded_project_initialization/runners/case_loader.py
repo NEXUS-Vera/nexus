@@ -29,6 +29,7 @@ class EvalCase:
     expected_explicit_claims: tuple[str, ...] = ()
     expected_missing_dimensions: tuple[str, ...] = ()
     forbidden_selections: tuple[str, ...] = ()
+    expected_open_decisions: tuple[str, ...] = ()
     notes: str | None = None
 
 
@@ -51,6 +52,7 @@ def _to_case(raw: dict[str, Any], *, suite: str) -> EvalCase:
         expected_explicit_claims=tuple(raw.get("expectedExplicitClaims") or []),
         expected_missing_dimensions=tuple(raw.get("expectedMissingDimensions") or []),
         forbidden_selections=tuple(raw.get("forbiddenSelections") or []),
+        expected_open_decisions=tuple(raw.get("expectedOpenDecisions") or []),
         notes=raw.get("notes"),
     )
 

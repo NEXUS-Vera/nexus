@@ -49,6 +49,8 @@ def test_adversarial_cases_cover_all_expected_categories() -> None:
         "fixed-component",
         "sparse",
         "prompt-injection",
+        "p1-intent",
+        "p1-scope",
     }
     assert all(case.suite == "adversarial" for case in cases)
 

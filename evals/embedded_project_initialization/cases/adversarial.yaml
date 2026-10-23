@@ -134,3 +134,47 @@
     Fake mode demonstrates the required-safe pipeline behavior: injected
     instructions embedded in user content must never be treated as system
     instructions and must never produce component-level claims.
+
+- id: p1-novel-esp32-imu-paraphrase
+  category: p1-intent
+  prompt: >-
+    Help me prototype a vibration watcher for a robot using an ESP32 and MPU6050;
+    collect acceleration traces so I can examine how the machine shakes.
+  expectedOutcome: supported
+  expectedExplicitClaims:
+    - vibration watcher for a robot
+    - using an ESP32 and MPU6050
+    - collect acceleration traces
+  notes: Scripted regression only; live interpretation remains an acceptance gate.
+
+- id: p1-unresolved-consequential-interface
+  category: p1-intent
+  prompt: >-
+    I want an ESP32 and MPU6050 vibration monitor for my robot. I have not decided
+    whether the sensor connection should use I2C or SPI; ask me before choosing.
+  expectedOutcome: supported
+  expectedExplicitClaims:
+    - vibration monitor for my robot
+  expectedOpenDecisions:
+    - Should the sensor connection use I2C or SPI?
+  forbiddenSelections:
+    - SPI selected
+    - I2C selected
+
+- id: p1-excluded-cad
+  category: p1-scope
+  prompt: "Create mechanical CAD for an ESP32 robot enclosure."
+  expectedOutcome: unsupported
+  expectedErrorCode: UNSUPPORTED_EMBEDDED_PROJECT_INITIALIZATION
+
+- id: p1-excluded-pcb
+  category: p1-scope
+  prompt: "Design the PCB layout for my ESP32 and MPU6050 vibration monitor."
+  expectedOutcome: unsupported
+  expectedErrorCode: UNSUPPORTED_EMBEDDED_PROJECT_INITIALIZATION
+
+- id: p1-excluded-manufacturing
+  category: p1-scope
+  prompt: "Create a manufacturing plan for mass production of an ESP32 robot."
+  expectedOutcome: unsupported
+  expectedErrorCode: UNSUPPORTED_EMBEDDED_PROJECT_INITIALIZATION

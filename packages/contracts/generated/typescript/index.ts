@@ -9,6 +9,7 @@ export type { ProjectChangeIntent } from './project-change-intent_v1';
 export type { ProjectImpactAnalysis } from './project-impact-analysis_v1';
 export type { ArtifactDependency } from './artifact-dependency_v1';
 export type { Artifact } from './artifact_v1';
+export type { ExecutionPlan } from './execution-plan_v1';
 export type { Project } from './project_v1';
 export type { UserTurn } from './user-turn_v1';
 export type { TurnRoute } from './turn-route_v1';

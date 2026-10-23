@@ -216,6 +216,19 @@ export type ArtifactType13 =
   | 'analysis'
   | 'test-plan'
   | 'risk-register';
+export type ArtifactType14 =
+  | 'project-brief'
+  | 'requirement-set'
+  | 'functional-architecture'
+  | 'next-action'
+  | 'component-plan'
+  | 'code-scratch'
+  | 'firmware'
+  | 'electrical-architecture'
+  | 'physical-architecture'
+  | 'analysis'
+  | 'test-plan'
+  | 'risk-register';
 
 /**
  * Canonical response for a project-modification turn: the resulting current state together with the interpreted intent, the propagation analysis, and which artifact types were actually changed or regenerated.
@@ -225,7 +238,7 @@ export interface ProjectTurnResult {
   changedArtifactTypes: ArtifactType[];
   currentState: ProjectCurrentState;
   impactAnalysis: ProjectImpactAnalysis;
-  regeneratedArtifactTypes: ArtifactType13[];
+  regeneratedArtifactTypes: ArtifactType14[];
   schemaVersion: '1.0.0';
 }
 /**
@@ -1734,12 +1747,115 @@ export interface Project {
   }[];
   currentStateVersion: number;
   domain: 'embedded-products';
+  executionPlan?: ExecutionPlan;
   openQuestionReferences: OpenQuestionReference6[];
   projectId: string;
   projectPhase: 'concept' | 'prototype-planning';
   schemaVersion: '1.0.0';
   title: string;
   updatedAt: string;
+}
+/**
+ * Initialization review proposal pinned to source revisions; workspace keys are plan-local targets, not runtime workspace IDs.
+ */
+export interface ExecutionPlan {
+  assumptions: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  basisProjectStateVersion: number;
+  components: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  interfaces: {
+    artifactId: string;
+    entityId: string;
+  }[];
+  openDecisionIds: string[];
+  /**
+   * @minItems 1
+   */
+  requirements: [
+    {
+      artifactId: string;
+      entityId: string;
+    },
+    ...{
+      artifactId: string;
+      entityId: string;
+    }[]
+  ];
+  schemaVersion: '1.0.0';
+  /**
+   * @minItems 1
+   */
+  sourceArtifacts: [
+    {
+      artifactId: string;
+      artifactVersion: number;
+    },
+    ...{
+      artifactId: string;
+      artifactVersion: number;
+    }[]
+  ];
+  status: 'proposed';
+  /**
+   * @minItems 1
+   */
+  steps: [
+    {
+      dependsOn: string[];
+      objectiveIds: string[];
+      requiresApproval: true;
+      stepId: string;
+      title: string;
+      workspaceKeys: string[];
+    },
+    ...{
+      dependsOn: string[];
+      objectiveIds: string[];
+      requiresApproval: true;
+      stepId: string;
+      title: string;
+      workspaceKeys: string[];
+    }[]
+  ];
+  /**
+   * @minItems 1
+   */
+  verificationObjectives: [
+    {
+      acceptanceCriteria: string[];
+      method: string;
+      objectiveId: string;
+      requirementId: string;
+      workspaceKey: string;
+    },
+    ...{
+      acceptanceCriteria: string[];
+      method: string;
+      objectiveId: string;
+      requirementId: string;
+      workspaceKey: string;
+    }[]
+  ];
+  /**
+   * @minItems 1
+   */
+  workspaces: [
+    {
+      artifactType: ArtifactType4;
+      availability: 'artifact-available' | 'planned';
+      workspaceKey: string;
+    },
+    ...{
+      artifactType: ArtifactType4;
+      availability: 'artifact-available' | 'planned';
+      workspaceKey: string;
+    }[]
+  ];
 }
 export interface OpenQuestionReference6 {
   displayId?: string;
@@ -1838,20 +1954,20 @@ export interface VeraResponse {
   createdArtifactReferences: [
     {
       artifactId: string;
-      artifactType: ArtifactType4;
+      artifactType: ArtifactType5;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     },
     ...{
       artifactId: string;
-      artifactType: ArtifactType4;
+      artifactType: ArtifactType5;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[]
   ];
   nextActionArtifactReference: {
     artifactId: string;
-    artifactType: ArtifactType5;
+    artifactType: ArtifactType6;
     artifactVersion: number;
     contentSchemaVersion: '1.0.0';
   };
@@ -1892,7 +2008,7 @@ export interface WorkflowRun {
     };
     outputArtifactReferences?: {
       artifactId: string;
-      artifactType: ArtifactType6;
+      artifactType: ArtifactType7;
       artifactVersion: number;
       contentSchemaVersion: '1.0.0';
     }[];
@@ -1912,14 +2028,14 @@ export interface WorkflowRun {
  * Deterministic classification of how a project change propagates across artifact types. Every non-unchanged classification must carry an explicit reason so downstream regeneration is auditable.
  */
 export interface ProjectImpactAnalysis {
-  affected: ArtifactType7[];
-  changed: ArtifactType8[];
+  affected: ArtifactType8[];
+  changed: ArtifactType9[];
   reasonByArtifact: {
-    artifactType: ArtifactType9;
+    artifactType: ArtifactType10;
     reason: string;
   }[];
-  regenerate: ArtifactType10[];
+  regenerate: ArtifactType11[];
   schemaVersion: '1.0.0';
-  stale: ArtifactType11[];
-  unchanged: ArtifactType12[];
+  stale: ArtifactType12[];
+  unchanged: ArtifactType13[];
 }

@@ -112,6 +112,9 @@
     "updatedAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "executionPlan": {
+      "$ref": "https://nexus.local/schemas/project/execution-plan.v1.schema.json"
     }
   }
 }

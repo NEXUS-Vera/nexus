@@ -238,3 +238,39 @@ Unaffected component role IDs are preserved across selective updates.
 Every API request carries a session token; multi-user tenancy is not
 implemented. See [`apps/api/README.md`](../../apps/api/README.md).
 
+
+## Reviewable initialization execution plan (W1 / P1)
+
+Successful fixture and LLM initialization now include `project.executionPlan`,
+using `project/execution-plan.v1.schema.json` in `packages/contracts`.
+This optional addition preserves legacy v1 projects and the existing seven
+artifacts and next-action selection. It is a proposed review checklist, not an
+approval record or executable tool request. No workspace is created by this addition.
+
+The plan pins source artifact IDs/revisions and the initialization project-state
+version. Requirements, assumptions, component roles (including their existing
+candidate/decision records), and electrical connections are referenced in those
+sources; no component compatibility is asserted by the plan. Objectives preserve
+requirement verification methods and acceptance criteria. Missing criteria remain
+empty for review rather than being invented. Open questions remain open decisions.
+Steps declare earlier-step dependencies, objective links, workspace targets and
+required approval. Workspace keys are plan-local targets, not runtime workspace
+IDs: `artifact-available` means an artifact exists, while `planned` explicitly
+means a future artifact/workspace must be prepared.
+
+The existing project JSON payload persists the plan atomically with initialization
+in memory, SQLite or PostgreSQL. `POST /v1/projects/initialize` returns it and
+`GET /v1/projects/{projectId}` retrieves it, including after SQLite restart.
+No new endpoint, table, state store or migration is needed. JSON Schema rejects
+unsupported plan versions; shared semantic validation checks links against the
+pinned initialization basis, including objectives and workspace targets. Later
+project changes retain the original proposal and basis; they do not reconcile or
+approve it. Reconciliation, actionable approvals and scaffold consistency are W2.
+
+`evals/embedded_project_initialization` includes a novel ESP32/MPU6050 paraphrase,
+a consequential unresolved interface choice, and excluded CAD, PCB and
+manufacturing requests. Fake-provider reports explicitly say `evidenceKind:
+regression`: their model responses are scripted from case expectations. They
+prove assembly, validation and question preservation, not live intent understanding
+or P1 acceptance. A configured live-model run, plan review UI, rejection/revision,
+approved workspace materialization and startable build remain open product gates.

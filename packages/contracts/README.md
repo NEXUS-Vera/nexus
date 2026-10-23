@@ -164,3 +164,13 @@ Persistence and modification responses reuse the same package shape:
 Risk Register v1 optionally records `mitigationVerificationStatus` (`proposed`,
 `evidence-present`, or `verified`) and `mitigationVerifiedByTests` on each risk.
 These additive fields describe deterministic verification separately from risk status.
+
+## Initialization execution-plan contract
+
+`project.executionPlan` is an optional additive v1 project field, with its own
+explicit `execution-plan.v1.schema.json`. Legacy projects without it remain valid.
+The proposal pins source revisions and links requirements, assumptions, component
+roles, electrical connections, open decisions, planned workspace targets, objectives
+and ordered review steps. Schema and semantic validation jointly reject unsupported
+versions and dangling links. See the existing [initialization boundary document](../../docs/product/embedded-project-initialization-v1.md)
+for persistence, basis/version semantics and W1 limitations.

@@ -74,6 +74,7 @@ _SOFTWARE_ONLY_KEYWORDS: tuple[str, ...] = (
 )
 
 _PCB_KEYWORDS: tuple[str, ...] = (
+    "mechanical cad",
     "pcb layout",
     "pcb design",
     "schematic review",
@@ -246,3 +247,15 @@ def _multi_product_ambiguity_reason(normalized: str) -> str | None:
             "single product before proceeding."
         )
     return None
+
+
+def excluded_product_scope_reasons(message: str) -> list[str]:
+    """Keep fixture matching from accepting excluded product deliverables."""
+    hits = _match_categories(
+        _normalize(message),
+        (
+            ("CAD/PCB design", _PCB_KEYWORDS),
+            ("manufacturing, certification or purchasing", _LIFECYCLE_KEYWORDS),
+        ),
+    )
+    return [f"Unsupported scope ({label}): {', '.join(sorted(words))}." for label, words in hits]

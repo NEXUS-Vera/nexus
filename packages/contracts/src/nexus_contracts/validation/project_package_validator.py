@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .execution_plan_validator import validate_execution_plan
 from .semantic_validators import SemanticValidationError, semantic_validate_bundle
 
 
@@ -217,6 +218,16 @@ def validate_project_package_bundle(bundle: dict[str, Any]) -> list[SemanticVali
                         blocking=True,
                     )
                 )
+
+    plan = project.get("executionPlan")
+    # The plan is an initialization proposal pinned to its original basis. Later
+    # revisions do not rewrite it or imply that it is still applicable.
+    if plan is not None and plan.get("basisProjectStateVersion") == project.get(
+        "currentStateVersion"
+    ):
+        errors.extend(
+            validate_execution_plan(plan, artifact_envelopes, bundle.get("open_questions") or [])
+        )
 
     return errors
 

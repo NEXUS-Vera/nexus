@@ -124,7 +124,7 @@ def architecture_for_case(case: EvalCase, local_keys: tuple[str, ...]) -> dict[s
             },
         ],
         "assumptions": [],
-        "unresolvedDecisionStatements": [],
+        "unresolvedDecisionStatements": list(case.expected_open_decisions),
         "requirementCoverageLocalKeys": keys,
     }
 

@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..boundary import excluded_product_scope_reasons
+from ..execution_plan import compose_execution_plan
 from ..fixture_router import FixtureRouteOutcome, route_fixture_family
 from ..materializer import (
     initialization_dict_to_package_bundle,
@@ -67,6 +69,12 @@ class FixtureInitializationProvider:
     ) -> dict[str, Any]:
         started = time.perf_counter()
         request_id = request_context.request_id
+        excluded = excluded_product_scope_reasons(message)
+        if excluded:
+            raise FixtureRoutingError(
+                code="UNSUPPORTED_EMBEDDED_PROJECT_FOR_FIXTURE_PHASE",
+                message=" ".join(excluded),
+            )
         decision = route_fixture_family(message)
         if decision.outcome is FixtureRouteOutcome.UNSUPPORTED:
             raise FixtureRoutingError(
@@ -134,6 +142,9 @@ class FixtureInitializationProvider:
 
         step = ledger.start_step("validate-schema")
         schema_errors = validate_initialization_result_schema(result)
+        if not schema_errors:
+            result["project"]["executionPlan"] = compose_execution_plan(result)
+            schema_errors = validate_initialization_result_schema(result)
         if schema_errors:
             ledger.fail_step(step)
             failed_run = ledger.to_workflow_run()

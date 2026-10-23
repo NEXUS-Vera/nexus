@@ -1515,6 +1515,73 @@ class CurrentArtifactReference(TypedDict, closed=True):
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
 
+class Assumption4(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class Component(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class Interface1(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class Requirement1(TypedDict, closed=True):
+    artifactId: str
+    entityId: str
+
+class SourceArtifact(TypedDict, closed=True):
+    artifactId: str
+    artifactVersion: int
+
+class Step(TypedDict, closed=True):
+    dependsOn: list[str]
+    objectiveIds: list[str]
+    requiresApproval: Literal[True]
+    stepId: str
+    title: str
+    workspaceKeys: list[str]
+
+class VerificationObjective(TypedDict, closed=True):
+    acceptanceCriteria: list[str]
+    method: str
+    objectiveId: str
+    requirementId: str
+    workspaceKey: str
+
+class Workspace(TypedDict, closed=True):
+    artifactType: Literal[
+        'project-brief',
+        'requirement-set',
+        'functional-architecture',
+        'next-action',
+        'component-plan',
+        'code-scratch',
+        'firmware',
+        'electrical-architecture',
+        'physical-architecture',
+        'analysis',
+        'test-plan',
+        'risk-register',
+    ]
+    availability: Literal['artifact-available', 'planned']
+    workspaceKey: str
+
+class ExecutionPlan(TypedDict, closed=True):
+    assumptions: list[Assumption4]
+    basisProjectStateVersion: int
+    components: list[Component]
+    interfaces: list[Interface1]
+    openDecisionIds: list[str]
+    requirements: list[Requirement1]
+    schemaVersion: Literal['1.0.0']
+    sourceArtifacts: list[SourceArtifact]
+    status: Literal['proposed']
+    steps: list[Step]
+    verificationObjectives: list[VerificationObjective]
+    workspaces: list[Workspace]
+
 class OpenQuestionReference(TypedDict, closed=True):
     displayId: NotRequired[str]
     questionId: str
@@ -1527,6 +1594,7 @@ class Project(TypedDict, closed=True):
     currentArtifactReferences: list[CurrentArtifactReference]
     currentStateVersion: int
     domain: Literal['embedded-products']
+    executionPlan: NotRequired[ExecutionPlan]
     openQuestionReferences: list[OpenQuestionReference]
     projectId: str
     projectPhase: Literal['concept', 'prototype-planning']

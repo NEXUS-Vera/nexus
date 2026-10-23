@@ -33,6 +33,7 @@ from .evidence_reference_v1 import *  # noqa: F403
 from .execution_command_spec_v1 import *  # noqa: F403
 from .execution_job_v1 import *  # noqa: F403
 from .execution_log_chunk_v1 import *  # noqa: F403
+from .execution_plan_v1 import *  # noqa: F403
 from .execution_request_v1 import *  # noqa: F403
 from .execution_result_v1 import *  # noqa: F403
 from .execution_run_v1 import *  # noqa: F403
@@ -106,6 +107,7 @@ __all__ = [
     "execution_command_spec_v1",
     "execution_job_v1",
     "execution_log_chunk_v1",
+    "execution_plan_v1",
     "execution_request_v1",
     "execution_result_v1",
     "execution_run_v1",

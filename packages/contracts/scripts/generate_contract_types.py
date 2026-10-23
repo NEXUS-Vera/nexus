@@ -42,6 +42,7 @@ GENERATED_NOTICE_TS = (
 # Top-level public contracts that apps import.
 PUBLIC_SCHEMA_STEMS = [
     "project.v1",
+    "execution-plan.v1",
     "user-turn.v1",
     "turn-route.v1",
     "workflow-run.v1",
@@ -508,6 +509,7 @@ async function main() {
     "export type { ProjectImpactAnalysis } from './project-impact-analysis_v1';",
     "export type { ArtifactDependency } from './artifact-dependency_v1';",
     "export type { Artifact } from './artifact_v1';",
+    "export type { ExecutionPlan } from './execution-plan_v1';",
     "export type { Project } from './project_v1';",
     "export type { UserTurn } from './user-turn_v1';",
     "export type { TurnRoute } from './turn-route_v1';",
