@@ -68,3 +68,13 @@ command.
 
 - Belongs here: embedded workflows, validators, prompts, adapters to contracts/tools
 - Must not: Vera orchestration, shared platform libraries, other agents' private code
+
+### Bounded execution repair (W5 / P2)
+
+`workflows/repair.py` coordinates failure inspection, guarded correction review,
+and affected compile/simulation/analysis reruns. Its resumable progress uses the
+existing project event ledger; jobs, proposals, immutable snapshots and outputs
+retain their existing stores. See the W5 API section in
+[`apps/api/README.md`](../../apps/api/README.md) for actions, bounds and explicit
+unavailability/diagnostic limitations. Scripted gateways demonstrate regression
+control flow only. This workflow does not add W6 provenance or W8 UI integration.

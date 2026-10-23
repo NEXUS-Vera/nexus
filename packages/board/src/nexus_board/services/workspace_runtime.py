@@ -1733,6 +1733,7 @@ class WorkspaceRuntimeService:
         actor: dict[str, Any],
         requested_change: str,
         causation_id: str | None = None,
+        require_model: bool = False,
     ) -> dict[str, Any]:
         """Generate a validated patch proposal against an immutable base snapshot (Phase 16C)."""
         if artifact_type != ANALYSIS_ARTIFACT_TYPE:
@@ -1742,6 +1743,10 @@ class WorkspaceRuntimeService:
         if not isinstance(requested_change, str) or not requested_change.strip():
             raise CommandValidationError("requestedChange is required")
 
+        if require_model and self._analysis_patch_generator is None:
+            raise AnalysisPatchGenerationError(
+                "Configure a model provider for analysis repair.", code="MODEL_PROVIDER_UNAVAILABLE"
+            )
         binding = self._require_binding(
             project_id=project_id,
             artifact_type=artifact_type,
@@ -2207,11 +2212,17 @@ class WorkspaceRuntimeService:
         base_project_state_version: int | None = None,
         max_duration_ms: int | None = None,
         causation_id: str | None = None,
+        require_real: bool = False,
     ) -> dict[str, Any]:
         """Run analysis.py against an immutable pre-run snapshot (Phase 16D)."""
         if artifact_type != ANALYSIS_ARTIFACT_TYPE:
             raise WorkspaceRuntimeCapabilityError(
                 "analysis.run is only available for artifact type analysis"
+            )
+        if require_real and analysis_toolchain_profile()["executionMode"] == "fixture":
+            raise BoardError(
+                "Real analysis required; fixture mode selected",
+                code="ANALYSIS_TOOLCHAIN_UNAVAILABLE",
             )
         binding = self._require_binding(
             project_id=project_id,
