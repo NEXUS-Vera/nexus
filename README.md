@@ -134,10 +134,11 @@ is not simulation or hardware validation. Fixture compilation is never live
 compile evidence. Synthetic CSV analysis is not evidence from a physical IMU.
 
 The demo accepts an R7 requirement revision to a 0.01 g limit and reports the
-old evidence as STALE by comparing its captured requirement version with the
-new head. This freshness check is currently in the demo harness: the product's
-coverage projection does **not** yet invalidate that old evidence automatically.
-The revision uses the in-memory persistence adapter, not the UI turn workflow.
-No public contracts or prompts change. This is a scripted kernel integration
+old evidence as STALE through the product verification projection. Accepted
+revisions automatically invalidate dependent results while preserving historical
+assessments and evidence. Applicability reasons are exposed in the evidence chain
+and invalidation ledger API and persist with SQLite. The demo revision uses the
+in-memory persistence adapter, not the UI turn workflow.
+No shared schemas or prompts change. This is a scripted kernel integration
 demo, not a browser/desktop or live-model end-to-end claim. Reports and build
 logs are retained in a printed `/tmp/nexus-demo-golden.*` directory, outside Git.

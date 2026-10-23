@@ -64,4 +64,24 @@ describe('EvidenceExplorer', () => {
     expect(screen.getByText('Open Test Plan')).toBeInTheDocument();
     expect(screen.getByText('Open Analysis')).toBeInTheDocument();
   });
+  it.each(['STALE', 'RECHECK_REQUIRED'])('renders %s with its reason and historical PASS', async (state) => {
+    vi.mocked(getVerificationEvidenceChain).mockResolvedValue({
+      chains: [{
+        requirementId: 'R7', testId: 'T7', verificationState: state,
+        assessment: 'PASS',
+        applicability: { state, reasons: [{
+          reason: 'UNKNOWN_DEPENDENCY', triggerArtifactType: 'requirement-set',
+          fromVersion: 1, toVersion: 2,
+        }] },
+      }],
+      requirementVerification: [],
+    });
+    render(<EvidenceExplorer projectId="proj_test" isDark={false} />);
+    const row = await screen.findByTestId('evidence-chain-R7-T7');
+    expect(row).toHaveTextContent(`Applicability: ${state}`);
+    expect(row).toHaveTextContent('UNKNOWN_DEPENDENCY');
+    expect(row).toHaveTextContent('requirement-set v1 → v2');
+    expect(row).toHaveTextContent('Assessment: PASS');
+  });
+
 });

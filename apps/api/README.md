@@ -104,7 +104,8 @@ Workspace-id addressed file routes (the workspace id comes from the runtime bind
 - `POST /v1/projects/{projectId}/verify/promote-execution` - promote an execution run's produced outputs into a Test Plan revision
 - `POST /v1/projects/{projectId}/verify/promote-analysis-summary` - promote a deterministic analysis summary into a Test Plan revision
 - `POST /v1/projects/{projectId}/verify/promote-structural` - promote Electrical/Wokwi pin maps into structural Test Plan evidence
-- `GET /v1/projects/{projectId}/verify/evidence-chain` - Requirement to TestCase to EvidenceReference chains and requirement verification states
+- `GET /v1/projects/{projectId}/verify/evidence-chain` - Requirement to TestCase to EvidenceReference chains, case applicability with reasons, and requirement verification states
+- `GET /v1/projects/{projectId}/verify/invalidations` - append-only verification invalidation events from the project ledger (`items`)
 
 Successful initialize responses return `ProjectInitializationResult`.
 Successful turn responses return `ProjectTurnResult` (includes current state and

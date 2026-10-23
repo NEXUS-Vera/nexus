@@ -18,7 +18,6 @@ from typing import Any
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from nexus_api.main import app
 
 GOLDEN_DIR = (
     Path(__file__).resolve().parents[3]
@@ -128,6 +127,12 @@ async def _wait_run(client: AsyncClient, project_id: str, run_id: str) -> dict[s
 
 @pytest.mark.asyncio
 async def test_golden_lifecycle_over_http_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    await run_golden_lifecycle_over_http(monkeypatch)
+
+
+async def run_golden_lifecycle_over_http(monkeypatch: pytest.MonkeyPatch) -> str:
+    from nexus_api.main import app
+
     monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
     monkeypatch.setenv("NEXUS_ANALYSIS_USE_STUB", "0")
     firmware_src = (GOLDEN_DIR / "main.cpp").read_bytes()
@@ -322,3 +327,5 @@ async def test_golden_lifecycle_over_http_only(monkeypatch: pytest.MonkeyPatch) 
         assert again.status_code == 200, again.text
         assert again.json()["idempotent"] is True
         assert again.json()["changed"] is False
+
+    return project_id
