@@ -11,8 +11,9 @@ credentials; it is never used by CI or `make check`.
 
 Usage:
     python -m evals.embedded_project_initialization.runners.run_eval
-    python -m evals.embedded_project_initialization.runners.run_eval --case golden-wearable-tremor-monitor
-    python -m evals.embedded_project_initialization.runners.run_eval --max-cases 3 --output results.json
+    python -m evals.embedded_project_initialization.runners.run_eval \
+        --case golden-wearable-tremor-monitor
+    python -m evals.embedded_project_initialization.runners.run_eval --max-cases 3
 """
 
 from __future__ import annotations
@@ -75,6 +76,7 @@ async def run_case(case: EvalCase, *, provider_mode: str = "fake") -> dict[str, 
     context = InitializationRequestContext(request_id=f"eval_{case.id}")
 
     outcome: dict[str, Any] = {
+        "evidenceKind": "regression" if provider_mode == "fake" else "live-evaluation",
         "caseId": case.id,
         "suite": case.suite,
         "category": case.category,
@@ -104,6 +106,13 @@ async def run_case(case: EvalCase, *, provider_mode: str = "fake") -> dict[str, 
 
     structural = score_structural(result)
     claims = score_claims(case, result)
+    plan = result["project"]["executionPlan"]
+    questions = {q["questionId"]: q["question"] for q in result["openQuestions"]}
+    open_decisions_preserved = all(
+        any(expected.casefold() in questions[qid].casefold() for qid in plan["openDecisionIds"])
+        for expected in case.expected_open_decisions
+    )
+    outcome["openDecisionsPreserved"] = open_decisions_preserved
     outcome_match = case.expected_outcome == "supported"
     outcome.update(
         {
@@ -112,7 +121,10 @@ async def run_case(case: EvalCase, *, provider_mode: str = "fake") -> dict[str, 
             "outcomeMatch": outcome_match,
             "structural": asdict(structural),
             "claims": asdict(claims),
-            "passed": outcome_match and structural.passed and claims.passed,
+            "passed": outcome_match
+            and structural.passed
+            and claims.passed
+            and open_decisions_preserved,
         }
     )
     return outcome
@@ -176,6 +188,7 @@ def main(argv: list[str] | None = None) -> int:
     gate_result = evaluate_gates(results, metrics)
 
     report = {
+        "evidenceKind": "regression" if args.provider == "fake" else "live-evaluation",
         "provider": args.provider,
         "caseCount": len(results),
         "metrics": asdict(metrics),
