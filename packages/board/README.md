@@ -169,10 +169,13 @@ acceptance remains unresolved unless separately executed. Provenance assertions
 alone do not establish the accepted-change, replay and revalidation lifecycle gate.
 
 W7 extends that HTTP regression with accepted requirement, electrical-interface
-pin intent, firmware source and analysis-input revisions. Each linked project
-checks transitive applicability and graph paths, unrelated requirement/result
+pin intent, firmware source, analysis-input and test-plan criterion revisions.
+Each linked project checks transitive applicability and graph paths, unrelated requirement/result
 stability, byte-equivalent historical Test Plan content and output previews,
-old-run replay, current reruns and user-authorized verification. It repeats the
+old-run replay, current reruns and user-authorized verification. Identical replay
+is an idempotent no-op retaining `STALE` and its recorded reasons. Promoting
+an old run for a newly accepted case absent from its captured inputs yields
+`RECHECK_REQUIRED` with `UNKNOWN_DEPENDENCY`. It repeats the
 cycle after SQLite restart and delivers invalidation triggers twice at the
 existing service seam. Product operations use authenticated HTTP; scripted
 compiler/simulator injection and duplicate delivery are explicit test seams.
