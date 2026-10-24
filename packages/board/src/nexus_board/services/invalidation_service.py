@@ -629,11 +629,8 @@ class InvalidationService:
     ) -> list[str]:
         records = self._store.list_graph_nodes(pid)
         nodes = {n.get("refId"): n["nodeId"] for n in records}
-        other_runs = {
-            n["nodeId"]
-            for n in records
-            if n["nodeType"] == "execution" and n.get("refId") != run_id
-        }
+        execution_nodes = {n["nodeId"] for n in records if n["nodeType"] == "execution"}
+        case_node = nodes.get(case_id)
         target = nodes.get(dep["artifactId"] + ("#" + dep["entryId"] if dep.get("entryId") else ""))
         queue = deque([(nodes.get(case_id), [])])
         seen = set()
@@ -649,7 +646,14 @@ class InvalidationService:
                 if (
                     edge["edgeType"] == "depends-on"
                     and edge["sourceNodeId"] == node
-                    and edge["targetNodeId"] not in other_runs
+                    # Select this case's assessed run, then follow all consumed
+                    # upstream runs. Historical case-to-run edges stay excluded.
+                    and not (
+                        node == case_node
+                        and edge["targetNodeId"] in execution_nodes
+                        and run_id is not None
+                        and edge["targetNodeId"] != nodes.get(run_id)
+                    )
                 ):
                     queue.append((edge["targetNodeId"], path + [edge["edgeId"]]))
         return []
