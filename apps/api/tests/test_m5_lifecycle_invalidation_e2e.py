@@ -5,6 +5,7 @@ Analysis executes real Python; no live model or simulator acceptance is claimed.
 """
 
 import base64
+import copy
 import importlib
 import json
 import secrets
@@ -24,7 +25,7 @@ from test_golden_lifecycle_http_api import (
 
 
 @pytest.mark.parametrize(
-    "change", ["requirement-set", "electrical-architecture", "analysis", "firmware"]
+    "change", ["requirement-set", "electrical-architecture", "analysis", "firmware", "test-plan"]
 )
 @pytest.mark.asyncio
 async def test_accepted_change_replay_and_authorized_reruns_after_restart(
@@ -94,7 +95,11 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
                 )
 
             if mutate:
-                content = draft["content"]
+                content = (
+                    (await get("artifacts/test-plan"))["content"]
+                    if kind == "test-plan"
+                    else draft["content"]
+                )
                 mutate(content)
                 await command(
                     "workspace.update-draft",
@@ -109,6 +114,7 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
             proposal = await command(
                 "artifact.propose-revision", {"snapshotId": snapshot["snapshotId"]}
             )
+            assert "proposalId" in proposal, json.dumps(proposal)
             await command("artifact.accept-revision", {"proposalId": proposal["proposalId"]})
 
         # An unrelated accepted requirement change must leave both results current.
@@ -119,6 +125,7 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
 
         original = await case()
         unrelated = await case("T8")
+        assert unrelated["applicability"] == {"state": "CURRENT", "reasons": []}
         old_run = original["verificationBasis"]["executionRunId"]
         old_plan = await get("artifacts/test-plan")
         historical = _bytes(
@@ -139,6 +146,13 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
 
         if change == "requirement-set":
             await accept(change, lambda c: requirement(c, "R7"))
+        elif change == "test-plan":
+
+            def criterion(content):
+                target = next(c for c in content["testCases"] if c["displayId"] == "T7")
+                target["criterion"]["expectedValue"] += 0.1
+
+            await accept(change, criterion)
         elif change == "electrical-architecture":
 
             def interface(content):
@@ -217,9 +231,18 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
         assert stale["assessment"] == "PASS"
         reason = stale["applicability"]["reasons"][0]
         assert reason["triggerArtifactType"] == change
+        expected_dependency = {"requirement-set": "R7", "test-plan": original["testId"]}.get(
+            change, change
+        )
+        assert reason["reason"] == f"DEPENDENCY_CHANGED:{expected_dependency}"
+        if change == "test-plan":
+            assert (
+                stale["criterion"]["expectedValue"] == original["criterion"]["expectedValue"] + 0.1
+            )
+            assert len(reason["path"]) == 2
         assert len(reason["path"]) >= (5 if change == "firmware" else 1), reason
         assert reason["toVersion"] >= reason["fromVersion"]
-        if change == "requirement-set":
+        if change in {"requirement-set", "test-plan"}:
             assert await case("T8") == unrelated
         events = await get("verify/invalidations")
         assert reason["eventId"] in {e["eventId"] for e in events["items"]}
@@ -243,7 +266,9 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
 
         # Deliver the same invalidation event twice; this is the existing service's
         # duplicate-processing seam, not a separate product endpoint.
-        current = await get(f"artifacts/{change}")
+        # Test Plan invalidation writes a system revision after the accepted
+        # criterion revision; redeliver the original trigger, not that projection.
+        current = await get(f"artifacts/{change}?version={reason['toVersion']}")
         previous = (
             await get(f"artifacts/{change}?version={current['artifactVersion'] - 1}")
             if current["artifactVersion"] > 1
@@ -260,11 +285,62 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
         )
 
         actor = _actor()
-        await post(
+        if change == "test-plan":
+            review = await post("artifacts/test-plan/workspace", {"requestedBy": actor})
+            lease = review["draft"]["editLease"]
+            actor.update(actorId=lease["ownerActorId"], actorType=lease["ownerActorType"])
+        replay = await post(
             "verify/promote-execution",
             {"executionRunId": old_run, "requestedBy": actor, "accept": True},
         )
-        assert (await case())["applicability"]["state"] in {"STALE", "RECHECK_REQUIRED"}
+        replayed = await case()
+        # Identical evidence is an idempotent no-op for the original case:
+        # stamp skips it, preserving STALE and its dependency-change reasons.
+        assert replayed == stale
+        assert replay["idempotent"] is True
+        assert replay["changed"] is False
+        if change == "test-plan":
+            introduced_display = (
+                f"T{max(int(c['displayId'][1:]) for c in old_plan['content']['testCases']) + 1}"
+            )
+
+            def introduce_case(content):
+                introduced = copy.deepcopy(
+                    next(c for c in content["testCases"] if c["displayId"] == "T7")
+                )
+                introduced.update(
+                    testId=f"test_{secrets.token_hex(16)}",
+                    displayId=introduced_display,
+                    status="ready",
+                    assessment="NOT_ASSESSED",
+                    evidenceReferences=[],
+                    producedOutputIds=[],
+                )
+                for key in (
+                    "applicability",
+                    "verificationBasis",
+                    "actualResult",
+                    "assessmentAuthority",
+                    "executionRunId",
+                ):
+                    introduced.pop(key, None)
+                content["testCases"].append(introduced)
+
+            await accept(change, introduce_case)
+            # The new case was accepted after this run captured its inputs. Promotion can
+            # assess it, but cannot invent the missing criterion dependency.
+            promoted = await post(
+                "verify/promote-execution",
+                {"executionRunId": old_run, "requestedBy": actor, "accept": True},
+            )
+            assert promoted["changed"] is True
+            introduced = await case(introduced_display)
+            assert introduced["applicability"]["state"] == "RECHECK_REQUIRED", json.dumps(
+                introduced
+            )
+            assert [r["reason"] for r in introduced["applicability"]["reasons"]] == [
+                "UNKNOWN_DEPENDENCY"
+            ]
 
         # Execute all current affected tool steps and import the newly produced
         # observations through the same endpoints as the original golden run.
@@ -274,6 +350,9 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
             if lease:
                 actor.update(actorId=lease["ownerActorId"], actorType=lease["ownerActorType"])
             binding = (await _binding(client, pid, kind))["binding"]
+            binding["baseProjectStateVersion"] = (await client.get(prefix)).json()["project"][
+                "currentStateVersion"
+            ]
             await _acquire_lease(client, pid, binding, actor)
             if kind == "firmware":
                 if change == "electrical-architecture":
@@ -328,11 +407,12 @@ async def exercise_invalidation_lifecycle(pid, change, simulate):
                 started = await post("artifacts/analysis/workspace/run", {"requestedBy": actor})
                 run = await _wait_run(client, pid, started["executionRun"]["executionRunId"])
                 assert run["status"] == "completed", run
+        before_proposal = await case()
         proposed = await post(
             "verify/promote-execution",
             {"executionRunId": run["executionRunId"], "requestedBy": actor, "accept": False},
         )
-        assert (await case())["applicability"]["state"] in {"STALE", "RECHECK_REQUIRED"}
+        assert await case() == before_proposal
         review = await post("artifacts/test-plan/workspace", {"requestedBy": actor})
         workspace = review["workspace"]
         accepted = await post(
