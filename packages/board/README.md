@@ -165,5 +165,29 @@ context assembly and proposal store; there is no second context ledger.
 The HTTP W6 regression uses a scripted compiler and simulator with real Python
 analysis and durable SQLite/blob storage. It proves identity/hash/byte continuity
 through restart, not live engineering acceptance. Live model/build/simulator
-acceptance remains unresolved unless separately executed. W7's accepted-change,
-replay and revalidation lifecycle gate remains separate.
+acceptance remains unresolved unless separately executed. Provenance assertions
+alone do not establish the accepted-change, replay and revalidation lifecycle gate.
+
+W7 extends that HTTP regression with accepted requirement, electrical-interface
+pin intent, firmware source and analysis-input revisions. Each linked project
+checks transitive applicability and graph paths, unrelated requirement/result
+stability, byte-equivalent historical Test Plan content and output previews,
+old-run replay, current reruns and user-authorized verification. It repeats the
+cycle after SQLite restart and delivers invalidation triggers twice at the
+existing service seam. Product operations use authenticated HTTP; scripted
+compiler/simulator injection and duplicate delivery are explicit test seams.
+Re-import replaces the consumed output marker even when telemetry bytes are
+identical. Reason traversal selects the assessed run and follows its upstream
+runs rather than cutting off multi-tool paths. Revalidation events remain in
+the existing event feed; the invalidations endpoint retains its invalidation-only
+contract. No public schema, prompt or UI state is added.
+
+W7 pre-map hunches: analysis's empty static dependency list is intentional;
+actual imported outputs supply dependencies. Accepted workspace snapshots already
+support the tested current-hash comparison, so no draft-hash fallback is added.
+After an interface change, firmware is revised and accepted before rerunning.
+Open live acceptance question: the current golden simulator uses a fixed pin
+profile; changing pin intent in the architecture description and firmware does
+not establish alternate-pin simulation fidelity. Scripted regression results
+cannot close that gate or the configured live model/build/simulator gate. These
+remain unresolved pending actual live acceptance; W8 UI work is separate.

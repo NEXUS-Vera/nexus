@@ -166,7 +166,11 @@ class FilesystemWorkspaceService:
             next_origin = existing["origin"]
             next_policy = existing["writePolicy"]
             next_modified = True
-            next_generated_from = existing.get("generatedFrom")
+            # Re-importing an output replaces its producer identity even when
+            # the bytes are identical. Ordinary edits retain their original basis.
+            next_generated_from = (
+                generated_from if generated_from is not None else existing.get("generatedFrom")
+            )
             next_media = media_type or existing.get("mediaType")
         else:
             next_origin = origin or "USER"

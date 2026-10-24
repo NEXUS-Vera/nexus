@@ -23,6 +23,10 @@ from test_golden_lifecycle_http_api import (
 
 @pytest.mark.asyncio
 async def test_http_provenance_handoffs_survive_sqlite_restart(monkeypatch, tmp_path):
+    await run_http_provenance_handoffs(monkeypatch, tmp_path)
+
+
+async def run_http_provenance_handoffs(monkeypatch, tmp_path, lifecycle=None):
     from nexus_board.execution import process_runtime
 
     pio = tmp_path / "pio"
@@ -115,6 +119,22 @@ async def test_http_provenance_handoffs_survive_sqlite_restart(monkeypatch, tmp_
             assert response.status_code == 200, response.text
             return response.json()
 
+        # Refresh the structured draft against current accepted context before rerun.
+        state = (await client.get(f"/v1/projects/{pid}")).json()
+        binding["baseProjectStateVersion"] = state["project"]["currentStateVersion"]
+        workspace = (
+            await client.post(
+                f"/v1/projects/{pid}/artifacts/electrical-architecture/workspace",
+                json={"requestedBy": actor},
+            )
+        ).json()
+        await command(
+            "workspace.update-draft",
+            {
+                "content": workspace["draft"]["content"],
+                "expectedDraftVersion": workspace["draft"]["draftVersion"],
+            },
+        )
         snapshot = await command("workspace.create-snapshot", {"reason": "before-simulation"})
         result = await command(
             "artifact.execute",
@@ -125,9 +145,13 @@ async def test_http_provenance_handoffs_survive_sqlite_restart(monkeypatch, tmp_
             },
         )
         assert result["status"] in {"completed", "completed-with-warnings"}, result
-        assert consumed == [b"\x7fELF\x00REGRESSION"]
+        assert consumed[-1] == b"\x7fELF\x00REGRESSION"
         items = (await client.get(f"/v1/projects/{pid}/outputs")).json()["items"]
-        serial = next(o for o in items if o["name"] == "serial.log")
+        serial = next(
+            o
+            for o in items
+            if o["name"] == "serial.log" and o["executionRunId"] == result["executionRunId"]
+        )
         assert serial["content"]["structuredResult"]["text"].encode() == telemetry
         assert elf["outputId"] in serial["provenance"]["derivedFromIds"]
         return serial
@@ -259,6 +283,9 @@ async def test_http_provenance_handoffs_survive_sqlite_restart(monkeypatch, tmp_
         main._kernel.jobs.shutdown()
         importlib.reload(main)
         assert await capture(pid) == before
+        if lifecycle:
+            for _ in range(2):
+                await lifecycle(pid, simulate)
     finally:
         main._kernel.jobs.shutdown()
         monkeypatch.setattr("nexus_api.config.settings", original)
