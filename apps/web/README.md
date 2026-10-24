@@ -116,6 +116,15 @@ deduplicate tests linked to multiple requirements. These helpers have no visible
 Board / kernel endpoints may return 404 until the API lands; the UI falls back
 gracefully to current-state artifacts.
 
+`src/views/ExecutionPlanReview.tsx` presents the typed execution-plan content as
+steps with dependencies, a requirement/objective table and a pinout card. Its
+accept/reject callbacks leave revision commands to the caller; rejection permits
+an optional reason but provides no rationale input. The component is unmounted
+pending W8 placement and rejection UX decisions. `EvidenceExplorer` accepts an
+optional `onInspectRun(runId)` callback to show Inspect run for rows with execution
+run IDs. No caller supplies it yet; run navigation remains pending. These pieces
+do not complete the W8 real API/SQLite journey acceptance gate.
+
 ## Local development
 
 ```bash

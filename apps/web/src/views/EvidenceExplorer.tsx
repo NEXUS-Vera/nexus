@@ -34,9 +34,10 @@ type Props = {
   isDark: boolean;
   onOpenTestPlan?: (testId: string) => void;
   onOpenAnalysis?: () => void;
+  onInspectRun?: (runId: string) => void;
 };
 
-export function EvidenceExplorer({ projectId, isDark, onOpenTestPlan, onOpenAnalysis }: Props) {
+export function EvidenceExplorer({ projectId, isDark, onOpenTestPlan, onOpenAnalysis, onInspectRun }: Props) {
   const t = themeColors(isDark);
   const [rows, setRows] = useState<ChainRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +126,11 @@ export function EvidenceExplorer({ projectId, isDark, onOpenTestPlan, onOpenAnal
               {onOpenTestPlan ? (
                 <button type="button" onClick={() => onOpenTestPlan(row.testId)} style={{ cursor: 'pointer' }}>
                   Open Test Plan
+                </button>
+              ) : null}
+              {onInspectRun && row.executionRunId ? (
+                <button type="button" onClick={() => onInspectRun(row.executionRunId!)} style={{ cursor: 'pointer' }}>
+                  Inspect run
                 </button>
               ) : null}
               {onOpenAnalysis ? (

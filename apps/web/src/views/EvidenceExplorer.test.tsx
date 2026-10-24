@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EvidenceExplorer } from './EvidenceExplorer';
 
@@ -63,6 +63,7 @@ describe('EvidenceExplorer', () => {
     );
     expect(screen.getByText('Open Test Plan')).toBeInTheDocument();
     expect(screen.getByText('Open Analysis')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inspect run' })).not.toBeInTheDocument();
   });
   it.each(['STALE', 'RECHECK_REQUIRED'])('renders %s with its reason and historical PASS', async (state) => {
     vi.mocked(getVerificationEvidenceChain).mockResolvedValue({
@@ -82,6 +83,29 @@ describe('EvidenceExplorer', () => {
     expect(row).toHaveTextContent('UNKNOWN_DEPENDENCY');
     expect(row).toHaveTextContent('requirement-set v1 → v2');
     expect(row).toHaveTextContent('Assessment: PASS');
+  });
+
+  it('offers inspection only for rows with run IDs and only when opted in', async () => {
+    vi.mocked(getVerificationEvidenceChain).mockResolvedValue({
+      chains: [
+        { requirementId: 'R1', testId: 'T1', executionRunId: 'exec_first' },
+        { requirementId: 'R2', testId: 'T2', executionRunId: 'exec_second' },
+        { requirementId: 'R3', testId: 'T3' },
+      ], requirementVerification: [],
+    });
+    const onInspectRun = vi.fn();
+    const { rerender } = render(<EvidenceExplorer projectId="proj_test" isDark={false} />);
+    await screen.findByTestId('evidence-chain-R1-T1');
+    expect(screen.queryByRole('button', { name: 'Inspect run' })).not.toBeInTheDocument();
+    rerender(<EvidenceExplorer projectId="proj_test" isDark={false} onInspectRun={onInspectRun} />);
+    for (const [requirement, test, run] of [['R1', 'T1', 'exec_first'], ['R2', 'T2', 'exec_second']]) {
+      fireEvent.click(within(screen.getByTestId(`evidence-chain-${requirement}-${test}`)).getByRole('button', { name: 'Inspect run' }));
+      expect(onInspectRun).toHaveBeenLastCalledWith(run);
+    }
+    expect(onInspectRun).toHaveBeenCalledTimes(2);
+    expect(within(screen.getByTestId('evidence-chain-R3-T3')).queryByRole('button')).not.toBeInTheDocument();
+    rerender(<EvidenceExplorer projectId="proj_test" isDark={false} />);
+    expect(screen.queryByRole('button', { name: 'Inspect run' })).not.toBeInTheDocument();
   });
 
 });
