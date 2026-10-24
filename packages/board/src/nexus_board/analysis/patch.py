@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from nexus_persistence.errors import ArtifactNotFoundError
 from nexus_persistence.file_store.hashing import blob_digest
 
 from nexus_board.errors import (
@@ -20,6 +22,7 @@ ANALYSIS_PATCH_GENERATOR_VERSION = "1.0.0"
 SNAPSHOT_REASON_PATCH_BASE = "analysis-patch-base"
 
 MAX_PATCH_OPERATIONS = 32
+MAX_CONTEXT_ARTIFACT_BYTES = 131_072
 MAX_CONTEXT_FILES = 32
 MAX_CONTEXT_FILE_BYTES = 32_768
 
@@ -73,8 +76,31 @@ def assemble_analysis_generation_context(
     file_store: Any,
 ) -> dict[str, Any]:
     """Structured generation context for an analysis patch proposal."""
-    _ = project_store  # reserved for future artifact/manifest inclusion
-    _ = project_id  # reserved for future artifact/manifest inclusion
+    artifacts = {}
+    refs = []
+    context_bytes = 0
+    for kind in (
+        "requirement-set",
+        "component-plan",
+        "electrical-architecture",
+        "execution-plan",
+        "test-plan",
+    ):
+        try:
+            artifact = project_store.get_artifact(project_id, kind)
+        except ArtifactNotFoundError:
+            continue
+        context_bytes += len(json.dumps(artifact["content"], ensure_ascii=False).encode("utf-8"))
+        if context_bytes > MAX_CONTEXT_ARTIFACT_BYTES:
+            raise AnalysisPatchGenerationError("Analysis artifact context exceeds byte limit")
+        artifacts[kind] = artifact["content"]
+        refs.append(
+            {
+                "artifactType": kind,
+                "artifactId": artifact["artifactId"],
+                "artifactVersion": artifact["artifactVersion"],
+            }
+        )
 
     manifest = snapshot_manifest_index(base_snapshot)
     snapshot_files = [
@@ -82,6 +108,7 @@ def assemble_analysis_generation_context(
             "path": path,
             "contentHash": entry["contentHash"],
             "sizeBytes": int(entry.get("sizeBytes", 0)),
+            **({"generatedFrom": entry["generatedFrom"]} if entry.get("generatedFrom") else {}),
         }
         for path, entry in sorted(manifest.items())
     ]
@@ -104,6 +131,8 @@ def assemble_analysis_generation_context(
     return {
         "schemaVersion": "1.0.0",
         "requestedChange": requested_change,
+        "inputArtifactReferences": refs,
+        "artifacts": artifacts,
         "baseSnapshotId": base_snapshot["snapshotId"],
         "snapshotFiles": snapshot_files[:MAX_CONTEXT_FILES],
         "fileContents": file_contents,

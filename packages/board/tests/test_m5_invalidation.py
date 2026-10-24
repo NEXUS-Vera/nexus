@@ -424,3 +424,66 @@ def test_repeated_processing_idempotent(golden: Any) -> None:
     assert kernel.invalidation.process(pid, previous, artifact) == {"changed": False}
     assert _plan(kernel, pid)["artifactVersion"] == version + 1
     assert _events(kernel, pid) == events
+
+
+@pytest.mark.parametrize("broken", ["missing", "foreign", "bytes", "marker"])
+def test_consumed_output_with_unknown_basis_requires_recheck(golden: Any, broken: str) -> None:
+    """Malformed/legacy handoff metadata cannot produce current PASS evidence."""
+    kernel, pid, _, _ = golden
+    binding = kernel.workspace_runtime.resolve_binding(project_id=pid, artifact_type="analysis")
+    workspace_id = binding["workspaceId"]
+    output = next(
+        o
+        for o in kernel.kernel_store.list_produced_outputs(pid)
+        if o["name"] == "outputs/summary.json"
+    )
+    if broken == "foreign":
+        # Corrupt metadata regression, not a supported user import.
+        from unittest.mock import patch
+
+        original_get = kernel.kernel_store.get_produced_output
+
+        def foreign(oid):
+            return {**original_get(oid), "projectId": "foreign"}
+
+        guard = patch.object(kernel.kernel_store, "get_produced_output", side_effect=foreign)
+    else:
+        from contextlib import nullcontext
+
+        guard = nullcontext()
+    kernel.filesystem.write_file(
+        workspace_id=workspace_id,
+        path="data/handoff.txt",
+        content=(
+            output["content"]["structuredResult"]["text"].encode()
+            if broken == "foreign"
+            else b"unmatched observation"
+        ),
+        actor=_user(kernel, pid, "analysis"),
+        expected_draft_version=kernel.kernel_store.get_draft(workspace_id)["draftVersion"],
+        base_artifact_version=binding["baseArtifactVersion"],
+        base_project_state_version=kernel.project_store.get_project(pid)["currentStateVersion"],
+        origin="RUNTIME_OUTPUT",
+        write_policy="USER_EDITABLE",
+        generated_from=(
+            None
+            if broken == "marker"
+            else "imported-output:" + ("out_missing" if broken == "missing" else output["outputId"])
+        ),
+    )
+    with guard:
+        started = kernel.workspace_runtime.run_analysis(
+            project_id=pid, artifact_type="analysis", actor=_user(kernel, pid, "analysis")
+        )
+    run = _wait_run(kernel, started["executionRun"]["executionRunId"])
+    assert run["status"] == "completed"
+    kernel.verification.promote_execution_evidence(
+        project_id=pid,
+        execution_run_id=run["executionRunId"],
+        actor=_user(kernel, pid),
+    )
+    case = _case(kernel, pid)
+    assert case["assessment"] == "PASS"
+    assert case["applicability"]["state"] == "RECHECK_REQUIRED"
+    assert case["verificationBasis"]["dependencies"] == []
+    assert any(r["reason"] == "UNKNOWN_DEPENDENCY" for r in case["applicability"]["reasons"])

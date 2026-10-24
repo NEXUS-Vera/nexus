@@ -1816,7 +1816,7 @@ class WorkspaceRuntimeService:
             "requestedChange": requested_change.strip(),
             "generatorId": generator_id,
             "generatorVersion": generator_version,
-            "inputArtifactReferences": [],
+            "inputArtifactReferences": context["inputArtifactReferences"],
             "operations": operations,
             "status": "proposed",
             "requestedBy": actor,
