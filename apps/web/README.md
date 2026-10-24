@@ -97,6 +97,21 @@ Client methods in `src/api/client.ts`:
 - `GET /v1/projects/:id/executions`
 - `GET /v1/projects/:id/events`
 - `GET /v1/projects/:id/graph`
+- `GET /v1/projects/:id/artifacts/execution-plan` (`getExecutionPlan`)
+- `POST /v1/projects/:id/execution-plan/propose` and `/materialize`
+- `POST /v1/projects/:id/artifact-commands` revision acceptance/rejection helpers
+- `POST /v1/projects/:id/repair` (`startRepair`, `getRepair`, `advanceRepair`, including cancellation)
+- `GET /healthz` (`getHealthz`, including initialization provider and storage backend)
+
+Revision decision helpers take caller-supplied command IDs, timestamps, actor and
+version guards. Rejection accepts an optional reason and sends `rejected` when
+omitted, satisfying the existing command schema. Plan and repair methods expose
+the backend workflow envelopes without starting or approving any work themselves.
+Health fields describe initialization and persistence, not toolchain availability.
+
+`src/lib/invalidation-counts.ts` counts evidence-chain rows whose applicability is
+`STALE` or `RECHECK_REQUIRED`, independently of historical assessments. It does not
+deduplicate tests linked to multiple requirements. These helpers have no visible UI.
 
 Board / kernel endpoints may return 404 until the API lands; the UI falls back
 gracefully to current-state artifacts.

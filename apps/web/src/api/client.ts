@@ -929,3 +929,186 @@ export async function previewAnalysisOutput(
     `/v1/projects/${projectId}/artifacts/analysis/workspace/outputs/${encodeURIComponent(outputId)}/preview`,
   )) as Record<string, unknown>;
 }
+
+// HTTP workflow envelopes reuse the existing shared artifact and command contracts.
+export type ExecutionPlanArtifact = Extract<
+  import('@nexus/contracts').Artifact,
+  { artifactType: 'execution-plan' }
+>;
+type PlanContent = ExecutionPlanArtifact['content'];
+type RevisionCommand = Extract<
+  import('@nexus/contracts').ArtifactCommand,
+  { commandType: 'artifact.accept-revision' }
+>;
+export type RevisionDecision = Omit<RevisionCommand, 'commandType' | 'projectId' | 'input'> & {
+  proposalId: string;
+  reason?: string;
+};
+type RequestedBy = RevisionCommand['requestedBy'];
+
+export type ProposeExecutionPlanInput = {
+  baseProjectStateVersion: number;
+  basePlanVersion: number;
+  configuration: PlanContent['configuration'];
+  plan?: PlanContent['plan'];
+  requestedBy?: RequestedBy;
+};
+export type ExecutionPlanProposal = {
+  schemaVersion: '1.0.0';
+  content: PlanContent;
+  commandResult: import('@nexus/contracts').ArtifactCommandResult;
+  workspace: import('@nexus/contracts').WorkspaceDescriptor;
+};
+export type MaterializationResult = {
+  schemaVersion: '1.0.0';
+  status: 'materialized';
+  planArtifactId: string;
+  executionMode: 'deterministic-scaffold';
+};
+export type RepairState = {
+  schemaVersion: '1.0.0';
+  repairId: string;
+  projectId: string;
+  revision: number;
+  status:
+    | 'inspect'
+    | 'diagnosing'
+    | 'review'
+    | 'launching'
+    | 'running'
+    | 'exhausted'
+    | 'cancelled'
+    | 'rejected'
+    | 'unavailable'
+    | 'stopped'
+    | 'completed';
+  target: 'firmware' | 'analysis';
+  maxAttempts: number;
+  requireReal: boolean;
+  evidenceMode: 'real-requested' | 'regression';
+  attempts: Array<{
+    runIds: string[];
+    proposalId?: string;
+    correctionProposalId?: string;
+    diagnostics?: {
+      executionRunId: string;
+      snapshotId?: string | null;
+      error: Record<string, unknown>;
+      job: Record<string, unknown>;
+      logExcerpt: string;
+      logExcerptLimited: boolean;
+      testCases: Array<Record<string, unknown>>;
+      outputReferences: unknown[];
+    };
+  }>;
+  runId: string;
+  stage: 'compile' | 'test' | 'simulate' | 'analyze';
+  rerunFirmwareTests: boolean;
+  proposalId?: string;
+  firmwareOutputId?: string;
+  explanation?: string;
+  errorCode?: string;
+};
+
+async function postWorkflow<T>(projectId: string, path: string, body: object): Promise<T> {
+  return (await requestJson(`/v1/projects/${encodeURIComponent(projectId)}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })) as T;
+}
+
+export async function getExecutionPlan(projectId: string): Promise<ExecutionPlanArtifact> {
+  return (await getArtifactVersion({
+    projectId: encodeURIComponent(projectId),
+    artifactType: 'execution-plan',
+  })) as ExecutionPlanArtifact;
+}
+
+export function proposeExecutionPlan(
+  projectId: string,
+  body: ProposeExecutionPlanInput,
+): Promise<ExecutionPlanProposal> {
+  return postWorkflow(projectId, 'execution-plan/propose', body);
+}
+
+export function materializeExecutionPlan(
+  projectId: string,
+  body: {
+    planArtifactId: string;
+    baseProjectStateVersion: number;
+    requestedBy?: RequestedBy;
+  },
+): Promise<MaterializationResult> {
+  return postWorkflow(projectId, 'execution-plan/materialize', body);
+}
+
+function decideRevision(
+  projectId: string,
+  decision: RevisionDecision,
+  commandType: 'artifact.accept-revision' | 'artifact.reject-revision',
+): Promise<import('@nexus/contracts').ArtifactCommandResult> {
+  const { proposalId, reason, ...envelope } = decision;
+  const base = { ...envelope, projectId };
+  if (commandType === 'artifact.reject-revision') {
+    return submitArtifactCommand(projectId, {
+      ...base, commandType, input: { proposalId, reason: reason ?? 'rejected' },
+    });
+  }
+  return submitArtifactCommand(projectId, {
+    ...base, commandType, input: { proposalId, ...(reason === undefined ? {} : { reason }) },
+  });
+}
+
+export function acceptArtifactRevision(
+  projectId: string,
+  decision: RevisionDecision,
+): Promise<import('@nexus/contracts').ArtifactCommandResult> {
+  return decideRevision(projectId, decision, 'artifact.accept-revision');
+}
+
+export function rejectArtifactRevision(
+  projectId: string,
+  decision: RevisionDecision,
+): Promise<import('@nexus/contracts').ArtifactCommandResult> {
+  return decideRevision(projectId, decision, 'artifact.reject-revision');
+}
+
+export function startRepair(
+  projectId: string,
+  body: {
+    executionRunId: string;
+    target: RepairState['target'];
+    maxAttempts?: number;
+    requireReal?: boolean;
+    requestedBy?: RequestedBy;
+  },
+): Promise<RepairState> {
+  return postWorkflow(projectId, 'repair', { ...body, action: 'start' });
+}
+
+export function getRepair(projectId: string, repairId: string): Promise<RepairState> {
+  return postWorkflow(projectId, 'repair', { action: 'get', repairId });
+}
+
+export function advanceRepair(
+  projectId: string,
+  repairId: string,
+  revision: number,
+  cancel = false,
+  requestedBy?: RequestedBy,
+): Promise<RepairState> {
+  return postWorkflow(projectId, 'repair', {
+    action: cancel ? 'cancel' : 'advance', repairId, revision, requestedBy,
+  });
+}
+
+export type HealthzResponse = {
+  status: string;
+  initializationProvider: string;
+  storageBackend: string;
+};
+
+export async function getHealthz(): Promise<HealthzResponse> {
+  return (await requestJson('/healthz')) as HealthzResponse;
+}
