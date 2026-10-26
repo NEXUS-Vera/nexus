@@ -37,13 +37,13 @@ it('disables repair after three attempts and closes with Escape', async () => {
   expect(close).toHaveBeenCalledOnce();
 });
 it('shows a safe load failure', async () => {
-  vi.mocked(api.getExecution).mockRejectedValue(new Error('secret-key-value'));
+  vi.mocked(api.getExecution).mockRejectedValue(new Error('internal-diagnostic-sentinel'));
   render(<Harness />);
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Unable to load run logs.'));
-  expect(document.body.textContent).not.toContain('secret-key-value');
+  expect(document.body.textContent).not.toContain('internal-diagnostic-sentinel');
 });
 it('does not restart the loop when an advance fails', async () => {
-  vi.mocked(api.advanceRepair).mockRejectedValue(new Error('api_key=hidden'));
+  vi.mocked(api.advanceRepair).mockRejectedValue(new Error('raw-upstream-detail'));
   render(<Harness />);
   await screen.findByText(/compile failed/);
   fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
@@ -51,5 +51,5 @@ it('does not restart the loop when an advance fails', async () => {
   fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
   await waitFor(() => expect(api.advanceRepair).toHaveBeenCalledTimes(2));
   expect(api.startRepair).toHaveBeenCalledOnce();
-  expect(document.body.textContent).not.toContain('api_key=hidden');
+  expect(document.body.textContent).not.toContain('raw-upstream-detail');
 });
