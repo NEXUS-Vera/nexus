@@ -98,6 +98,15 @@ def _technology_level_hits(text: str) -> list[str]:
     return [phrase for phrase in _TECHNOLOGY_LEVEL_PHRASES if phrase in lower]
 
 
+def _component_identifier(hit: str) -> str:
+    # Strip prose qualifiers, but preserve model suffixes such as -S3 or -WROOM-32.
+    identifier = " ".join(hit.casefold().split())
+    for suffix in ("-based", "-class", "-powered"):
+        if identifier.endswith(suffix):
+            return identifier.removesuffix(suffix)
+    return identifier
+
+
 def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationError]:
     """
     Semantic validation across a *complete project package* (fixture directory).
@@ -606,8 +615,7 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
 
         # Only concrete identifiers explicitly present in the user prompt are allowed.
         requested_parts = {
-            " ".join(hit.casefold().split())
-            for hit in _component_specific_hits(user_turn_message or "")
+            _component_identifier(hit) for hit in _component_specific_hits(user_turn_message or "")
         }
         if functional_arch.get("architectureMaturity") == "functional":
             for node in nodes:
@@ -624,7 +632,7 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
                 unrequested_hits = {
                     hit
                     for hit in name_hits + resp_hits
-                    if " ".join(hit.casefold().split()) not in requested_parts
+                    if _component_identifier(hit) not in requested_parts
                 }
                 if unrequested_hits:
                     errors.append(
