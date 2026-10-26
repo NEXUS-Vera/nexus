@@ -23,6 +23,7 @@ def compose_component_plan_content(
     architecture_content: dict[str, Any],
     requirement_set_content: dict[str, Any],
     include_candidates: bool = True,
+    user_message: str = "",
     source: str = "inferred",
     proposed_by: dict[str, Any] | None = None,
     now: str | None = None,
@@ -35,7 +36,9 @@ def compose_component_plan_content(
     requirements = list(requirement_set_content.get("requirements") or [])
     constraints = derive_constraints_from_requirements(roles=roles, requirements=requirements)
     candidates = (
-        propose_candidates_for_roles(roles, max_per_role=2, source="fixture", prefer_first=True)
+        propose_candidates_for_roles(
+            roles, max_per_role=2, source="fixture", prefer_first=True, user_message=user_message
+        )
         if include_candidates
         else []
     )
@@ -114,8 +117,12 @@ def compose_component_plan_content(
             "are confirmed."
             if not candidates
             else (
-                "Provisional candidates are fixture-backed placeholders. "
-                "Pricing, availability, and datasheet claims remain unverified."
+                (
+                    "Provisional candidates include user-named parts and fixture placeholders. "
+                    if any(c.get("source") != "fixture" for c in candidates)
+                    else "Provisional candidates are fixture-backed placeholders. "
+                )
+                + "Pricing, availability, and datasheet claims remain unverified."
             )
         ],
         "evidenceReferences": [],
@@ -219,9 +226,10 @@ def _summary(
         1 for s in selections if s.get("selectionState") in {"proposed", "awaiting-user"}
     )
     if candidate_count:
+        qualifier = "fixture " if all(c.get("source") == "fixture" for c in candidates) else ""
         return (
             f"Provisional component plan with {role_count} role(s), "
-            f"{candidate_count} fixture candidate(s), and {preferred} preferred "
+            f"{candidate_count} {qualifier}candidate(s), and {preferred} preferred "
             "proposal(s) awaiting user approval. Evidence remains unverified."
         )
     return (

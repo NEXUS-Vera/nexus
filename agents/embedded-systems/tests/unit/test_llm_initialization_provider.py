@@ -16,6 +16,7 @@ from fake_generation_scripts import (
     repair_malformed_script,
     repair_still_invalid_script,
     repair_success_script,
+    requirement_set_draft,
     transport_error_script,
 )
 from nexus_contracts.validation.project_package_validator import (
@@ -292,3 +293,48 @@ async def test_semantic_failure_names_node_and_component() -> None:
     assert "COMPONENT_SPECIFIC_ARCHITECTURE" in details
     assert "functionalArchitecture.nodes[" in details
     assert "ESP32" in details
+
+
+@pytest.mark.parametrize(
+    "message, expected",
+    [
+        (
+            "Build an ESP32-based vibration monitor using an MPU6050. It should stream "
+            "acceleration telemetry and analyze stationary sensor noise to verify that "
+            "accel_x RMS noise stays below 0.10 g.",
+            {"ESP32-DEVKIT-V1": "compute", "MPU6050": "sensor"},
+        ),
+        ("Build an ESP32-S3 vibration monitor using an MPU6050X sensor.", {}),
+        (WEARABLE_TREMOR_PROMPT, {}),
+    ],
+)
+async def test_live_init_preserves_supported_user_named_candidates(
+    message: str, expected: dict[str, str]
+) -> None:
+    requirements = requirement_set_draft()
+    requirements["requirements"][0]["statement"] = message
+    provider = LlmInitializationProvider(
+        gateway=build_success_gateway(requirements=requirements), model_policy=MODEL_POLICY
+    )
+    result = await provider.initialize(message, "collaborate", _context())
+    assert validate_initialization_result_schema(result) == []
+    bundle = initialization_dict_to_package_bundle(result)
+    assert not [e for e in validate_project_package_bundle(bundle) if e.blocking]
+    plan = next(a["content"] for a in result["artifacts"] if a["artifactType"] == "component-plan")
+    roles = {r["componentRoleId"]: r for r in plan["componentRoles"]}
+    named = [c for c in plan["candidates"] if c["source"] == "user-provided"]
+    assert {c["partNumber"] for c in named} == set(expected)
+    assert all(c["source"] == "fixture" for c in plan["candidates"] if c not in named)
+    for candidate in named:
+        assert roles[candidate["componentRoleId"]]["category"] == expected[candidate["partNumber"]]
+        if candidate["partNumber"] == "MPU6050":
+            assert roles[candidate["componentRoleId"]]["name"] == "Motion Sensing role"
+        assert candidate["candidateState"] == "preferred"
+        assert candidate["evidenceStatus"] == "unverified"
+        selection = next(
+            s
+            for s in plan["selectionDecisions"]
+            if s["componentRoleId"] == candidate["componentRoleId"]
+        )
+        assert selection["selectedCandidateId"] == candidate["candidateId"]
+        assert selection["selectionState"] == "awaiting-user"
