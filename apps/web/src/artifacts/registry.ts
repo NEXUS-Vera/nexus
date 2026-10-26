@@ -33,6 +33,7 @@ export type ArtifactDefinition = {
 };
 
 export const ARTIFACT_ORDER: ArtifactRouteKey[] = [
+  'execution-plan',
   'project-brief',
   'requirement-set',
   'functional-architecture',
@@ -44,6 +45,19 @@ export const ARTIFACT_ORDER: ArtifactRouteKey[] = [
 ];
 
 export const ARTIFACT_REGISTRY: Record<ArtifactRouteKey, ArtifactDefinition> = {
+  'execution-plan': {
+    routeKey: 'execution-plan',
+    artifactType: 'execution-plan',
+    phase: 'FOUNDATION',
+    label: 'Execution Plan',
+    shortLabel: 'Plan',
+    icon: ClipboardCheck,
+    availability: 'live',
+    dependencyLabels: ['Requirements', 'Components'],
+    supportedActions: ['select', 'inspect', 'view-history'],
+    placeholderTitle: '',
+    placeholderBody: '',
+  },
   'project-brief': {
     routeKey: 'project-brief',
     artifactType: 'project-brief',
@@ -179,6 +193,7 @@ export const ARTIFACT_REGISTRY: Record<ArtifactRouteKey, ArtifactDefinition> = {
 };
 
 export const WORKFLOW_GROUPS: { label: WorkflowPhase; artifacts: ArtifactRouteKey[] }[] = [
+  { label: 'FOUNDATION', artifacts: ['execution-plan'] },
   { label: 'DEFINE', artifacts: ['project-brief', 'requirement-set'] },
   { label: 'DESIGN', artifacts: ['functional-architecture', 'component-plan'] },
   { label: 'BUILD', artifacts: ['firmware-scaffold', 'analysis'] },
