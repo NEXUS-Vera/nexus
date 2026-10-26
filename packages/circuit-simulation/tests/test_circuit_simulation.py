@@ -410,8 +410,9 @@ def test_execute_builds_only_controlled_arguments_and_normalizes_outputs(
 @pytest.mark.parametrize(
     ("timeout_seconds", "expected_timeout_ms", "expected_host_timeout_seconds"),
     (
-        (30.0, "30000", 40.0),
-        (0.1, "100", 10.1),
+        (30.0, "30000", 310.0),
+        (0.1, "100", 12.0),
+        (5.0, "5000", 110.0),
         (300.0, "300000", 310.0),
     ),
 )
@@ -452,6 +453,7 @@ def test_timeout_diagnostics_do_not_expose_token(tmp_path: Path) -> None:
             exit_code=None,
             timed_out=True,
             stderr=b"credential secret-value rejected",
+            outputs={"serial.log": b"TEL,0,secret-value"},
         )
     )
     provider = WokwiProvider(
@@ -462,6 +464,9 @@ def test_timeout_diagnostics_do_not_expose_token(tmp_path: Path) -> None:
     )
     result = provider.execute(ExecutionRequest(provider.materialize(simulation_request())))
     assert result.timed_out
+    serial = next(o for o in result.outputs if o.name == "serial.log")
+    assert serial.truncated
+    assert serial.content == b"TEL,0,[REDACTED]"
     assert "secret-value" not in result.diagnostic
     assert "[REDACTED]" in result.diagnostic
     assert result.findings[-1].code == "SIMULATION_TIMEOUT"
@@ -538,18 +543,25 @@ def test_safe_runner_timeout_recovery_is_bounded(monkeypatch: pytest.MonkeyPatch
         raise subprocess.TimeoutExpired("fake", timeout, output=b"partial")
 
     process.communicate.side_effect = communicate
-    monkeypatch.setattr("nexus_circuit_simulation.runner.subprocess.Popen", lambda *a, **k: process)
+
+    def start_process(*args: object, **kwargs: object) -> Mock:
+        (Path(str(kwargs["cwd"])) / "serial.log").write_bytes(b"TEL,0,0,0,1")
+        return process
+
+    monkeypatch.setattr("nexus_circuit_simulation.runner.subprocess.Popen", start_process)
     monkeypatch.setattr("nexus_circuit_simulation.runner.os.killpg", lambda *a: None)
     result = SafeSubprocessRunner().run(
         RunnerRequest(
             executable=Path(sys.executable),
             arguments=(),
             files={},
+            output_filenames=("serial.log",),
             timeout_seconds=0.1,
         )
     )
     assert result.timed_out
     assert result.stdout == b"partial"
+    assert result.outputs["serial.log"] == b"TEL,0,0,0,1"
 
 
 def test_execute_redacts_token_from_all_outputs(tmp_path: Path) -> None:

@@ -166,6 +166,8 @@ def workspace_digest(workspace: ProviderWorkspace) -> str:
 class _CircuitSimulationTimeout(CircuitExecutionError, TimeoutError):
     """Domain error retaining the execution service's timeout classification."""
 
+    partial_outputs: list[dict[str, Any]]
+
 
 class CircuitSimulationExecutionAdapter:
     """Translate board execution requests into provider calls and normalized outputs."""
@@ -264,7 +266,7 @@ class CircuitSimulationExecutionAdapter:
         if mode == "simulate":
             timeout_seconds = max(
                 0.1,
-                min(float((request.get("maxDurationMs") or 30_000) / 1000), 300),
+                min(float((request.get("maxDurationMs") or 5_000) / 1000), 300),
             )
             result = self._provider.execute(
                 ExecutionRequest(
@@ -280,10 +282,17 @@ class CircuitSimulationExecutionAdapter:
                 )
             )
             if result.timed_out:
-                raise _CircuitSimulationTimeout(
+                error = _CircuitSimulationTimeout(
                     code="SIMULATION_TIMEOUT",
                     message="Circuit simulation timed out",
                 )
+                max_bytes = max(1, min(int(options.get("maxOutputBytes") or 1_000_000), 10_000_000))
+                error.partial_outputs = [
+                    _execution_output(item.name, item.content[:max_bytes], True)
+                    for item in result.outputs
+                    if item.name == "serial.log"
+                ]
+                raise error
             if not result.succeeded:
                 raise CircuitExecutionError(
                     code="SIMULATION_FAILED",
