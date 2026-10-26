@@ -6,6 +6,7 @@ No live model, real toolchain, or agent-authored firmware acceptance is claimed.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import secrets
 from typing import Any
@@ -402,7 +403,7 @@ async def test_opt_in_real_build_of_approved_scaffold(monkeypatch) -> None:
 
     if os.environ.get("NEXUS_W2_REAL_BUILD") != "1":
         pytest.skip("opt-in actual PlatformIO build; fixture intent remains regression evidence")
-    from nexus_api.main import app
+    from nexus_api.main import _file_store, app
     from test_golden_lifecycle_http_api import _wait_run
 
     monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0")
@@ -441,7 +442,12 @@ async def test_opt_in_real_build_of_approved_scaffold(monkeypatch) -> None:
             ".pio/build/nexus/firmware.elf",
             ".pio/build/nexus/firmware.bin",
         }
-        assert all(o["sizeBytes"] > 0 for o in built)
+        for output in built:
+            assert output["content"]["kind"] == "storage-reference"
+            assert output["content"]["storageKind"] == "file-store"
+            data = _file_store.get(output["content"]["uri"])
+            assert len(data) > 0, output["name"]
+            assert output["contentDigest"] == "sha256:" + hashlib.sha256(data).hexdigest()
 
 
 @pytest.mark.asyncio
