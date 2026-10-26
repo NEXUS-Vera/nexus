@@ -847,3 +847,34 @@ def test_simulation_firmware_handoff_optional_contract_fields() -> None:
     assert not list(validator.iter_errors(data))
     data["firmwareOutputId"] = "wrong"
     assert list(validator.iter_errors(data))
+
+
+@pytest.mark.parametrize(
+    "part, rejected",
+    [("ESP32", False), ("mpu6050", False), ("ESP32-S3", True), ("BME280", True)],
+)
+def test_golden_prompt_allows_only_user_named_parts(part: str, rejected: bool) -> None:
+    prompt = (
+        "Help me prototype a vibration watcher for a robot using an ESP32 and MPU6050; "
+        "collect acceleration traces so I can examine how the machine shakes."
+    )
+    errors = semantic_validate_bundle(
+        {
+            "user_turn": {"rawUserMessage": prompt},
+            "functional_architecture_content": {
+                "architectureMaturity": "functional",
+                "nodes": [
+                    {
+                        "nodeId": "control",
+                        "name": "ESP32 control",
+                        "responsibilities": [f"Acquire acceleration using {part}."],
+                    }
+                ],
+            },
+        }
+    )
+    blocking = [e for e in errors if e.blocking]
+    if rejected:
+        assert any(e.code == "COMPONENT_SPECIFIC_ARCHITECTURE" for e in blocking)
+    else:
+        assert not blocking

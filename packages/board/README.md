@@ -87,7 +87,10 @@ tests require explicit configuration and do not substitute process runs.
 The `firmware` artifact exposes deterministic ESP32 Arduino scaffolding, patch
 proposals pinned to immutable snapshots, guarded patch application, history and
 compile/test operations through `kernel.workspace_runtime`. Compile consumes a
-pre-compile snapshot and promotes only declared successful outputs.
+pre-compile snapshot and promotes only declared successful outputs. Firmware compiler
+output containing `-Woverflow` or `-Wdiv-by-zero` fails the run with
+`FIRMWARE_UNSAFE_COMPILER_WARNING` before output promotion, even on exit code zero.
+Compiler logs remain available for repair.
 
 `NEXUS_FIRMWARE_USE_STUB=1` runs offline fixtures; when unset, Nexus requires
 PlatformIO and fails preflight if `pio` is missing. Fixture
