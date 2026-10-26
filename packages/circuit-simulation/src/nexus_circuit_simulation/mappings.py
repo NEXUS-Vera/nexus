@@ -32,6 +32,28 @@ def esp32_serial_monitor_connections(mcu_part_id: str) -> tuple[list[object], ..
 
 
 EXACT_MAPPING_REGISTRY = (
+    *(
+        mapping
+        for source in ("user-provided", "agent-inference", "fixture")
+        for mapping in (
+            ComponentMapping(
+                source=source,
+                manufacturer="Espressif",
+                part_number="ESP32-DEVKIT-V1",
+                provider_part=WOKWI_ESP32_PROVIDER_PART,
+                mapping_type=MappingType.EXACT,
+                pins=FIXED_PIN_PROFILE,
+            ),
+            ComponentMapping(
+                source=source,
+                manufacturer="InvenSense",
+                part_number="MPU6050",
+                provider_part="wokwi-mpu6050",
+                mapping_type=MappingType.EXACT,
+                pins=tuple(PinMapping(pin, pin) for pin in ("VCC", "GND", "SDA", "SCL")),
+            ),
+        )
+    ),
     ComponentMapping(
         source="fixture",
         manufacturer="Fixture Compute",
