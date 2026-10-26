@@ -487,6 +487,23 @@ class ExecutionJobService:
                 self._append_log(job_id, "system", message, limits=limits)
 
             terminal = result.status
+            if any(
+                entry.get("name") == "NEXUS_FIRMWARE_PROFILE"
+                for entry in job["commandSpec"].get("environment", [])
+            ):
+                unsafe_flags = [
+                    flag
+                    for flag in ("-Woverflow", "-Wdiv-by-zero")
+                    if flag in result.stdout or flag in result.stderr
+                ]
+                if unsafe_flags:
+                    job["failure"] = {
+                        "code": "FIRMWARE_UNSAFE_COMPILER_WARNING",
+                        "message": "Unsafe firmware compiler warning: " + ", ".join(unsafe_flags),
+                    }
+                    self._append_log(job_id, "system", job["failure"]["message"], limits=limits)
+                    if terminal == "succeeded":
+                        terminal = "failed"
             if (
                 terminal == "cancelled"
                 and job["status"] != "cancelling"

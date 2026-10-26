@@ -103,7 +103,7 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
     Semantic validation across a *complete project package* (fixture directory).
 
     This intentionally stays conservative and deterministic:
-    - component-specific language is treated as blocking at functional maturity
+    - unrequested component-specific language is blocking at functional maturity
     - technology-level language is treated as non-blocking warnings
     - `user-explicit` provenance is validated against the referenced UserTurn
       using conservative token overlap and numeric/unit matching.
@@ -604,7 +604,11 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
             else set()
         )
 
-        # Component/part identifiers must not appear at functional maturity.
+        # Only concrete identifiers explicitly present in the user prompt are allowed.
+        requested_parts = {
+            " ".join(hit.casefold().split())
+            for hit in _component_specific_hits(user_turn_message or "")
+        }
         if functional_arch.get("architectureMaturity") == "functional":
             for node in nodes:
                 if not isinstance(node, dict):
@@ -617,13 +621,18 @@ def semantic_validate_bundle(bundle: dict[str, Any]) -> list[SemanticValidationE
                 # High-confidence component-specific language => blocking error.
                 name_hits = _component_specific_hits(str(node_name))
                 resp_hits = _component_specific_hits(resp_text)
-                if name_hits or resp_hits:
+                unrequested_hits = {
+                    hit
+                    for hit in name_hits + resp_hits
+                    if " ".join(hit.casefold().split()) not in requested_parts
+                }
+                if unrequested_hits:
                     errors.append(
                         SemanticValidationError(
                             code="COMPONENT_SPECIFIC_ARCHITECTURE",
                             message=(
                                 f"Node {node_id!r} ({node_name}): concrete component "
-                                f"identifier(s): {', '.join(sorted(set(name_hits + resp_hits)))}."
+                                f"identifier(s): {', '.join(sorted(unrequested_hits))}."
                             ),
                             path=f"functionalArchitecture.nodes[{node_id}]",
                             blocking=True,

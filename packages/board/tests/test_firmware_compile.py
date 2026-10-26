@@ -267,3 +267,40 @@ def test_compile_stores_real_sized_elf(
         project_id=project_id, execution_run_id=run_id
     )["outputs"]
     assert len(outputs) == (2 if expected_status == "completed" else 0)
+
+
+@pytest.mark.parametrize("flag", ["-Woverflow", "-Wdiv-by-zero", "-Wunused-variable"])
+@pytest.mark.parametrize("stream", ["stdout", "stderr"])
+def test_compiler_warning_classifies_build_before_output_promotion(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any, flag: str, stream: str
+) -> None:
+    pio = tmp_path / "pio"
+    pio.write_text(
+        "#!/usr/bin/python3\nimport sys\nfrom pathlib import Path\n"
+        f"print('src/main.cpp: warning: arithmetic diagnostic [{flag}]', file=sys.{stream})\n"
+        f"p=Path({BUILD_ELF_PATH!r}); p.parent.mkdir(parents=True, exist_ok=True)\n"
+        "p.write_bytes(b'ELF')\n"
+        f"Path({BUILD_BIN_PATH!r}).write_bytes(b'BIN')\n"
+    )
+    pio.chmod(0o755)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "0")
+    kernel, *_rest, project_id = build_test_kernel(auto_start_scheduler=True)
+    user = actor("user")
+    _setup_scaffolded_firmware(kernel, project_id, user)
+    started = kernel.workspace_runtime.compile_firmware(
+        project_id=project_id, artifact_type="firmware", actor=user
+    )
+    run_id = started["executionRun"]["executionRunId"]
+    run = _wait_run(kernel, run_id)
+    unsafe = flag != "-Wunused-variable"
+    assert run["status"] == ("failed" if unsafe else "completed")
+    outputs = kernel.workspace_runtime.list_outputs_for_run(
+        project_id=project_id, execution_run_id=run_id
+    )["outputs"]
+    assert len(outputs) == (0 if unsafe else 2)
+    if unsafe:
+        assert run["error"]["code"] == "FIRMWARE_UNSAFE_COMPILER_WARNING"
+        assert flag in run["error"]["message"]
+    logs = kernel.executions.list_logs(run_id, after_sequence=0, limit=200)
+    assert flag in "".join(chunk["content"] for chunk in logs["chunks"])

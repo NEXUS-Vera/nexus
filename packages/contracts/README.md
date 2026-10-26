@@ -102,7 +102,7 @@ Provenance validation in v1 is intentionally conservative and deterministic:
 
 The functional-architecture semantic validator distinguishes:
 
-- **Blocking**: concrete component/part identifiers (MCU/sensor/board model strings) appearing at `architectureMaturity = functional`.
+- **Blocking**: concrete component/part identifiers (MCU/sensor/board model strings) not explicitly named in the user prompt, appearing at `architectureMaturity = functional`.
 - **Non-blocking warnings**: ambiguous technology-level language that may become acceptable at a later logical maturity.
 - **No finding**: ordinary functional architecture language and generic abbreviations should not be treated as evidence of concrete component selection.
 

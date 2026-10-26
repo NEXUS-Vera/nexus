@@ -42,3 +42,11 @@ Mechanical CAD, PCB layout, manufacturing workflows, broad multi-domain orchestr
 ## Review handoff
 
 Pranay reviews these three documents before implementation. Review should settle the proposed acceptance interpretations and dependency order, while keeping any unavailable live evidence visible. Implementation PRs remain small and criterion-mapped. Never self-merge. This task's local-only/no-remote instruction means the Stage B draft PR must be opened by an authorized follow-up; no push or remote operation is part of this work.
+
+B5/B6 baseline correctness: functional architecture may retain concrete part names
+explicitly present in the user prompt (case-insensitive exact identifiers); it
+still rejects unrequested parts and more specific variants. Firmware compile/test
+results containing `-Woverflow` or `-Wdiv-by-zero` are failed with
+`FIRMWARE_UNSAFE_COMPILER_WARNING`, retain compiler logs, and promote no outputs
+even when the compiler exits successfully. Scripted compiler regressions cover
+this gate; they do not establish live toolchain acceptance.
