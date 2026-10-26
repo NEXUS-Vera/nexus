@@ -123,8 +123,11 @@ accept/reject callbacks leave revision commands to the caller; rejection permits
 an optional inline reason. The FOUNDATION rail mounts it through the execution-plan
 workspace, which loads the typed API artifact and proposes then accepts/rejects
 revisions with version guards. Decisions disable while pending and show failures.
-Projects without a saved execution-plan artifact show the API error; creating the
-initial plan/configuration remains outside this slice. `EvidenceExplorer` accepts an
+Projects without a saved execution-plan artifact offer an explicit, keyboard-operable
+Create Execution Plan button. It proposes with the project’s I2C-connected candidates,
+project pin specifications (default GPIO 21/22), and existing build/analysis profiles;
+it never auto-proposes on initialization or accepts the proposal. Unsupported project
+configuration errors remain visible and permit retry. `EvidenceExplorer` accepts an
 optional `onInspectRun(runId)` callback to show Inspect run for rows with execution
 run IDs. The project page supplies it to open an in-place, keyboard-dismissable run-log
 modal. Logs refresh while open and credential-like diagnostic text is masked.
@@ -134,7 +137,7 @@ Repair state is retained while the project page stays mounted, not across reload
 The header LIVE/FIXTURE pill reads initialization mode from health and opens
 diagnostics; tool availability is explicitly unknown because health does not
 report it. No raw configuration or error objects are rendered. These pieces
-do not complete the W8 real API/SQLite journey acceptance gate.
+do not complete the W8 real API/SQLite journey acceptance gate (see the acceptance probe below).
 
 ## Local development
 
@@ -159,6 +162,41 @@ pnpm --filter @nexus/web test
 make test-e2e   # Playwright; starts API+web in fixture/memory mode, then runs
                 # the Electron shell suite
 ```
+
+### W8 real API / SQLite acceptance probe (N197)
+
+```bash
+./scripts/run-w8-e2e.sh
+```
+
+The sibling runner uses fixture initialization, a temporary SQLite DB/file store,
+web port 15173 and API port 18000. It uses the existing Playwright dependency and
+installs Chromium with pnpm. `PYTHON` can select an existing Python environment.
+The spec owns the API process: it terminates and awaits it, starts a new process
+against the same DB, then reloads the browser. Temporary data is removed on exit.
+No API interception or in-memory storage is used.
+
+**Gate remains open.** Option B adds explicit initial proposal creation and unit
+coverage. A real FastAPI/SQLite in-process check on 2026-10-26 initialized the golden
+prompt successfully (HTTP 200), but proposal creation returned HTTP 422,
+`COMMAND_VALIDATION_FAILED`: “Only ESP32-DEVKIT-V1 + MPU6050 materialization is
+supported.” Fixture initialization supplies `FX-MCU-32` / `FX-IMU-200`. The button
+preserves those project candidates; it does not substitute parts or approve edits.
+Resolving fixture parts versus supported materialization needs a separate product
+change outside this web/route-wiring scope.
+
+The partial spec starts with the explicit Create Execution Plan control, then
+requires a review, both rejection variants, acceptance, and a real API restart on
+the same SQLite file. It remains deliberately failing while this configuration gap
+exists. Cancellation and evidence/run-log navigation are not implemented in the
+probe; it explicitly fails even if the preceding steps become runnable, preventing
+a partial journey from closing W8.
+
+Playwright was **not executed in-sandbox in attempt 2**, per the task instruction:
+attempt 1 established loopback `listen EPERM` and Chromium download
+`ENOTFOUND cdn.playwright.dev`. Manager testing must run the sibling runner after
+the configuration gap and remaining journey steps are resolved. No browser pass,
+P1–P3 acceptance, or live tool/provider success is claimed.
 
 ## Current limitations
 
