@@ -163,7 +163,7 @@ make test-e2e   # Playwright; starts API+web in fixture/memory mode, then runs
                 # the Electron shell suite
 ```
 
-### W8 real API / SQLite acceptance probe (N197)
+### W8 real API / SQLite acceptance probe (N197 / N205)
 
 ```bash
 ./scripts/run-w8-e2e.sh
@@ -176,27 +176,34 @@ The spec owns the API process: it terminates and awaits it, starts a new process
 against the same DB, then reloads the browser. Temporary data is removed on exit.
 No API interception or in-memory storage is used.
 
-**Gate remains open.** Option B adds explicit initial proposal creation and unit
-coverage. A real FastAPI/SQLite in-process check on 2026-10-26 initialized the golden
-prompt successfully (HTTP 200), but proposal creation returned HTTP 422,
-`COMMAND_VALIDATION_FAILED`: “Only ESP32-DEVKIT-V1 + MPU6050 materialization is
-supported.” Fixture initialization supplies `FX-MCU-32` / `FX-IMU-200`. The button
-preserves those project candidates; it does not substitute parts or approve edits.
-Resolving fixture parts versus supported materialization needs a separate product
-change outside this web/route-wiring scope.
+**Gate remains open pending host browser validation (N205).** The propose workflow
+now recognizes the exact fixture-source/manufacturer identities `FX-MCU-32` and
+`FX-IMU-200` as documented ESP32/MPU6050 profile surrogates. It preserves original
+parts and provenance; non-fixture FX identities and unrelated parts remain rejected.
+No public contract changes or live-part acceptance expansion are introduced.
 
-The partial spec starts with the explicit Create Execution Plan control, then
-requires a review, both rejection variants, acceptance, and a real API restart on
-the same SQLite file. It remains deliberately failing while this configuration gap
-exists. Cancellation and evidence/run-log navigation are not implemented in the
-probe; it explicitly fails even if the preceding steps become runnable, preventing
-a partial journey from closing W8.
+The completed spec authors keyboard creation, rejection without/with a reason,
+recreation and acceptance, analysis cancellation, a real API process restart on
+the same SQLite file, persisted project/run assertions, and Evidence Explorer to
+run-log modal navigation at 1366×768. It asserts FIXTURE and absence of LIVE.
+Controlled user analysis code and golden CSV are written through real file APIs;
+a completed real Python analysis is explicitly promoted through the verification
+API before evidence navigation. This is fixture regression evidence, not live
+model, firmware, simulator, or physical verification acceptance.
 
-Playwright was **not executed in-sandbox in attempt 2**, per the task instruction:
-attempt 1 established loopback `listen EPERM` and Chromium download
-`ENOTFOUND cdn.playwright.dev`. Manager testing must run the sibling runner after
-the configuration gap and remaining journey steps are resolved. No browser pass,
-P1–P3 acceptance, or live tool/provider success is claimed.
+API regression tests pass locally (19 passed, one opt-in real-build skip).
+Playwright was not run in the sandbox, per N205 instructions; the manager must run
+`./scripts/run-w8-e2e.sh` on the host. No browser pass or P1–P3 completion is claimed.
+
+Local validation passed the 138-test web suite, web/spec TypeScript checks,
+formatting/linting, repository policy, and 20 fake-provider evaluations. The plan
+API regressions plus golden HTTP lifecycle passed together (20 passed, one opt-in
+real-build skip). Contracts excluding type generation plus embedded unit/integration
+tests passed (174 passed, one opt-in integration skip). `make check` stopped at the
+repository-wide mypy check (700 errors). Broader Python runs were interrupted after
+stalled progress; the verbose agent run stalled at
+`test_inflight_stop_uses_existing_job_runtime[timeout]`. These runs are not claimed
+as passes; sandbox/job-runner code was left unchanged.
 
 ## Current limitations
 
