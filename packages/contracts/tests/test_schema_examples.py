@@ -878,3 +878,47 @@ def test_golden_prompt_allows_only_user_named_parts(part: str, rejected: bool) -
         assert any(e.code == "COMPONENT_SPECIFIC_ARCHITECTURE" for e in blocking)
     else:
         assert not blocking
+
+
+@pytest.mark.parametrize(
+    "part, rejected",
+    [
+        ("ESP32", False),
+        ("ESP32 DevKit", False),
+        ("esp32-based", False),
+        ("MPU6050", False),
+        ("STM32", True),
+        ("BME280", True),
+        ("ESP32-S3", True),
+        ("ESP32-WROOM-32", True),
+        ("MPU9250", True),
+    ],
+)
+@pytest.mark.parametrize("field", ["name", "responsibilities"])
+def test_esp32_based_golden_prompt_part_matching(part: str, rejected: bool, field: str) -> None:
+    # Exact GOLDEN_PROMPT from apps/api/tests/test_golden_lifecycle_http_api.py.
+    prompt = (
+        "Build an ESP32-based vibration monitor using an MPU6050. "
+        "It should stream acceleration telemetry and analyze stationary sensor noise "
+        "to verify that accel_x RMS noise stays below 0.10 g."
+    )
+    node: dict[str, Any] = {
+        "nodeId": "control",
+        "name": "Central Processing & Control Subsystem",
+        "responsibilities": ["Acquire acceleration."],
+    }
+    node[field] = f"Control using {part}" if field == "name" else [f"Acquire using {part}."]
+    errors = semantic_validate_bundle(
+        {
+            "user_turn": {"rawUserMessage": prompt},
+            "functional_architecture_content": {
+                "architectureMaturity": "functional",
+                "nodes": [node],
+            },
+        }
+    )
+    blocking = [e for e in errors if e.blocking]
+    if rejected:
+        assert any(e.code == "COMPONENT_SPECIFIC_ARCHITECTURE" for e in blocking)
+    else:
+        assert not blocking
