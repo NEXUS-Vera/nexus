@@ -15,6 +15,7 @@ import { FirmwareWorkspace } from '../firmware/workspace';
 import { AnalysisWorkspace } from '../analysis/workspace';
 import { TestPlanWorkspace } from '../test-plan/workspace';
 import { RiskRegisterWorkspace } from '../risk-register/workspace';
+import { ExecutionPlanWorkspace } from '../execution-plan/workspace';
 import { NextActionWorkspace } from '../next-action/workspace';
 import { ProjectBriefWorkspace } from '../project-brief/workspace';
 import { RequirementsWorkspace } from '../requirements/workspace';
@@ -24,6 +25,7 @@ import type { ArtifactRouteKey } from '../types';
 
 /** Keys that have a dedicated React workspace renderer (separate from ARTIFACT_REGISTRY). */
 export type WorkspaceRendererKey =
+  | 'execution-plan'
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
@@ -263,6 +265,7 @@ export const WORKSPACE_RENDERER_REGISTRY: Record<
   WorkspaceRendererKey,
   ComponentType<WorkspaceRenderProps>
 > = {
+  'execution-plan': ExecutionPlanWorkspace,
   'project-brief': ProjectBriefRenderer,
   'requirement-set': RequirementsRenderer,
   'functional-architecture': ArchitectureRenderer,
@@ -399,6 +402,7 @@ export function shellMetaFor(
         : state.artifacts.find((a) => a.artifactType === liveType);
 
     const testIds: Partial<Record<ArtifactRouteKey, string>> = {
+      'execution-plan': 'workspace-execution-plan-shell',
       'project-brief': 'workspace-project-brief-shell',
       'requirement-set': 'workspace-requirements-shell',
       'functional-architecture': 'workspace-architecture-shell',

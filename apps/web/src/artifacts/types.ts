@@ -1,5 +1,6 @@
 /** Frontend artifact route keys for the board workspace. */
 export type ArtifactRouteKey =
+  | 'execution-plan'
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'
@@ -11,7 +12,7 @@ export type ArtifactRouteKey =
   | 'test-plan'
   | 'risk-register';
 
-export type WorkflowPhase = 'DEFINE' | 'DESIGN' | 'BUILD' | 'VERIFY';
+export type WorkflowPhase = 'FOUNDATION' | 'DEFINE' | 'DESIGN' | 'BUILD' | 'VERIFY';
 
 export type GlobalView = 'overview' | 'workspace' | 'mind-graph';
 
@@ -19,6 +20,7 @@ export type ArtifactAvailability = 'live' | 'proof' | 'placeholder';
 
 /** Canonical live / proof artifact types recognized by the board UI. */
 export type LiveArtifactType =
+  | 'execution-plan'
   | 'project-brief'
   | 'requirement-set'
   | 'functional-architecture'

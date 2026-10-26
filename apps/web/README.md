@@ -59,6 +59,7 @@ Browser refresh reloads live project state from the API.
 | Project Brief | Live (`project-brief`) |
 | Requirements | Live (`requirement-set`) |
 | Architecture | Live (`functional-architecture`) |
+| Execution Plan | Live review (`execution-plan`), under FOUNDATION |
 | Next Action | Live global (`next-action`) |
 | Components | Live (`component-plan`) |
 | Firmware | Live scaffold, patch, and compile workspace (`firmware-scaffold`) |
@@ -119,8 +120,11 @@ gracefully to current-state artifacts.
 `src/views/ExecutionPlanReview.tsx` presents the typed execution-plan content as
 steps with dependencies, a requirement/objective table and a pinout card. Its
 accept/reject callbacks leave revision commands to the caller; rejection permits
-an optional reason but provides no rationale input. The component is unmounted
-pending W8 placement and rejection UX decisions. `EvidenceExplorer` accepts an
+an optional inline reason. The FOUNDATION rail mounts it through the execution-plan
+workspace, which loads the typed API artifact and proposes then accepts/rejects
+revisions with version guards. Decisions disable while pending and show failures.
+Projects without a saved execution-plan artifact show the API error; creating the
+initial plan/configuration remains outside this slice. `EvidenceExplorer` accepts an
 optional `onInspectRun(runId)` callback to show Inspect run for rows with execution
 run IDs. No caller supplies it yet; run navigation remains pending. These pieces
 do not complete the W8 real API/SQLite journey acceptance gate.

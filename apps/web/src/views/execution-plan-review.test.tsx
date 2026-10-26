@@ -39,7 +39,7 @@ describe('ExecutionPlanReview', () => {
     expect(pinout).toHaveTextContent('SDA: GPIO 21 · SCL: GPIO 22');
   });
 
-  it('delegates decisions without supplying an event or choosing a rejection reason UX', () => {
+  it('delegates one-click decisions without requiring a rejection reason', () => {
     const onAccept = vi.fn();
     const onReject = vi.fn<(reason?: string) => void>();
     render(<ExecutionPlanReview content={content} isDark onAccept={onAccept} onReject={onReject} />);
@@ -47,7 +47,24 @@ describe('ExecutionPlanReview', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reject plan' }));
     expect(onAccept).toHaveBeenCalledExactlyOnceWith();
     expect(onReject).toHaveBeenCalledExactlyOnceWith();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Rejection reason (optional)' })).toHaveValue('');
+  });
+
+  it('sends an optional trimmed rejection reason', () => {
+    const onReject = vi.fn();
+    render(<ExecutionPlanReview content={content} isDark={false} onAccept={vi.fn()} onReject={onReject} />);
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '  Change the wiring  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Reject plan' }));
+    expect(onReject).toHaveBeenCalledExactlyOnceWith('Change the wiring');
+  });
+
+  it('disables decisions and the reason while submitting', () => {
+    const onReject = vi.fn();
+    render(<ExecutionPlanReview content={content} isDark={false} disabled onAccept={vi.fn()} onReject={onReject} />);
+    expect(screen.getByRole('textbox')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Accept plan' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Reject plan' }));
+    expect(onReject).not.toHaveBeenCalled();
   });
 
   it.each([{}, { plan: { steps: [], requirements: [], verificationObjectives: [] } }])('handles missing or empty sections defensively', (partial) => {

@@ -70,6 +70,7 @@ describe('workspace renderer registry', () => {
     const keys = Object.keys(WORKSPACE_RENDERER_REGISTRY);
     expect(keys).toEqual(
       expect.arrayContaining([
+        'execution-plan',
         'project-brief',
         'requirement-set',
         'functional-architecture',
@@ -83,7 +84,7 @@ describe('workspace renderer registry', () => {
         'risk-register',
       ]),
     );
-    expect(keys).toHaveLength(11);
+    expect(keys).toHaveLength(12);
 
     const shuffled = [...keys].sort().reverse();
     for (const key of shuffled) {

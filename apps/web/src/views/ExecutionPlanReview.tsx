@@ -1,15 +1,18 @@
+import { useState } from 'react';
 import type { ExecutionPlanArtifact } from '../api/client';
 import { themeColors } from '../lib/theme';
 
 type Props = {
   content: ExecutionPlanArtifact['content'];
   isDark: boolean;
+  disabled?: boolean;
   onAccept: () => void;
   onReject: (reason?: string) => void;
 };
 
-/** Presentation only: the caller owns revision decisions and eventual placement. */
-export function ExecutionPlanReview({ content, isDark, onAccept, onReject }: Props) {
+/** Presentation only: the caller owns revision decisions and API calls. */
+export function ExecutionPlanReview({ content, isDark, onAccept, onReject, disabled = false }: Props) {
+  const [reason, setReason] = useState('');
   const t = themeColors(isDark);
   const { plan, configuration } = content;
   const steps = plan?.steps ?? [];
@@ -65,9 +68,11 @@ export function ExecutionPlanReview({ content, isDark, onAccept, onReject }: Pro
           </>
         ) : <p>No pinout available.</p>}
       </section>
+      <label htmlFor="plan-rejection-reason">Rejection reason (optional)</label>
+      <textarea id="plan-rejection-reason" value={reason} disabled={disabled} onChange={(event) => setReason(event.target.value)} />
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={() => onAccept()}>Accept plan</button>
-        <button type="button" onClick={() => onReject()}>Reject plan</button>
+        <button type="button" disabled={disabled} onClick={() => onAccept()}>Accept plan</button>
+        <button type="button" disabled={disabled} onClick={() => reason.trim() ? onReject(reason.trim()) : onReject()}>Reject plan</button>
       </div>
     </section>
   );

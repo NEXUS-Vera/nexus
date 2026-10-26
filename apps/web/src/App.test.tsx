@@ -259,7 +259,7 @@ describe('Nexus web routing and project workspace', () => {
     for (const key of shuffled) {
       expect(ARTIFACT_REGISTRY[key].routeKey).toBe(key);
     }
-    expect(ARTIFACT_ORDER).toHaveLength(8);
+    expect(ARTIFACT_ORDER).toHaveLength(9);
   });
   it('exposes exactly one Analysis entry in BUILD workflow navigation', () => {
     const build = WORKFLOW_GROUPS.find((g) => g.label === 'BUILD');
