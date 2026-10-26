@@ -37,6 +37,7 @@ import { useWorkspaceUrl } from '../hooks/use-workspace-url';
 import { themeColors } from '../lib/theme';
 import { MindGraphWorkspace } from '../views/MindGraphWorkspace';
 import { ProjectOverview } from '../views/ProjectOverview';
+import { RunLogModal } from '../components/execution/run-log-modal';
 import { EvidenceExplorer } from '../views/EvidenceExplorer';
 import { ARTIFACT_REGISTRY } from '../artifacts/registry';
 
@@ -75,6 +76,8 @@ export function ProjectPage() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [showNextAction, setShowNextAction] = useState(false);
   const [showEvidence, setShowEvidence] = useState(false);
+  const [inspectedRun, setInspectedRun] = useState<string | null>(null);
+  const [repairs, setRepairs] = useState<Record<string, import('../api/client').RepairState>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -399,6 +402,7 @@ export function ProjectPage() {
     if (showEvidence) {
       return (
         <EvidenceExplorer
+          onInspectRun={setInspectedRun}
           projectId={projectId}
           isDark={isDark}
           onOpenTestPlan={(testId) => {
@@ -440,6 +444,18 @@ export function ProjectPage() {
         color: t.text,
       }}
     >
+      {inspectedRun && (
+        <RunLogModal
+          key={`${projectId}:${inspectedRun}`}
+          projectId={projectId}
+          runId={inspectedRun}
+          repair={repairs[`${projectId}:${inspectedRun}`]}
+          setRepair={repair => setRepairs(previous => ({
+            ...previous, [`${projectId}:${inspectedRun}`]: repair,
+          }))}
+          onClose={() => setInspectedRun(null)}
+        />
+      )}
       <Toaster position="bottom-right" richColors />
       <AppHeader
         projectTitle={state.project.title}

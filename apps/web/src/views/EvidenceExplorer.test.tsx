@@ -63,7 +63,7 @@ describe('EvidenceExplorer', () => {
     );
     expect(screen.getByText('Open Test Plan')).toBeInTheDocument();
     expect(screen.getByText('Open Analysis')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Inspect run' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inspect Run Logs' })).not.toBeInTheDocument();
   });
   it.each(['STALE', 'RECHECK_REQUIRED'])('renders %s with its reason and historical PASS', async (state) => {
     vi.mocked(getVerificationEvidenceChain).mockResolvedValue({
@@ -96,16 +96,16 @@ describe('EvidenceExplorer', () => {
     const onInspectRun = vi.fn();
     const { rerender } = render(<EvidenceExplorer projectId="proj_test" isDark={false} />);
     await screen.findByTestId('evidence-chain-R1-T1');
-    expect(screen.queryByRole('button', { name: 'Inspect run' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inspect Run Logs' })).not.toBeInTheDocument();
     rerender(<EvidenceExplorer projectId="proj_test" isDark={false} onInspectRun={onInspectRun} />);
     for (const [requirement, test, run] of [['R1', 'T1', 'exec_first'], ['R2', 'T2', 'exec_second']]) {
-      fireEvent.click(within(screen.getByTestId(`evidence-chain-${requirement}-${test}`)).getByRole('button', { name: 'Inspect run' }));
+      fireEvent.click(within(screen.getByTestId(`evidence-chain-${requirement}-${test}`)).getByRole('button', { name: 'Inspect Run Logs' }));
       expect(onInspectRun).toHaveBeenLastCalledWith(run);
     }
     expect(onInspectRun).toHaveBeenCalledTimes(2);
     expect(within(screen.getByTestId('evidence-chain-R3-T3')).queryByRole('button')).not.toBeInTheDocument();
     rerender(<EvidenceExplorer projectId="proj_test" isDark={false} />);
-    expect(screen.queryByRole('button', { name: 'Inspect run' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Inspect Run Logs' })).not.toBeInTheDocument();
   });
 
 });
