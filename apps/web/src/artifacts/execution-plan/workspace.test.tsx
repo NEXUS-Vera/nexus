@@ -14,7 +14,7 @@ const content = {
 const workspace = { workspaceId: 'ws_plan', artifactId: 'art_plan', baseArtifactVersion: 2, baseProjectStateVersion: fixture.project.currentStateVersion };
 const result = { schemaVersion: '1.0.0', commandId: 'cmd_test', commandRunId: 'run_test', projectId, artifactId: 'art_plan', status: 'completed', proposalId: 'prop_plan', startedAt: '2026-10-26T00:00:00Z', outputReferences: [], evidenceReferences: [], issueReferences: [] };
 
-function setup({ loadFailure = false, decisionFailure = false, createFailure = false } = {}) {
+function setup({ loadFailure = false, decisionFailure = false, createFailure = false, scaffoldConflict = false } = {}) {
   const projectState = structuredClone(fixture);
   const component = projectState.artifacts.find((a) => a.artifactType === 'component-plan')!;
   Object.assign(component.content, { candidates: [
@@ -39,6 +39,10 @@ function setup({ loadFailure = false, decisionFailure = false, createFailure = f
     }
     else if (url.endsWith('/artifact-commands')) {
       body = result;
+      if (scaffoldConflict) {
+        body = { ...result, status: 'failed', error: { code: 'COMMAND_VALIDATION_FAILED', message: 'Materialization conflicts with firmware/src/main.cpp. Copy the file contents to a safe location, then delete the conflicting file and retry plan approval.' } };
+        scaffoldConflict = false;
+      }
       if (decisionFailure) { status = 409; body = { error: { code: 'CONFLICT', message: 'Stale plan basis.' } }; }
     }
     return { ok: status === 200, status, text: async () => JSON.stringify(body) };
@@ -87,6 +91,19 @@ describe('Execution Plan rail and API integration', () => {
     expect(await screen.findByText('Plan accepted.')).toBeInTheDocument();
     const command = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/artifact-commands'));
     expect(JSON.parse(command![1]!.body as string).commandType).toBe('artifact.accept-revision');
+  });
+
+  it('offers scaffold reconciliation and retries a failed HTTP 200 acceptance', async () => {
+    const fetchMock = setup({ scaffoldConflict: true });
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Execution Plan' }));
+    expect(screen.getByText(/Unchanged workspace scaffolds are reconciled/)).toHaveTextContent('delete the named file');
+    await user.click(await screen.findByRole('button', { name: 'Accept plan' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('firmware/src/main.cpp');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Accept plan' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Accept plan' }));
+    expect(await screen.findByText('Plan accepted.')).toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/execution-plan/propose'))).toHaveLength(1);
   });
 
   it('offers explicit creation only after a missing-plan response', async () => {

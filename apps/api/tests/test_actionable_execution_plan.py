@@ -866,3 +866,95 @@ async def test_fixture_plan_compatibility_preserves_provenance(invalid: str | No
             )
             assert after_component == before_component
             assert {c["source"] for c in after_component["content"]["candidates"]} == {"fixture"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("edited_kind", [None, "firmware", "analysis"])
+async def test_scaffold_then_approve_reconciles_only_unmodified_output(
+    edited_kind: str | None,
+) -> None:
+    from nexus_api.main import app
+    from test_golden_lifecycle_http_api import _put_file
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        bindings = {}
+        for kind in ("firmware", "analysis"):
+            runtime = (
+                await client.get(f"/v1/projects/{pid}/artifacts/{kind}/workspace/runtime")
+            ).json()
+            binding = runtime["binding"]
+            bindings[kind] = binding
+            await _command(client, pid, actor, "workspace.acquire-edit-lease", binding, {})
+            state = (await client.get(f"/v1/projects/{pid}")).json()
+            response = await client.post(
+                f"/v1/projects/{pid}/artifacts/{kind}/workspace/scaffold",
+                json={
+                    "requestedBy": actor,
+                    "expectedDraftVersion": runtime["draft"]["draftVersion"],
+                    "baseArtifactVersion": binding["baseArtifactVersion"],
+                    "baseProjectStateVersion": state["project"]["currentStateVersion"],
+                },
+            )
+            assert response.status_code == 200, response.text
+            if kind == edited_kind:
+                await _put_file(
+                    client,
+                    pid,
+                    binding,
+                    response.json()["draft"]["draftVersion"],
+                    actor,
+                    "src/main.cpp" if kind == "firmware" else "analysis.py",
+                    b"# user changes must survive\n",
+                )
+        proposed = (await _propose(client, pid, actor, config)).json()
+        before = {}
+        for kind, binding in bindings.items():
+            before[kind] = (
+                await client.get(f"/v1/projects/{pid}/workspaces/{binding['workspaceId']}/files")
+            ).json()
+        state_before = (await client.get(f"/v1/projects/{pid}")).json()
+        result = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            proposed["workspace"],
+            {"proposalId": proposed["commandResult"]["proposalId"]},
+        )
+        if edited_kind:
+            assert result["status"] == "failed", result
+            message = result["error"]["message"]
+            assert f"{edited_kind}/" in message
+            assert "copy the file contents" in message
+            assert "retry plan approval" in message
+            assert (await client.get(f"/v1/projects/{pid}")).json() == state_before
+            for kind, binding in bindings.items():
+                assert (
+                    await client.get(
+                        f"/v1/projects/{pid}/workspaces/{binding['workspaceId']}/files"
+                    )
+                ).json() == before[kind]
+        else:
+            assert result["status"] == "completed", result
+            state = (await client.get(f"/v1/projects/{pid}")).json()
+            plan = next(a for a in state["artifacts"] if a["artifactType"] == "execution-plan")
+            for kind, binding in bindings.items():
+                for path in (
+                    ("platformio.ini", "src/main.cpp")
+                    if kind == "firmware"
+                    else ("README.md", "analysis.py")
+                ):
+                    read = await client.get(
+                        f"/v1/projects/{pid}/workspaces/{binding['workspaceId']}/file",
+                        params={"path": path},
+                    )
+                    assert read.status_code == 200, read.text
+                    assert read.json()["file"]["generatedFrom"] == (
+                        f"execution-plan:{plan['artifactId']}"
+                    )
+                    if path == "src/main.cpp":
+                        assert "Wire.begin" in read.json()["content"]

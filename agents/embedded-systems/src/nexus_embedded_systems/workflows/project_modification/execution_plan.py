@@ -314,7 +314,7 @@ class ExecutionPlanWorkflow:
                     "Objectives must match the current requirement criteria and methods."
                 )
         if accepting:
-            self._preflight(project_id, self.render(content))
+            self._preflight(project_id, self.render(content), content)
             self._check_leases(project_id, actor)
 
     def render(self, content: dict[str, Any]) -> dict[str, dict[str, bytes]]:
@@ -342,7 +342,28 @@ class ExecutionPlanWorkflow:
         analysis["nexus/approved-plan.json"] = context
         return {"firmware": firmware, "analysis": analysis}
 
-    def _preflight(self, project_id: str, files: dict[str, dict[str, bytes]]) -> None:
+    def _is_unmodified_scaffold(
+        self, kind: str, record: dict[str, Any], content: dict[str, Any]
+    ) -> bool:
+        config = content["configuration"]
+        profile = (
+            get_firmware_scaffold_profile(config["buildProfileId"])
+            if kind == "firmware"
+            else get_analysis_scaffold_profile(config["analysisProfileId"])
+        )
+        return (
+            record.get("origin") == "GENERATED"
+            and record.get("generatedFrom") == profile.generated_from
+            and not record.get("modifiedByUser", True)
+            and any(
+                spec.path == record["path"] and spec.content_hash == record["contentHash"]
+                for spec in profile.files
+            )
+        )
+
+    def _preflight(
+        self, project_id: str, files: dict[str, dict[str, bytes]], content: dict[str, Any]
+    ) -> None:
         for kind, expected in files.items():
             existing = self.kernel.workspaces.get_or_none(project_id, kind)
             if existing is None:
@@ -351,9 +372,13 @@ class ExecutionPlanWorkflow:
                 if record["path"] not in expected or record["contentHash"] != blob_digest(
                     expected[record["path"]]
                 ):
+                    if self._is_unmodified_scaffold(kind, record, content):
+                        continue
                     raise CommandValidationError(
-                        "Materialization conflicts with existing workspace files; "
-                        "preserve/reconcile them first."
+                        f"Materialization conflicts with {kind}/{record['path']}. "
+                        f"Open the {kind} workspace, copy the file contents to a safe "
+                        "location, then delete the conflicting file and retry plan approval. "
+                        "User-edited files are never overwritten."
                     )
 
     def _check_leases(self, project_id: str, actor: dict[str, Any]) -> None:
@@ -365,12 +390,12 @@ class ExecutionPlanWorkflow:
                     raise DraftEditLeaseHeldError("Workspace lease is held by another actor.")
 
     def materialize(self, project_id: str, artifact: dict[str, Any], actor: dict[str, Any]) -> None:
-        """Retry-safe writes after the durable user approval; never overwrite differing bytes."""
+        """Retry-safe approved writes, replacing only verified, unmodified scaffold output."""
         if actor.get("actorType") != "user" or artifact.get("approvalStatus") != "user-approved":
             raise CommandValidationError("User-approved plan required for materialization.")
         content = artifact["content"]
         files = self.render(content)
-        self._preflight(project_id, files)
+        self._preflight(project_id, files, content)
         self._check_leases(project_id, actor)
         for kind, expected in files.items():
             binding = self.kernel.workspace_runtime.resolve_binding(
@@ -379,7 +404,8 @@ class ExecutionPlanWorkflow:
             workspace_id = binding["workspaceId"]
             self.kernel.workspaces.acquire_edit_lease(workspace_id=workspace_id, actor=actor)
             for path, data in expected.items():
-                if self.kernel.kernel_store.get_workspace_file(workspace_id, path) is not None:
+                record = self.kernel.kernel_store.get_workspace_file(workspace_id, path)
+                if record is not None and not self._is_unmodified_scaffold(kind, record, content):
                     continue
                 draft = self.kernel.kernel_store.get_draft(workspace_id)
                 self.kernel.filesystem.write_file(

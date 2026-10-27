@@ -125,6 +125,9 @@ export function ExecutionPlanWorkspace({ projectId, state, isDark, onCommandResu
   return (
     <>
     {error ? <p role="alert">{error}</p> : null}
+    <p>Unchanged workspace scaffolds are reconciled on approval. If a file conflicts, open
+      Firmware or Analysis from the workflow rail, copy its contents to a safe location,
+      delete the named file, then return here and accept the plan again.</p>
     {outcome ? <p role="status">{outcome}</p> : null}
     {missing ? <button type="button" disabled={busy} onClick={() => { void createPlan(); }}>Create Execution Plan</button> : null}
     {artifact ? <ExecutionPlanReview key={`${projectId}-${artifact.artifactVersion}`} content={artifact.content} isDark={isDark}
