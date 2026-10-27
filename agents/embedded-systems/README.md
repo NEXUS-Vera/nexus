@@ -52,6 +52,15 @@ revision and file services. It does not extend the fixture prose interpreter to
 live conversation. See the W2 section of the initialization boundary document for
 supported selections, failure/retry semantics and the open live acceptance gate.
 
+Plan approval adopts or replaces pre-existing deterministic scaffold files only
+when their profile provenance and content hash match and they have no user-edit
+marker. Adopted files record the approved execution plan in `generatedFrom`;
+the original scaffold generation remains in workspace history. Other conflicts
+name the workspace/path and block approval before any writes. The plan review UI
+offers the existing editor/delete reconciliation path: copy conflicting contents
+to a safe location, delete the named file, and retry acceptance. Scaffolding before
+approval remains available. No public contract changes are required.
+
 ### Staged generation and repair
 
 `LlmInitializationProvider` generates artifacts in stages, minting all IDs
