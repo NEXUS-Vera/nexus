@@ -84,7 +84,8 @@ def test_authoring_names_current_versions_and_snapshot_inputs(kind):
         file_store=Files(),
     )
     refs = context["inputArtifactReferences"]
-    for artifact in artifacts.values():
+    scoped = ("execution-plan", "requirement-set") if kind == "firmware" else artifacts
+    for artifact in (artifacts[name] for name in scoped):
         assert {k: artifact[k] for k in ("artifactType", "artifactId", "artifactVersion")} in refs
     gateway = FakeModelGateway()
 

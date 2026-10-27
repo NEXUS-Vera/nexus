@@ -171,7 +171,9 @@ def test_patch_validation_rejects_invalid_paths_and_duplicates() -> None:
 
 
 def test_propose_records_immutable_base_snapshot_and_context() -> None:
-    kernel, _ps, kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, _ps, kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     before_files = kernel_store.list_workspace_files(binding["workspaceId"])
@@ -197,7 +199,9 @@ def test_propose_records_immutable_base_snapshot_and_context() -> None:
 
 
 def test_apply_replace_patch_updates_workspace() -> None:
-    kernel, _ps, kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, _ps, kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
@@ -230,7 +234,9 @@ def test_apply_replace_patch_updates_workspace() -> None:
 
 
 def test_stale_patch_rejected_after_manual_edit() -> None:
-    kernel, _ps, kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, _ps, kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
@@ -271,7 +277,9 @@ def test_stale_patch_rejected_after_manual_edit() -> None:
 
 
 def test_discard_leaves_workspace_unchanged() -> None:
-    kernel, _ps, kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, _ps, kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     before = copy.deepcopy(kernel_store.list_workspace_files(binding["workspaceId"]))
@@ -294,7 +302,9 @@ def test_discard_leaves_workspace_unchanged() -> None:
 
 
 def test_wrong_base_snapshot_workspace_rejected() -> None:
-    kernel, _ps, _kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, _ps, _kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
@@ -319,7 +329,9 @@ def test_wrong_base_snapshot_workspace_rejected() -> None:
 
 
 def test_generation_context_includes_artifact_versions() -> None:
-    kernel, project_store, _kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, project_store, _kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     _setup_scaffolded_firmware(kernel, project_id, user=user)
     snapshot = kernel.workspace_runtime.create_snapshot(
@@ -342,7 +354,9 @@ def test_generation_context_includes_artifact_versions() -> None:
 
 
 def test_apply_unknown_proposal_not_found() -> None:
-    kernel, _ps, _kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, _ps, _kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     binding = _setup_scaffolded_firmware(kernel, project_id, user=user)
     with pytest.raises(FirmwarePatchNotFoundError):
@@ -358,7 +372,9 @@ def test_apply_unknown_proposal_not_found() -> None:
 
 
 def test_deterministic_generator_mpu6050() -> None:
-    kernel, _ps, _kernel_store, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, _ps, _kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     _setup_scaffolded_firmware(kernel, project_id, user=user)
     proposed = kernel.workspace_runtime.propose_firmware_patch(
@@ -395,6 +411,7 @@ def test_propose_uses_injected_live_generator() -> None:
         },
     )
     kernel, _ps, _kernel_store, project_id = build_test_kernel(
+        approved_firmware_plan=True,
         auto_start_scheduler=False,
         firmware_patch_generator=LiveFirmwarePatchGenerator(
             gateway=gateway,

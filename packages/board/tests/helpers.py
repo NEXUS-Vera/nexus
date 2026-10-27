@@ -189,6 +189,7 @@ def minimal_package(project_id: str | None = None) -> dict[str, Any]:
 def build_test_kernel(
     *,
     autonomy_mode: str = "collaborate",
+    approved_firmware_plan: bool = False,
     capability_executors: dict[str, Any] | None = None,
     **kernel_kwargs: Any,
 ) -> tuple[Any, InMemoryProjectStore, InMemoryKernelStore, str]:
@@ -198,6 +199,8 @@ def build_test_kernel(
     package["project"]["autonomyMode"] = autonomy_mode
     project_store.save_initialization_package(copy.deepcopy(package))
     project_id = package["project"]["projectId"]
+    if approved_firmware_plan:
+        seed_approved_firmware_plan(project_store, project_id)
     kernel = build_project_kernel(
         kernel_store,
         project_store=project_store,
@@ -260,3 +263,33 @@ def acquire_edit_lease(
         )
     )
     return result
+
+
+def seed_approved_firmware_plan(project_store: Any, project_id: str) -> None:
+    """Seed reviewed source provenance for isolated firmware tests (no materializer)."""
+    package = project_store.get_current_state(project_id)
+    sources = package["artifacts"]
+    plan = {
+        **sources[0],
+        "artifactId": new_id("art"),
+        "artifactType": "execution-plan",
+        "approvalStatus": "user-approved",
+        "content": {
+            "plan": {
+                "sourceArtifacts": [
+                    {"artifactId": a["artifactId"], "artifactVersion": a["artifactVersion"]}
+                    for a in sources
+                ]
+            }
+        },
+    }
+    package["artifacts"].append(plan)
+    package["project"]["currentArtifactReferences"].append(
+        {
+            "artifactId": plan["artifactId"],
+            "artifactType": "execution-plan",
+            "artifactVersion": 1,
+            "contentSchemaVersion": "1.0.0",
+        }
+    )
+    project_store.save_initialization_package(package)

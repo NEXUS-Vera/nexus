@@ -162,8 +162,12 @@ already delivers explicit ELF bytes. No new output graph node type or delivery
 protocol is needed: output records retain IDs/digests, existing execution nodes
 capture causality. Analysis must follow the actual imported output rather than
 pin every analysis to whichever firmware happens to be current. Firmware
-requests retain reviewed plan source content in `artifacts` and also expose
-`currentArtifacts`; `inputArtifactReferences` names every inspected revision,
+requests require a user-approved execution plan (`FIRMWARE_EXECUTION_PLAN_APPROVAL_REQUIRED`
+otherwise), retain reviewed plan source content in `artifacts`, and expose only
+changed current revisions of those sources in `currentArtifacts`. Each revision
+is included and counted once toward the 131072-byte artifact limit; overflow
+errors report the total, limit, and bytes per artifact revision.
+`inputArtifactReferences` names every inspected revision,
 including both versions when they differ. Analysis requests include current
 requirements, components, interfaces, plan and test criteria, plus imported-output
 markers and hashes in snapshot files. Ordinary authoring and repair use the same

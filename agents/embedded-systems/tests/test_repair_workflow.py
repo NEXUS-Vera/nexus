@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 
 import pytest
-from helpers import acquire_edit_lease, actor
+from helpers import acquire_edit_lease, actor, seed_approved_firmware_plan
 from nexus_api import main
 from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
 from nexus_board.analysis.live_patch_generator import LiveAnalysisPatchGenerator
@@ -376,6 +376,7 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
 ):
     """Scripted compiler/model/simulator; real jobs, storage, import and Python analysis."""
     kernel, pid, user, _, _, write = repair_env
+    seed_approved_firmware_plan(kernel.project_store, pid)
     fixed_analysis = (
         (GOLDEN / "analysis.py")
         .read_text()

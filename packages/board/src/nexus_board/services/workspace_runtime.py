@@ -65,6 +65,7 @@ from nexus_board.firmware.patch import (
     check_patch_apply_staleness,
     generate_firmware_patch_operations,
     read_snapshot_file_text,
+    require_approved_firmware_plan,
     snapshot_manifest_index,
     validate_firmware_patch_proposal,
 )
@@ -701,6 +702,7 @@ class WorkspaceRuntimeService:
 
         if not isinstance(allow_fixture, bool):
             raise CommandValidationError("allowFixture must be a boolean")
+        require_approved_firmware_plan(self._projects, project_id)
         if self._firmware_patch_generator is None and not allow_fixture:
             raise FirmwarePatchGenerationError(
                 "Configure a model provider for firmware authoring.",

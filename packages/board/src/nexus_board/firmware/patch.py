@@ -94,6 +94,20 @@ def read_snapshot_file_text(
     return _decode_text(read_snapshot_file_bytes(file_store=file_store, entry=entry), path=path)
 
 
+def require_approved_firmware_plan(project_store: _ProjectStore, project_id: str) -> dict[str, Any]:
+    """Fail before snapshots or generation when firmware authoring is unapproved."""
+    try:
+        approved_plan = project_store.get_artifact(project_id, "execution-plan")
+    except ArtifactNotFoundError:
+        approved_plan = None
+    if approved_plan is None or approved_plan.get("approvalStatus") != "user-approved":
+        raise FirmwarePatchGenerationError(
+            "Approve an execution plan first; firmware authoring requires a user-approved plan.",
+            code="FIRMWARE_EXECUTION_PLAN_APPROVAL_REQUIRED",
+        )
+    return approved_plan
+
+
 def assemble_firmware_generation_context(
     *,
     project_store: _ProjectStore,
@@ -107,83 +121,73 @@ def assemble_firmware_generation_context(
         raise FirmwarePatchGenerationError("Firmware request exceeds byte limit")
     input_refs: list[dict[str, Any]] = []
     artifacts: dict[str, Any] = {}
-    try:
-        approved_plan = project_store.get_artifact(project_id, "execution-plan")
-    except ArtifactNotFoundError:
-        approved_plan = None
-    if approved_plan is not None and approved_plan.get("approvalStatus") != "user-approved":
-        raise FirmwarePatchGenerationError("Firmware context requires a user-approved plan")
-    selected = []
-    if approved_plan is not None:
-        selected.append(approved_plan)
-        # Resolve the reviewed versions, never silently substitute current domain content.
-        sources = approved_plan["content"]["plan"]["sourceArtifacts"]
-        if len(sources) > 32:
-            raise FirmwarePatchGenerationError("Approved plan has too many source artifacts")
-        for source in sources:
-            for kind in (
-                *CONTEXT_ARTIFACT_TYPES,
-                "next-action",
-                "risk-register",
-                "firmware",
-                "analysis",
-            ):
-                try:
-                    candidate = project_store.get_artifact(
-                        project_id, kind, version=source["artifactVersion"]
-                    )
-                except (ArtifactNotFoundError, ArtifactVersionNotFoundError):
-                    continue
-                if candidate["artifactId"] == source["artifactId"]:
-                    if kind in CONTEXT_ARTIFACT_TYPES:
-                        selected.append(candidate)
-                    break
-            else:
-                raise FirmwarePatchGenerationError(
-                    f"Approved plan source artifact is unavailable: {source}"
-                )
-    else:
-        for kind in CONTEXT_ARTIFACT_TYPES:
+    approved_plan = require_approved_firmware_plan(project_store, project_id)
+    selected = [approved_plan]
+    # Resolve reviewed versions, never silently substitute current domain content.
+    sources = approved_plan["content"]["plan"]["sourceArtifacts"]
+    if len(sources) > 32:
+        raise FirmwarePatchGenerationError("Approved plan has too many source artifacts")
+    for source in sources:
+        for kind in (
+            *CONTEXT_ARTIFACT_TYPES,
+            "next-action",
+            "risk-register",
+            "firmware",
+            "analysis",
+        ):
             try:
-                selected.append(project_store.get_artifact(project_id, kind))
-            except ArtifactNotFoundError:
+                candidate = project_store.get_artifact(
+                    project_id, kind, version=source["artifactVersion"]
+                )
+            except (ArtifactNotFoundError, ArtifactVersionNotFoundError):
                 continue
-    context_bytes = 0
-    for artifact in selected:
-        artifact_type = artifact["artifactType"]
-        context_bytes += len(
-            json.dumps(artifact.get("content"), ensure_ascii=False).encode("utf-8")
-        )
-        if context_bytes > MAX_CONTEXT_ARTIFACT_BYTES:
-            raise FirmwarePatchGenerationError("Firmware artifact context exceeds byte limit")
-        input_refs.append(
-            {
-                "artifactType": artifact_type,
-                "artifactVersion": int(artifact["artifactVersion"]),
-                "artifactId": artifact["artifactId"],
-            }
-        )
-        artifacts[artifact_type] = artifact.get("content")
+            if candidate["artifactId"] == source["artifactId"]:
+                if kind in CONTEXT_ARTIFACT_TYPES:
+                    selected.append(candidate)
+                break
+        else:
+            raise FirmwarePatchGenerationError(
+                f"Approved plan source artifact is unavailable: {source}"
+            )
 
-    # Reviewed plan sources remain explicit; current revisions are also supplied to
-    # authoring/repair so a historical approval cannot hide newer project context.
-    current_artifacts = {}
-    for kind in CONTEXT_ARTIFACT_TYPES:
+    sizes: dict[tuple[str, str, int], int] = {}
+
+    def include(artifact: dict[str, Any], target: dict[str, Any]) -> None:
+        ref = {
+            "artifactType": artifact["artifactType"],
+            "artifactId": artifact["artifactId"],
+            "artifactVersion": int(artifact["artifactVersion"]),
+        }
+        key = (ref["artifactType"], ref["artifactId"], ref["artifactVersion"])
+        if key in sizes:
+            return
+        sizes[key] = len(json.dumps(artifact.get("content"), ensure_ascii=False).encode("utf-8"))
+        input_refs.append(ref)
+        target[artifact["artifactType"]] = artifact.get("content")
+
+    for artifact in selected:
+        include(artifact, artifacts)
+
+    # Only inspect current revisions of the plan's sources. Unchanged revisions
+    # already appear in artifacts; currentArtifacts contains changed revisions only.
+    current_artifacts: dict[str, Any] = {}
+    for kind in dict.fromkeys(a["artifactType"] for a in selected[1:]):
         try:
             current = project_store.get_artifact(project_id, kind)
         except ArtifactNotFoundError:
             continue
-        ref = {
-            "artifactType": kind,
-            "artifactId": current["artifactId"],
-            "artifactVersion": current["artifactVersion"],
-        }
-        current_artifacts[kind] = current["content"]
-        context_bytes += len(json.dumps(current["content"], ensure_ascii=False).encode("utf-8"))
-        if context_bytes > MAX_CONTEXT_ARTIFACT_BYTES:
-            raise FirmwarePatchGenerationError("Firmware artifact context exceeds byte limit")
-        if ref not in input_refs:
-            input_refs.append(ref)
+        include(current, current_artifacts)
+
+    context_bytes = sum(sizes.values())
+    if context_bytes > MAX_CONTEXT_ARTIFACT_BYTES:
+        details = ", ".join(
+            f"{kind} ({artifact_id} v{version}): {size} B"
+            for (kind, artifact_id, version), size in sizes.items()
+        )
+        raise FirmwarePatchGenerationError(
+            f"Firmware artifact context exceeds byte limit: {context_bytes} B > "
+            f"{MAX_CONTEXT_ARTIFACT_BYTES} B; {details}"
+        )
 
     manifest = snapshot_manifest_index(base_snapshot)
     if len(manifest) > MAX_CONTEXT_SNAPSHOT_FILES:
