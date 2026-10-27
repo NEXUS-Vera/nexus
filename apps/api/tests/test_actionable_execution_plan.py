@@ -671,7 +671,10 @@ async def test_default_configuration_with_eight_architecture_roles(binding: str)
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("missing_key", ["partNumber", "specifications"])
+@pytest.mark.parametrize(
+    "missing_key",
+    ["partNumber", "specifications", "candidateId", "candidateState", "componentRoleId"],
+)
 @pytest.mark.parametrize("category", ["compute", "sensing"])
 async def test_default_configuration_skips_malformed_candidates(
     missing_key: str, category: str
@@ -707,3 +710,95 @@ async def test_default_configuration_skips_malformed_candidates(
             CommandValidationError, match="Default configuration requires one usable"
         ):
             derive_default_configuration(state)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("collection", "key"),
+    [
+        ("candidates", None),
+        ("nodes", None),
+        ("nodes", "nodeId"),
+        ("nodes", "componentCandidateId"),
+        ("connections", None),
+        *[
+            ("connections", k)
+            for k in ("interfaceType", "status", "fromNodeId", "toNodeId", "connectionId")
+        ],
+        ("specifications", None),
+        ("specifications", "specKey"),
+        ("specifications", "value"),
+    ],
+)
+async def test_default_configuration_skips_malformed_entries(
+    collection: str, key: str | None
+) -> None:
+    from nexus_api.main import _store, app
+    from nexus_board.errors import CommandValidationError
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        derive_default_configuration,
+    )
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, expected = await _setup(client, actor)
+        state = _store.get_current_state(pid)
+        cp = next(a["content"] for a in state["artifacts"] if a["artifactType"] == "component-plan")
+        electrical = next(
+            a["content"]
+            for a in state["artifacts"]
+            if a["artifactType"] == "electrical-architecture"
+        )
+        compute = next(c for c in cp["candidates"] if c["candidateCategory"] == "compute")
+        if collection == "candidates":
+            entries, valid = cp["candidates"], compute
+        elif collection == "specifications":
+            entries = compute["specifications"]
+            valid = next(s for s in entries if s["specKey"] == "gpio-sda")
+        else:
+            entries = electrical[collection]
+            bus = next(c for c in electrical["connections"] if c["interfaceType"] == "i2c")
+            valid = (
+                bus
+                if collection == "connections"
+                else next(n for n in entries if n["nodeId"] == bus["fromNodeId"])
+            )
+        malformed: Any = copy.deepcopy(valid) if key else None
+        if key:
+            del malformed[key]
+        entries.insert(0, malformed)
+        original = copy.deepcopy(state)
+        derived = derive_default_configuration(state)
+        derived["components"].sort(key=lambda c: c["candidateId"])
+        expected["components"].sort(key=lambda c: c["candidateId"])
+        assert derived == expected
+        assert state == original
+        entries[:] = [malformed]
+        if collection == "specifications":
+            # Ignored spec items preserve the established default pins.
+            result = derive_default_configuration(state)
+            result["components"].sort(key=lambda c: c["candidateId"])
+            assert result == expected
+        else:
+            with pytest.raises(
+                CommandValidationError, match="Default configuration requires one usable"
+            ):
+                derive_default_configuration(state)
+        if collection == "connections" and key == "status":
+            _store.save_initialization_package(state)
+            response = await client.post(
+                f"/v1/projects/{pid}/execution-plan/propose",
+                json={
+                    "requestedBy": actor,
+                    "baseProjectStateVersion": state["project"]["currentStateVersion"],
+                    "basePlanVersion": 0,
+                },
+            )
+            assert response.status_code == 422, response.text
+            assert response.json()["error"]["code"] == "COMMAND_VALIDATION_FAILED"
+            assert (
+                "Default configuration requires one usable" in response.json()["error"]["message"]
+            )
+            assert _store.get_current_state(pid) == state
