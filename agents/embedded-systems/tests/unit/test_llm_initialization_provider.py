@@ -304,6 +304,10 @@ async def test_semantic_failure_names_node_and_component() -> None:
             "accel_x RMS noise stays below 0.10 g.",
             {"ESP32-DEVKIT-V1": "compute", "MPU6050": "sensor"},
         ),
+        (
+            "Build an ESP32 DevKit V1 vibration monitor using an MPU-6050.",
+            {"ESP32-DEVKIT-V1": "compute", "MPU6050": "sensor"},
+        ),
         ("Build an ESP32-S3 vibration monitor using an MPU6050X sensor.", {}),
         (WEARABLE_TREMOR_PROMPT, {}),
     ],

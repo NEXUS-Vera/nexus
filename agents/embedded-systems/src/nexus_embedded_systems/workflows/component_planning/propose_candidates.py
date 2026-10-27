@@ -249,7 +249,7 @@ def _named_template(role: dict[str, Any], message: str) -> dict[str, Any] | None
     category = role.get("category")
     blob = f"{role.get('name', '')} {role.get('description', '')}".casefold()
     if category == "compute" and re.search(
-        r"\bESP32(?:-DEVKIT-V1)?(?:-based|-class|-powered)?(?![\w-])", message, re.I
+        r"\bESP32(?:[- ]DEVKIT(?:[- ]?V1)?)?(?:-based|-class|-powered)?(?![\w-])", message, re.I
     ):
         manufacturer, part, name = "Espressif", "ESP32-DEVKIT-V1", "ESP32 DevKit V1"
     elif (
@@ -257,7 +257,7 @@ def _named_template(role: dict[str, Any], message: str) -> dict[str, Any] | None
         and any(
             hint in blob for hint in ("motion", "inertial", "accel", "vibration", "imu", "tremor")
         )
-        and re.search(r"\bMPU6050(?![\w-])", message, re.I)
+        and re.search(r"\bMPU-?6050(?![\w-])", message, re.I)
     ):
         manufacturer, part, name = "InvenSense", "MPU6050", "MPU6050 inertial sensor"
     else:
