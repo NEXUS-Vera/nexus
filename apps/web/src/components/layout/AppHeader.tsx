@@ -1,3 +1,4 @@
+import { ProviderModePill } from './provider-mode-pill';
 import { Link } from 'react-router-dom';
 import { ChevronRight, History, Moon, Search, Sun } from 'lucide-react';
 import type { GlobalView } from '../../artifacts/types';
@@ -135,6 +136,7 @@ export function AppHeader({
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+        <ProviderModePill />
         <button
           type="button"
           onClick={onOpenCommandPalette}

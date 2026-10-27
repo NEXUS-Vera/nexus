@@ -130,7 +130,7 @@ export function EvidenceExplorer({ projectId, isDark, onOpenTestPlan, onOpenAnal
               ) : null}
               {onInspectRun && row.executionRunId ? (
                 <button type="button" onClick={() => onInspectRun(row.executionRunId!)} style={{ cursor: 'pointer' }}>
-                  Inspect run
+                  Inspect Run Logs
                 </button>
               ) : null}
               {onOpenAnalysis ? (

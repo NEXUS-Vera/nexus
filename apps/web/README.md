@@ -126,7 +126,14 @@ revisions with version guards. Decisions disable while pending and show failures
 Projects without a saved execution-plan artifact show the API error; creating the
 initial plan/configuration remains outside this slice. `EvidenceExplorer` accepts an
 optional `onInspectRun(runId)` callback to show Inspect run for rows with execution
-run IDs. No caller supplies it yet; run navigation remains pending. These pieces
+run IDs. The project page supplies it to open an in-place, keyboard-dismissable run-log
+modal. Logs refresh while open and credential-like diagnostic text is masked.
+Diagnose & Repair explicitly starts/advances the existing review-paused loop,
+with a revision guard and a three-attempt cap; it never approves corrections.
+Repair state is retained while the project page stays mounted, not across reloads.
+The header LIVE/FIXTURE pill reads initialization mode from health and opens
+diagnostics; tool availability is explicitly unknown because health does not
+report it. No raw configuration or error objects are rendered. These pieces
 do not complete the W8 real API/SQLite journey acceptance gate.
 
 ## Local development

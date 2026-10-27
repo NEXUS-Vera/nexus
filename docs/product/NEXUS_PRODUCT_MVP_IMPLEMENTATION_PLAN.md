@@ -35,6 +35,13 @@ through the typed API client. Reject is one click with an optional inline reason
 an empty reason uses the existing client default. This slice does not close the
 real API/SQLite browser journey gate above.
 
+W8 slice 2 (N193), approved D3/D4/D5: Evidence Explorer run inspection opens
+an in-place log modal. Explicit Diagnose & Repair advances the existing bounded,
+review-paused loop; no automatic repair or approval. The header provider pill
+opens diagnostics, distinguishing initialization mode from unreported tool
+availability. Component regressions cover controls and masked diagnostic text;
+the real API/SQLite journey remains an open gate.
+
 ## Verification discipline per implementation PR
 
 Every future PR must state its P criterion, trigger and resulting behavior, owning module, architecture/contract impact, test/eval evidence, execution modes and risks. Add deterministic tests for new behavior and controlled model evaluations for prompt changes. Run the affected unit and integration suites, relevant evaluations, formatter/lint/typecheck, contract checks where applicable, and `make check`; distinguish skips, missing dependencies and failures from passes. Review diffs for secrets, user data, generated binaries/logs and prohibited documentation. Retain heavyweight run artifacts outside Git with review links.
