@@ -32,6 +32,61 @@ CONTENT_SCHEMA = (
 )
 
 
+def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
+    """Select the supported prototype pair from its current electrical binding.
+
+    Other architecture roles remain in the review plan, outside materialization.
+    Ambiguous or unresolved bindings require explicit user configuration.
+    """
+    by_type = {a["artifactType"]: a["content"] for a in package["artifacts"]}
+    candidates = {
+        c["candidateId"]: c
+        for c in by_type["component-plan"]["candidates"]
+        if c["candidateState"] not in {"blocked", "rejected", "superseded"}
+    }
+    electrical = by_type.get("electrical-architecture", {})
+    nodes = {n["nodeId"]: n for n in electrical.get("nodes", [])}
+    options = []
+    for connection in electrical.get("connections", []):
+        if connection["interfaceType"] != "i2c" or connection["status"] in {
+            "unresolved",
+            "needs-resolution",
+        }:
+            continue
+        pair = [
+            candidates.get(nodes.get(connection[key], {}).get("componentCandidateId"))
+            for key in ("fromNodeId", "toNodeId")
+        ]
+        if any(c is None for c in pair):
+            continue
+        selected = [c for c in pair if c is not None]
+        if {c["partNumber"].upper() for c in selected} != {"ESP32-DEVKIT-V1", "MPU6050"}:
+            continue
+        compute = next(c for c in selected if c["partNumber"].upper() == "ESP32-DEVKIT-V1")
+        specs = {s["specKey"]: s["value"] for s in compute["specifications"]}
+        options.append(
+            {
+                "buildProfileId": "platformio-arduino-esp32-v1",
+                "analysisProfileId": "python-analysis-v1",
+                "components": [
+                    {"componentRoleId": c["componentRoleId"], "candidateId": c["candidateId"]}
+                    for c in selected
+                ],
+                "i2c": {
+                    "connectionId": connection["connectionId"],
+                    "sdaPin": specs.get("gpio-sda", 21),
+                    "sclPin": specs.get("gpio-scl", 22),
+                },
+            }
+        )
+    if len(options) != 1:
+        raise CommandValidationError(
+            "Default configuration requires one usable ESP32-DEVKIT-V1 + MPU6050 I2C binding; "
+            "provide an explicit configuration."
+        )
+    return options[0]
+
+
 class ExecutionPlanWorkflow:
     def __init__(self, kernel: Any) -> None:
         self.kernel = kernel
@@ -59,7 +114,9 @@ class ExecutionPlanWorkflow:
         ]
         content = {
             "plan": plan or compose_execution_plan(current),
-            "configuration": configuration,
+            "configuration": (
+                derive_default_configuration(current) if configuration is None else configuration
+            ),
         }
         self.validate_revision(project_id, "execution-plan", content, False, actor)
         created = self.kernel.workspaces.create_if_missing(

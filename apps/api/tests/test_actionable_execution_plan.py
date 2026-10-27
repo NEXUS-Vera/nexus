@@ -576,3 +576,63 @@ async def test_agent_proposal_requires_user_approval() -> None:
         assert denied["error"]["code"] == "GOVERNANCE_REJECTED"
         state = (await client.get(f"/v1/projects/{pid}")).json()
         assert not any(a["artifactType"] == "execution-plan" for a in state["artifacts"])
+
+
+@pytest.mark.asyncio
+async def test_default_configuration_with_eight_architecture_roles() -> None:
+    from nexus_api.main import _store, app
+    from nexus_board.errors import CommandValidationError
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        derive_default_configuration,
+    )
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, expected = await _setup(client, actor)
+        state = _store.get_current_state(pid)
+        component = next(a for a in state["artifacts"] if a["artifactType"] == "component-plan")
+        cp = component["content"]
+        for index in range(6):
+            role = copy.deepcopy(cp["componentRoles"][0])
+            role["componentRoleId"] = f"extra-role-{index}"
+            cp["componentRoles"].insert(0, role)
+            candidate = copy.deepcopy(cp["candidates"][0])
+            candidate.update(
+                componentRoleId=role["componentRoleId"],
+                candidateId=f"extra-candidate-{index}",
+                partNumber=f"OTHER-{index}",
+            )
+            cp["candidates"].insert(0, candidate)
+        _store.save_initialization_package(state)
+        original = copy.deepcopy(state)
+        derived = derive_default_configuration(state)
+        expected["components"].sort(key=lambda c: c["candidateId"])
+        derived["components"].sort(key=lambda c: c["candidateId"])
+        assert derived == expected
+        assert state == original
+        response = await _propose(client, pid, actor, expected, configuration=None)
+        assert response.status_code == 200, response.text
+        content = response.json()["content"]
+        content["configuration"]["components"].sort(key=lambda c: c["candidateId"])
+        assert content["configuration"] == expected
+        assert len(content["plan"]["components"]) == 8
+        # Proposing is review only; the project has not accepted or materialized it.
+        assert _store.get_current_state(pid)["project"] == state["project"]
+
+        electrical = next(
+            a["content"]
+            for a in state["artifacts"]
+            if a["artifactType"] == "electrical-architecture"
+        )
+        bus = next(
+            c
+            for c in electrical["connections"]
+            if c["connectionId"] == expected["i2c"]["connectionId"]
+        )
+        bus["status"] = "unresolved"
+        with pytest.raises(
+            CommandValidationError, match="Default configuration requires one usable"
+        ):
+            derive_default_configuration(state)

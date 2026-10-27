@@ -37,7 +37,7 @@ agent calls them in to take a project from prompt to verified evidence, see
 - `GET /v1/projects/{projectId}/history?limit=` - project history
 - `POST /v1/projects/{projectId}/turns` - multi-turn modification (`ProjectTurnResult`, includes impact analysis)
 - `GET /v1/projects/{projectId}/board` - board summary, including Component Plan maturity/coverage counts
-- `POST /v1/projects/{projectId}/execution-plan/propose` - refresh and propose an actionable plan against explicit project/plan versions
+- `POST /v1/projects/{projectId}/execution-plan/propose` - refresh and propose an actionable plan against explicit project/plan versions. Omitting `configuration` (or passing null) derives the supported ESP32-DEVKIT-V1 + MPU6050 pair and their resolved I2C connection from the current project. Other architecture roles remain in the review plan but are outside materialization; the actionable v1 configuration still contains exactly two components. Ambiguous/missing bindings require explicit configuration. Proposal remains an explicit user action; initialization does not auto-propose.
 - `POST /v1/projects/{projectId}/execution-plan/materialize` - retry interrupted materialization of the current user-approved plan
 - `POST /v1/projects/{projectId}/artifact-commands` - typed artifact commands such as `workspace.acquire-edit-lease` (`ArtifactCommandResult`)
 - `GET /v1/projects/{projectId}/events?limit=&cursor=` - project event feed
