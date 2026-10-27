@@ -215,6 +215,7 @@ def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
     from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
     from nexus_circuit_simulation import (
         CircuitExecutionError,
+        ExecutionOutput,
         ExecutionResult,
         SupportStatus,
     )
@@ -231,6 +232,7 @@ def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
         succeeded=False,
         exit_code=None,
         timed_out=True,
+        outputs=(ExecutionOutput("serial.log", b"TEL,0,0,0,1"),),
     )
     adapter = CircuitSimulationExecutionAdapter(
         provider=provider, project_store=store, firmware_ready=True
@@ -246,6 +248,10 @@ def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
                 "snapshot": {"projectId": "proj_test", "content": {"structuredContent": {}}},
             }
         )
+    assert provider.execute.call_args.args[0].timeout_seconds == 5
+    partial_outputs = getattr(error.value, "partial_outputs", [])
+    assert partial_outputs[0]["structuredResult"]["truncated"] is True
+    assert partial_outputs[0]["evidenceStatus"] == "unverified"
     assert error.value.code == "SIMULATION_TIMEOUT"
     # Preserve the execution service's timed-out status classification.
     assert isinstance(error.value, TimeoutError)

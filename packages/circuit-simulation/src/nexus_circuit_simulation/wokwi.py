@@ -9,6 +9,7 @@ from pathlib import Path
 from .errors import CircuitConfigurationError, CircuitExecutionError
 from .runner import (
     DEFAULT_MAX_OUTPUT_BYTES,
+    MAX_HOST_TIMEOUT_SECONDS,
     ProcessRunner,
     SafeSubprocessRunner,
     sanitize_diagnostic,
@@ -31,6 +32,7 @@ from .types import (
 
 WOKWI_MAX_SIMULATION_TIMEOUT_SECONDS = 300.0
 WOKWI_PROCESS_GRACE_SECONDS = 10.0
+WOKWI_HOST_TIME_MULTIPLIER = 20.0
 
 
 class WokwiProvider:
@@ -142,7 +144,10 @@ class WokwiProvider:
             min(float(request.timeout_seconds), WOKWI_MAX_SIMULATION_TIMEOUT_SECONDS),
         )
         simulation_timeout_ms = round(simulation_timeout_seconds * 1000)
-        host_timeout_seconds = simulation_timeout_seconds + WOKWI_PROCESS_GRACE_SECONDS
+        host_timeout_seconds = min(
+            MAX_HOST_TIMEOUT_SECONDS,
+            simulation_timeout_seconds * WOKWI_HOST_TIME_MULTIPLIER + WOKWI_PROCESS_GRACE_SECONDS,
+        )
         arguments: list[str] = [
             "{workspace}",
             "--elf",
@@ -184,7 +189,7 @@ class WokwiProvider:
                 ExecutionOutput(
                     name=name,
                     content=content,
-                    truncated=truncated or name in result.truncated_outputs,
+                    truncated=result.timed_out or truncated or name in result.truncated_outputs,
                 )
             )
         for name, content in (("stdout", result.stdout), ("stderr", result.stderr)):
@@ -194,7 +199,7 @@ class WokwiProvider:
                     ExecutionOutput(
                         name=name,
                         content=bounded,
-                        truncated=truncated or name in result.truncated_outputs,
+                        truncated=result.timed_out or truncated or name in result.truncated_outputs,
                     )
                 )
         findings = list(request.workspace.findings)

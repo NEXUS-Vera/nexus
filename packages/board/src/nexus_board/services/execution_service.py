@@ -290,6 +290,16 @@ class ExecutionService:
                 "code": getattr(exc, "code", type(exc).__name__.upper()),
                 "message": str(exc)[:500] or "Capability execution failed.",
             }
+            partial_outputs = getattr(exc, "partial_outputs", [])
+            if partial_outputs:
+                retained = self._normalize_provider_outputs(
+                    run=run,
+                    provider_result={"outputs": partial_outputs},
+                    completed_at=failed["completedAt"],
+                )
+                for output in retained:
+                    self._kernel.create_produced_output(output)
+                failed["outputReferences"] = [o["outputId"] for o in retained]
             self._kernel.update_execution_status(run_id, failed)
             self._ledger.append(
                 project_id=project_id,

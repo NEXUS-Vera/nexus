@@ -229,3 +229,54 @@ def test_configuration_failure_is_failed_not_stale() -> None:
     assert runs[0]["error"]["code"] == "WOKWI_CREDENTIAL_MISSING"
     assert runs[0]["outputReferences"] == []
     assert runs[0]["evidenceReferences"] == []
+
+
+def test_timeout_retains_partial_output() -> None:
+    class PartialTimeout(TimeoutError):
+        code = "SIMULATION_TIMEOUT"
+        partial_outputs = [
+            {
+                "name": "serial.log",
+                "outputType": "log",
+                "structuredResult": {"text": "TEL,0,0,0,1", "truncated": True},
+                "evidenceStatus": "unverified",
+            }
+        ]
+
+    class UnavailableExecutor:
+        def execute(self, request: dict) -> dict:
+            raise PartialTimeout("Simulation timed out")
+
+    kernel, projects, store, pid = build_test_kernel(
+        capability_executors={"fake-execution": UnavailableExecutor()}
+    )
+    art = projects.get_artifact(pid, "requirement-set")
+    editor = actor()
+    ws = kernel.workspaces.create_workspace(
+        project_id=pid, artifact_type="requirement-set", actor=editor
+    )["workspace"]["workspaceId"]
+    acquire_edit_lease(
+        kernel, project_id=pid, artifact_id=art["artifactId"], workspace_id=ws, requested_by=editor
+    )
+    snap = kernel.workspaces.create_snapshot(
+        workspace_id=ws, reason="configuration gate", actor=editor
+    )
+    result = kernel.dispatch(
+        cmd(
+            command_type="artifact.execute",
+            project_id=pid,
+            artifact_id=art["artifactId"],
+            workspace_id=ws,
+            input_data={"snapshotId": snap["snapshotId"], "capability": "fake-execution"},
+        )
+    )
+    assert result["error"]["code"] == "SIMULATION_TIMEOUT"
+    runs, _ = store.list_execution_runs(pid)
+    assert runs[0]["status"] == "timed-out"
+    assert runs[0]["error"]["code"] == "SIMULATION_TIMEOUT"
+    assert len(runs[0]["outputReferences"]) == 1
+    output = store.get_produced_output(runs[0]["outputReferences"][0])
+    assert output["evidenceStatus"] == "unverified"
+    assert output["content"]["structuredResult"]["truncated"] is True
+    assert output["content"]["structuredResult"]["text"] == "TEL,0,0,0,1"
+    assert runs[0]["evidenceReferences"] == []
