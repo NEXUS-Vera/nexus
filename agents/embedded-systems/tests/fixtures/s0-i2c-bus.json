@@ -1,0 +1,159 @@
+{
+  "nodes": [
+    {
+      "nodeId": "node_HJZBQVLKM1HR8H92UB6EF6KP",
+      "name": "IMU Acceleration Sensing Subsystem",
+      "functionalType": "sensing",
+      "responsibilities": [
+        "Measure raw 3-axis linear acceleration (X, Y, Z) from the physical environment",
+        "Expose acceleration register data over the I2C interface for retrieval by the processing subsystem",
+        "Operate exclusively in accelerometer mode; gyroscope and other IMU outputs are not used"
+      ],
+      "satisfiesRequirementIds": [
+        "req_BWYWZVEDI4EOOCQ7TX76NZYL",
+        "req_0DFANNSDAVO99FOO3S0ZGVM5",
+        "req_1C9L7CKILJMBIAF9N0QYQ6ZI",
+        "req_1JKZ4ILMNYYILGJN5NQHQAXQ",
+        "req_A3RMCTJE3BYIM3NEASCCPDOX",
+        "req_AYJ91KNX5480XI9XIUFVXTN3",
+        "req_NVD2WBGC0O59X2X0230FAC28",
+        "req_Q1EVEWETRBAEESUT2ALSJPHD",
+        "req_TNXCI81ROMTY7M3L7X5UIUOX",
+        "req_W825ZXVQ5W503TXO8MEJJ5HL",
+        "req_YML6RSWCFABEQSXEW355M6T4"
+      ]
+    },
+    {
+      "nodeId": "node_YNZXZ6XUNBEH5A1WDUQM1V1H",
+      "name": "I2C Communication Bus",
+      "functionalType": "communication",
+      "responsibilities": [
+        "Carry I2C read transactions from the processing subsystem to the IMU sensing subsystem",
+        "Transfer raw acceleration register bytes from the IMU sensing subsystem to the processing subsystem",
+        "Provide the physical and logical communication channel mandated by the I2C constraint"
+      ],
+      "satisfiesRequirementIds": [
+        "req_BWYWZVEDI4EOOCQ7TX76NZYL"
+      ]
+    },
+    {
+      "nodeId": "node_JAIQYSR450GGEBM63QVHBMAB",
+      "name": "Central Processing Subsystem",
+      "functionalType": "processing",
+      "responsibilities": [
+        "Initiate periodic I2C read transactions to retrieve raw acceleration register data from the IMU sensing subsystem",
+        "Convert raw register values into scaled acceleration quantities (X, Y, Z axes)",
+        "Format the three acceleration values into a human-readable serial output string",
+        "Transmit the formatted string to the serial output subsystem for delivery to the laptop",
+        "Coordinate overall system timing and control flow"
+      ],
+      "satisfiesRequirementIds": [
+        "req_BWYWZVEDI4EOOCQ7TX76NZYL"
+      ]
+    },
+    {
+      "nodeId": "node_PZY4OGE46IHA1UMNYAN00K0B",
+      "name": "Serial Output Subsystem",
+      "functionalType": "output",
+      "responsibilities": [
+        "Accept formatted acceleration data strings from the processing subsystem",
+        "Transmit the data over a serial (UART-to-USB) link to the connected laptop",
+        "Provide the physical serial connection point (USB connector on the ESP32 DevKit) used for both data output and device power"
+      ],
+      "satisfiesRequirementIds": [
+        "req_BWYWZVEDI4EOOCQ7TX76NZYL"
+      ]
+    },
+    {
+      "nodeId": "node_AR1M1X9JNRXMCC2KOPH494H5",
+      "name": "Laptop Serial Monitor (External System)",
+      "functionalType": "external-system",
+      "responsibilities": [
+        "Receive the serial data stream from the embedded device",
+        "Display the live X/Y/Z acceleration values to the user via a serial terminal application",
+        "Optionally supply USB power to the embedded device through the serial connection"
+      ],
+      "satisfiesRequirementIds": [
+        "req_BWYWZVEDI4EOOCQ7TX76NZYL"
+      ]
+    },
+    {
+      "nodeId": "node_52R8NLHNREN7DRGA775194AW",
+      "name": "Power Supply Subsystem",
+      "functionalType": "power",
+      "responsibilities": [
+        "Accept USB bus power from the laptop (or an alternative 5 V source) via the DevKit USB connector",
+        "Distribute regulated power to the processing subsystem and the IMU sensing subsystem",
+        "Provide any required voltage regulation for the IMU sensing subsystem"
+      ],
+      "satisfiesRequirementIds": [
+        "req_BWYWZVEDI4EOOCQ7TX76NZYL"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "edgeId": "edge_4RK4RQ43P14ZFJP9P3DG7XEG",
+      "fromNodeId": "node_52R8NLHNREN7DRGA775194AW",
+      "toNodeId": "node_JAIQYSR450GGEBM63QVHBMAB",
+      "flowType": "power",
+      "description": "Regulated power delivered from the power supply subsystem to the central processing subsystem (ESP32 DevKit, user-fixed constraint)"
+    },
+    {
+      "edgeId": "edge_U90JOA7WD4SUD34H3PPJT3WA",
+      "fromNodeId": "node_52R8NLHNREN7DRGA775194AW",
+      "toNodeId": "node_HJZBQVLKM1HR8H92UB6EF6KP",
+      "flowType": "power",
+      "description": "Regulated power delivered from the power supply subsystem to the IMU acceleration sensing subsystem (MPU6050, user-fixed constraint)"
+    },
+    {
+      "edgeId": "edge_VLAF3M6UA7494MDFIZV55ZJR",
+      "fromNodeId": "node_AR1M1X9JNRXMCC2KOPH494H5",
+      "toNodeId": "node_52R8NLHNREN7DRGA775194AW",
+      "flowType": "power",
+      "description": "USB bus power supplied from the laptop to the embedded device power supply subsystem via the DevKit USB connector"
+    },
+    {
+      "edgeId": "edge_YRB9XAFCHOOWCBT80QJL6AMF",
+      "fromNodeId": "node_JAIQYSR450GGEBM63QVHBMAB",
+      "toNodeId": "node_YNZXZ6XUNBEH5A1WDUQM1V1H",
+      "flowType": "control",
+      "description": "I2C read command transactions issued by the processing subsystem onto the I2C bus to request acceleration register data from the IMU"
+    },
+    {
+      "edgeId": "edge_AADNH7Q9UKPPCE3U54QORJK1",
+      "fromNodeId": "node_YNZXZ6XUNBEH5A1WDUQM1V1H",
+      "toNodeId": "node_HJZBQVLKM1HR8H92UB6EF6KP",
+      "flowType": "control",
+      "description": "I2C read request forwarded from the bus to the IMU sensing subsystem, triggering register data output"
+    },
+    {
+      "edgeId": "edge_CT4TYPXIOR31VP1VVBLOC4N9",
+      "fromNodeId": "node_HJZBQVLKM1HR8H92UB6EF6KP",
+      "toNodeId": "node_YNZXZ6XUNBEH5A1WDUQM1V1H",
+      "flowType": "data",
+      "description": "Raw 3-axis acceleration register bytes (X, Y, Z) returned by the IMU sensing subsystem onto the I2C bus"
+    },
+    {
+      "edgeId": "edge_KV932GDKSGX0WQGE736LMZ4M",
+      "fromNodeId": "node_YNZXZ6XUNBEH5A1WDUQM1V1H",
+      "toNodeId": "node_JAIQYSR450GGEBM63QVHBMAB",
+      "flowType": "data",
+      "description": "Raw acceleration register bytes delivered from the I2C bus to the processing subsystem for scaling and formatting"
+    },
+    {
+      "edgeId": "edge_51X4BX9CZDZN44MHBC120SXB",
+      "fromNodeId": "node_JAIQYSR450GGEBM63QVHBMAB",
+      "toNodeId": "node_PZY4OGE46IHA1UMNYAN00K0B",
+      "flowType": "data",
+      "description": "Formatted X/Y/Z acceleration string passed from the processing subsystem to the serial output subsystem for transmission"
+    },
+    {
+      "edgeId": "edge_5M7HKQDA4XIG7WEHM2ZEQE1S",
+      "fromNodeId": "node_PZY4OGE46IHA1UMNYAN00K0B",
+      "toNodeId": "node_AR1M1X9JNRXMCC2KOPH494H5",
+      "flowType": "data",
+      "description": "Serial data stream carrying live X/Y/Z acceleration values transmitted from the embedded device to the laptop serial monitor"
+    }
+  ]
+}
