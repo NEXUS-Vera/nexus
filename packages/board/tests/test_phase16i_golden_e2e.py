@@ -937,6 +937,7 @@ def test_golden_g3_live_llm_stub_runtimes(monkeypatch: pytest.MonkeyPatch, tmp_p
         timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "90")),
     )
     kernel, _ps, ks, project_id = build_test_kernel(
+        approved_firmware_plan=True,
         auto_start_scheduler=True,
         firmware_patch_generator=LiveFirmwarePatchGenerator(gateway=gateway, model_policy=policy),
         analysis_patch_generator=LiveAnalysisPatchGenerator(gateway=gateway, model_policy=policy),

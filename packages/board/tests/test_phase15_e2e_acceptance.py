@@ -29,7 +29,9 @@ def _wait_run(kernel: Any, run_id: str, *, timeout: float = 20.0) -> dict[str, A
 
 def test_phase15_g1_hermetic_fixture_e2e() -> None:
     os.environ["NEXUS_FIRMWARE_USE_STUB"] = "1"
-    kernel, _ps, ks, project_id = build_test_kernel(auto_start_scheduler=True)
+    kernel, _ps, ks, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=True
+    )
     user = actor("user")
     binding = kernel.workspace_runtime.resolve_binding(
         project_id=project_id,
@@ -324,6 +326,7 @@ def test_phase15_g2_live_llm_stub_e2e() -> None:
         timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
     )
     kernel, _ps, ks, project_id = build_test_kernel(
+        approved_firmware_plan=True,
         auto_start_scheduler=True,
         firmware_patch_generator=LiveFirmwarePatchGenerator(
             gateway=gateway,

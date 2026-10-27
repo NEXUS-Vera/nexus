@@ -9,7 +9,9 @@ from nexus_model_gateway import FakeModelGateway, ModelPolicy
 
 
 def test_live_generator_materializes_replace_operation() -> None:
-    kernel, project_store, _ks, project_id = build_test_kernel(auto_start_scheduler=False)
+    kernel, project_store, _ks, project_id = build_test_kernel(
+        approved_firmware_plan=True, auto_start_scheduler=False
+    )
     user = actor("user")
     binding = kernel.workspace_runtime.resolve_binding(
         project_id=project_id,
@@ -143,3 +145,112 @@ def test_context_rejects_oversized_approved_artifacts_and_missing_sources() -> N
     ]
     with pytest.raises(FirmwarePatchGenerationError, match="snapshot exceeds"):
         assemble()
+
+
+def test_live_sized_context_deduplicates_and_scopes_plan_sources() -> None:
+    import json
+
+    import pytest
+    from nexus_board.errors import FirmwarePatchGenerationError
+    from nexus_board.firmware.patch import CONTEXT_ARTIFACT_TYPES
+    from nexus_persistence.errors import ArtifactNotFoundError
+
+    artifacts: dict[str, dict[str, Any]] = {
+        kind: {
+            "artifactType": kind,
+            "artifactId": kind,
+            "artifactVersion": 1,
+            "content": {"text": "é" * 8000},
+        }
+        for kind in CONTEXT_ARTIFACT_TYPES
+    }
+    plan: dict[str, Any] = {
+        "artifactType": "execution-plan",
+        "artifactId": "plan",
+        "artifactVersion": 1,
+        "approvalStatus": "user-approved",
+        "content": {
+            "plan": {
+                "sourceArtifacts": [
+                    {"artifactId": a["artifactId"], "artifactVersion": 1}
+                    for a in artifacts.values()
+                ]
+            }
+        },
+    }
+    # Repeat a reviewed reference too: neither content nor provenance is duplicated.
+    plan["content"]["plan"]["sourceArtifacts"].append(plan["content"]["plan"]["sourceArtifacts"][0])
+
+    class Store:
+        def get_artifact(
+            self, project_id: str, artifact_type: str, *, version: int | None = None
+        ) -> dict[str, Any]:
+            if artifact_type == "execution-plan":
+                return plan
+            if artifact_type in artifacts:
+                return artifacts[artifact_type]
+            raise ArtifactNotFoundError("missing")
+
+    class Files:
+        def get(self, content_hash: str) -> bytes:
+            raise AssertionError("No file reads expected")
+
+    snapshot = {
+        "snapshotId": "base",
+        "content": {"kind": "filesystem", "filesystemManifest": {"entries": []}},
+    }
+
+    def assemble() -> dict[str, Any]:
+        return assemble_firmware_generation_context(
+            project_store=Store(),
+            project_id="project",
+            base_snapshot=snapshot,
+            requested_change="Implement approved firmware",
+            file_store=Files(),
+        )
+
+    assert (
+        112000
+        < sum(
+            len(json.dumps(a["content"], ensure_ascii=False).encode()) for a in artifacts.values()
+        )
+        < 114000
+    )
+    context = assemble()
+    assert context["currentArtifacts"] == {}
+    assert len(context["inputArtifactReferences"]) == 8
+    assert set(context["artifacts"]) == {*CONTEXT_ARTIFACT_TYPES, "execution-plan"}
+    gateway = FakeModelGateway()
+    calls: list[dict[str, Any]] = []
+
+    def script(_task: Any, payload: Any, _schema: Any) -> dict[str, Any]:
+        calls.append(payload)
+        assert payload["currentArtifacts"] == {}
+        return {
+            "operations": [
+                {
+                    "operationType": "create-file",
+                    "path": "src/main.cpp",
+                    "content": "void setup() {}",
+                }
+            ]
+        }
+
+    gateway.set_script("firmware.patch-proposal", script)
+    LiveFirmwarePatchGenerator(
+        gateway=gateway, model_policy=ModelPolicy(provider="fake", model="regression")
+    ).generate(context=context, base_snapshot=snapshot)
+    assert len(calls) == 1
+
+    # Scope out an unrelated oversized artifact rather than truncate reviewed content.
+    plan["content"]["plan"]["sourceArtifacts"] = [
+        {"artifactId": "requirement-set", "artifactVersion": 1}
+    ]
+    artifacts["physical-architecture"]["content"] = {"text": "x" * 140000}
+    assert set(assemble()["artifacts"]) == {"execution-plan", "requirement-set"}
+    artifacts["requirement-set"]["content"] = {"text": "é" * 70000}
+    with pytest.raises(FirmwarePatchGenerationError) as caught:
+        assemble()
+    assert "140012 B" in str(caught.value)
+    assert "requirement-set (requirement-set v1)" in str(caught.value)
+    assert "131072 B" in str(caught.value)

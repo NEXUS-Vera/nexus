@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import secrets
+from typing import Any
 
 import pytest
+from helpers import seed_approved_firmware_plan
 from httpx import ASGITransport, AsyncClient
+from nexus_api import main as api_main
 from nexus_api.main import app
 from nexus_board.firmware.scaffold import MAIN_CPP_PATH, PLATFORMIO_INI_PATH
 
@@ -42,6 +45,7 @@ async def test_firmware_patch_propose_apply_and_stale() -> None:
         )
         assert created.status_code == 200
         project_id = created.json()["project"]["projectId"]
+        seed_approved_firmware_plan(api_main._kernel.workspace_runtime._projects, project_id)
         actor = _actor()
 
         binding_resp = await client.get(
@@ -186,6 +190,7 @@ async def test_firmware_patch_discard() -> None:
             json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
         )
         project_id = created.json()["project"]["projectId"]
+        seed_approved_firmware_plan(api_main._kernel.workspace_runtime._projects, project_id)
         actor = _actor()
         binding_resp = await client.get(
             f"/v1/projects/{project_id}/artifacts/firmware/workspace/runtime"
@@ -238,3 +243,49 @@ async def test_firmware_patch_discard() -> None:
             params={"path": MAIN_CPP_PATH},
         )
         assert "Serial.begin(115200)" in main.json()["content"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("approval", [None, "proposed", "rejected"])
+async def test_firmware_patch_requires_approved_plan(
+    approval: str | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from unittest.mock import Mock
+
+    from test_golden_lifecycle_http_api import AUTH
+
+    runtime = api_main._kernel.workspace_runtime
+    generator = Mock()
+    monkeypatch.setattr(runtime, "_firmware_patch_generator", generator)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        created = await client.post(
+            "/v1/projects/initialize",
+            json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
+        )
+        project_id = created.json()["project"]["projectId"]
+        if approval is not None:
+            seed_approved_firmware_plan(runtime._projects, project_id)
+            get_artifact = runtime._projects.get_artifact
+
+            def get_unapproved(
+                pid: str, kind: str, *, version: int | None = None
+            ) -> dict[str, Any]:
+                artifact = get_artifact(pid, kind, version=version)
+                if kind == "execution-plan":
+                    artifact["approvalStatus"] = approval
+                return artifact
+
+            monkeypatch.setattr(runtime._projects, "get_artifact", get_unapproved)
+        snapshot = Mock(side_effect=AssertionError("No snapshot before approval"))
+        monkeypatch.setattr(runtime, "create_snapshot", snapshot)
+        response = await client.post(
+            f"/v1/projects/{project_id}/artifacts/firmware/workspace/patch/propose",
+            json={"requestedChange": "Implement firmware", "allowFixture": True},
+        )
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == "FIRMWARE_EXECUTION_PLAN_APPROVAL_REQUIRED"
+        assert "Approve an execution plan first" in response.json()["error"]["message"]
+        generator.generate.assert_not_called()
+        snapshot.assert_not_called()

@@ -415,6 +415,7 @@ describe('FirmwareWorkspace', () => {
       ['src/main.cpp', '#include <Arduino.h>\n'],
     ]);
     let staleApply = false;
+    let needsApproval = true;
 
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
@@ -450,6 +451,18 @@ describe('FirmwareWorkspace', () => {
         });
       }
       if (url.includes('/workspace/patch/propose') && method === 'POST') {
+        if (needsApproval) {
+          return jsonResponse(
+            {
+              error: {
+                code: 'FIRMWARE_EXECUTION_PLAN_APPROVAL_REQUIRED',
+                message: 'Approve an execution plan first.',
+              },
+            },
+            422,
+          );
+        }
+
         return jsonResponse({
           status: 'proposed',
           proposal: {
@@ -512,6 +525,13 @@ describe('FirmwareWorkspace', () => {
     });
     fireEvent.click(screen.getByTestId('firmware-patch-propose'));
 
+    await waitFor(() => {
+      expect(screen.getByTestId('firmware-status-banner')).toHaveTextContent(
+        'Approve an execution plan first.',
+      );
+    });
+    needsApproval = false;
+    fireEvent.click(screen.getByTestId('firmware-patch-propose'));
     await waitFor(() => screen.getByTestId('firmware-patch-summary'));
     expect(screen.getByTestId('firmware-patch-operations')).toHaveTextContent('replace-file');
     expect(screen.getByTestId('firmware-diff-host')).toBeInTheDocument();
