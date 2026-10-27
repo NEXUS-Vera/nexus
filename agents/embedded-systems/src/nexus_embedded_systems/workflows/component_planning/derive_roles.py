@@ -158,8 +158,17 @@ def _renumber(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
+def is_i2c_bus(node: dict[str, Any]) -> bool:
+    """Recognize an explicit transport node, rather than I2C-capable hardware."""
+    name = str(node.get("name") or "").casefold()
+    return node.get("functionalType") == "communication" and "i2c" in name and "bus" in name
+
+
 def _resolve_category(node: dict[str, Any]) -> tuple[str | None, str | None]:
     """Return (category, skip_reason). Category None means no hardware role."""
+
+    if is_i2c_bus(node):
+        return None, "I2C transport is realized as an electrical connection between hardware roles."
 
     functional_type = node.get("functionalType")
     if isinstance(functional_type, str):

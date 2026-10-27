@@ -13,7 +13,7 @@ from nexus_embedded_systems.workflows.project_initialization.ids import (
 
 from .coverage import compute_coverage_summary
 from .derive_constraints import derive_constraints_from_requirements
-from .derive_roles import derive_roles_from_architecture
+from .derive_roles import derive_roles_from_architecture, is_i2c_bus
 from .maturity import compute_maturity
 from .propose_candidates import propose_candidates_for_roles
 
@@ -42,6 +42,35 @@ def compose_component_plan_content(
         if include_candidates
         else []
     )
+    # The functional architecture supplies topology, not verified datasheet claims.
+    bus_ids = {n["nodeId"] for n in architecture_content.get("nodes", []) if is_i2c_bus(n)}
+    i2c_nodes = {
+        endpoint
+        for edge in architecture_content.get("edges", [])
+        if edge.get("flowType") in {"data", "control"}
+        and (
+            edge.get("fromNodeId") in bus_ids
+            or edge.get("toNodeId") in bus_ids
+            or "i2c" in str(edge.get("description") or "").casefold()
+        )
+        for endpoint in (edge.get("fromNodeId"), edge.get("toNodeId"))
+    }
+    i2c_roles = {
+        r["componentRoleId"] for r in roles if i2c_nodes.intersection(r["architectureNodeIds"])
+    }
+    for candidate in candidates:
+        if (
+            candidate.get("source") == "user-provided"
+            and candidate.get("partNumber") in {"ESP32-DEVKIT-V1", "MPU6050"}
+            and candidate["componentRoleId"] in i2c_roles
+        ):
+            candidate["specifications"].append(
+                {"specKey": "interface", "value": "I2C", "operator": "eq"}
+            )
+            candidate["notes"] += (
+                " I2C interface inferred from functional architecture; unverified."
+            )
+
     selections: list[dict[str, Any]] = []
     checks: list[dict[str, Any]] = []
     open_questions: list[dict[str, Any]] = []

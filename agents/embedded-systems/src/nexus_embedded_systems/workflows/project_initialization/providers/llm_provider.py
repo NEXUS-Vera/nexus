@@ -541,6 +541,19 @@ class LlmInitializationProvider:
             proposed_by=vera_actor,
             now=now,
         )
+        fixture_parts = sorted(
+            {
+                str(c.get("partNumber") or c["displayName"])
+                for c in content["candidates"]
+                if c.get("source") == "fixture"
+            }
+        )
+        if fixture_parts:
+            content["summary"] += (
+                " Warning: fixture placeholders require replacement or verification: "
+                + ", ".join(fixture_parts)
+                + "."
+            )
         ledger.complete_step(step)
 
         step = ledger.start_step("derive-selection-constraints")

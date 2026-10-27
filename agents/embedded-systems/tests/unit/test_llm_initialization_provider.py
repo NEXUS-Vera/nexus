@@ -325,6 +325,10 @@ async def test_live_init_preserves_supported_user_named_candidates(
     bundle = initialization_dict_to_package_bundle(result)
     assert not [e for e in validate_project_package_bundle(bundle) if e.blocking]
     plan = next(a["content"] for a in result["artifacts"] if a["artifactType"] == "component-plan")
+    fixture_parts = {c["partNumber"] for c in plan["candidates"] if c["source"] == "fixture"}
+    assert fixture_parts
+    assert "Warning: fixture placeholders require replacement or verification:" in plan["summary"]
+    assert all(part in plan["summary"] for part in fixture_parts)
     roles = {r["componentRoleId"]: r for r in plan["componentRoles"]}
     named = [c for c in plan["candidates"] if c["source"] == "user-provided"]
     assert {c["partNumber"] for c in named} == set(expected)

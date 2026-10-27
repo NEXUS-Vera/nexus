@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from nexus_embedded_systems.workflows.component_planning.derive_roles import is_i2c_bus
 from nexus_embedded_systems.workflows.layered_architecture.normalize_specs import (
     get_normalized_interface,
     get_normalized_voltage,
@@ -244,6 +245,7 @@ def compose_electrical_architecture_content(
         nodes.append(electrical_node)
         role_to_enode[role_id] = node_id
 
+    fa_edges = _resolve_i2c_bus_edges(fa_nodes, fa_edges)
     connections = _propose_connections(
         fa_edges=fa_edges,
         fa_to_enodes=fa_to_enodes,
@@ -436,6 +438,54 @@ def _connection_provenance(
     return provenance
 
 
+def _resolve_i2c_bus_edges(
+    nodes: dict[str, dict[str, Any]], edges: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Collapse directed flows through explicit I2C buses into one physical link.
+
+    Only matching data/control paths are joined; power and unrelated transports
+    cannot establish a signal binding. Preserve every contributing flow ID.
+    """
+    links: dict[tuple[str, str], dict[str, Any]] = {}
+    for bus_id, node in nodes.items():
+        if not is_i2c_bus(node):
+            continue
+        for incoming in edges:
+            if incoming.get("toNodeId") != bus_id or incoming.get("flowType") not in {
+                "data",
+                "control",
+            }:
+                continue
+            for outgoing in edges:
+                if outgoing.get("fromNodeId") != bus_id or outgoing.get("flowType") != incoming.get(
+                    "flowType"
+                ):
+                    continue
+                start, end = incoming.get("fromNodeId"), outgoing.get("toNodeId")
+                if not isinstance(start, str) or not isinstance(end, str) or start == end:
+                    continue
+                pair = (start, end) if start < end else (end, start)
+                link = links.setdefault(
+                    pair,
+                    {
+                        "edgeId": incoming.get("edgeId"),
+                        "fromNodeId": start,
+                        "toNodeId": end,
+                        "flowType": "data",
+                        "description": "I2C binding through functional communication bus.",
+                        "functionalArchitectureEdgeIds": [],
+                    },
+                )
+                for edge in (incoming, outgoing):
+                    edge_id = edge.get("edgeId")
+                    if (
+                        isinstance(edge_id, str)
+                        and edge_id not in link["functionalArchitectureEdgeIds"]
+                    ):
+                        link["functionalArchitectureEdgeIds"].append(edge_id)
+    return [*edges, *links.values()]
+
+
 def _propose_connections(
     *,
     fa_edges: list[dict[str, Any]],
@@ -504,7 +554,9 @@ def _propose_connections(
                     ),
                 }
                 if isinstance(edge_id, str):
-                    conn["functionalArchitectureEdgeIds"] = [edge_id]
+                    conn["functionalArchitectureEdgeIds"] = edge.get(
+                        "functionalArchitectureEdgeIds"
+                    ) or [edge_id]
                 if iface.get("fromInterfaceId"):
                     conn["fromInterfaceId"] = iface["fromInterfaceId"]
                 if iface.get("toInterfaceId"):
