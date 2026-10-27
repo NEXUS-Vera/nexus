@@ -42,14 +42,29 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
     candidates = {
         c["candidateId"]: c
         for c in by_type["component-plan"]["candidates"]
-        if c["candidateState"] not in {"blocked", "rejected", "superseded"}
+        if isinstance(c, dict)
+        and all(
+            isinstance(c.get(k), str) for k in ("candidateId", "candidateState", "componentRoleId")
+        )
+        and c["candidateState"] not in {"blocked", "rejected", "superseded"}
         and isinstance(c.get("partNumber"), str)
         and isinstance(c.get("specifications"), list)
     }
     electrical = by_type.get("electrical-architecture", {})
-    nodes = {n["nodeId"]: n for n in electrical.get("nodes", [])}
+    nodes = {
+        n["nodeId"]: n
+        for n in electrical.get("nodes", [])
+        if isinstance(n, dict)
+        and isinstance(n.get("nodeId"), str)
+        and isinstance(n.get("componentCandidateId"), str)
+    }
     options = []
     for connection in electrical.get("connections", []):
+        if not isinstance(connection, dict) or not all(
+            isinstance(connection.get(k), str)
+            for k in ("interfaceType", "status", "fromNodeId", "toNodeId", "connectionId")
+        ):
+            continue
         if connection["interfaceType"] != "i2c" or connection["status"] in {
             "unresolved",
             "needs-resolution",
@@ -65,7 +80,11 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
         if {c.get("partNumber", "").upper() for c in selected} != {"ESP32-DEVKIT-V1", "MPU6050"}:
             continue
         compute = next(c for c in selected if c.get("partNumber", "").upper() == "ESP32-DEVKIT-V1")
-        specs = {s["specKey"]: s["value"] for s in compute.get("specifications", [])}
+        specs = {
+            s["specKey"]: s["value"]
+            for s in compute.get("specifications", [])
+            if isinstance(s, dict) and isinstance(s.get("specKey"), str) and "value" in s
+        }
         options.append(
             {
                 "buildProfileId": "platformio-arduino-esp32-v1",
