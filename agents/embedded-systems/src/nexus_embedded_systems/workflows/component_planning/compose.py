@@ -43,11 +43,16 @@ def compose_component_plan_content(
         else []
     )
     # The functional architecture supplies topology, not verified datasheet claims.
-    bus_ids = {n["nodeId"] for n in architecture_content.get("nodes", []) if is_i2c_bus(n)}
+    bus_ids = {
+        n["nodeId"]
+        for n in (architecture_content.get("nodes") or [])
+        if isinstance(n, dict) and isinstance(n.get("nodeId"), str) and is_i2c_bus(n)
+    }
     i2c_nodes = {
         endpoint
-        for edge in architecture_content.get("edges", [])
-        if edge.get("flowType") in {"data", "control"}
+        for edge in (architecture_content.get("edges") or [])
+        if isinstance(edge, dict)
+        and edge.get("flowType") in {"data", "control"}
         and (
             edge.get("fromNodeId") in bus_ids
             or edge.get("toNodeId") in bus_ids

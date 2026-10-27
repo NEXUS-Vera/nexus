@@ -307,3 +307,24 @@ def test_propose_candidates_preserves_supported_user_names(
     assert all(c["evidenceReferences"] == [] for c in candidates)
     assert fallback["source"] == "fixture"
     assert fallback["candidateState"] == "proposed"
+
+
+@pytest.mark.parametrize(
+    "architecture",
+    [
+        {"nodes": None, "edges": None},
+        {"nodes": None, "edges": []},
+        {"nodes": [], "edges": None},
+        {
+            "nodes": [None, "invalid", {}, {"name": "I2C Bus", "functionalType": "communication"}],
+            "edges": [None, "invalid", {}],
+        },
+    ],
+)
+def test_compose_tolerates_missing_topology(architecture: dict) -> None:
+    content = compose_component_plan_content(
+        architecture_content=architecture,
+        requirement_set_content={"requirements": []},
+    )
+    assert content["componentRoles"] == []
+    assert content["candidates"] == []
