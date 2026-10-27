@@ -23,7 +23,7 @@ Each row is one small reviewable work package mapped to exactly one P criterion.
 | W5 / P2 | W4 | Add a bounded failure-inspection/correction/rerun sequence to the embedded workflow, reusing jobs, guarded proposals and approval. Feed actual diagnostics and relevant context to the existing generator. Preserve attempts, stop on exhaustion, support cancellation. | Inject a controlled firmware/test defect; scripted regression asserts failure → diagnosis request → reviewed patch → affected reruns and retained failure history. Separately run the real model/tool loop without a human supplying the fix. Test rejected patch, unrepairable failure, timeout and cancellation; none may synthesize PASS. |
 | W6 / P3 | W4 | Complete provenance at tool handoffs using existing snapshot/run/output/artifact references and dependency graph. Fix only gaps exposed by tests. Include agent context basis; avoid another ledger. Owners: board services, circuit-simulation adapter, persistence and embedded context assembly. | HTTP integration traverses requirement → firmware snapshot → build → simulator output → analysis → assessment, comparing IDs/hashes/bytes before and after SQLite restart. Wrong-project output and missing basis are rejected or require recheck; agent requests name the current relevant versions. |
 | W7 / P3 | W5, W6, reviewed #109 | Exercise M5 through the completed user-facing lifecycle. Extend dependency capture only for observed missing cross-tool inputs; reuse #108 invalidation and #109 surfacing. | Accepted relevant interface/requirement/input change causes transitive STALE or RECHECK_REQUIRED with persisted reasons, unrelated result remains current, historical PASS/evidence is byte-equivalent, old-run replay cannot restore current applicability. Execute current affected steps and accept authorized verification to restore validity; repeat after restart and duplicate processing. |
-| W8 / P4 | W2, W5, W7 | Connect the reviewed plan, approvals and loop progress into existing Home/project/workspace views. Finish run-output/failure/history navigation and refresh behavior; show provider modes, missing tools, limits, historical assessment and current applicability. Reuse #109 reason rendering. | Component tests cover state/error transitions. One browser/desktop journey against the real API and SQLite completes P1–P3 with rejected approval, cancellation, reload/restart and evidence navigation. Assert real-mode labels and keyboard-operable labeled primary controls at laptop sizes. A mocked API test cannot close this gate. |
+| W8 / P4 | W2, W5, W7 | Connect the reviewed plan, approvals and loop progress into existing Home/project/workspace views. Finish run-output/failure/history navigation and refresh behavior; show provider modes, missing tools, limits, historical assessment and current applicability. Reuse #109 reason rendering. | Component tests cover state/error transitions. One browser/desktop journey against the real API and SQLite completes P1–P3 with rejected approval, cancellation, reload/restart and evidence navigation. Assert real-mode labels and keyboard-operable labeled primary controls at laptop sizes. A mocked API test cannot close this gate. **OPEN (N205):** fixture-only profile compatibility fixed with API regressions; complete SQLite journey authored; host browser result pending; see slice 4 notes. |
 | W9 / P5 | Contract review; session execution waits for W8 | Prepare a short external-user task and evidence protocol; recruit at least three target users. Use existing product and issue tracking, without building telemetry infrastructure. | Three distinct external participants attempt the golden workflow. Record anonymized qualification, build/environment, task, completion, assistance, failures and feedback. Each explains failure, applicability and surrogate limits. Store consented private session material outside Git and publish a sanitized aggregate suitable for review. |
 | W10 / P5 | W9 | Triage observed external-user blockers into P1–P4 follow-up tasks; present outcomes, limitations and remaining risks to Pranay. Retests belong to the affected criterion's package, not silent scope expansion. | Trace every reported blocker to evidence and a criterion; report unresolved blockers and assisted completions explicitly. Obtain product acceptance review based on actual sessions and linked golden evidence; do not substitute a fabricated pass threshold or internal sign-off for external validation. |
 
@@ -41,6 +41,47 @@ review-paused loop; no automatic repair or approval. The header provider pill
 opens diagnostics, distinguishing initialization mode from unreported tool
 availability. Component regressions cover controls and masked diagnostic text;
 the real API/SQLite journey remains an open gate.
+
+W8 slice 3 (N197, historical blocker addressed in slice 4): not accepted. Option B adds the explicit
+Create Execution Plan button for projects without a saved plan, using project
+I2C-connected candidates and pin specifications (GPIO 21/22 defaults). It calls
+the existing propose endpoint; no automatic proposal or approval occurs. Web unit
+tests cover keyboard creation, project-derived configuration, rejection/recreation,
+acceptance of the pending proposal and visible API errors.
+
+N197 host testing exposed a real HTTP 422 on propose because fixture parts
+`FX-MCU-32` / `FX-IMU-200` failed the supported ESP32/MPU6050 profile check.
+
+W8 slice 4 (N205): recognize only the documented fixture source/manufacturer/part
+identities as profile surrogates, retaining their original provenance. Real-part
+rules and public schemas stay unchanged. API regressions cover proposal and
+materialization without candidate changes, and reject unrelated identities,
+non-fixture provenance and incorrect manufacturers (19 passed, one opt-in skip in
+the actionable-plan file).
+
+The completed `apps/web/e2e/w8-golden-journey.spec.ts` and
+`scripts/run-w8-e2e.sh` cover keyboard create/reject twice/recreate/accept,
+real Python analysis cancellation, completed analysis evidence, actual process
+stop/await/restart with the same temporary SQLite DB, persisted project/run state,
+and evidence navigation into the run-log modal at 1366×768 with FIXTURE visible
+and LIVE absent. Controlled user analysis files and the golden CSV are prepared
+through real HTTP file routes; evidence promotion uses the real verification API.
+No API interception, model generation or live firmware/simulator success is claimed.
+
+**OPEN / host validation pending:** Playwright was deliberately not attempted in
+this sandbox per N205. The manager must run the self-contained runner on the host;
+authored assertions do not establish browser acceptance or close P1–P3. Live
+provider/tool acceptance remains separately required.
+
+Local validation passed the 138-test web suite, web/spec TypeScript checks,
+formatting/linting, repository policy, and 20 fake-provider evaluations. The plan
+API regressions plus golden HTTP lifecycle passed together (20 passed, one opt-in
+real-build skip). Contracts excluding type generation plus embedded unit/integration
+tests passed (174 passed, one opt-in integration skip). `make check` stopped at the
+repository-wide mypy check (700 errors). Broader Python runs were interrupted after
+stalled progress; the verbose agent run stalled at
+`test_inflight_stop_uses_existing_job_runtime[timeout]`. These runs are not claimed
+as passes; sandbox/job-runner code was left unchanged.
 
 ## Verification discipline per implementation PR
 

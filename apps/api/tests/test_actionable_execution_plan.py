@@ -51,7 +51,11 @@ async def _command(
 
 
 async def _revise_candidates(
-    client: AsyncClient, pid: str, actor: dict[str, Any], sda_pin: int = 21
+    client: AsyncClient,
+    pid: str,
+    actor: dict[str, Any],
+    sda_pin: int = 21,
+    overrides: dict[str, Any] | None = None,
 ) -> None:
     """Explicit user component edit over normal API; never pretend fixture parts are real."""
     state = (await client.get(f"/v1/projects/{pid}")).json()
@@ -65,6 +69,8 @@ async def _revise_candidates(
                     spec["value"] = sda_pin
         else:
             candidate.update(partNumber="MPU6050", displayName="MPU6050")
+    if overrides:
+        content["candidates"][0].update(overrides)
     result = await _command(
         client,
         pid,
@@ -115,11 +121,14 @@ async def _revise_candidates(
     assert accepted["status"] == "completed", accepted
 
 
-async def _setup(client: AsyncClient, actor: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+async def _setup(
+    client: AsyncClient, actor: dict[str, Any], *, fixture: bool = False
+) -> tuple[str, dict[str, Any]]:
     created = await client.post("/v1/projects/initialize", json={"message": GOLDEN_PROMPT})
     assert created.status_code == 200, created.text
     pid = created.json()["project"]["projectId"]
-    await _revise_candidates(client, pid, actor)
+    if not fixture:
+        await _revise_candidates(client, pid, actor)
     state = (await client.get(f"/v1/projects/{pid}")).json()
     cp = next(a["content"] for a in state["artifacts"] if a["artifactType"] == "component-plan")
     electrical = next(
@@ -355,7 +364,7 @@ async def test_approved_plan_files_survive_sqlite_restart(monkeypatch, tmp_path)
     async with AsyncClient(
         transport=ASGITransport(app=main.app), base_url="http://test", headers=AUTH
     ) as client:
-        pid, config = await _setup(client, actor)
+        pid, config = await _setup(client, actor, fixture=True)
         proposed = (await _propose(client, pid, actor, config)).json()
         accepted = await _command(
             client,
@@ -802,3 +811,58 @@ async def test_default_configuration_skips_malformed_entries(
                 "Default configuration requires one usable" in response.json()["error"]["message"]
             )
             assert _store.get_current_state(pid) == state
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "invalid",
+    [None, "unrelated", "unrelated-live", "user-provided", "agent-inference", "manufacturer"],
+)
+async def test_fixture_plan_compatibility_preserves_provenance(invalid: str | None) -> None:
+    from nexus_api.main import app
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor, fixture=True)
+        if invalid:
+            overrides = {
+                "partNumber": "FX-MCU-32",
+                "manufacturer": "Fixture Compute",
+                "source": "fixture",
+            }
+            if invalid == "unrelated":
+                overrides["partNumber"] = "UNSUPPORTED-MCU"
+            elif invalid == "unrelated-live":
+                overrides.update(partNumber="UNSUPPORTED-MCU", source="user-provided")
+            elif invalid == "manufacturer":
+                overrides["manufacturer"] = "Other"
+            else:
+                overrides["source"] = invalid
+            await _revise_candidates(client, pid, actor, overrides=overrides)
+        before = (await client.get(f"/v1/projects/{pid}")).json()
+        response = await _propose(client, pid, actor, config)
+        assert response.status_code == (422 if invalid else 200), response.text
+        if invalid:
+            assert response.json()["error"]["code"] == "COMMAND_VALIDATION_FAILED"
+        else:
+            proposal = response.json()
+            accepted = await _command(
+                client,
+                pid,
+                actor,
+                "artifact.accept-revision",
+                proposal["workspace"],
+                {"proposalId": proposal["commandResult"]["proposalId"]},
+            )
+            assert accepted["status"] == "completed", accepted
+            after = (await client.get(f"/v1/projects/{pid}")).json()
+            before_component = next(
+                a for a in before["artifacts"] if a["artifactType"] == "component-plan"
+            )
+            after_component = next(
+                a for a in after["artifacts"] if a["artifactType"] == "component-plan"
+            )
+            assert after_component == before_component
+            assert {c["source"] for c in after_component["content"]["candidates"]} == {"fixture"}

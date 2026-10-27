@@ -246,7 +246,19 @@ class ExecutionPlanWorkflow:
                 )
             roles.add(selection["componentRoleId"])
             chosen.append(candidate)
-        if {c["partNumber"].upper() for c in chosen} != {"ESP32-DEVKIT-V1", "MPU6050"}:
+        # Exact documented fixture surrogates; never rewrite candidate provenance.
+        fixture_equivalents = {
+            ("fixture", "Fixture Compute", "FX-MCU-32"): "ESP32-DEVKIT-V1",
+            ("fixture", "Fixture Motion", "FX-IMU-200"): "MPU6050",
+        }
+        supported_parts = {
+            fixture_equivalents.get(
+                (c.get("source"), c.get("manufacturer"), c["partNumber"]),
+                c["partNumber"].upper(),
+            )
+            for c in chosen
+        }
+        if supported_parts != {"ESP32-DEVKIT-V1", "MPU6050"}:
             raise CommandValidationError(
                 "Only ESP32-DEVKIT-V1 + MPU6050 materialization is supported."
             )

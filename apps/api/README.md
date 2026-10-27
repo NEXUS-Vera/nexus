@@ -278,7 +278,10 @@ fresh W1 checklist from current artifacts and questions. Configuration follows
 candidate/role IDs, an existing I2C connection, distinct supported SDA/SCL GPIOs,
 `buildProfileId: platformio-arduino-esp32-v1` and
 `analysisProfileId: python-analysis-v1`. Only explicit ESP32-DEVKIT-V1/MPU6050
-candidates are supported; fixture part numbers are rejected. Candidate and
+candidates are supported, plus the documented fixture-source identities
+`Fixture Compute / FX-MCU-32` and `Fixture Motion / FX-IMU-200` as profile
+surrogates. Fixture candidates retain their IDs and provenance; the same FX
+part numbers with non-fixture provenance remain unsupported. Candidate and
 interface edits use existing typed artifact revisions, including in LLM mode;
 free-form live conversation modification remains unsupported.
 

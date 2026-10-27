@@ -123,8 +123,11 @@ accept/reject callbacks leave revision commands to the caller; rejection permits
 an optional inline reason. The FOUNDATION rail mounts it through the execution-plan
 workspace, which loads the typed API artifact and proposes then accepts/rejects
 revisions with version guards. Decisions disable while pending and show failures.
-Projects without a saved execution-plan artifact show the API error; creating the
-initial plan/configuration remains outside this slice. `EvidenceExplorer` accepts an
+Projects without a saved execution-plan artifact offer an explicit, keyboard-operable
+Create Execution Plan button. It proposes with the project’s I2C-connected candidates,
+project pin specifications (default GPIO 21/22), and existing build/analysis profiles;
+it never auto-proposes on initialization or accepts the proposal. Unsupported project
+configuration errors remain visible and permit retry. `EvidenceExplorer` accepts an
 optional `onInspectRun(runId)` callback to show Inspect run for rows with execution
 run IDs. The project page supplies it to open an in-place, keyboard-dismissable run-log
 modal. Logs refresh while open and credential-like diagnostic text is masked.
@@ -134,7 +137,7 @@ Repair state is retained while the project page stays mounted, not across reload
 The header LIVE/FIXTURE pill reads initialization mode from health and opens
 diagnostics; tool availability is explicitly unknown because health does not
 report it. No raw configuration or error objects are rendered. These pieces
-do not complete the W8 real API/SQLite journey acceptance gate.
+do not complete the W8 real API/SQLite journey acceptance gate (see the acceptance probe below).
 
 ## Local development
 
@@ -159,6 +162,48 @@ pnpm --filter @nexus/web test
 make test-e2e   # Playwright; starts API+web in fixture/memory mode, then runs
                 # the Electron shell suite
 ```
+
+### W8 real API / SQLite acceptance probe (N197 / N205)
+
+```bash
+./scripts/run-w8-e2e.sh
+```
+
+The sibling runner uses fixture initialization, a temporary SQLite DB/file store,
+web port 15173 and API port 18000. It uses the existing Playwright dependency and
+installs Chromium with pnpm. `PYTHON` can select an existing Python environment.
+The spec owns the API process: it terminates and awaits it, starts a new process
+against the same DB, then reloads the browser. Temporary data is removed on exit.
+No API interception or in-memory storage is used.
+
+**Gate remains open pending host browser validation (N205).** The propose workflow
+now recognizes the exact fixture-source/manufacturer identities `FX-MCU-32` and
+`FX-IMU-200` as documented ESP32/MPU6050 profile surrogates. It preserves original
+parts and provenance; non-fixture FX identities and unrelated parts remain rejected.
+No public contract changes or live-part acceptance expansion are introduced.
+
+The completed spec authors keyboard creation, rejection without/with a reason,
+recreation and acceptance, analysis cancellation, a real API process restart on
+the same SQLite file, persisted project/run assertions, and Evidence Explorer to
+run-log modal navigation at 1366×768. It asserts FIXTURE and absence of LIVE.
+Controlled user analysis code and golden CSV are written through real file APIs;
+a completed real Python analysis is explicitly promoted through the verification
+API before evidence navigation. This is fixture regression evidence, not live
+model, firmware, simulator, or physical verification acceptance.
+
+API regression tests pass locally (19 passed, one opt-in real-build skip).
+Playwright was not run in the sandbox, per N205 instructions; the manager must run
+`./scripts/run-w8-e2e.sh` on the host. No browser pass or P1–P3 completion is claimed.
+
+Local validation passed the 138-test web suite, web/spec TypeScript checks,
+formatting/linting, repository policy, and 20 fake-provider evaluations. The plan
+API regressions plus golden HTTP lifecycle passed together (20 passed, one opt-in
+real-build skip). Contracts excluding type generation plus embedded unit/integration
+tests passed (174 passed, one opt-in integration skip). `make check` stopped at the
+repository-wide mypy check (700 errors). Broader Python runs were interrupted after
+stalled progress; the verbose agent run stalled at
+`test_inflight_stop_uses_existing_job_runtime[timeout]`. These runs are not claimed
+as passes; sandbox/job-runner code was left unchanged.
 
 ## Current limitations
 
