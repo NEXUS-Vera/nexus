@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from nexus_embedded_systems.workflows.project_initialization.ids import new_id
@@ -200,8 +201,9 @@ def propose_candidates_for_roles(
     max_per_role: int = 2,
     source: str = "fixture",
     prefer_first: bool = True,
+    user_message: str = "",
 ) -> list[dict[str, Any]]:
-    """Return provisional unverified candidates from a deterministic fixture table."""
+    """Return unverified candidates, preferring supported user names over fixtures."""
 
     candidates: list[dict[str, Any]] = []
     for role in roles:
@@ -210,6 +212,9 @@ def propose_candidates_for_roles(
         if not isinstance(role_id, str):
             continue
         templates = list(_FIXTURE_CANDIDATES.get(category) or _FIXTURE_CANDIDATES["sensor"])
+        named = _named_template(role, user_message)
+        if named is not None:
+            templates.insert(0, named)
         for index, template in enumerate(templates[:max_per_role]):
             state = "preferred" if prefer_first and index == 0 else "proposed"
             candidates.append(
@@ -227,9 +232,41 @@ def propose_candidates_for_roles(
                     "limitations": list(template["limitations"]),
                     "compatibilityCheckIds": [],
                     "evidenceReferences": [],
-                    "source": source,
+                    "source": "user-provided" if template is named else source,
                     "confidence": "low",
-                    "notes": "Provisional fixture candidate pending datasheet retrieval.",
+                    "notes": (
+                        "User-named part; catalog identity inferred, specifications unverified."
+                        if template is named
+                        else "Provisional fixture candidate pending datasheet retrieval."
+                    ),
                 }
             )
     return candidates
+
+
+def _named_template(role: dict[str, Any], message: str) -> dict[str, Any] | None:
+    """Resolve bounded supported names, preserving distinct ESP32 family variants."""
+    category = role.get("category")
+    blob = f"{role.get('name', '')} {role.get('description', '')}".casefold()
+    if category == "compute" and re.search(
+        r"\bESP32(?:-DEVKIT-V1)?(?:-based|-class|-powered)?(?![\w-])", message, re.I
+    ):
+        manufacturer, part, name = "Espressif", "ESP32-DEVKIT-V1", "ESP32 DevKit V1"
+    elif (
+        category == "sensor"
+        and any(
+            hint in blob for hint in ("motion", "inertial", "accel", "vibration", "imu", "tremor")
+        )
+        and re.search(r"\bMPU6050(?![\w-])", message, re.I)
+    ):
+        manufacturer, part, name = "InvenSense", "MPU6050", "MPU6050 inertial sensor"
+    else:
+        return None
+    return {
+        "manufacturer": manufacturer,
+        "partNumber": part,
+        "displayName": name,
+        "specifications": [],
+        "advantages": ["Matches the user's named component"],
+        "limitations": ["Specifications and compatibility remain unverified"],
+    }

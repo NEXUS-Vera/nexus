@@ -194,6 +194,7 @@ class LlmInitializationProvider:
                 )
 
             component_plan_art = await self._compose_component_plan(
+                user_message=message,
                 architecture_content=arch_art["content"],
                 requirement_set_content=req_art["content"],
                 project_id=project_id,
@@ -518,6 +519,7 @@ class LlmInitializationProvider:
     async def _compose_component_plan(
         self,
         *,
+        user_message: str,
         architecture_content: dict[str, Any],
         requirement_set_content: dict[str, Any],
         project_id: str,
@@ -534,6 +536,7 @@ class LlmInitializationProvider:
             architecture_content=architecture_content,
             requirement_set_content=requirement_set_content,
             include_candidates=True,
+            user_message=user_message,
             source="inferred",
             proposed_by=vera_actor,
             now=now,
