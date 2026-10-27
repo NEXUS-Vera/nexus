@@ -483,7 +483,26 @@ def _resolve_i2c_bus_edges(
                         and edge_id not in link["functionalArchitectureEdgeIds"]
                     ):
                         link["functionalArchitectureEdgeIds"].append(edge_id)
-    return [*edges, *links.values()]
+    resolved = [dict(edge) for edge in edges]
+    for pair, link in links.items():
+        direct = next(
+            (
+                edge
+                for edge in resolved
+                if edge.get("flowType") in {"data", "control"}
+                and {edge.get("fromNodeId"), edge.get("toNodeId")} == set(pair)
+            ),
+            None,
+        )
+        if direct is None:
+            resolved.append(link)
+            continue
+        provenance = list(direct.get("functionalArchitectureEdgeIds") or [])
+        for edge_id in [direct.get("edgeId"), *link["functionalArchitectureEdgeIds"]]:
+            if isinstance(edge_id, str) and edge_id not in provenance:
+                provenance.append(edge_id)
+        direct["functionalArchitectureEdgeIds"] = provenance
+    return resolved
 
 
 def _propose_connections(

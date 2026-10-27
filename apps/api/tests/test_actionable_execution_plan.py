@@ -960,8 +960,14 @@ async def test_scaffold_then_approve_reconciles_only_unmodified_output(
                         assert "Wire.begin" in read.json()["content"]
 
 
-@pytest.mark.parametrize("through_bus", [True, False])
-async def test_s0_recorded_i2c_topology_default_propose(through_bus: bool) -> None:
+@pytest.mark.parametrize(
+    ("through_bus", "direct_flow", "reverse"),
+    [(True, None, False), (False, None, False)]
+    + [(True, flow, reverse) for flow in ("data", "control") for reverse in (False, True)],
+)
+async def test_s0_recorded_i2c_topology_default_propose(
+    through_bus: bool, direct_flow: str | None, reverse: bool
+) -> None:
     from pathlib import Path
 
     from nexus_api.main import _store, app
@@ -979,6 +985,25 @@ async def test_s0_recorded_i2c_topology_default_propose(through_bus: bool) -> No
         ).read_text()
     )
     bus = next(n["nodeId"] for n in architecture["nodes"] if n["name"] == "I2C Communication Bus")
+    bus_edge_ids = {
+        e["edgeId"] for e in architecture["edges"] if bus in (e["fromNodeId"], e["toNodeId"])
+    }
+    if direct_flow:
+        compute = next(
+            n["nodeId"] for n in architecture["nodes"] if n["functionalType"] == "processing"
+        )
+        sensor = next(
+            n["nodeId"] for n in architecture["nodes"] if n["functionalType"] == "sensing"
+        )
+        architecture["edges"].append(
+            {
+                "edgeId": "edge_direct_i2c",
+                "fromNodeId": sensor if reverse else compute,
+                "toNodeId": compute if reverse else sensor,
+                "flowType": direct_flow,
+                "description": "Direct I2C transaction",
+            }
+        )
     if not through_bus:
         incoming = next(e for e in architecture["edges"] if e["toNodeId"] == bus)
         outgoing = next(e for e in architecture["edges"] if e["fromNodeId"] == bus)
@@ -999,7 +1024,13 @@ async def test_s0_recorded_i2c_topology_default_propose(through_bus: bool) -> No
     )
     bindings = [c for c in electrical["connections"] if c["interfaceType"] == "i2c"]
     assert len(bindings) == 1
-    assert len(bindings[0]["functionalArchitectureEdgeIds"]) == (4 if through_bus else 1)
+    assert len(bindings[0]["functionalArchitectureEdgeIds"]) == (
+        (5 if direct_flow else 4) if through_bus else 1
+    )
+    if direct_flow:
+        assert set(bindings[0]["functionalArchitectureEdgeIds"]) == bus_edge_ids | {
+            "edge_direct_i2c"
+        }
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
     ) as client:
