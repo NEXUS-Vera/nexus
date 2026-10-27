@@ -579,9 +579,9 @@ async def test_agent_proposal_requires_user_approval() -> None:
 
 
 @pytest.mark.asyncio
-async def test_default_configuration_with_eight_architecture_roles() -> None:
+@pytest.mark.parametrize("binding", ["valid", "unresolved", "ambiguous"])
+async def test_default_configuration_with_eight_architecture_roles(binding: str) -> None:
     from nexus_api.main import _store, app
-    from nexus_board.errors import CommandValidationError
     from nexus_embedded_systems.workflows.project_modification.execution_plan import (
         derive_default_configuration,
     )
@@ -612,15 +612,6 @@ async def test_default_configuration_with_eight_architecture_roles() -> None:
         derived["components"].sort(key=lambda c: c["candidateId"])
         assert derived == expected
         assert state == original
-        response = await _propose(client, pid, actor, expected, configuration=None)
-        assert response.status_code == 200, response.text
-        content = response.json()["content"]
-        content["configuration"]["components"].sort(key=lambda c: c["candidateId"])
-        assert content["configuration"] == expected
-        assert len(content["plan"]["components"]) == 8
-        # Proposing is review only; the project has not accepted or materialized it.
-        assert _store.get_current_state(pid)["project"] == state["project"]
-
         electrical = next(
             a["content"]
             for a in state["artifacts"]
@@ -631,7 +622,87 @@ async def test_default_configuration_with_eight_architecture_roles() -> None:
             for c in electrical["connections"]
             if c["connectionId"] == expected["i2c"]["connectionId"]
         )
-        bus["status"] = "unresolved"
+        if binding == "unresolved":
+            bus["status"] = "unresolved"
+        elif binding == "ambiguous":
+            second_bus = copy.deepcopy(bus)
+            second_bus["connectionId"] = "second-i2c-binding"
+            for endpoint in ("fromNodeId", "toNodeId"):
+                node = copy.deepcopy(
+                    next(n for n in electrical["nodes"] if n["nodeId"] == bus[endpoint])
+                )
+                candidate = copy.deepcopy(
+                    next(
+                        c
+                        for c in cp["candidates"]
+                        if c["candidateId"] == node["componentCandidateId"]
+                    )
+                )
+                candidate["candidateId"] += "-second"
+                cp["candidates"].append(candidate)
+                node["nodeId"] += "-second"
+                node["componentCandidateId"] = candidate["candidateId"]
+                electrical["nodes"].append(node)
+                second_bus[endpoint] = node["nodeId"]
+            electrical["connections"].append(second_bus)
+        _store.save_initialization_package(state)
+        response = await client.post(
+            f"/v1/projects/{pid}/execution-plan/propose",
+            json={
+                "requestedBy": actor,
+                "baseProjectStateVersion": state["project"]["currentStateVersion"],
+                "basePlanVersion": 0,
+            },
+        )
+        if binding != "valid":
+            assert response.status_code == 422, response.text
+            error = response.json()["error"]
+            assert error["code"] == "COMMAND_VALIDATION_FAILED"
+            assert "Default configuration requires one usable" in error["message"]
+            assert _store.get_current_state(pid) == state
+            return
+        assert response.status_code == 200, response.text
+        content = response.json()["content"]
+        content["configuration"]["components"].sort(key=lambda c: c["candidateId"])
+        assert content["configuration"] == expected
+        assert len(content["plan"]["components"]) == 8
+        # Proposing is review only; the project has not accepted or materialized it.
+        assert _store.get_current_state(pid)["project"] == state["project"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("missing_key", ["partNumber", "specifications"])
+@pytest.mark.parametrize("category", ["compute", "sensing"])
+async def test_default_configuration_skips_malformed_candidates(
+    missing_key: str, category: str
+) -> None:
+    from nexus_api.main import _store, app
+    from nexus_board.errors import CommandValidationError
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        derive_default_configuration,
+    )
+
+    actor = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, expected = await _setup(client, actor)
+        state = _store.get_current_state(pid)
+        cp = next(a["content"] for a in state["artifacts"] if a["artifactType"] == "component-plan")
+        candidate = next(
+            c
+            for c in cp["candidates"]
+            if (c["candidateCategory"] == "compute") == (category == "compute")
+        )
+        malformed = copy.deepcopy(candidate)
+        malformed["candidateId"] = "malformed-unbound-candidate"
+        del malformed[missing_key]
+        cp["candidates"].insert(0, malformed)
+        derived = derive_default_configuration(state)
+        assert sorted(derived["components"], key=lambda c: c["candidateId"]) == sorted(
+            expected["components"], key=lambda c: c["candidateId"]
+        )
+        del candidate[missing_key]
         with pytest.raises(
             CommandValidationError, match="Default configuration requires one usable"
         ):

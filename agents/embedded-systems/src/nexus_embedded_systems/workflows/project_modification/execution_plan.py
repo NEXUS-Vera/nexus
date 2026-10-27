@@ -43,6 +43,8 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
         c["candidateId"]: c
         for c in by_type["component-plan"]["candidates"]
         if c["candidateState"] not in {"blocked", "rejected", "superseded"}
+        and isinstance(c.get("partNumber"), str)
+        and isinstance(c.get("specifications"), list)
     }
     electrical = by_type.get("electrical-architecture", {})
     nodes = {n["nodeId"]: n for n in electrical.get("nodes", [])}
@@ -60,10 +62,10 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
         if any(c is None for c in pair):
             continue
         selected = [c for c in pair if c is not None]
-        if {c["partNumber"].upper() for c in selected} != {"ESP32-DEVKIT-V1", "MPU6050"}:
+        if {c.get("partNumber", "").upper() for c in selected} != {"ESP32-DEVKIT-V1", "MPU6050"}:
             continue
-        compute = next(c for c in selected if c["partNumber"].upper() == "ESP32-DEVKIT-V1")
-        specs = {s["specKey"]: s["value"] for s in compute["specifications"]}
+        compute = next(c for c in selected if c.get("partNumber", "").upper() == "ESP32-DEVKIT-V1")
+        specs = {s["specKey"]: s["value"] for s in compute.get("specifications", [])}
         options.append(
             {
                 "buildProfileId": "platformio-arduino-esp32-v1",
