@@ -34,8 +34,9 @@ each run is a stateless request/response over the supplied prompt.
   and repairs invalid drafts up to `NEXUS_MODEL_MAX_REPAIR_ATTEMPTS` times
   before failing with `LLM_INITIALIZATION_VALIDATION_FAILED`.
   Component planning promotes supported user-named ESP32 (ESP32-DEVKIT-V1) and
-  MPU6050 parts on matching compute and motion-sensing roles as unverified,
-  user-provided candidates pending approval; other roles retain fixture placeholders.
+  MPU6050 (including MPU-6050) parts on matching compute and motion-sensing roles as unverified,
+  user-provided candidates pending approval; common ESP32 DevKit / DevKit V1 spellings
+  resolve to ESP32-DEVKIT-V1. Other roles retain fixture placeholders.
   `NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`, `NEXUS_MODEL_API_KEY`,
   `NEXUS_MODEL_TIMEOUT_SECONDS`, and `NEXUS_MODEL_BASE_URL` configure the
   gateway (`openai` or `anthropic`).

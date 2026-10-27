@@ -7,6 +7,9 @@ from nexus_embedded_systems.workflows.component_planning import (
     apply_component_plan_operation,
     compose_component_plan_content,
 )
+from nexus_embedded_systems.workflows.component_planning.propose_candidates import (
+    propose_candidates_for_roles,
+)
 from nexus_embedded_systems.workflows.component_planning.revise import (
     ComponentPlanRevisionError,
 )
@@ -259,3 +262,48 @@ def test_approved_selection_survives_unrelated_architecture_refresh() -> None:
     assert surviving
     assert surviving[0]["selectedCandidateId"] == candidate_id
     assert any(r["componentRoleId"] == role_id for r in reconciled["componentRoles"])
+
+
+@pytest.mark.parametrize(
+    "part, category, expected",
+    [
+        ("MPU6050", "sensor", "MPU6050"),
+        ("MPU-6050", "sensor", "MPU6050"),
+        ("mpu-6050", "sensor", "MPU6050"),
+        ("BME280", "sensor", "FX-ENV-100"),
+        ("MPU-60500", "sensor", "FX-ENV-100"),
+        ("MPU6050A", "sensor", "FX-ENV-100"),
+        ("MPU-6050X", "sensor", "FX-ENV-100"),
+        ("ESP32", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32-based", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32-class", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32-powered", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32-DEVKIT-V1", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32 DevKit V1", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32 DevKitV1", "compute", "ESP32-DEVKIT-V1"),
+        ("esp32 devkit", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32-DevKit", "compute", "ESP32-DEVKIT-V1"),
+        ("ESP32 DevKitC", "compute", "FX-MCU-32"),
+        ("ESP32-DevKitC", "compute", "FX-MCU-32"),
+        ("ESP32 DevKit V2", "compute", "FX-MCU-32"),
+        ("ESP32 DevKit V4", "compute", "FX-MCU-32"),
+        ("ESP32 DevKitM", "compute", "FX-MCU-32"),
+        ("ESP32-S3", "compute", "FX-MCU-32"),
+        ("ESP32-DEVKIT-V2", "compute", "FX-MCU-32"),
+    ],
+)
+def test_propose_candidates_preserves_supported_user_names(
+    part: str, category: str, expected: str
+) -> None:
+    candidates = propose_candidates_for_roles(
+        [{"componentRoleId": "role_motion", "category": category, "name": "Motion sensing"}],
+        user_message=f"Build a monitor using {part}.",
+    )
+    preferred, fallback = candidates
+    assert preferred["partNumber"] == expected
+    assert preferred["candidateState"] == "preferred"
+    assert preferred["source"] == ("fixture" if expected.startswith("FX-") else "user-provided")
+    assert all(c["evidenceStatus"] == "unverified" for c in candidates)
+    assert all(c["evidenceReferences"] == [] for c in candidates)
+    assert fallback["source"] == "fixture"
+    assert fallback["candidateState"] == "proposed"
