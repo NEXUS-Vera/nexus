@@ -6,6 +6,7 @@ import json
 import os
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 from helpers import acquire_edit_lease, actor, seed_approved_firmware_plan
@@ -131,6 +132,18 @@ def repair_env(monkeypatch, tmp_path, request):
             ps.get_project(pid)["currentStateVersion"],
         )
         assert ps.get_artifact(pid, "test-plan") == seeded
+        binding = kernel.workspace_runtime.resolve_binding(project_id=pid, artifact_type="analysis")
+        record = next(
+            f
+            for f in kernel.filesystem.list_files(binding["workspaceId"])
+            if f["path"] == "analysis.py"
+        )
+        assert (
+            kernel.filesystem.file_store.get(record["contentHash"])
+            == workflow.render(ps.get_artifact(pid, "execution-plan")["content"])["analysis"][
+                "analysis.py"
+            ]
+        )
     binding = kernel.workspace_runtime.resolve_binding(
         project_id=pid, artifact_type="analysis", actor=user
     )
@@ -469,6 +482,15 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             '"sampleCount": len(xs), "sampling_hz": (len(ts) - 1) / (ts[-1] - ts[0]),',
         )
     )
+    if simulator == "live":
+        from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+            ExecutionPlanWorkflow,
+        )
+
+        plan = kernel.project_store.get_artifact(pid, "execution-plan")["content"]
+        fixed_analysis = (
+            ExecutionPlanWorkflow(kernel).render(plan)["analysis"]["analysis.py"].decode()
+        )
     write("analysis.py", fixed_analysis.encode())
     pio = tmp_path / "pio"
     pio.write_text(
@@ -916,3 +938,81 @@ def test_evidence_promotion_without_test_plan_is_structured(repair_env, monkeypa
             project_id=pid, execution_run_id=run["executionRunId"], actor=actor()
         )
     assert error.value.code == "TEST_PLAN_MISSING"
+
+
+@pytest.mark.parametrize("repair_env", ["live"], indirect=True)
+@pytest.mark.parametrize("noisy,slow", [(False, False), (True, False), (False, True)])
+def test_materialized_imu_analysis_serial_metrics(repair_env: Any, noisy: bool, slow: bool) -> None:
+    """Real analysis runner and stored evidence; seeded criteria remain a separate blocker."""
+    from nexus_board.verification.close import promote_analysis_evidence_into_test_plan
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        ExecutionPlanWorkflow,
+    )
+
+    kernel, pid, user, _, _, write = repair_env
+    plan = kernel.project_store.get_artifact(pid, "execution-plan")["content"]
+    rendered = ExecutionPlanWorkflow(kernel).render(plan)["analysis"]["analysis.py"]
+    write("analysis.py", rendered)
+    telemetry = (Path(__file__).parent / "fixtures" / "imu_serial.txt").read_bytes()
+    if noisy:
+        telemetry = telemetry.replace(b"0.01000", b"0.21000").replace(b"-0.01000", b"-0.21000")
+    if slow:
+        telemetry = (
+            telemetry.replace(b"TEL,0.080,", b"TEL,0.160,")
+            .replace(b"TEL,0.060,", b"TEL,0.120,")
+            .replace(b"TEL,0.040,", b"TEL,0.080,")
+            .replace(b"TEL,0.020,", b"TEL,0.040,")
+        )
+    write("data/serial.log", telemetry)
+    run = kernel.workspace_runtime.run_analysis(
+        project_id=pid, artifact_type="analysis", actor=user
+    )["executionRun"]
+    run = wait(kernel, run["executionRunId"])
+    assert run["status"] == "completed", run
+    summary, names, output_id, _ = kernel.verification._extract_run_evidence(run)
+    assert summary is not None
+    assert summary["inputPath"] == "data/serial.log"
+    assert summary["inputSha256"] == hashlib.sha256(telemetry).hexdigest()
+    assert summary["sampling_hz"] == pytest.approx(25 if slow else 50)
+    assert summary["accel_x_rms_noise_g"] == pytest.approx(0.21 if noisy else 0.01)
+    assert {"outputs/summary.json", "outputs/processed.csv", "outputs/accel_plot.png"} <= set(names)
+    golden = json.loads(
+        (
+            ROOT
+            / "packages/contracts/examples/valid/esp32-imu-vibration-monitor"
+            / "test-plan-artifact.json"
+        ).read_text()
+    )["content"]
+    assessed, changed = promote_analysis_evidence_into_test_plan(
+        golden,
+        summary=summary,
+        produced_output_names=names,
+        execution_run_id=run["executionRunId"],
+        output_id=output_id,
+    )
+    assert changed
+    cases = {c["displayId"]: c for c in assessed["testCases"]}
+    assert cases["T6"]["assessment"] == ("FAIL" if slow else "PASS")
+    assert cases["T7"]["assessment"] == ("FAIL" if noisy else "PASS")
+    assert cases["T8"]["assessment"] == "PASS"
+    seeded = kernel.project_store.get_artifact(pid, "test-plan")["content"]
+    unchanged, changed = promote_analysis_evidence_into_test_plan(
+        seeded,
+        summary=summary,
+        produced_output_names=names,
+        execution_run_id=run["executionRunId"],
+        output_id=output_id,
+    )
+    assert not changed
+    assert unchanged == seeded
+    assert all(c["status"] == "planned" and "assessment" not in c for c in unchanged["testCases"])
+
+
+def test_generic_analysis_profile_remains_generic() -> None:
+    from nexus_board.analysis.scaffold import get_analysis_scaffold_profile
+
+    profile = get_analysis_scaffold_profile("python-analysis-v1")
+    source = next(f.content for f in profile.files if f.path == "analysis.py")
+    assert b'"status": "ok"' in source
+    assert b"accel_x_rms_noise_g" not in source
+    assert b"serial.log" not in source
