@@ -370,7 +370,10 @@ def test_stale_correction_requires_review_again(repair_env):
     assert advance(workflow, state, user)["status"] == "review"
 
 
-@pytest.mark.parametrize("simulator", ["ready", "unavailable", "failed", "firmware-test"])
+@pytest.mark.parametrize(
+    "simulator",
+    ["ready", "unavailable", "failed", "firmware-test", "electrical-held", "analysis-held"],
+)
 def test_firmware_defect_repair_reruns_existing_w4_path(
     repair_env, monkeypatch, tmp_path, simulator
 ):
@@ -521,13 +524,14 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
     electrical = kernel.workspace_runtime.resolve_binding(
         project_id=pid, artifact_type="electrical-architecture", actor=user
     )
-    acquire_edit_lease(
-        kernel,
-        project_id=pid,
-        artifact_id=electrical["artifactId"],
-        workspace_id=electrical["workspaceId"],
-        requested_by=user,
+    analysis = kernel.workspace_runtime.resolve_binding(
+        project_id=pid, artifact_type="analysis", actor=user
     )
+    kernel.workspaces.release_edit_lease(workspace_id=analysis["workspaceId"], actor=user)
+    other = {**user, "actorId": "user_other"}
+    blocked = electrical if simulator == "electrical-held" else analysis
+    if simulator in {"electrical-held", "analysis-held"}:
+        kernel.workspaces.acquire_edit_lease(workspace_id=blocked["workspaceId"], actor=other)
     workflow = RepairWorkflow(kernel)
     state = advance(
         workflow,
@@ -554,6 +558,16 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             break
         if simulator == "failed" and state["status"] == "inspect":
             break
+    if simulator in {"electrical-held", "analysis-held"}:
+        assert state["status"] == "stopped", state
+        assert state["errorCode"] == "DRAFT_EDIT_LEASE_HELD"
+        assert "another actor" in state["explanation"]
+        assert blocked["artifactType"] in state["explanation"]
+        assert (
+            kernel.kernel_store.get_draft(blocked["workspaceId"])["editLease"]["ownerActorId"]
+            == other["actorId"]
+        )
+        return
     if simulator in {"unavailable", "failed"}:
         assert len(state["attempts"][1]["runIds"]) == 2  # failed simulation also retained
         failed_simulation = kernel.executions.get_run(state["runId"])
@@ -583,6 +597,12 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             assert advance(workflow, state, user)["status"] == "review"
         return
     assert state["status"] == "completed", str(state)
+    for downstream in (electrical, analysis):
+        assert not kernel.kernel_store.get_draft(downstream["workspaceId"]).get("editLease")
+    assert (
+        kernel.kernel_store.get_draft(binding["workspaceId"])["editLease"]["ownerActorId"]
+        == user["actorId"]
+    )
     assert len(state["attempts"]) == 2
     assert len(state["attempts"][1]["runIds"]) == (4 if simulator == "firmware-test" else 3)
     assert consumed

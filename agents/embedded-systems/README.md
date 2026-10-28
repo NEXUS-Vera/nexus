@@ -100,3 +100,9 @@ retain their existing stores. See the W5 API section in
 [`apps/api/README.md`](../../apps/api/README.md) for actions, bounds and explicit
 unavailability/diagnostic limitations. Scripted gateways demonstrate regression
 control flow only. This workflow does not add W6 provenance or W8 UI integration.
+
+After an approved firmware correction rebuilds, repair acquires ordinary edit
+leases for the simulation snapshot and analysis import/execution, releasing only
+leases it acquired. Callers need not separately lease these downstream workspaces.
+An active lease belonging to another actor stops repair and names the blocked
+workspace; compile and patch approval retain their existing lease requirements.
