@@ -102,6 +102,12 @@ def load_settings() -> Settings:
     if not file_root and backend in {"sqlite", "sqlite3"}:
         root = default_sqlite_file_store_root(database_url)
         file_root = str(root) if root else ""
+    provider = os.environ.get("NEXUS_MODEL_PROVIDER", "openai").strip().lower()
+    default_base_url = (
+        "https://api.anthropic.com"
+        if provider in {"anthropic", "claude"}
+        else "https://api.openai.com/v1"
+    )
     return Settings(
         cors_origins=_cors_origins(session_token),
         session_token=session_token,
@@ -112,10 +118,10 @@ def load_settings() -> Settings:
         .lower(),
         storage_backend=backend,
         database_url=database_url,
-        model_provider=os.environ.get("NEXUS_MODEL_PROVIDER", "openai"),
+        model_provider=provider,
         model_name=os.environ.get("NEXUS_MODEL_NAME", "gpt-4.1-mini"),
         model_credential=os.environ.get("NEXUS_MODEL_API_KEY", ""),
-        model_base_url=os.environ.get("NEXUS_MODEL_BASE_URL", "https://api.openai.com/v1"),
+        model_base_url=os.environ.get("NEXUS_MODEL_BASE_URL", default_base_url),
         model_timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
         model_max_repair_attempts=int(os.environ.get("NEXUS_MODEL_MAX_REPAIR_ATTEMPTS", "1")),
         file_store_root=file_root,

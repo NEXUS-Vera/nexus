@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import queue
 import threading
 from dataclasses import dataclass
 from typing import Any, Protocol
+from urllib.error import HTTPError
 
 from nexus_model_gateway import ModelGatewayError, ModelPolicy
 
@@ -139,6 +141,11 @@ class LiveAnalysisPatchGenerator:
                 timeout=self.model_policy.timeout_seconds + 5.0,
             )
         except ModelGatewayError as exc:
+            logging.getLogger(__name__).warning(
+                "analysis_patch_gateway_failed code=%s http_status=%s",
+                exc.code,
+                exc.__cause__.code if isinstance(exc.__cause__, HTTPError) else None,
+            )
             raise AnalysisPatchGenerationError(
                 f"Model patch generation failed: {exc.code}", code="MODEL_PROVIDER_UNAVAILABLE"
             ) from exc
