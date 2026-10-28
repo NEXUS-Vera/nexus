@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    {
+      "nodeId": "node_acquisition",
+      "name": "I2C Acquisition & Data Retrieval",
+      "functionalType": "input",
+      "responsibilities": ["Use ESP32 to initiate I2C register reads and process acceleration data"],
+      "satisfiesRequirementIds": []
+    },
+    {
+      "nodeId": "node_sensing",
+      "name": "3-Axis Acceleration Sensing",
+      "functionalType": "sensing",
+      "responsibilities": ["Measure acceleration using MPU6050 and return register data over I2C"],
+      "satisfiesRequirementIds": []
+    }
+  ],
+  "edges": [
+    {
+      "edgeId": "edge_control",
+      "fromNodeId": "node_acquisition",
+      "toNodeId": "node_sensing",
+      "flowType": "control",
+      "description": "I2C register read requests"
+    },
+    {
+      "edgeId": "edge_data",
+      "fromNodeId": "node_sensing",
+      "toNodeId": "node_acquisition",
+      "flowType": "data",
+      "description": "I2C acceleration register data"
+    }
+  ]
+}

@@ -403,3 +403,11 @@ def test_missing_edge_endpoint_does_not_infer_i2c_for_unmapped_role(
         requirement_set_content={"requirements": []},
     )
     assert content["candidates"][0]["specifications"] == []
+
+
+def test_i2c_transport_without_architecture() -> None:
+    from nexus_embedded_systems.workflows.component_planning.derive_roles import is_i2c_bus
+
+    assert not is_i2c_bus(
+        {"nodeId": "comm", "functionalType": "communication", "name": "I2C Subsystem"}, None
+    )
