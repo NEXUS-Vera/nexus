@@ -158,7 +158,7 @@ def _renumber(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def is_i2c_bus(node: dict[str, Any], architecture: dict[str, Any]) -> bool:
+def is_i2c_bus(node: dict[str, Any], architecture: dict[str, Any] | None) -> bool:
     """Recognize explicit buses or I2C transports adjoining compute and sensing."""
     if node.get("functionalType") != "communication":
         return False
@@ -175,7 +175,7 @@ def is_i2c_bus(node: dict[str, Any], architecture: dict[str, Any]) -> bool:
         return False
     neighbors = {
         endpoint
-        for edge in (architecture.get("edges") or [])
+        for edge in ((architecture or {}).get("edges") or [])
         if isinstance(edge, dict)
         and edge.get("flowType") in {"data", "control"}
         and node_id in (edge.get("fromNodeId"), edge.get("toNodeId"))
@@ -184,7 +184,7 @@ def is_i2c_bus(node: dict[str, Any], architecture: dict[str, Any]) -> bool:
     }
     categories = {
         _resolve_category(neighbor, {})[0]
-        for neighbor in (architecture.get("nodes") or [])
+        for neighbor in ((architecture or {}).get("nodes") or [])
         if isinstance(neighbor, dict)
         and neighbor.get("nodeId") in neighbors
         and neighbor.get("functionalType") != "communication"

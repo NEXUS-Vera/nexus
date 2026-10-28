@@ -55,6 +55,11 @@ bounded typed review and ESP32/MPU6050 workspace preparation using shared board
 revision and file services. It does not extend the fixture prose interpreter to
 live conversation. See the W2 section of the initialization boundary document for
 supported selections, failure/retry semantics and the open live acceptance gate.
+Default selection treats parallel usable I2C connections between the same
+ESP32-DEVKIT-V1 and MPU6050 candidates as one physical bus, choosing the
+lexicographically lowest connection ID regardless of direction or flow type.
+Electrical records and provenance remain intact; distinct candidate pairs still
+require explicit configuration.
 
 Plan approval adopts or replaces pre-existing deterministic scaffold files only
 when their profile provenance and content hash match and they have no user-edit

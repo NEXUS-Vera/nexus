@@ -58,7 +58,7 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
         and isinstance(n.get("nodeId"), str)
         and isinstance(n.get("componentCandidateId"), str)
     }
-    options = []
+    options: dict[tuple[str, str], dict[str, Any]] = {}
     for connection in electrical.get("connections", []):
         if not isinstance(connection, dict) or not all(
             isinstance(connection.get(k), str)
@@ -85,27 +85,34 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
             for s in compute.get("specifications", [])
             if isinstance(s, dict) and isinstance(s.get("specKey"), str) and "value" in s
         }
-        options.append(
-            {
-                "buildProfileId": "platformio-arduino-esp32-v1",
-                "analysisProfileId": "python-analysis-v1",
-                "components": [
-                    {"componentRoleId": c["componentRoleId"], "candidateId": c["candidateId"]}
-                    for c in selected
-                ],
-                "i2c": {
-                    "connectionId": connection["connectionId"],
-                    "sdaPin": specs.get("gpio-sda", 21),
-                    "sclPin": specs.get("gpio-scl", 22),
-                },
-            }
-        )
+        sensor = next(c for c in selected if c.get("partNumber", "").upper() == "MPU6050")
+        selected = [compute, sensor]
+        pair_key = (compute["candidateId"], sensor["candidateId"])
+        # Parallel functional flows share one physical bus. Preserve the electrical
+        # records and choose a stable representative independent of edge ordering.
+        if pair_key in options and (
+            options[pair_key]["i2c"]["connectionId"] <= connection["connectionId"]
+        ):
+            continue
+        options[pair_key] = {
+            "buildProfileId": "platformio-arduino-esp32-v1",
+            "analysisProfileId": "python-analysis-v1",
+            "components": [
+                {"componentRoleId": c["componentRoleId"], "candidateId": c["candidateId"]}
+                for c in selected
+            ],
+            "i2c": {
+                "connectionId": connection["connectionId"],
+                "sdaPin": specs.get("gpio-sda", 21),
+                "sclPin": specs.get("gpio-scl", 22),
+            },
+        }
     if len(options) != 1:
         raise CommandValidationError(
             "Default configuration requires one usable ESP32-DEVKIT-V1 + MPU6050 I2C binding; "
             "provide an explicit configuration."
         )
-    return options[0]
+    return next(iter(options.values()))
 
 
 class ExecutionPlanWorkflow:

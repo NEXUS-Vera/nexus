@@ -1055,3 +1055,73 @@ async def test_s0_recorded_i2c_topology_default_propose(
             },
         )
         assert response.status_code == 200, response.text
+
+
+async def test_s0c_parallel_i2c_default_propose() -> None:
+    """Reduced topology from the reported S0c acquisition/sensing architecture."""
+    from pathlib import Path
+
+    from nexus_api.main import _store, app
+    from nexus_embedded_systems.workflows.component_planning.compose import (
+        compose_component_plan_content,
+    )
+    from nexus_embedded_systems.workflows.layered_architecture.compose_electrical import (
+        compose_electrical_architecture_content,
+    )
+
+    architecture = json.loads(
+        (
+            Path(__file__).resolve().parents[3]
+            / "agents/embedded-systems/tests/fixtures/s0c-parallel-i2c.json"
+        ).read_text()
+    )
+    # S0c already mapped acquisition to the ESP32 candidate. Reproduce that
+    # recorded assignment without testing the separate input-role classifier.
+    planning_architecture = copy.deepcopy(architecture)
+    planning_architecture["nodes"][0]["functionalType"] = "processing"
+    plan = compose_component_plan_content(
+        architecture_content=planning_architecture,
+        requirement_set_content={"requirements": []},
+        user_message="Build an ESP32-DEVKIT-V1 vibration monitor with MPU6050 over I2C.",
+    )
+    electrical = compose_electrical_architecture_content(
+        architecture_content=architecture,
+        component_plan_content=plan,
+    )
+    buses = [c for c in electrical["connections"] if c["interfaceType"] == "i2c"]
+    assert len(buses) == 2
+    assert {c["status"] for c in buses} == {"provisional"}
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        response = await client.post("/v1/projects/initialize", json={"message": GOLDEN_PROMPT})
+        assert response.status_code == 200, response.text
+        pid = response.json()["project"]["projectId"]
+        state = _store.get_current_state(pid)
+        for artifact in state["artifacts"]:
+            if artifact["artifactType"] == "component-plan":
+                artifact["content"] = plan
+            elif artifact["artifactType"] == "electrical-architecture":
+                artifact["content"] = electrical
+        _store.save_initialization_package(state)
+        response = await client.post(
+            f"/v1/projects/{pid}/execution-plan/propose",
+            json={
+                "requestedBy": _actor(),
+                "baseProjectStateVersion": state["project"]["currentStateVersion"],
+                "basePlanVersion": 0,
+            },
+        )
+        assert response.status_code == 200, response.text
+        config = response.json()["content"]["configuration"]
+        assert config["i2c"] == {
+            "connectionId": min(c["connectionId"] for c in buses),
+            "sdaPin": 21,
+            "sclPin": 22,
+        }
+        candidates = {c["candidateId"]: c for c in plan["candidates"]}
+        assert [candidates[c["candidateId"]]["partNumber"] for c in config["components"]] == [
+            "ESP32-DEVKIT-V1",
+            "MPU6050",
+        ]
+        assert _store.get_current_state(pid) == state
