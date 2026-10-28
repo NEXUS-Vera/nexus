@@ -36,8 +36,10 @@ each run is a stateless request/response over the supplied prompt.
   Component planning promotes supported user-named ESP32 (ESP32-DEVKIT-V1) and
   MPU6050 (including MPU-6050) parts on matching compute and motion-sensing roles as unverified,
   user-provided candidates pending approval; common ESP32 DevKit / DevKit V1 spellings
-  resolve to ESP32-DEVKIT-V1. Explicit I2C communication bus nodes become electrical
-  connections between hardware roles, including control and return-data flow provenance.
+  resolve to ESP32-DEVKIT-V1. I2C communication nodes between compute and sensing become electrical
+  connections between hardware roles, including control and return-data flow provenance,
+  even when their names omit "bus". I2C may be specified in the name, responsibilities,
+  or interfaces; unrelated WiFi/BLE and UART/serial nodes remain hardware roles.
   Other roles retain fixture placeholders, listed in a warning in the live component-plan summary.
   `NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`, `NEXUS_MODEL_API_KEY`,
   `NEXUS_MODEL_TIMEOUT_SECONDS`, and `NEXUS_MODEL_BASE_URL` configure the

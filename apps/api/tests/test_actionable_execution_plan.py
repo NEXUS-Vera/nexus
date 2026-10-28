@@ -960,13 +960,14 @@ async def test_scaffold_then_approve_reconciles_only_unmodified_output(
                         assert "Wire.begin" in read.json()["content"]
 
 
+@pytest.mark.parametrize("bus_name", ["I2C Communication Bus", "I2C Communication Subsystem"])
 @pytest.mark.parametrize(
     ("through_bus", "direct_flow", "reverse"),
     [(True, None, False), (False, None, False)]
     + [(True, flow, reverse) for flow in ("data", "control") for reverse in (False, True)],
 )
 async def test_s0_recorded_i2c_topology_default_propose(
-    through_bus: bool, direct_flow: str | None, reverse: bool
+    through_bus: bool, direct_flow: str | None, reverse: bool, bus_name: str
 ) -> None:
     from pathlib import Path
 
@@ -985,6 +986,7 @@ async def test_s0_recorded_i2c_topology_default_propose(
         ).read_text()
     )
     bus = next(n["nodeId"] for n in architecture["nodes"] if n["name"] == "I2C Communication Bus")
+    next(n for n in architecture["nodes"] if n["nodeId"] == bus)["name"] = bus_name
     bus_edge_ids = {
         e["edgeId"] for e in architecture["edges"] if bus in (e["fromNodeId"], e["toNodeId"])
     }

@@ -328,3 +328,78 @@ def test_compose_tolerates_missing_topology(architecture: dict) -> None:
     )
     assert content["componentRoles"] == []
     assert content["candidates"] == []
+
+
+@pytest.mark.parametrize(
+    "details, expected",
+    [
+        ({"name": "I2C Communication Subsystem"}, True),
+        ({"responsibilities": ["Transport I2C transactions"]}, True),
+        ({"interfaces": [{"interfaceType": "i2c"}]}, True),
+        ({"name": "WiFi Subsystem", "responsibilities": ["WiFi transport"]}, False),
+        ({"name": "BLE Subsystem"}, False),
+        ({"name": "Serial Output Subsystem", "responsibilities": ["UART serial"]}, False),
+    ],
+)
+def test_i2c_transport_requires_protocol_and_hardware_neighbors(
+    details: dict, expected: bool
+) -> None:
+    from nexus_embedded_systems.workflows.component_planning.derive_roles import is_i2c_bus
+
+    transport = {"nodeId": "comm", "functionalType": "communication", **details}
+    architecture = {
+        "nodes": [
+            transport,
+            {"nodeId": "cpu", "functionalType": "processing"},
+            {"nodeId": "imu", "functionalType": "sensing"},
+        ],
+        "edges": [
+            {"fromNodeId": "cpu", "toNodeId": "comm", "flowType": "control"},
+            {"fromNodeId": "imu", "toNodeId": "comm", "flowType": "data"},
+            {"fromNodeId": "comm", "toNodeId": "cpu", "flowType": "data"},
+            {"fromNodeId": "comm", "flowType": "data"},
+        ],
+    }
+    assert is_i2c_bus(transport, architecture) is expected
+    content = compose_component_plan_content(
+        architecture_content=architecture, requirement_set_content={"requirements": []}
+    )
+    assert (
+        any("comm" in r["architectureNodeIds"] for r in content["componentRoles"]) is not expected
+    )
+    architecture["edges"] = architecture["edges"][:1]
+    assert not is_i2c_bus(transport, architecture)
+
+
+def test_missing_edge_endpoint_does_not_infer_i2c_for_unmapped_role(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from nexus_embedded_systems.workflows.component_planning import compose
+
+    roles = [
+        {
+            "componentRoleId": "unmapped",
+            "architectureNodeIds": [None],
+            "requirementIds": ["req"],
+            "name": "Unmapped",
+        }
+    ]
+    candidates = [
+        {
+            "componentRoleId": "unmapped",
+            "source": "user-provided",
+            "partNumber": "MPU6050",
+            "specifications": [],
+            "notes": "",
+        }
+    ]
+    monkeypatch.setattr(compose, "derive_roles_from_architecture", lambda *a, **kw: roles)
+    monkeypatch.setattr(compose, "propose_candidates_for_roles", lambda *a, **kw: candidates)
+    # Isolate interface inference from coverage and maturity for this synthetic unmapped role.
+    monkeypatch.setattr(compose, "compute_coverage_summary", lambda *a, **kw: {})
+    monkeypatch.setattr(compose, "compute_maturity", lambda *a, **kw: {})
+    content = compose.compose_component_plan_content(
+        architecture_content={"edges": [{"description": "I2C", "flowType": "data"}]},
+        requirement_set_content={"requirements": []},
+    )
+    assert content["candidates"][0]["specifications"] == []
