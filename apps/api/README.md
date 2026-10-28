@@ -443,3 +443,8 @@ stop explicitly instead of silently dropping verification objectives.
 
 Firmware and analysis authoring use the configured model provider and credential
 independently of `NEXUS_INITIALIZATION_PROVIDER`, including fixture initialization.
+
+With `NEXUS_MODEL_BASE_URL` unset, `anthropic`/`claude` use
+`https://api.anthropic.com`; other providers use `https://api.openai.com/v1`.
+An explicit base URL overrides these defaults. Patch gateway failures log the
+gateway error code and HTTP status at warning level without payloads.
