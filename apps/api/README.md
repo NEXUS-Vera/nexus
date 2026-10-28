@@ -339,7 +339,13 @@ repair loop (W4/W5).
 
 W4 simulation handoff requires `firmwareOutputId` in the existing `artifact.execute`
 command input (`capability: circuit-simulation`, `executionMode: simulate`). The
-caller names the exact successful project PlatformIO compile output
+user-approved `execution-plan` artifact scopes simulation support, preview and
+materialization to its configured component role/candidate pairs and I2C
+connection. Other reviewed roles remain outside simulation materialization.
+Without an approved artifact, simulation continues to use the full component
+plan and electrical architecture. Provider mapping checks still apply to every
+configured component; no parts are substituted.
+The caller names the exact successful project PlatformIO compile output
 `.pio/build/nexus/firmware.elf`; there is no automatic latest-build selection or
 fallback to `NEXUS_WOKWI_FIRMWARE_ELF` on this API path. The adapter reads and
 checks the stored ELF bytes and passes them to the existing Wokwi runner. Standalone
