@@ -46,7 +46,9 @@ def compose_component_plan_content(
     bus_ids = {
         n["nodeId"]
         for n in (architecture_content.get("nodes") or [])
-        if isinstance(n, dict) and isinstance(n.get("nodeId"), str) and is_i2c_bus(n)
+        if isinstance(n, dict)
+        and isinstance(n.get("nodeId"), str)
+        and is_i2c_bus(n, architecture_content)
     }
     i2c_nodes = {
         endpoint
@@ -59,6 +61,7 @@ def compose_component_plan_content(
             or "i2c" in str(edge.get("description") or "").casefold()
         )
         for endpoint in (edge.get("fromNodeId"), edge.get("toNodeId"))
+        if isinstance(endpoint, str)
     }
     i2c_roles = {
         r["componentRoleId"] for r in roles if i2c_nodes.intersection(r["architectureNodeIds"])

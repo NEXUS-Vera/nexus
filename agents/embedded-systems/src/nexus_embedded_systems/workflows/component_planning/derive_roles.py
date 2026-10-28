@@ -81,7 +81,7 @@ def derive_roles_with_coverage(
         node_id = node.get("nodeId")
         if not isinstance(node_id, str):
             continue
-        category, skip_reason = _resolve_category(node)
+        category, skip_reason = _resolve_category(node, architecture_content)
         if category is None:
             skipped.append(
                 {
@@ -158,16 +158,46 @@ def _renumber(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def is_i2c_bus(node: dict[str, Any]) -> bool:
-    """Recognize an explicit transport node, rather than I2C-capable hardware."""
+def is_i2c_bus(node: dict[str, Any], architecture: dict[str, Any]) -> bool:
+    """Recognize explicit buses or I2C transports adjoining compute and sensing."""
+    if node.get("functionalType") != "communication":
+        return False
     name = str(node.get("name") or "").casefold()
-    return node.get("functionalType") == "communication" and "i2c" in name and "bus" in name
+    if "i2c" in name and "bus" in name:
+        return True
+    text = " ".join(
+        str(node.get(key) or "") for key in ("name", "responsibilities", "interfaces")
+    ).casefold()
+    if "i2c" not in text:
+        return False
+    node_id = node.get("nodeId")
+    if not isinstance(node_id, str):
+        return False
+    neighbors = {
+        endpoint
+        for edge in (architecture.get("edges") or [])
+        if isinstance(edge, dict)
+        and edge.get("flowType") in {"data", "control"}
+        and node_id in (edge.get("fromNodeId"), edge.get("toNodeId"))
+        for endpoint in (edge.get("fromNodeId"), edge.get("toNodeId"))
+        if isinstance(endpoint, str) and endpoint != node_id
+    }
+    categories = {
+        _resolve_category(neighbor, {})[0]
+        for neighbor in (architecture.get("nodes") or [])
+        if isinstance(neighbor, dict)
+        and neighbor.get("nodeId") in neighbors
+        and neighbor.get("functionalType") != "communication"
+    }
+    return {"compute", "sensor"}.issubset(categories)
 
 
-def _resolve_category(node: dict[str, Any]) -> tuple[str | None, str | None]:
+def _resolve_category(
+    node: dict[str, Any], architecture: dict[str, Any]
+) -> tuple[str | None, str | None]:
     """Return (category, skip_reason). Category None means no hardware role."""
 
-    if is_i2c_bus(node):
+    if is_i2c_bus(node, architecture):
         return None, "I2C transport is realized as an electrical connection between hardware roles."
 
     functional_type = node.get("functionalType")

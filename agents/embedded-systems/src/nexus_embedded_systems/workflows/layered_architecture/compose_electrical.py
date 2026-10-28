@@ -448,7 +448,7 @@ def _resolve_i2c_bus_edges(
     """
     links: dict[tuple[str, str], dict[str, Any]] = {}
     for bus_id, node in nodes.items():
-        if not is_i2c_bus(node):
+        if not is_i2c_bus(node, {"nodes": list(nodes.values()), "edges": edges}):
             continue
         for incoming in edges:
             if incoming.get("toNodeId") != bus_id or incoming.get("flowType") not in {
