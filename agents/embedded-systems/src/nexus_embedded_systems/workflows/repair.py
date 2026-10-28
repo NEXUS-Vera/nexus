@@ -13,6 +13,7 @@ from typing import Any
 
 from nexus_board.errors import BoardError, CommandValidationError
 from nexus_board.ids import new_id
+from nexus_persistence.errors import ArtifactNotFoundError
 
 from nexus_embedded_systems.workflows.project_initialization.prompts.catalog import (
     EXECUTION_REPAIR_REQUEST,
@@ -27,6 +28,7 @@ ACTIVE = {"queued", "starting", "running", "cancelling"}
 
 def _unavailable(code: str) -> bool:
     return "UNAVAILABLE" in code or code in {
+        "ARCHITECTURE_UNSUPPORTED",
         "PROCESS_START_FAILED",
         "WOKWI_CLI_MISSING",
         "WOKWI_CREDENTIAL_MISSING",
@@ -154,9 +156,12 @@ class RepairWorkflow:
         raise CommandValidationError("Unsupported repair execution operation")
 
     def _cases(self, project_id: str, run_id: str) -> list[dict[str, Any]]:
-        cases = self.kernel.project_store.get_artifact(project_id, "test-plan")["content"][
-            "testCases"
-        ]
+        try:
+            cases = self.kernel.project_store.get_artifact(project_id, "test-plan")["content"][
+                "testCases"
+            ]
+        except ArtifactNotFoundError:
+            return []
         return [
             c
             for c in cases
@@ -215,6 +220,14 @@ class RepairWorkflow:
                         state.update(
                             status="cancelled" if run["status"] == "cancelled" else "stopped",
                             explanation=run["status"],
+                        )
+                    elif _unavailable((run.get("error") or {}).get("code", "")):
+                        error = run["error"]
+                        state.update(
+                            status="unavailable",
+                            errorCode=error["code"],
+                            explanation=error.get("message")
+                            or "Execution prerequisite unavailable",
                         )
                     elif run["status"] not in {"completed", "completed-with-warnings"}:
                         state["status"] = "inspect"
@@ -314,7 +327,7 @@ class RepairWorkflow:
         if _unavailable(error.get("code", "")):
             state.update(
                 status="unavailable",
-                explanation="Execution prerequisite unavailable",
+                explanation=error.get("message") or "Execution prerequisite unavailable",
                 errorCode=error.get("code"),
             )
             return

@@ -100,3 +100,10 @@ retain their existing stores. See the W5 API section in
 [`apps/api/README.md`](../../apps/api/README.md) for actions, bounds and explicit
 unavailability/diagnostic limitations. Scripted gateways demonstrate regression
 control flow only. This workflow does not add W6 provenance or W8 UI integration.
+
+Approved execution-plan materialization seeds a missing Test Plan from its
+verification objectives without replacing existing cases. Seeded cases are planned
+and unassessed; prose criteria do not become deterministic pass criteria. Repair
+stops on unsupported architectures and unavailable simulator prerequisites, retaining
+the error code rather than proposing a firmware correction. Missing legacy Test Plans
+yield empty inspection cases and `TEST_PLAN_MISSING` on evidence promotion.
