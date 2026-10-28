@@ -13,6 +13,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from nexus_embedded_systems.workflows.component_planning.propose_candidates import (
+    requests_supported_prototype,
+)
 from nexus_model_gateway import FakeModelGateway
 
 from .case_loader import EvalCase
@@ -103,7 +106,7 @@ def requirements_for_case(case: EvalCase) -> tuple[dict[str, Any], tuple[str, ..
 
 def architecture_for_case(case: EvalCase, local_keys: tuple[str, ...]) -> dict[str, Any]:
     keys = list(local_keys) or ["req-1"]
-    return {
+    draft: dict[str, Any] = {
         "systemBoundary": f"Functional boundary scripted for eval case {case.id}.",
         "nodes": [
             {
@@ -127,6 +130,43 @@ def architecture_for_case(case: EvalCase, local_keys: tuple[str, ...]) -> dict[s
         "unresolvedDecisionStatements": list(case.expected_open_decisions),
         "requirementCoverageLocalKeys": keys,
     }
+
+    if requests_supported_prototype(case.prompt):
+        draft["nodes"].append(
+            {
+                "localNodeKey": "node-sensing",
+                "name": "Motion Sensing",
+                "functionalType": "sensing",
+                "responsibilities": ["Measure acceleration."],
+                "satisfiesLocalRequirementKeys": keys,
+            }
+        )
+        draft["nodes"].append(
+            {
+                "localNodeKey": "node-i2c",
+                "name": "I2C Acquisition Interface",
+                "functionalType": "input",
+                "responsibilities": ["Manage I2C transactions between sensing and processing."],
+                "satisfiesLocalRequirementKeys": keys,
+            }
+        )
+        draft["edges"] = [
+            {
+                "localEdgeKey": "edge-i2c-sensing",
+                "fromLocalNodeKey": "node-sensing",
+                "toLocalNodeKey": "node-i2c",
+                "flowType": "data",
+                "description": "Transfer acceleration samples over I2C.",
+            },
+            {
+                "localEdgeKey": "edge-i2c-processing",
+                "fromLocalNodeKey": "node-i2c",
+                "toLocalNodeKey": "node-core",
+                "flowType": "data",
+                "description": "Deliver acceleration samples to processing.",
+            },
+        ]
+    return draft
 
 
 def build_gateway_for_case(case: EvalCase) -> FakeModelGateway:

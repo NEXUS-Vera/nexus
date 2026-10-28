@@ -7,6 +7,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from nexus_board.errors import CommandValidationError
 from nexus_contracts.validation.semantic_validators import validate_component_plan_content
 from nexus_model_gateway import ModelGateway, ModelGatewayError, ModelPolicy
 from nexus_observability import GenerationObservation, ObservationRecorder, StructuredLogRecorder
@@ -15,11 +16,17 @@ from nexus_embedded_systems.workflows.component_planning import (
     compose_component_plan_content,
     compose_component_plan_envelope,
 )
+from nexus_embedded_systems.workflows.component_planning.propose_candidates import (
+    requests_supported_prototype,
+)
 from nexus_embedded_systems.workflows.layered_architecture import (
     compose_electrical_architecture_content,
     compose_electrical_architecture_envelope,
     compose_physical_architecture_content,
     compose_physical_architecture_envelope,
+)
+from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+    derive_default_configuration,
 )
 
 from ..assembly import (
@@ -356,6 +363,17 @@ class LlmInitializationProvider:
                     workflow_run=ledger.to_workflow_run(),
                     details=[f"{e.code}: {e.path}: {e.message}" for e in blocking],
                 )
+            try:
+                if requests_supported_prototype(message):
+                    derive_default_configuration(result)
+            except CommandValidationError as exc:
+                ledger.fail_step(step)
+                raise LlmInitializationError(
+                    code="LLM_INITIALIZATION_VALIDATION_FAILED",
+                    message=f"Assembled LLM package has no usable default binding: {exc}",
+                    workflow_run=ledger.to_workflow_run(),
+                    details=[str(exc)],
+                ) from exc
             ledger.complete_step(step)
 
             step = ledger.start_step("complete-workflow")

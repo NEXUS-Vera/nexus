@@ -183,6 +183,8 @@ def test_cli_module_is_invocable_via_python_dash_m() -> None:
     src_roots = (
         "apps/api/src",
         "agents/embedded-systems/src",
+        "packages/board/src",
+        "packages/persistence/src",
         "packages/contracts/src",
         "packages/contracts/generated/python",
         "packages/model-gateway/src",
