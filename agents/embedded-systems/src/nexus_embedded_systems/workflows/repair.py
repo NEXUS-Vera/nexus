@@ -95,7 +95,10 @@ class RepairWorkflow:
         target: str,
         max_attempts: int = 3,
         require_real: bool = True,
+        scope: str = "full",
     ) -> dict[str, Any]:
+        if not isinstance(scope, str) or scope not in {"build", "full"}:
+            raise CommandValidationError("scope must be build or full")
         if type(max_attempts) is not int or not 1 <= max_attempts <= 3:
             raise CommandValidationError(
                 "maxAttempts must be between 1 and 3 (initial run included)"
@@ -116,6 +119,12 @@ class RepairWorkflow:
         if run["status"] in ACTIVE or run["status"] == "cancelled":
             raise CommandValidationError("Repair requires a terminal failure or failed assessment")
         stage = self._stage(run)
+        if scope == "build" and (
+            target != "firmware" or stage != "compile" or run["status"] != "failed"
+        ):
+            raise CommandValidationError(
+                "Build scope requires a failed compile run and target firmware"
+            )
         if stage in {"compile", "test"} and target != "firmware":
             raise CommandValidationError("Compiler failures require a firmware correction")
         if stage == "simulate" and target != "firmware":
@@ -127,6 +136,7 @@ class RepairWorkflow:
             "revision": 0,
             "status": "inspect",
             "target": target,
+            "scope": scope,
             "maxAttempts": max_attempts,
             "requireReal": require_real,
             "evidenceMode": "real-requested" if require_real else "regression",
@@ -218,6 +228,14 @@ class RepairWorkflow:
                         )
                     elif run["status"] not in {"completed", "completed-with-warnings"}:
                         state["status"] = "inspect"
+                    elif state["stage"] == "compile" and state.get("scope", "full") == "build":
+                        state.update(
+                            status="completed",
+                            explanation=(
+                                "Build-only repair completed with a successful rebuild; "
+                                "no simulation, analysis or P1-P5 evidence promotion."
+                            ),
+                        )
                     elif state["stage"] == "compile":
                         state["firmwareOutputId"] = self._output(
                             state, ".pio/build/nexus/firmware.elf"

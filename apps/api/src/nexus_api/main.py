@@ -3437,6 +3437,7 @@ async def advance_embedded_repair(
                 body["target"],
                 body.get("maxAttempts", 3),
                 body.get("requireReal", True),
+                body.get("scope", "full"),
             )
         if action == "get":
             return workflow.get(project_id, body["repairId"])
