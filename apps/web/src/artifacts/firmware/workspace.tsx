@@ -287,6 +287,8 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props)
     const current = bindingRef.current;
     const token = leaseTokenRef.current;
     if (!current || !token) return;
+    // Cleanup owns this lease; clear it before awaiting the best-effort release.
+    leaseTokenRef.current = null;
     try {
       const result = await submitArtifactCommand(projectId, {
         schemaVersion: '1.0.0',
@@ -304,9 +306,6 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props)
       onCommandResult?.(result);
     } catch {
       // Best-effort release on unmount / navigation.
-    } finally {
-      setLeaseToken(null);
-      leaseTokenRef.current = null;
     }
   }, [actor, onCommandResult, projectId]);
 
