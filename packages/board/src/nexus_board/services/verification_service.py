@@ -11,7 +11,7 @@ import json
 from contextlib import suppress
 from typing import Any, Protocol
 
-from nexus_persistence.errors import PersistenceNotFoundError
+from nexus_persistence.errors import ArtifactNotFoundError, PersistenceNotFoundError
 
 from nexus_board.errors import BoardError
 from nexus_board.ids import new_id, utc_now_iso
@@ -105,7 +105,13 @@ class VerificationService:
             if job.get("logTruncated"):
                 raise VerificationError("ExecutionRun logs were truncated; evidence is incomplete.")
 
-        test_plan = self._projects.get_artifact(project_id, "test-plan")
+        try:
+            test_plan = self._projects.get_artifact(project_id, "test-plan")
+        except ArtifactNotFoundError as exc:
+            raise VerificationError(
+                "Test Plan missing; approve/materialize an execution plan first.",
+                code="TEST_PLAN_MISSING",
+            ) from exc
         requirements = self._load_requirements(project_id)
         summary, output_names, output_id, log_text = self._extract_run_evidence(run)
 
