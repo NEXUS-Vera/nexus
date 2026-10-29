@@ -372,7 +372,17 @@ def test_stale_correction_requires_review_again(repair_env):
 
 @pytest.mark.parametrize(
     "simulator",
-    ["ready", "unavailable", "failed", "firmware-test", "electrical-held", "analysis-held"],
+    [
+        "ready",
+        "unavailable",
+        "failed",
+        "firmware-test",
+        "electrical-held",
+        "analysis-held",
+        "build",
+        "build-retry",
+        "build-exhausted",
+    ],
 )
 def test_firmware_defect_repair_reruns_existing_w4_path(
     repair_env, monkeypatch, tmp_path, simulator
@@ -465,9 +475,13 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
     assert wait(kernel, failed["executionRunId"])["status"] == "failed"
     gateway = FakeModelGateway()
 
+    corrections = []
+
     def correction(_task, payload, _schema):
+        corrections.append(payload)
         assert "INJECTED_DEFECT: compiler regression error" in payload["requestedChange"]
-        assert failed["executionRunId"] in payload["requestedChange"]
+        if len(corrections) == 1:
+            assert failed["executionRunId"] in payload["requestedChange"]
         for kind in ("requirement-set", "electrical-architecture", "test-plan"):
             current = kernel.project_store.get_artifact(pid, kind)
             assert {
@@ -475,7 +489,16 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             } in payload["inputArtifactReferences"]
         return {
             "operations": [
-                {"operationType": "replace-file", "path": "src/main.cpp", "content": source}
+                {
+                    "operationType": "replace-file",
+                    "path": "src/main.cpp",
+                    "content": source
+                    + (
+                        "\nINJECTED_DEFECT\n"
+                        if simulator in {"build-retry", "build-exhausted"} and len(corrections) == 1
+                        else ""
+                    ),
+                }
             ]
         }
 
@@ -533,11 +556,55 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
     if simulator in {"electrical-held", "analysis-held"}:
         kernel.workspaces.acquire_edit_lease(workspace_id=blocked["workspaceId"], actor=other)
     workflow = RepairWorkflow(kernel)
-    state = advance(
-        workflow,
-        workflow.start(pid, user, failed["executionRunId"], "firmware", require_real=False),
-        user,
-    )
+    build_scope = simulator.startswith("build")
+    if build_scope:
+        before_plan = copy.deepcopy(kernel.project_store.get_artifact(pid, "test-plan"))
+
+        def forbidden(*args, **kwargs):
+            pytest.fail("Build-only repair must not launch simulation/analysis or promote evidence")
+
+        monkeypatch.setattr(kernel.verification, "promote_execution_evidence", forbidden)
+        monkeypatch.setattr(kernel.workspace_runtime, "run_analysis", forbidden)
+        original_execute = kernel.executions.execute
+
+        def compile_only(**kwargs):
+            assert kwargs["artifact_type"] == "firmware"
+            return original_execute(**kwargs)
+
+        monkeypatch.setattr(kernel.executions, "execute", compile_only)
+    if build_scope:
+        import asyncio
+
+        from httpx import ASGITransport, AsyncClient
+
+        monkeypatch.setattr(main, "_kernel", kernel)
+
+        async def start_over_http():
+            async with AsyncClient(
+                transport=ASGITransport(app=main.app), base_url="http://test"
+            ) as client:
+                response = await client.post(
+                    f"/v1/projects/{pid}/repair",
+                    headers={"Authorization": "Bearer " + main.EXPECTED_SESSION_TOKEN.decode()},
+                    json={
+                        "action": "start",
+                        "executionRunId": failed["executionRunId"],
+                        "target": "firmware",
+                        "scope": "build",
+                        "requestedBy": user,
+                        "requireReal": True,
+                        "maxAttempts": 2 if simulator == "build-exhausted" else 3,
+                    },
+                )
+                assert response.status_code == 200, response.text
+                return response.json()
+
+        initial = asyncio.run(start_over_http())
+    else:
+        initial = workflow.start(
+            pid, user, failed["executionRunId"], "firmware", require_real=False
+        )
+    state = advance(workflow, initial, user)
     proposal = kernel.kernel_store.get_firmware_patch_proposal(state["proposalId"])
     assert proposal["generatorMetadata"]["mode"] == "regression"
     binding = kernel.workspace_runtime.resolve_binding(project_id=pid, artifact_type="firmware")
@@ -550,7 +617,27 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
         base_artifact_version=binding["baseArtifactVersion"],
         base_project_state_version=kernel.project_store.get_project(pid)["currentStateVersion"],
     )
-    for _ in range(8):
+    for _ in range(12):
+        if (
+            build_scope
+            and state["status"] == "review"
+            and kernel.kernel_store.get_firmware_patch_proposal(state["proposalId"])["status"]
+            == "proposed"
+        ):
+            binding = kernel.workspace_runtime.resolve_binding(
+                project_id=pid, artifact_type="firmware"
+            )
+            kernel.workspace_runtime.apply_firmware_patch(
+                project_id=pid,
+                artifact_type="firmware",
+                proposal_id=state["proposalId"],
+                actor=user,
+                expected_draft_version=binding["draft"]["draftVersion"],
+                base_artifact_version=binding["baseArtifactVersion"],
+                base_project_state_version=kernel.project_store.get_project(pid)[
+                    "currentStateVersion"
+                ],
+            )
         state = advance(workflow, state, user)
         if state["status"] == "running":
             wait(kernel, state["runId"])
@@ -567,6 +654,17 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             kernel.kernel_store.get_draft(blocked["workspaceId"])["editLease"]["ownerActorId"]
             == other["actorId"]
         )
+        return
+    if build_scope:
+        assert state["scope"] == "build" and state["stage"] == "compile"
+        assert workflow.get(pid, state["repairId"]) == state
+        assert len(state["attempts"]) == (3 if simulator == "build-retry" else 2)
+        assert all(len(a["runIds"]) == 1 for a in state["attempts"])
+        assert state["status"] == ("exhausted" if simulator == "build-exhausted" else "completed")
+        if state["status"] == "completed":
+            assert "Build-only repair" in state["explanation"]
+        assert not consumed
+        assert kernel.project_store.get_artifact(pid, "test-plan") == before_plan
         return
     if simulator in {"unavailable", "failed"}:
         assert len(state["attempts"][1]["runIds"]) == 2  # failed simulation also retained
@@ -679,6 +777,19 @@ async def test_http_repair_revision_and_validation(repair_env, monkeypatch):
     assert conflict.status_code == 409
     invalid = await client.post(route, headers=headers, json={"executionRunId": [], "target": []})
     assert invalid.status_code == 422
+    for scope in ("build", "unknown", None, []):
+        rejected = await client.post(
+            route,
+            headers=headers,
+            json={
+                "action": "start",
+                "executionRunId": failed["executionRunId"],
+                "target": "analysis",
+                "scope": scope,
+                "requestedBy": user,
+            },
+        )
+        assert rejected.status_code == 422, rejected.text
     bad_action = await client.post(route, headers=headers, json={"action": []})
     assert bad_action.status_code == 422
     assert (await client.post(route, headers=headers, content="{")).status_code == 422
@@ -777,3 +888,26 @@ def test_verbose_failure_context_respects_existing_patch_contract(repair_env):
         project_id=pid, execution_run_id=run["executionRunId"]
     )
     assert sum(len(c["content"]) for c in logs["chunks"]) > 8000
+
+
+@pytest.mark.parametrize(
+    "stage,target,status",
+    [
+        ("test", "firmware", "failed"),
+        ("simulate", "firmware", "failed"),
+        ("analyze", "firmware", "failed"),
+        ("compile", "analysis", "failed"),
+        ("compile", "firmware", "completed"),
+    ],
+)
+def test_build_scope_rejects_other_stages_and_targets(
+    repair_env, monkeypatch, stage, target, status
+):
+    kernel, pid, user, failed, _, _ = repair_env
+    workflow = RepairWorkflow(kernel)
+    monkeypatch.setattr(workflow, "_stage", lambda run: stage)
+    monkeypatch.setattr(
+        workflow.runtime, "get_execution", lambda **kwargs: {"executionRun": {"status": status}}
+    )
+    with pytest.raises(BoardError, match="Build scope requires"):
+        workflow.start(pid, user, failed["executionRunId"], target, scope="build")

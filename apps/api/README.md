@@ -339,7 +339,13 @@ repair loop (W4/W5).
 
 W4 simulation handoff requires `firmwareOutputId` in the existing `artifact.execute`
 command input (`capability: circuit-simulation`, `executionMode: simulate`). The
-caller names the exact successful project PlatformIO compile output
+user-approved `execution-plan` artifact scopes simulation support, preview and
+materialization to its configured component role/candidate pairs and I2C
+connection. Other reviewed roles remain outside simulation materialization.
+Without an approved artifact, simulation continues to use the full component
+plan and electrical architecture. Provider mapping checks still apply to every
+configured component; no parts are substituted.
+The caller names the exact successful project PlatformIO compile output
 `.pio/build/nexus/firmware.elf`; there is no automatic latest-build selection or
 fallback to `NEXUS_WOKWI_FIRMWARE_ELF` on this API path. The adapter reads and
 checks the stored ELF bytes and passes them to the existing Wokwi runner. Standalone
@@ -378,7 +384,14 @@ separate work packages.
 
 Send `action: start`, `executionRunId`, `target: firmware|analysis`, and optional
 `maxAttempts` (1–3, including the original failed attempt), `requireReal` (default
-true). Subsequent `get` requests name `repairId`; `advance` and `cancel` also
+true), and `scope: full|build` (default `full`, preserving the complete flow).
+`build` requires target `firmware` and a failed compile run; other stages, analysis
+targets and invalid scopes return 422. Scope is persisted in repair progress.
+After approved patch application, build scope compiles with `requireReal` honored.
+A successful rebuild completes at stage `compile` without simulation, analysis
+or evidence promotion; it does not count toward P1–P5. Failed rebuilds return to
+inspection and consume an attempt under the same `maxAttempts` bound.
+Subsequent `get` requests name `repairId`; `advance` and `cancel` also
 require the returned `revision`. Progress is retained in the existing append-only
 project events, including diagnosis excerpts, proposal IDs and every run ID.
 Concurrent stale advances return `REPAIR_CONFLICT`. Reconstruct after restart with
@@ -387,11 +400,11 @@ Concurrent stale advances return `REPAIR_CONFLICT`. Reconstruct after restart wi
 Advance inspects stored job diagnostics and deterministic failed test cases,
 then pauses in `review`. Use the ordinary guarded patch apply/discard endpoints;
 advance never approves a patch. Stale patch bases still require a new review.
-After apply, advance schedules/polls the existing jobs. Firmware corrections rerun
-compile → simulation using that exact ELF → observation import → Python analysis
+After apply, advance schedules/polls the existing jobs. Full-scope firmware
+corrections rerun compile → simulation using that exact ELF → observation import → Python analysis
 → deterministic evidence promotion. Analysis corrections rerun analysis against
-its existing input. Leases on affected workspaces are still required. Only linked
-cases with deterministic PASS and passed status finish the loop. Exhaustion,
+its existing input. Leases on affected workspaces are still required. Full scope
+requires linked cases with deterministic PASS and passed status to finish the loop. Exhaustion,
 rejection, timeout, cancellation and unavailable prerequisites remain explicit
 terminal outcomes; none becomes PASS. `requireReal: false` permits regression
 execution only, not a live acceptance claim.
