@@ -38,6 +38,84 @@ CONTENT_SCHEMA = (
 )
 
 
+# Exact requirement semantics and criteria from packages/contracts/examples/valid/
+# esp32-imu-vibration-monitor/{requirement-set,test-plan}-artifact.json.
+# Display IDs are local labels and cannot authorize a deterministic criterion.
+IMU_VERIFICATION: dict[str, dict[str, Any]] = {
+    "The system uses an ESP32-based design that communicates with an MPU6050 over I²C.": {
+        "title": "I²C communication",
+        "verificationMethod": "simulation",
+        "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+    },
+    "I²C wiring for the MPU6050 uses SDA GPIO21 and SCL GPIO22.": {
+        "title": "I²C pin mapping",
+        "verificationMethod": "inspection",
+        "criterion": {
+            "criterionType": "structural-mapping",
+            "signal": "SDA",
+            "expectedMapping": "GPIO21",
+        },
+    },
+    "Firmware initializes serial at 115200 baud for streaming acceleration telemetry.": {
+        "title": "Serial baud rate",
+        "verificationMethod": "inspection",
+        "criterion": {"criterionType": "exact-match", "expectedValue": "115200"},
+    },
+    "Firmware initializes the MPU6050 and reports readiness before streaming.": {
+        "title": "MPU6050 initialization",
+        "verificationMethod": "execution-output",
+        "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+    },
+    (
+        "Firmware streams acceleration telemetry in a machine-readable form "
+        "containing time_ms, accel_x_g, accel_y_g, and accel_z_g."
+    ): {
+        "title": "Telemetry schema",
+        "verificationMethod": "execution-output",
+        "criterion": {"criterionType": "contains", "marker": "accel_x_g"},
+    },
+    (
+        "Target telemetry interval is approximately 20 ms (50 Hz) where "
+        "simulator/runtime behavior permits."
+    ): {
+        "title": "Sampling frequency",
+        "verificationMethod": "analysis",
+        "criterion": {
+            "criterionType": "range",
+            "metricId": "sampling_hz",
+            "minValue": 45,
+            "maxValue": 55,
+            "unit": "Hz",
+        },
+    },
+    (
+        "Analyze stationary sensor noise to verify that accel_x RMS noise "
+        "stays below 0.10 g (demeaned)."
+    ): {
+        "title": "Stationary accel_x RMS noise",
+        "verificationMethod": "analysis",
+        "criterion": {
+            "criterionType": "numeric-comparison",
+            "metricId": "accel_x_rms_noise_g",
+            "operator": "<",
+            "expectedValue": 0.1,
+            "unit": "g",
+        },
+    },
+    (
+        "Analysis of stationary sensor noise produces summary JSON, processed "
+        "CSV, and an acceleration telemetry plot PNG."
+    ): {
+        "title": "Analysis deliverables",
+        "verificationMethod": "analysis",
+        "criterion": {
+            "criterionType": "existence",
+            "outputName": "summary.json,processed.csv,accel_plot.png",
+        },
+    },
+}
+
+
 def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
     """Select the supported prototype pair from its current electrical binding.
 
@@ -422,32 +500,33 @@ class ExecutionPlanWorkflow:
         requirements = self.projects.get_artifact(project_id, "requirement-set")["content"][
             "requirements"
         ]
-        methods = {
-            "inspection",
-            "simulation",
-            "firmware-test",
-            "analysis",
-            "execution-output",
-            "manual",
-        }
-        cases = [
-            {
+        req_by_id = {r["requirementId"]: r for r in requirements}
+        cases = []
+        for index, objective in enumerate(artifact["content"]["plan"]["verificationObjectives"], 1):
+            case = {
                 "testId": new_id("test"),
                 "displayId": f"T{index}",
                 "title": objective["objectiveId"],
                 "linkedRequirementIds": [objective["requirementId"]],
-                "verificationMethod": objective["method"]
-                if objective["method"] in methods
-                else "manual",
+                "verificationMethod": "manual",
                 "description": objective["method"],
                 "expectedResult": "\n".join(objective["acceptanceCriteria"])
                 or "Acceptance criteria require review.",
                 "status": "planned",
             }
-            for index, objective in enumerate(
-                artifact["content"]["plan"]["verificationObjectives"], 1
-            )
-        ]
+            requirement = req_by_id.get(objective["requirementId"], {})
+            mapped = IMU_VERIFICATION.get(requirement.get("statement", ""))
+            # Additional acceptance criteria need review rather than a partial mapping.
+            if mapped and not objective["acceptanceCriteria"]:
+                case.update(mapped)
+                case["expectedResult"] = (
+                    "See deterministic criterion for the golden IMU requirement."
+                )
+            else:
+                case["expectedResult"] += (
+                    " No deterministic criterion mapping available; review required."
+                )
+            cases.append(case)
         content = {
             "schemaVersion": "1.0.0",
             "testPlanId": new_id("tplan"),
