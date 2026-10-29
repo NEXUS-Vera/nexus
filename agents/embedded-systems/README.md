@@ -120,3 +120,10 @@ and unassessed; prose criteria do not become deterministic pass criteria. Repair
 stops on unsupported architectures and unavailable simulator prerequisites, retaining
 the error code rather than proposing a firmware correction. Missing legacy Test Plans
 yield empty inspection cases and `TEST_PLAN_MISSING` on evidence promotion.
+
+Approved ESP32/MPU6050 plans materialize the golden IMU analysis under the existing
+`python-analysis-v1` profile. It reads `data/serial.log` telemetry and writes
+`summary.json` with demeaned `accel_x_rms_noise_g` and timestamp-derived
+`sampling_hz`, plus `processed.csv` and `accel_plot.png`. Generic scaffolding
+remains unchanged. Seeded prose-only cases still require deterministic criteria
+before evidence promotion can assess them.
