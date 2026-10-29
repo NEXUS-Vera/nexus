@@ -103,7 +103,9 @@ control flow only. This workflow does not add W6 provenance or W8 UI integration
 
 Approved execution-plan materialization seeds a missing Test Plan from its
 verification objectives without replacing existing cases. Seeded cases are planned
-and unassessed; prose criteria do not become deterministic pass criteria. Repair
+and unassessed. Exact golden IMU requirement statements without additional acceptance
+criteria receive the golden Test Plan methods and deterministic criteria (R1–R8);
+unmapped objectives remain manual without a criterion. Repair
 stops on unsupported architectures and unavailable simulator prerequisites, retaining
 the error code rather than proposing a firmware correction. Missing legacy Test Plans
 yield empty inspection cases and `TEST_PLAN_MISSING` on evidence promotion.
@@ -112,5 +114,7 @@ Approved ESP32/MPU6050 plans materialize the golden IMU analysis under the exist
 `python-analysis-v1` profile. It reads `data/serial.log` telemetry and writes
 `summary.json` with demeaned `accel_x_rms_noise_g` and timestamp-derived
 `sampling_hz`, plus `processed.csv` and `accel_plot.png`. Generic scaffolding
-remains unchanged. Seeded prose-only cases still require deterministic criteria
-before evidence promotion can assess them.
+remains unchanged. Simulation promotes readiness/telemetry markers; analysis promotes
+45–55 Hz sampling, demeaned RMS below 0.10 g, and JSON/CSV/PNG deliverables.
+Inspection cases remain outside runtime promotion. Thresholds come from
+`packages/contracts/examples/valid/esp32-imu-vibration-monitor/test-plan-artifact.json`.
