@@ -68,9 +68,10 @@ IMU_VERIFICATION: dict[str, dict[str, Any]] = {
     },
     (
         "Firmware streams acceleration telemetry in a machine-readable form "
-        "containing time_ms, accel_x_g, accel_y_g, and accel_z_g."
+        "containing time_s, accel_x_g, accel_y_g, and accel_z_g."
     ): {
         "title": "Telemetry schema",
+        "expectedResult": "Telemetry includes time_s, accel_x_g, accel_y_g, accel_z_g.",
         "verificationMethod": "execution-output",
         "criterion": {"criterionType": "contains", "marker": "accel_x_g"},
     },
@@ -515,12 +516,17 @@ class ExecutionPlanWorkflow:
                 "status": "planned",
             }
             requirement = req_by_id.get(objective["requirementId"], {})
-            mapped = IMU_VERIFICATION.get(requirement.get("statement", ""))
+            # Preserve matching for the legacy golden R5 wording without changing fixtures.
+            statement = requirement.get("statement", "").replace(
+                "containing time_ms,", "containing time_s,"
+            )
+            mapped = IMU_VERIFICATION.get(statement)
             # Additional acceptance criteria need review rather than a partial mapping.
             if mapped and not objective["acceptanceCriteria"]:
                 case.update(mapped)
-                case["expectedResult"] = (
-                    "See deterministic criterion for the golden IMU requirement."
+                case["expectedResult"] = mapped.get(
+                    "expectedResult",
+                    ("See deterministic criterion for the golden IMU requirement."),
                 )
             else:
                 case["expectedResult"] += (

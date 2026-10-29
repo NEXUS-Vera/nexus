@@ -85,13 +85,25 @@ Only emit create-file/replace-file/delete-file operations.
 Use replace-file for existing files and create-file for new files.
 Do not include markdown fences or explanations."""
 
+IMU_SERIAL_CONTRACT = """For ESP32 + MPU6050 firmware, use this serial contract:
+Initialize Serial at 115200 baud.
+Print NEXUS_MPU_READY once after successful MPU6050 initialization; on failure,
+print a line containing NEXUS_MPU_INIT_FAIL and do not stream samples.
+Print the header time_s,accel_x_g,accel_y_g,accel_z_g on its own line.
+Emit each sample as TEL,<time_s>,<ax>,<ay>,<az> followed by a newline.
+time_s is fractional seconds (now / 1000.0) with 3 decimals.
+ax, ay, az are acceleration in g (raw / 16384.0f at +/-2g), with 5 decimals.
+Sample every 20 ms (50 Hz; acceptable measured range 45-55 Hz) using a
+non-blocking millis() schedule: return while now - lastSampleMs < 20,
+then update lastSampleMs and read/emit the sample. Do not use delay() for sampling."""
+
 
 @dataclass
 class LiveFirmwarePatchGenerator:
     gateway: _ModelGateway
     model_policy: ModelPolicy
     prompt_id: str = "firmware.patch-proposal.v1"
-    prompt_version: str = "1.0.0"
+    prompt_version: str = "1.1.0"
     generator_id: str = "firmware-patch-generator-llm-v1"
     generator_version: str = "1.0.0"
 
@@ -120,6 +132,7 @@ class LiveFirmwarePatchGenerator:
                 "allowedOperationTypes": ["create-file", "replace-file", "delete-file"],
                 "maxOperations": 32,
             },
+            "serialContract": IMU_SERIAL_CONTRACT,
         }
         try:
             generated = _run_sync(
