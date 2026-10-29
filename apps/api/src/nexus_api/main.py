@@ -67,6 +67,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .circuit_simulation import (
     CircuitSimulationExecutionAdapter,
+    approved_execution_plan,
     materialization_request,
     serialize_availability,
     serialize_provider_preview,
@@ -615,6 +616,7 @@ def _circuit_materialization(project_id: str) -> tuple[dict[str, Any], Any]:
     return electrical, materialization_request(
         electrical_artifact=electrical,
         component_plan_artifact=component_plan,
+        execution_plan_artifact=approved_execution_plan(_store, project_id),
     )
 
 
