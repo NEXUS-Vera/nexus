@@ -6,7 +6,8 @@ This is the **live real-model demonstration**, owned by Pranay's golden
 acceptance environment. It covers real firmware generation, PlatformIO compilation,
 a labeled user edit injecting F2, model diagnosis, explicit patch approval, and
 rebuild → Wokwi simulation → serial-log import → Python analysis → deterministic
-verification. It is separate from the scripted offline regression and the fixture
+verification. It is separate from the scripted offline regression
+(`apps/api/tests/test_repair_full_scope_api.py`, added in PR #152) and the fixture
 HTTP [golden flow](agent-http-golden-flow.md). A regression PASS is not a live
 acceptance result. Simulation is surrogate evidence, not physical IMU evidence.
 
