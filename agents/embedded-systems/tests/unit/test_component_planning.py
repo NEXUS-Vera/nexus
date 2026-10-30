@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 from nexus_embedded_systems.workflows.component_planning import (
     apply_component_plan_operation,
@@ -299,14 +302,18 @@ def test_propose_candidates_preserves_supported_user_names(
         [{"componentRoleId": "role_motion", "category": category, "name": "Motion sensing"}],
         user_message=f"Build a monitor using {part}.",
     )
-    preferred, fallback = candidates
+    preferred = candidates[0]
     assert preferred["partNumber"] == expected
     assert preferred["candidateState"] == "preferred"
     assert preferred["source"] == ("fixture" if expected.startswith("FX-") else "user-provided")
     assert all(c["evidenceStatus"] == "unverified" for c in candidates)
     assert all(c["evidenceReferences"] == [] for c in candidates)
-    assert fallback["source"] == "fixture"
-    assert fallback["candidateState"] == "proposed"
+    if expected.startswith("FX-"):
+        assert len(candidates) == 2
+        assert candidates[1]["source"] == "fixture"
+        assert candidates[1]["candidateState"] == "proposed"
+    else:
+        assert len(candidates) == 1
 
 
 @pytest.mark.parametrize(
@@ -334,6 +341,7 @@ def test_compose_tolerates_missing_topology(architecture: dict) -> None:
     "details, expected",
     [
         ({"name": "I2C Communication Subsystem"}, True),
+        ({"name": "I2C Acquisition Interface"}, True),
         ({"responsibilities": ["Transport I2C transactions"]}, True),
         ({"interfaces": [{"interfaceType": "i2c"}]}, True),
         ({"name": "WiFi Subsystem", "responsibilities": ["WiFi transport"]}, False),
@@ -341,12 +349,13 @@ def test_compose_tolerates_missing_topology(architecture: dict) -> None:
         ({"name": "Serial Output Subsystem", "responsibilities": ["UART serial"]}, False),
     ],
 )
+@pytest.mark.parametrize("functional_type", ["communication", "input", "control"])
 def test_i2c_transport_requires_protocol_and_hardware_neighbors(
-    details: dict, expected: bool
+    details: dict, expected: bool, functional_type: str
 ) -> None:
     from nexus_embedded_systems.workflows.component_planning.derive_roles import is_i2c_bus
 
-    transport = {"nodeId": "comm", "functionalType": "communication", **details}
+    transport = {"nodeId": "comm", "functionalType": functional_type, **details}
     architecture = {
         "nodes": [
             transport,
@@ -364,9 +373,11 @@ def test_i2c_transport_requires_protocol_and_hardware_neighbors(
     content = compose_component_plan_content(
         architecture_content=architecture, requirement_set_content={"requirements": []}
     )
-    assert (
-        any("comm" in r["architectureNodeIds"] for r in content["componentRoles"]) is not expected
-    )
+    if expected or functional_type != "input":
+        assert (
+            any("comm" in r["architectureNodeIds"] for r in content["componentRoles"])
+            is not expected
+        )
     architecture["edges"] = architecture["edges"][:1]
     assert not is_i2c_bus(transport, architecture)
 
@@ -411,3 +422,65 @@ def test_i2c_transport_without_architecture() -> None:
     assert not is_i2c_bus(
         {"nodeId": "comm", "functionalType": "communication", "name": "I2C Subsystem"}, None
     )
+
+
+@pytest.mark.parametrize("attempt", ["attempt1_failed", "attempt2_ok"])
+def test_live_architecture_replay_has_default_i2c_binding(attempt: str) -> None:
+    from nexus_embedded_systems.workflows.layered_architecture import (
+        compose_electrical_architecture_content,
+    )
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        derive_default_configuration,
+    )
+
+    # Minimal topology copied from N238 live init_response.json; no model calls.
+    architecture = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / f"{attempt}_architecture.json").read_text()
+    )
+    plan = compose_component_plan_content(
+        architecture_content=architecture,
+        requirement_set_content={"requirements": []},
+        user_message="Read MPU6050 acceleration using an ESP32 DevKit V1 over I2C.",
+    )
+    assert not any(c["partNumber"] == "FX-ENV-100" for c in plan["candidates"])
+    electrical = compose_electrical_architecture_content(
+        architecture_content=architecture, component_plan_content=plan
+    )
+    package = {
+        "artifacts": [
+            {"artifactType": "component-plan", "content": plan},
+            {"artifactType": "electrical-architecture", "content": electrical},
+        ]
+    }
+    configuration = derive_default_configuration(package)
+    connection = next(
+        c
+        for c in electrical["connections"]
+        if c["connectionId"] == configuration["i2c"]["connectionId"]
+    )
+    assert connection["interfaceType"] == "i2c"
+    nodes = {n["nodeId"]: n for n in electrical["nodes"]}
+    candidates = {c["candidateId"]: c for c in plan["candidates"]}
+    assert {
+        candidates[nodes[connection[key]]["componentCandidateId"]]["partNumber"]
+        for key in ("fromNodeId", "toNodeId")
+    } == {"ESP32-DEVKIT-V1", "MPU6050"}
+
+
+def test_i2c_acquisition_interface_is_not_a_sensor_without_topology() -> None:
+    from nexus_embedded_systems.workflows.component_planning.derive_roles import (
+        derive_roles_from_architecture,
+    )
+
+    roles = derive_roles_from_architecture(
+        {
+            "nodes": [
+                {
+                    "nodeId": "input",
+                    "functionalType": "input",
+                    "name": "I2C Acquisition Interface",
+                }
+            ]
+        }
+    )
+    assert roles[0]["category"] == "communication"

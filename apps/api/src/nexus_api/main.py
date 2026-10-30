@@ -67,6 +67,7 @@ from starlette.concurrency import run_in_threadpool
 
 from .circuit_simulation import (
     CircuitSimulationExecutionAdapter,
+    approved_execution_plan,
     materialization_request,
     serialize_availability,
     serialize_provider_preview,
@@ -615,6 +616,7 @@ def _circuit_materialization(project_id: str) -> tuple[dict[str, Any], Any]:
     return electrical, materialization_request(
         electrical_artifact=electrical,
         component_plan_artifact=component_plan,
+        execution_plan_artifact=approved_execution_plan(_store, project_id),
     )
 
 
@@ -2688,6 +2690,28 @@ async def discard_artifact_workspace_patch(
 
 
 @app.get(
+    "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/patch/{proposal_id}",
+    response_model=None,
+)
+async def get_artifact_workspace_patch_proposal(
+    project_id: str, artifact_type: str, proposal_id: str, request: Request
+) -> dict[str, Any] | JSONResponse:
+    """Read a stored firmware or analysis patch proposal in any lifecycle status."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        result = _kernel.workspace_runtime.get_firmware_patch_proposal(
+            project_id=project_id, artifact_type=artifact_type, proposal_id=proposal_id
+        )
+        return {"schemaVersion": "1.0.0", **result}
+    except BoardError as exc:
+        status = 404 if "NOT_FOUND" in exc.code else 422
+        return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get(
     "/v1/projects/{project_id}/artifacts/{artifact_type}/workspace/snapshots/{snapshot_id}/file",
     response_model=None,
 )
@@ -3437,6 +3461,7 @@ async def advance_embedded_repair(
                 body["target"],
                 body.get("maxAttempts", 3),
                 body.get("requireReal", True),
+                body.get("scope", "full"),
             )
         if action == "get":
             return workflow.get(project_id, body["repairId"])

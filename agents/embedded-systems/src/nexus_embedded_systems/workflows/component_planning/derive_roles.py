@@ -160,10 +160,10 @@ def _renumber(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def is_i2c_bus(node: dict[str, Any], architecture: dict[str, Any] | None) -> bool:
     """Recognize explicit buses or I2C transports adjoining compute and sensing."""
-    if node.get("functionalType") != "communication":
+    if node.get("functionalType") not in {"communication", "input", "control"}:
         return False
     name = str(node.get("name") or "").casefold()
-    if "i2c" in name and "bus" in name:
+    if node.get("functionalType") == "communication" and "i2c" in name and "bus" in name:
         return True
     text = " ".join(
         str(node.get(key) or "") for key in ("name", "responsibilities", "interfaces")
@@ -233,6 +233,9 @@ def _infer_category_from_text(node: dict[str, Any]) -> str | None:
     """Secondary classifier from name/responsibilities when functionalType is absent."""
 
     blob = _node_blob(node)
+    name = str(node.get("name") or "").casefold()
+    if "i2c" in blob and any(h in name for h in ("interface", "transport", "bus")):
+        return "communication"
     if any(h in blob for h in _SENSING_HINTS):
         return "sensor"
     if any(h in blob for h in _ACTUATION_HINTS):

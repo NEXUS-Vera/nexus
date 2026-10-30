@@ -4,6 +4,8 @@ version = "0.0.0"
 description = "Embedded-systems domain agent"
 requires-python = ">=3.11"
 dependencies = [
+  "nexus-board",
+  "nexus-persistence",
   "nexus-contracts",
   "nexus-model-gateway",
   "nexus-observability",
@@ -24,6 +26,8 @@ where = ["src"]
 asyncio_mode = "auto"
 pythonpath = [
   "src",
+  "../../../packages/board/src",
+  "../../../packages/persistence/src",
   "../../../packages/contracts/src",
   "../../../packages/model-gateway/src",
   "../../../packages/observability/src",
