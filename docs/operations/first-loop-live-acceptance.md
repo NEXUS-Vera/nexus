@@ -4,11 +4,12 @@
 
 This is the **live real-model demonstration**, owned by Pranay's golden
 acceptance environment. It covers real firmware generation, PlatformIO compilation,
-a labeled user edit injecting F2, model diagnosis, explicit patch approval, and
+labeled user edits injecting F2 (compiler), F4 (simulation I2C address), or F5
+(analysis sample rate), model diagnosis, explicit patch approval, and
 rebuild → Wokwi simulation → serial-log import → Python analysis → deterministic
-verification. It is separate from the scripted offline regression
-(`apps/api/tests/test_repair_full_scope_api.py`, added in PR #152) and the fixture
-HTTP [golden flow](agent-http-golden-flow.md). A regression PASS is not a live
+verification. It is separate from the scripted offline regressions
+(`apps/api/tests/test_repair_full_scope_api.py`, PR #152 with F4/F5 coverage in
+PR #155) and the fixture HTTP [golden flow](agent-http-golden-flow.md). A regression PASS is not a live
 acceptance result. Simulation is surrogate evidence, not physical IMU evidence.
 
 The N261 outline has been checked against this checkout's
@@ -23,10 +24,10 @@ There are material differences from the integration-branch specification:
   `scope: "full"` would not select or enforce it. Verify all downstream runs.
 - There is no `_downstream_lease` helper here. The operator must acquire the
   analysis and electrical workspace leases using the same actor before repair.
-- Repair returns a proposal ID, not its operations. No read-only HTTP route for
-  retrieving that stored firmware patch proposal was verified. Step 8 is an
-  explicit review blocker for an HTTP-only operator; do not mistake the unchanged
-  draft for the proposal or silently apply an unseen correction.
+- Repair returns a proposal ID, not inline operations. Step 8 uses the read-only
+  GET patch proposal route from PR #154, now merged into main. Inspect replacement
+  bytes and generator metadata before approval; the unchanged draft is not the
+  pending proposal.
 
 ## Host prerequisites and environment setup
 
@@ -63,6 +64,31 @@ clients are constructed at startup: restart after configuration changes. See
 [config.py](../../apps/api/src/nexus_api/config.py), `load_settings`, and
 `main.py:_build_firmware_patch_generator`. Do not use the golden flow's stub
 startup command for this demonstration.
+
+### Capability dependencies and settled live-demo decisions
+
+- **PR #154 is merged into main:** the API host must include its read-only
+  `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/{proposalId}`
+  route for Step 8. This branch's older API source does not yet contain that route;
+  use a host with the merged capability. No code update is part of this runbook edit.
+- **PR #155:** scripted offline F4/F5 regressions in
+  `apps/api/tests/test_repair_full_scope_api.py` exercise simulation and analysis
+  repair using stubs. Their PASS is separate from this real-model demonstration.
+- **N275 implementation remains in progress:** synchronous simulation diagnostics
+  need a `serial.log` fallback when `executionJob` is absent, and failed-case
+  `actualResult` excerpts need a 400-character bound to fit the serialized
+  4,096-character generation request. Confirm this fix is deployed before claiming
+  F4 live acceptance; retain full original evidence outside the bounded request.
+
+Pranay's decisions are settled: run **F2, F4, and F5 each in a fresh project**,
+repeating Steps 1–4 independently. For F2 continue with Steps 5–9; for F4 or F5
+skip the F2 injection and use Step 10 or 11. F5 repairs firmware
+`src/main.cpp` (`SAMPLE_INTERVAL_MS`), preserving the seeded `analysis.py` and its
+criteria. The default Wokwi hang triage threshold remains **30 seconds**; do not
+increase it to obtain PASS. This is the operator hang threshold, distinct from
+simulated duration (`maxDurationMs`) and the provider's calculated host-process
+watchdog. Preserve run state/logs on a hang; only report `SIMULATION_TIMEOUT` when
+that code is actually returned. R2/R3 sign-off remains the separate open question below.
 
 ## Request conventions
 
@@ -272,24 +298,52 @@ To recover current state, POST the same route with
 
 ### 8. Review and explicitly approve the repair patch
 
-**Current HTTP review gap:** repair start/advance/get returns the stored proposal
-ID but not its operations or model metadata. Runtime/file reads return draft
-state, not pending patch contents. The project events route
-`GET /v1/projects/{projectId}/events?limit=100` exposes patch event metadata
-(`patchProposalId`, operation paths/hashes), not replacement bytes. No verified
-read-only HTTP call supplies the full pending repair patch here.
+After repair advance returns `status:"review"`, inspect its `proposalId` using:
 
-Pause for Pranay to obtain a reviewable proposal through an approved review
-surface and verify restoration of `Wire.begin`, retained S7 behavior, and model
-metadata `mode:"llm"`. Record the review gap if that surface is unavailable;
-**do not mark the live demonstration complete or auto-approve**. This runbook
-cannot assert an HTTP-only end-to-end review succeeds on this checkout.
+`GET /v1/projects/{projectId}/artifacts/firmware/workspace/patch/{proposalId}?requireReal=true`
 
-After explicit review only, apply `repair.proposalId` using the patch/apply POST
-and current versions from step 3. Require `status:"applied"`. Read back the
-firmware draft to confirm the repair. Advance repair using the latest revision
-and `requireReal:true`; expect `stage:"compile"`, `status:"running"`, `runId`.
-Full scope means continuing through all of step 9, not stopping after rebuild.
+For example (Authorization is redacted; supply the session bearer privately):
+
+```bash
+curl --fail-with-body -sS \
+  -H 'Authorization: Bearer REDACTED' \
+  'http://127.0.0.1:8000/v1/projects/{projectId}/artifacts/firmware/workspace/patch/{proposalId}?requireReal=true'
+```
+
+PR #154's response contains `binding`, `status`, `baseSnapshotId`, and `proposal`.
+The stored `proposal` contains identity fields (`proposalId`, `projectId`,
+`workspaceId`, `artifactType`), lifecycle `status`, `baseSnapshotId`,
+`requestedChange`, `generatorMetadata`, and `operations`. Each replacement
+operation supplies `operationType`, `path`, full `content`, `expectedBaseHash`,
+and `contentHash`. The route is read-only and supports other lifecycle statuses;
+GET success alone is not approval.
+
+Before approving, verify:
+
+1. Top-level and proposal `status` are `"proposed"`; IDs, firmware binding and
+   base snapshot match this project, workspace and pending repair.
+2. `proposal.generatorMetadata.mode` is `"llm"`; record actual provider/model.
+   Fixture/fake metadata fails live acceptance.
+3. `proposal.operations` contains exactly one `replace-file` for `src/main.cpp`.
+   Inspect the full replacement and hashes against the base snapshot.
+4. It corrects the injected fault: F2 restores `Wire.begin` on approved pins;
+   F4 restores `MPU_ADDR` to `0x68`; F5 restores `SAMPLE_INTERVAL_MS` to `20`.
+5. It retains S7 behavior: 115200 baud, `NEXUS_MPU_READY` only after successful
+   initialization, `NEXUS_MPU_INIT_FAIL` without samples on failure,
+   `time_s,accel_x_g,accel_y_g,accel_z_g` header, and `TEL,` frames at 50 Hz.
+
+Only after explicit review, apply the reviewed ID:
+`POST /v1/projects/{projectId}/artifacts/firmware/workspace/patch/apply`:
+
+```json
+{"proposalId":"{proposalId}","requestedBy":actor,"expectedDraftVersion":draftVersion,"baseArtifactVersion":artifactVersion,"baseProjectStateVersion":projectVersion,"requireReal":true}
+```
+
+Refresh current runtime versions before applying. Require `status:"applied"`;
+read back `src/main.cpp` using the workspace file GET with `requireReal=true`.
+On stale state, refresh and re-review. Never apply an unseen proposal.
+Advance repair using the latest revision and `requireReal:true` as in Step 7;
+expect `stage:"compile"`, `status:"running"`, `runId`. Continue through Step 9.
 
 ### 9. Drive full-scope completion and inspect deterministic evidence
 
@@ -344,6 +398,121 @@ never call the demonstration passed. To stop an active repair, POST repair with
 `action:"cancel"`, `repairId`, latest `revision`, `requestedBy`, and
 `requireReal:true`; release operator leases after work stops.
 
+### 10. Live F4: Wokwi simulation I2C address fault
+
+Use a **fresh project** with Steps 1–4 completed, not the repaired F2 project.
+All calls inherit the Authorization and `requireReal:true` conventions above,
+including `requireReal=true` on every GET. Acquire/renew the three workspace
+leases with the same actor and refresh versions before writes.
+
+1. Record **F4 — operator/user edit: MPU_ADDR 0x68 → 0x69; intentional runtime
+   I2C NACK fault, not an agent generation failure.** Read `src/main.cpp` through
+   the workspace file GET. Locate the actual MPU6050 address constant and change
+   only `MPU_ADDR` from `0x68` to `0x69`, preserving the generated declaration's
+   type. If it is absent or ambiguous, stop and review. Use the Step 5 file PUT
+   body with the entire mutated source, current versions, `origin:"USER"`,
+   `writePolicy:"USER_EDITABLE"`, and `requireReal:true`. Require a bumped
+   `draft.draftVersion` and read back the edit.
+2. Repeat Step 4 compile with `requireReal:true`; require a completed real
+   PlatformIO run. Save that run's `.pio/build/nexus/firmware.elf` output ID.
+   A compiler failure is not the intended F4 fault.
+3. Snapshot the electrical workspace:
+   `POST /v1/projects/{projectId}/artifacts/electrical-architecture/workspace/snapshots`
+   with `{"requestedBy":actor,"reason":"before-execution","requireReal":true}`.
+   Save `snapshotId`. Send the command envelope from Request conventions to
+   `POST /v1/projects/{projectId}/artifact-commands`, using the current electrical
+   binding, `commandType:"artifact.execute"`, a fresh command ID, and this input:
+
+   ```json
+   {"snapshotId":"{snapshotId}","capability":"circuit-simulation","firmwareOutputId":"{elfOutputId}"}
+   ```
+
+   Keep `requireReal:true` at the envelope's top level. Save the command result's
+   `executionRunId` as `simRunId`; poll the execution and inspect outputs by run ID.
+   Apply the default 30-second hang triage threshold. Expected F4 is a completed
+   runner with `serial.log` containing `NEXUS_MPU_INIT_FAIL`, no
+   `NEXUS_MPU_READY`, and no telemetry samples. A timeout or unavailable simulator
+   is a different failure; retain it and triage.
+4. Explicitly promote the completed simulation:
+   `POST /v1/projects/{projectId}/verify/promote-execution`:
+
+   ```json
+   {"executionRunId":"{simRunId}","requestedBy":actor,"accept":true,"requireReal":true}
+   ```
+
+   Read the test-plan artifact. Require R1/R4 readiness and R5 header cases to
+   report `assessment:"FAIL"`, `status:"failed"`, linked to this simulation.
+   Inspect `actualResult` against the serial failure evidence; do not assume
+   exact text or rely solely on display IDs.
+5. Start firmware repair and then advance as in Step 7, substituting `simRunId`:
+
+   ```json
+   {"action":"start","executionRunId":"{simRunId}","target":"firmware","maxAttempts":3,"requestedBy":actor,"requireReal":true}
+   ```
+
+   Expect `status:"inspect"`, `stage:"simulate"`, then `status:"review"` and
+   `proposalId`. Check `evidenceMode:"real-requested"` and
+   `attempts[].diagnostics`: failed criteria, output references and `logExcerpt`
+   containing `NEXUS_MPU_INIT_FAIL`. This serial fallback and bounded case evidence
+   depend on N275; missing evidence or generation-bound errors block acceptance.
+6. Perform all Step 8 GET inspection and explicit approval checks, requiring
+   restoration of `MPU_ADDR = 0x68`. Continue through Step 9: rebuilt ELF,
+   successful Wokwi markers/telemetry, imported serial bytes, real Python
+   `analysis.py`, and deterministic R1/R4/R5/R6/R7/R8 PASS linked to the current
+   repair runs. Require repair `status:"completed"`; retain hashes and evidence
+   chain. A simulation-only repair is insufficient.
+
+### 11. Live F5: Python analysis sample-rate criteria fault
+
+Use another **fresh project**, repeating Steps 1–4. Keep every live request
+`requireReal:true` (GET query `requireReal=true`), current versions and all three
+same-actor leases. F5 targets firmware; preserve `analysis.py` and R6's 45–55 Hz
+criterion throughout diagnosis and repair.
+
+1. Record **F5 — operator/user edit: SAMPLE_INTERVAL_MS 20 → 40; intentional
+   analysis criteria fault (25 Hz instead of 50 Hz), not an agent generation
+   failure.** Read `src/main.cpp`, locate its sample interval constant and change
+   only `SAMPLE_INTERVAL_MS` from `20` to `40`. Stop for review if the generated
+   schedule differs. Write the entire mutated source with the Step 5 PUT body,
+   `origin:"USER"`, `writePolicy:"USER_EDITABLE"`, current versions and
+   `requireReal:true`. Require a bumped draft version and read back the edit.
+2. Compile and simulate using Step 10.2–3 with this project's new ELF, snapshot,
+   command and run IDs. Require completed real compilation and simulation,
+   `NEXUS_MPU_READY`, the serial header, and `TEL,` timestamps approximately
+   0.040 s apart. Promote this simulation using Step 10.4's body with
+   `requireReal:true`; R1/R4/R5 must PASS. Save its `serial.log` output ID.
+3. Import that produced output:
+   `POST /v1/projects/{projectId}/artifacts/analysis/workspace/inputs/import-produced-output`:
+
+   ```json
+   {"path":"data/serial.log","outputId":"{serialLogOutputId}","requestedBy":actor,"expectedDraftVersion":analysisDraftVersion,"baseArtifactVersion":analysisArtifactVersion,"baseProjectStateVersion":projectVersion,"requireReal":true}
+   ```
+
+   Resolve current analysis versions before import. Run
+   `POST /v1/projects/{projectId}/artifacts/analysis/workspace/run` with
+   `{"requestedBy":actor,"requireReal":true}`. Save `analysisRunId`, poll to
+   `status:"completed"`, and preview its `outputs/summary.json` as in Step 9.
+   Require `sampling_hz` near 25, matching serial input hash and
+   `authority:"deterministic-code"`. A Python process crash is not this fault.
+4. Explicitly promote analysis with Step 10.4's promotion body, substituting
+   `analysisRunId` and retaining `requireReal:true`. Read the test-plan artifact:
+   R6 must report `assessment:"FAIL"`, `status:"failed"`, and an `actualResult`
+   near 25 Hz outside 45–55, linked to this analysis run. A completed process
+   alone does not imply criteria PASS.
+5. Start repair with Step 10.5's body, substituting `analysisRunId` and keeping
+   `target:"firmware"`, `maxAttempts:3`, and `requireReal:true`. Expect
+   `status:"inspect"`, `stage:"analyze"`. Advance with Step 7's current revision
+   and `requireReal:true`; require `status:"review"`, a proposal ID, and
+   `evidenceMode:"real-requested"`. Inspect diagnostics for the failed R6
+   criterion/actual result and analysis output references.
+6. Use Step 8's GET review and explicit approval. Require the model's firmware
+   replacement to restore `SAMPLE_INTERVAL_MS = 20`, retaining the 50 Hz serial
+   contract. Do not modify `analysis.py` or relax the criterion to accept 25 Hz.
+   Continue through Step 9's complete rebuild → simulate → import → analyze →
+   promote sequence, using new run IDs and the new serial input hash. Require
+   `sampling_hz` in 45–55, deterministic R1/R4/R5/R6/R7/R8 PASS and repair
+   `status:"completed"`. Retain original FAIL and repaired PASS evidence.
+
 ## R2/R3 today and the open product question for Pranay
 
 R2 is inspection with `structural-mapping` (`SDA` → `GPIO21`; requirement also
@@ -370,8 +539,8 @@ and leave final sign-off pending Pranay's decision.
 ## Failure triage
 
 Paths below are repository-relative `file:function` targets verified in this
-checkout. Preserve actual error envelopes and run state; asynchronous failures
-can appear in run/repair state rather than as an HTTP error.
+checkout, except the explicitly labeled merged PR #154 additions. Preserve actual
+error envelopes and run state; asynchronous failures can appear in run/repair state rather than as an HTTP error.
 
 | Symptom | Check/action | File:function |
 | --- | --- | --- |
@@ -384,5 +553,6 @@ can appear in run/repair state rather than as an HTTP error.
 | `FIRMWARE_ELF_INVALID` | Selected output must be the actual completed rebuild ELF | `apps/api/src/nexus_api/circuit_simulation.py:CircuitSimulationExecutionAdapter._resolve_firmware` |
 | `SIMULATION_TIMEOUT` or no telemetry | Inspect simulation diagnostics, boot and S7 markers/schedule | `apps/api/src/nexus_api/circuit_simulation.py:CircuitSimulationExecutionAdapter.execute` |
 | 409 `REPAIR_CONFLICT` | Fetch repair state; send returned revision | `apps/api/src/nexus_api/main.py:advance_embedded_repair`; `agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py:RepairWorkflow.advance` |
-| Pending repair patch cannot be reviewed over HTTP | Stop before apply; report review surface gap | `agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py:RepairWorkflow._inspect`; `apps/api/src/nexus_api/main.py:advance_embedded_repair` |
+| 404 / 422 on `GET .../workspace/patch/{proposalId}` | Confirm API host includes merged PR #154; check proposal project/workspace/artifact identity. Stop before apply if inspection fails | PR #154 route (absent from this branch): `apps/api/src/nexus_api/main.py:get_artifact_workspace_patch_proposal`; `packages/board/src/nexus_board/services/workspace_runtime.py:WorkspaceRuntimeService.get_firmware_patch_proposal` |
+| `CommandValidationError: Failure criteria exceed generation bound` | Check deployment of the in-progress N275 fix; inspect failed-case count, serialized `actualResult` lengths and produced `serial.log` size. Preserve full evidence; do not drop criteria or disable real execution to bypass the 4,096-character request bound | `agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py:RepairWorkflow._inspect` |
 | Missing telemetry/nonfinite values, R6/R7 FAIL | Inspect original serial input, sample timestamps and g conversion; do not replace input with fixture CSV | `agents/embedded-systems/src/nexus_embedded_systems/workflows/project_modification/imu_analysis.py:main`; `packages/board/src/nexus_board/firmware/live_patch_generator.py:LiveFirmwarePatchGenerator.generate` |
