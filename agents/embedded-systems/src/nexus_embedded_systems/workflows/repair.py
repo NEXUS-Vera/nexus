@@ -338,17 +338,48 @@ class RepairWorkflow:
             if job
             else []
         )
+        raw_log = "".join(c.get("content", "") for c in chunks)
+        log_limited = len(chunks) == 100 or sum(len(c.get("content", "")) for c in chunks) > 4000
+        if not raw_log and not job:
+            try:
+                outputs = self.runtime.list_outputs_for_run(
+                    project_id=project_id, execution_run_id=run_id
+                ).get("outputs", [])
+            except Exception:  # noqa: BLE001
+                outputs = []
+            serial_output = next(
+                (o for o in outputs if o.get("name") == "serial.log"),
+                next((o for o in outputs if o.get("outputType") == "log"), None),
+            )
+            if serial_output:
+                structured = (
+                    (serial_output.get("content") or {}).get("structuredResult")
+                    or serial_output.get("structuredResult")
+                    or {}
+                )
+                raw_log = str(structured.get("text") or "")
+                log_limited = bool(structured.get("truncated")) or len(raw_log) > 4000
+            if not raw_log:
+                for case in self._cases(project_id, run_id):
+                    if case.get("assessment") != "PASS" and case.get("actualResult"):
+                        raw_log = str(case["actualResult"])
+                        log_limited = len(raw_log) > 4000
+                        break
+
         diagnostics = {
             "executionRunId": run_id,
             "snapshotId": run.get("inputSnapshotId"),
             "error": error,
             "job": {k: job.get(k) for k in ("exitCode", "failure", "logTruncated")},
-            "logExcerpt": _excerpt("".join(c.get("content", "") for c in chunks), 4000),
-            "logExcerptLimited": len(chunks) == 100
-            or sum(len(c.get("content", "")) for c in chunks) > 4000,
+            "logExcerpt": _excerpt(raw_log, 4000),
+            "logExcerptLimited": log_limited,
             "testCases": [
                 {
-                    key: case.get(key)
+                    key: (
+                        _excerpt(str(case.get(key) or ""), 400)
+                        if key == "actualResult" and len(str(case.get(key) or "")) > 400
+                        else case.get(key)
+                    )
                     for key in (
                         "testId",
                         "verificationMethod",
