@@ -1,9 +1,14 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { Artifact, ArtifactCommandResult, WorkspaceDescriptor } from '@nexus/contracts';
+import type {
+  Artifact,
+  ArtifactCommandResult,
+  ProducedOutput,
+  WorkspaceDescriptor,
+} from '@nexus/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import electricalFixture from '../../../../../packages/contracts/examples/valid/phase-13-electrical-architecture/electrical-architecture-artifact.json';
-import { getWorkspace, submitArtifactCommand } from '../../api/client';
+import { getWorkspace, listProducedOutputs, submitArtifactCommand } from '../../api/client';
 import { ArchitectureWorkspace } from './workspace';
 
 vi.mock('../../api/client', () => ({
@@ -85,6 +90,11 @@ function result(
 describe('architecture circuit simulation command flow', () => {
   beforeEach(() => {
     vi.mocked(getWorkspace).mockResolvedValue(workspace);
+    vi.mocked(listProducedOutputs).mockResolvedValue([
+      { outputId: 'out_bin0000000000000', name: '.pio/build/nexus/firmware.bin' },
+      { outputId: 'out_log0000000000000', name: 'serial.log' },
+      { outputId: 'out_elf0000000000000', name: '.pio/build/nexus/firmware.elf' },
+    ] as ProducedOutput[]);
     vi.mocked(submitArtifactCommand)
       .mockResolvedValueOnce(
         result('lease', {
@@ -100,7 +110,7 @@ describe('architecture circuit simulation command flow', () => {
       .mockResolvedValue(result('release'));
   });
 
-  it('creates a snapshot before executing without revision commands', async () => {
+  it('snapshots and submits the built firmware ELF and current readiness marker', async () => {
     const user = userEvent.setup();
     render(
       <ArchitectureWorkspace
@@ -115,6 +125,7 @@ describe('architecture circuit simulation command flow', () => {
     await user.click(screen.getByRole('button', { name: 'Test run simulation' }));
     await waitFor(() => expect(submitArtifactCommand).toHaveBeenCalledTimes(3));
 
+    expect(listProducedOutputs).toHaveBeenCalledWith(artifact.projectId);
     const commands = vi.mocked(submitArtifactCommand).mock.calls.map((call) => call[1]);
     expect(commands[0]).toMatchObject({
       commandType: 'workspace.acquire-edit-lease',
@@ -130,6 +141,8 @@ describe('architecture circuit simulation command flow', () => {
         snapshotId: 'snapshot_1',
         capability: 'circuit-simulation',
         executionMode: 'simulate',
+        firmwareOutputId: 'out_elf0000000000000',
+        expectedText: 'NEXUS_MPU_READY',
       },
     });
     expect(commands.some((command) => command.commandType === 'artifact.propose-revision')).toBe(

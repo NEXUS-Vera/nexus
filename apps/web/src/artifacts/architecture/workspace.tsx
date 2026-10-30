@@ -21,6 +21,7 @@ import {
   createWorkspace,
   ensureLayeredArchitecture,
   getWorkspace,
+  listProducedOutputs,
   submitArtifactCommand,
 } from '../../api/client';
 import { EngineeringGraphCanvas } from '../../lib/engineering-graph/EngineeringGraphCanvas';
@@ -1191,6 +1192,10 @@ export function ArchitectureWorkspace({
       }
       if (!snapshotId) throw new Error('Snapshot command did not return a snapshot identifier.');
 
+      const outputs = await listProducedOutputs(projectId);
+      const firmware = outputs.find((output) => output.name === '.pio/build/nexus/firmware.elf');
+      if (!firmware) throw new Error('Build firmware before running circuit simulation.');
+
       const executionResult = await submitArtifactCommand(projectId, {
         schemaVersion: '1.0.0',
         commandId: newCommandId(),
@@ -1206,7 +1211,8 @@ export function ArchitectureWorkspace({
           snapshotId,
           capability: 'circuit-simulation',
           executionMode: 'simulate',
-          expectedText: 'NEXUS_WOKWI_READY',
+          firmwareOutputId: firmware.outputId,
+          expectedText: 'NEXUS_MPU_READY',
           requestedOutputs: ['serial-log', 'provider-workspace'],
           maxDurationMs: 30_000,
           maxOutputBytes: 1_048_576,
