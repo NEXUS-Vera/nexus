@@ -13,6 +13,7 @@ import nexus_api.main as main
 import pytest
 from httpx import ASGITransport, AsyncClient
 from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+from nexus_board.firmware import toolchain
 from nexus_board.firmware.live_patch_generator import (
     IMU_SERIAL_CONTRACT,
     LiveFirmwarePatchGenerator,
@@ -45,6 +46,33 @@ async def ticking_http_loop() -> AsyncIterator[None]:
 @pytest.mark.parametrize("sampling_hz", [50, 25], ids=["completed", "inspect-slow-telemetry"])
 async def test_scripted_offline_full_scope_f2_repair_http(
     monkeypatch: pytest.MonkeyPatch, sampling_hz: int, ticking_http_loop: None
+) -> None:
+    await _build_fault_repair_http(monkeypatch, "F2", sampling_hz)
+
+
+@pytest.mark.asyncio
+async def test_scripted_offline_full_scope_f1_repair_http(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, ticking_http_loop: None
+) -> None:
+    # Extend only this test's subprocess stub: fail on the actual missing header,
+    # then delegate successful builds to the existing offline compiler.
+    stub = tmp_path / "platformio_f1_stub.py"
+    stub.write_text(
+        "import runpy, sys\n"
+        "from pathlib import Path\n"
+        "source = Path('src/main.cpp').read_text()\n"
+        "if sys.argv[1] == 'run' and '#include <Wire.h>' not in source.splitlines():\n"
+        "    print(\"src/main.cpp:1:1: error: 'Wire' was not declared in this scope\", "
+        "file=sys.stderr)\n"
+        "    sys.exit(1)\n"
+        f"runpy.run_path({str(toolchain._STUB_SCRIPT)!r}, run_name='__main__')\n"
+    )
+    monkeypatch.setattr(toolchain, "_STUB_SCRIPT", stub)
+    await _build_fault_repair_http(monkeypatch, "F1", 50)
+
+
+async def _build_fault_repair_http(
+    monkeypatch: pytest.MonkeyPatch, fault: str, sampling_hz: int
 ) -> None:
     """Fake model/compiler/simulator, real seeded Python and deterministic assessments."""
     monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
@@ -111,8 +139,13 @@ async def test_scripted_offline_full_scope_f2_repair_http(
     def correction(_task: Any, payload: Any, _schema: Any) -> dict[str, Any]:
         requests.append(payload)
         assert payload["serialContract"] == IMU_SERIAL_CONTRACT
-        assert "Wire.begn(" in payload["fileContents"]["src/main.cpp"]
-        assert "NEXUS_COMPILE_ERROR" in payload["fileContents"]["src/main.cpp"]
+        assert payload["fileContents"]["src/main.cpp"] == faulty
+        if fault == "F1":
+            assert "#include <Wire.h>" not in faulty.splitlines()
+            assert "'Wire' was not declared" in payload["requestedChange"]
+        else:
+            assert "Wire.begn(" in faulty
+            assert "NEXUS_COMPILE_ERROR" in faulty
         assert failed["executionRunId"] in payload["requestedChange"]
         return {
             "operations": [
@@ -144,14 +177,22 @@ async def test_scripted_offline_full_scope_f2_repair_http(
             "content"
         ]
         assert "sampling_hz" in seeded
-        # F2 is a labeled USER edit. The stub does not parse C++; its documented
-        # error marker is needed in addition to Wire.begin -> Wire.begn.
+        # Faults enter through the normal user file route, never the model stub.
         original = (await client.get(f"{root}/file", params={"path": "src/main.cpp"})).json()[
             "content"
         ]
         assert "Wire.begin(" in original
-        faulty = original.replace("Wire.begin(", "Wire.begn(", 1)
-        faulty += "\n// F2 user fault injection: Wire.begin -> Wire.begn\n// NEXUS_COMPILE_ERROR\n"
+        if fault == "F1":
+            assert "#include <Wire.h>\n" in original
+            faulty = original.replace("#include <Wire.h>\n", "", 1)
+            faulty += "\n// F1 user fault injection: remove the Wire header include\n"
+            assert "NEXUS_COMPILE_ERROR" not in faulty
+        else:
+            # The existing F2 stub needs its documented error marker.
+            faulty = original.replace("Wire.begin(", "Wire.begn(", 1)
+            faulty += (
+                "\n// F2 user fault injection: Wire.begin -> Wire.begn\n// NEXUS_COMPILE_ERROR\n"
+            )
         await _put_file(
             client,
             pid,
@@ -195,6 +236,9 @@ async def test_scripted_offline_full_scope_f2_repair_http(
         assert len(requests) == 1
         assert "error:" in state["attempts"][0]["diagnostics"]["logExcerpt"]
         assert await advance() == state  # Repair never approves its own patch.
+        assert (await client.get(f"{root}/file", params={"path": "src/main.cpp"})).json()[
+            "content"
+        ] == faulty
         current = (await client.get(f"{root}/runtime")).json()
         project = (await client.get(prefix)).json()
         response = await client.post(
