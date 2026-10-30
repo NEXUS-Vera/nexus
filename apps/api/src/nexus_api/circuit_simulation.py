@@ -19,7 +19,7 @@ from nexus_circuit_simulation import (
     SupportAssessment,
     SupportStatus,
 )
-from nexus_persistence.errors import PersistenceNotFoundError
+from nexus_persistence.errors import ArtifactNotFoundError, PersistenceNotFoundError
 
 
 def _finding(value: Finding) -> dict[str, Any]:
@@ -141,11 +141,68 @@ def serialize_provider_preview(
     }
 
 
+def approved_execution_plan(project_store: Any, project_id: str) -> dict[str, Any] | None:
+    try:
+        plan = project_store.get_artifact(project_id, "execution-plan")
+    except ArtifactNotFoundError:
+        return None
+    return (
+        plan if isinstance(plan, dict) and plan.get("approvalStatus") == "user-approved" else None
+    )
+
+
 def materialization_request(
     *,
     electrical_artifact: dict[str, Any],
     component_plan_artifact: dict[str, Any],
+    execution_plan_artifact: dict[str, Any] | None = None,
 ) -> MaterializationRequest:
+    if execution_plan_artifact and execution_plan_artifact.get("approvalStatus") == "user-approved":
+        configuration = execution_plan_artifact["content"]["configuration"]
+        pairs = {
+            (item["componentRoleId"], item["candidateId"]) for item in configuration["components"]
+        }
+        role_ids = {role for role, _candidate in pairs}
+        candidate_ids = {candidate for _role, candidate in pairs}
+        plan = component_plan_artifact["content"]
+        component_plan_artifact = {
+            **component_plan_artifact,
+            "content": {
+                **plan,
+                "componentRoles": [
+                    item for item in plan["componentRoles"] if item["componentRoleId"] in role_ids
+                ],
+                "candidates": [
+                    item for item in plan["candidates"] if item["candidateId"] in candidate_ids
+                ],
+                "selectionDecisions": [
+                    item
+                    for item in plan["selectionDecisions"]
+                    if (item["componentRoleId"], item["selectedCandidateId"]) in pairs
+                ],
+            },
+        }
+        electrical = electrical_artifact["content"]
+        electrical_artifact = {
+            **electrical_artifact,
+            "content": {
+                **electrical,
+                "nodes": [
+                    item
+                    for item in electrical["nodes"]
+                    if item.get("componentCandidateId") in candidate_ids
+                    or (
+                        not item.get("componentCandidateId")
+                        and role_ids.intersection(item.get("componentRoleIds", []))
+                    )
+                ],
+                "connections": [
+                    item
+                    for item in electrical["connections"]
+                    if item["connectionId"] == configuration["i2c"]["connectionId"]
+                ],
+            },
+        }
     return MaterializationRequest(
         electrical_architecture=electrical_artifact,
         component_plan=component_plan_artifact,
@@ -210,6 +267,7 @@ class CircuitSimulationExecutionAdapter:
         materialization = materialization_request(
             electrical_artifact=electrical_artifact,
             component_plan_artifact=component_plan,
+            execution_plan_artifact=approved_execution_plan(self._projects, request["projectId"]),
         )
         assessment = self._provider.assess_support(materialization)
         if assessment.status in {

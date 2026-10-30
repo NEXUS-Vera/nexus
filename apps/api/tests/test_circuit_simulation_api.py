@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any, cast
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from nexus_api.config import settings
@@ -393,3 +396,249 @@ def test_simulation_requires_successful_complete_observations(scenario):
     assert error.value.code == (
         "SIMULATION_FAILED" if scenario == "failed" else "SIMULATION_OBSERVATIONS_MISSING"
     )
+
+
+def _live_simulation_inputs() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    """Four reviewed roles, only two approved for materialization."""
+    components: dict[str, Any] = {"componentRoles": [], "candidates": [], "selectionDecisions": []}
+    electrical: dict[str, Any] = {"nodes": [], "connections": []}
+    for role, manufacturer, part in (
+        ("mcu", "Espressif", "ESP32-DEVKIT-V1"),
+        ("imu", "InvenSense", "MPU6050"),
+        ("power", "Fixture Power", "FX-REG-33"),
+        ("serial", "Espressif", "ESP32-DEVKIT-V1"),
+    ):
+        components["componentRoles"].append({"componentRoleId": role, "name": role})
+        components["candidates"].append(
+            {
+                "candidateId": f"cand_{role}",
+                "componentRoleId": role,
+                "source": "fixture" if role == "power" else "agent-inference",
+                "manufacturer": manufacturer,
+                "partNumber": part,
+            }
+        )
+        components["selectionDecisions"].append(
+            {
+                "selectionDecisionId": f"sel_{role}",
+                "componentRoleId": role,
+                "selectedCandidateId": f"cand_{role}",
+            }
+        )
+        electrical["nodes"].append(
+            {
+                "nodeId": role,
+                "componentCandidateId": f"cand_{role}",
+                "componentRoleIds": [role],
+                "interfaces": [{"interfaceType": "i2c"}],
+            }
+        )
+    electrical["connections"] = [
+        {
+            "connectionId": "approved_i2c",
+            "fromNodeId": "mcu",
+            "toNodeId": "imu",
+            "interfaceType": "i2c",
+        },
+        {
+            "connectionId": "debug",
+            "fromNodeId": "serial",
+            "toNodeId": "mcu",
+            "interfaceType": "uart",
+        },
+    ]
+    approved = {
+        "approvalStatus": "user-approved",
+        "content": {
+            "configuration": {
+                "components": [
+                    {"componentRoleId": role, "candidateId": f"cand_{role}"}
+                    for role in ("mcu", "imu")
+                ],
+                "i2c": {"connectionId": "approved_i2c", "sdaPin": 21, "sclPin": 22},
+            }
+        },
+    }
+    return {"content": electrical}, {"content": components}, approved
+
+
+def test_materialization_scopes_approved_configuration_without_mutating_review_plan() -> None:
+    import copy
+    import json
+
+    from nexus_api.circuit_simulation import materialization_request
+    from nexus_circuit_simulation import SupportStatus, WokwiProvider
+
+    electrical, components, approved = _live_simulation_inputs()
+    original = copy.deepcopy((electrical, components, approved))
+    provider = WokwiProvider()
+    full = materialization_request(
+        electrical_artifact=electrical, component_plan_artifact=components
+    )
+    assert provider.assess_support(full).status == SupportStatus.PARTIALLY_SUPPORTED
+    scoped = materialization_request(
+        electrical_artifact=electrical,
+        component_plan_artifact=components,
+        execution_plan_artifact=approved,
+    )
+    assert provider.assess_support(scoped).status == SupportStatus.SUPPORTED
+    assert [
+        c["connectionId"]
+        for c in cast(dict[str, Any], scoped.electrical_architecture["content"])["connections"]
+    ] == ["approved_i2c"]
+    diagram = json.loads(provider.materialize(scoped).files["diagram.json"])
+    assert [(p["id"], p["type"]) for p in diagram["parts"]] == [
+        ("imu1", "wokwi-mpu6050"),
+        ("mcu1", "wokwi-esp32-devkit-v1"),
+    ]
+    assert diagram["connections"][:4] == [
+        ["mcu1:3V3", "imu1:VCC", "red", []],
+        ["mcu1:GND.1", "imu1:GND", "black", []],
+        ["mcu1:D21", "imu1:SDA", "green", []],
+        ["mcu1:D22", "imu1:SCL", "blue", []],
+    ]
+    assert (electrical, components, approved) == original
+    approved["approvalStatus"] = "proposed"
+    unapproved = materialization_request(
+        electrical_artifact=electrical,
+        component_plan_artifact=components,
+        execution_plan_artifact=approved,
+    )
+    assert unapproved == full
+
+
+def test_approved_unmapped_component_still_fails_architecture_support() -> None:
+    from unittest.mock import Mock
+
+    from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+    from nexus_circuit_simulation import CircuitExecutionError, WokwiProvider
+
+    electrical, components, approved = _live_simulation_inputs()
+    components["content"]["candidates"][1]["partNumber"] = "UNMAPPED-IMU"
+    store = Mock()
+    store.get_artifact.side_effect = lambda _pid, kind: (
+        approved if kind == "execution-plan" else components
+    )
+    adapter = CircuitSimulationExecutionAdapter(provider=WokwiProvider(), project_store=store)
+    request = _w4_request()
+    request["snapshot"]["content"]["structuredContent"] = electrical["content"]
+    with pytest.raises(CircuitExecutionError) as error:
+        adapter.execute(request)
+    assert error.value.code == "ARCHITECTURE_UNSUPPORTED"
+
+
+@pytest.mark.asyncio
+async def test_simulate_approved_pair_with_unapproved_fixture_roles(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    import copy
+    import json
+    from unittest.mock import Mock
+
+    from nexus_api import main
+    from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
+    from nexus_circuit_simulation import RunnerRequest, RunnerResult, WokwiProvider
+    from test_actionable_execution_plan import _command, _propose, _setup
+    from test_golden_lifecycle_http_api import AUTH, _acquire_lease, _actor, _binding
+
+    actor = _actor()
+    captured: list[dict[str, Any]] = []
+
+    class Runner:
+        def run(self, request: RunnerRequest) -> RunnerResult:
+            if request.arguments[0] == "lint":
+                return RunnerResult(exit_code=0, timed_out=False)
+            captured.append(json.loads(request.files["diagram.json"]))
+            return RunnerResult(
+                exit_code=0, timed_out=False, outputs={"serial.log": b"TEL,0,0,0,1\n"}
+            )
+
+    executable = tmp_path / "wokwi-cli"
+    executable.write_text("#!/bin/sh\nexit 0\n")
+    executable.chmod(0o755)
+    provider = WokwiProvider(executable=executable, token="regression-only", runner=Runner())
+    monkeypatch.setattr(main, "_wokwi_provider", provider)
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, configuration = await _setup(client, actor)
+        proposal = (await _propose(client, pid, actor, configuration)).json()
+        accepted = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.accept-revision",
+            proposal["workspace"],
+            {"proposalId": proposal["commandResult"]["proposalId"]},
+        )
+        assert accepted["status"] == "completed", accepted
+        original_get = main._store.get_artifact
+        components = copy.deepcopy(original_get(pid, "component-plan"))
+        for candidate in components["content"]["candidates"]:
+            candidate["manufacturer"] = (
+                "Espressif" if candidate["partNumber"] == "ESP32-DEVKIT-V1" else "InvenSense"
+            )
+        _, extras, _ = _live_simulation_inputs()
+        for key in ("componentRoles", "candidates", "selectionDecisions"):
+            components["content"][key].extend(extras["content"][key][2:])
+
+        def get_artifact(project_id: str, kind: str, **kwargs: Any) -> dict[str, Any]:
+            if project_id == pid and kind == "component-plan":
+                return cast(dict[str, Any], components)
+            return cast(dict[str, Any], original_get(project_id, kind, **kwargs))
+
+        monkeypatch.setattr(main._store, "get_artifact", get_artifact)
+        support = await client.get(
+            f"/v1/projects/{pid}/artifacts/electrical-architecture/circuit-simulation/support"
+        )
+        assert support.status_code == 200, support.text
+        assert support.json()["assessment"]["status"] == "FIRMWARE_REQUIRED"
+        adapter = CircuitSimulationExecutionAdapter(provider=provider, project_store=main._store)
+        monkeypatch.setattr(
+            adapter,
+            "_resolve_firmware",
+            Mock(
+                return_value=(
+                    {"outputId": "out_regression", "executionRunId": "exec_regression"},
+                    b"\x7fELF\x00REGRESSION",
+                )
+            ),
+        )
+        monkeypatch.setitem(
+            main._kernel.executions._capability_executors, "circuit-simulation", adapter
+        )
+        binding = (await _binding(client, pid, "electrical-architecture"))["binding"]
+        await _acquire_lease(client, pid, binding, actor)
+        snapshot = await _command(
+            client,
+            pid,
+            actor,
+            "workspace.create-snapshot",
+            binding,
+            {"reason": "before-simulation"},
+        )
+        result = await _command(
+            client,
+            pid,
+            actor,
+            "artifact.execute",
+            binding,
+            {
+                "snapshotId": snapshot["snapshotId"],
+                "capability": "circuit-simulation",
+                "executionMode": "simulate",
+            },
+        )
+        assert result["status"] in {"completed", "completed-with-warnings"}, result
+        assert len(captured) == 1
+        assert {p["type"] for p in captured[0]["parts"]} == {
+            "wokwi-esp32-devkit-v1",
+            "wokwi-mpu6050",
+        }
+        assert len(captured[0]["parts"]) == 2
+        assert [wire[:2] for wire in captured[0]["connections"][:4]] == [
+            ["mcu1:3V3", "imu1:VCC"],
+            ["mcu1:GND.1", "imu1:GND"],
+            ["mcu1:D21", "imu1:SDA"],
+            ["mcu1:D22", "imu1:SCL"],
+        ]
