@@ -94,8 +94,11 @@ command.
 ### Bounded execution repair (W5 / P2)
 
 `workflows/repair.py` coordinates failure inspection, guarded correction review,
-and affected compile/simulation/analysis reruns. Its resumable progress uses the
-existing project event ledger; jobs, proposals, immutable snapshots and outputs
+and affected compile/simulation/analysis reruns. Optional `scope: build` accepts
+failed firmware compiles and completes after an approved correction successfully
+rebuilds, without simulation, analysis or P1–P5 evidence promotion. Failed rebuilds
+retain the existing attempt bound. The default `scope: full` preserves all reruns.
+Its resumable progress uses the existing project event ledger; jobs, proposals, immutable snapshots and outputs
 retain their existing stores. See the W5 API section in
 [`apps/api/README.md`](../../apps/api/README.md) for actions, bounds and explicit
 unavailability/diagnostic limitations. Scripted gateways demonstrate regression
@@ -118,3 +121,9 @@ remains unchanged. Simulation promotes readiness/telemetry markers; analysis pro
 45–55 Hz sampling, demeaned RMS below 0.10 g, and JSON/CSV/PNG deliverables.
 Inspection cases remain outside runtime promotion. Thresholds come from
 `packages/contracts/examples/valid/esp32-imu-vibration-monitor/test-plan-artifact.json`.
+
+After an approved firmware correction rebuilds, repair acquires ordinary edit
+leases for the simulation snapshot and analysis import/execution, releasing only
+leases it acquired. Callers need not separately lease these downstream workspaces.
+An active lease belonging to another actor stops repair and names the blocked
+workspace; compile and patch approval retain their existing lease requirements.
