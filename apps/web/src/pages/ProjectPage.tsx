@@ -331,6 +331,7 @@ export function ProjectPage() {
           pendingProposalId={searchParams.get('proposalId') ?? Object.entries(repairs).find(
             ([key, repair]) => key.startsWith(`${projectId}:`) && repair.status === 'review' && repair.target === 'firmware',
           )?.[1].proposalId}
+          onProposalDecided={() => url.patchParams({ proposalId: null }, true)}
           rendererKey={rendererKey}
           state={state!}
           isDark={isDark}

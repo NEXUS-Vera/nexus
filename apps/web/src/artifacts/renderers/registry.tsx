@@ -40,6 +40,7 @@ export type WorkspaceRendererKey =
 
 export type WorkspaceRenderProps = {
   pendingProposalId?: string | null;
+  onProposalDecided?: () => void;
   projectId: string;
   rendererKey: WorkspaceRendererKey | string;
   state: ProjectCurrentState;
@@ -202,6 +203,7 @@ function FirmwareRenderer(props: WorkspaceRenderProps) {
       projectId={props.projectId}
       isDark={props.isDark}
       pendingProposalId={props.pendingProposalId}
+      onProposalDecided={props.onProposalDecided}
       onCommandResult={props.onCommandResult}
     />
   );

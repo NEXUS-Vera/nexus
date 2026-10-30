@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
+import { useWorkspaceUrl } from '../../hooks/use-workspace-url';
 import { FirmwareWorkspace } from './workspace';
 
 vi.mock('@monaco-editor/react', () => ({
@@ -738,11 +740,11 @@ describe('pending repair patch review', () => {
     return fetchMock;
   }
 
-  function proposalResponse(mode = 'llm') {
+  function proposalResponse(mode = 'llm', operations = [{ operationType: 'replace-file', path: 'src/main.cpp', content: '// repaired' }]) {
     return jsonResponse({ schemaVersion: '1.0.0', status: 'proposed', proposal: {
       proposalId: 'pending', baseSnapshotId: 'snap_base', requestedChange: 'Repair initialization',
       status: 'proposed', generatorMetadata: { mode, ...(mode === 'llm' ? { model: 'test-model' } : {}) },
-      operations: [{ operationType: 'replace-file', path: 'src/main.cpp', content: '// repaired' }],
+      operations,
     } });
   }
 
@@ -776,6 +778,52 @@ describe('pending repair patch review', () => {
       kind === 'network' ? 'Network failure while contacting the API.' : 'Patch proposal not found'));
     expect(screen.queryByTestId('firmware-patch-apply')).not.toBeInTheDocument();
     expect(screen.getByTestId('firmware-tree-file-src/main.cpp')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('firmware-patch-dismiss-error'));
+    expect(screen.queryByTestId('firmware-patch-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('firmware-patch-panel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('firmware-tree-file-src/main.cpp')).toBeInTheDocument();
+  });
+
+  it('disables Apply for an empty proposal while keeping Discard available', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse('fixture', []));
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" />);
+    await waitFor(() => expect(screen.getByTestId('firmware-patch-apply')).toBeDisabled());
+    expect(screen.getByText('This proposal contains no file changes.')).toBeInTheDocument();
+    expect(screen.getByTestId('firmware-patch-discard')).toBeEnabled();
+    fireEvent.click(screen.getByTestId('firmware-patch-apply'));
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/patch/apply'))).toBe(false);
+  });
+
+  it.each(['apply', 'discard'])('clears proposalId after %s resolves and preserves other URL parameters', async decision => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    let resolve!: (response: Response) => void;
+    const response = new Promise<Response>(done => { resolve = done; });
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((input, init) => String(input).endsWith(`/patch/${decision}`)
+      ? response : defaultFetch(input, init));
+
+    function RoutedWorkspace() {
+      const [params] = useSearchParams();
+      const url = useWorkspaceUrl();
+      const location = useLocation();
+      return <>
+        <output data-testid="workspace-search">{location.search}</output>
+        <FirmwareWorkspace projectId="proj_test" isDark={false}
+          pendingProposalId={params.get('proposalId')}
+          onProposalDecided={() => url.patchParams({ proposalId: null }, true)} />
+      </>;
+    }
+    render(<MemoryRouter initialEntries={['/projects/proj_test?artifact=firmware-scaffold&panel=vera&proposalId=pending']}>
+      <RoutedWorkspace />
+    </MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId(`firmware-patch-${decision}`)).toBeEnabled());
+    fireEvent.click(screen.getByTestId(`firmware-patch-${decision}`));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith(`/patch/${decision}`))).toBe(true));
+    expect(screen.getByTestId('workspace-search')).toHaveTextContent('proposalId=pending');
+    resolve(jsonResponse({ status: decision === 'apply' ? 'applied' : 'discarded' }));
+    await waitFor(() => expect(screen.getByTestId('workspace-search')).not.toHaveTextContent('proposalId'));
+    expect(screen.getByTestId('workspace-search')).toHaveTextContent('artifact=firmware-scaffold&panel=vera');
+    expect(screen.queryByTestId('firmware-patch-panel')).not.toBeInTheDocument();
   });
 
   it('shows the fixture badge and discards without cancelling repair or writing files', async () => {

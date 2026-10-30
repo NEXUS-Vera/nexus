@@ -91,6 +91,7 @@ type PatchPreview = {
 
 type Props = {
   pendingProposalId?: string | null;
+  onProposalDecided?: () => void;
   projectId: string;
   isDark: boolean;
   onCommandResult?: (result: ArtifactCommandResult) => void;
@@ -236,7 +237,7 @@ function errorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingProposalId }: Props) {
+export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingProposalId, onProposalDecided }: Props) {
   const t = themeColors(isDark);
   const [binding, setBinding] = useState<BindingInfo | null>(null);
   const [draftVersion, setDraftVersion] = useState(1);
@@ -876,6 +877,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
         baseProjectStateVersion: binding.baseProjectStateVersion,
         requestedBy: actor,
       });
+      onProposalDecided?.();
       const nextDraft = extractDraftVersion(result, draftVersion + 1);
       const bases = extractBases(result, binding);
       setDraftVersion(nextDraft);
@@ -910,6 +912,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     ensureEditLease,
     loadFile,
     patchProposal,
+    onProposalDecided,
     projectId,
     refreshFiles,
   ]);
@@ -923,6 +926,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
         proposalId: patchProposal.proposalId,
         requestedBy: actor,
       });
+      onProposalDecided?.();
       setPatchProposal(null);
       setPatchPreviews([]);
       setShowPatchPanel(false);
@@ -932,7 +936,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     } finally {
       setPatchDiscarding(false);
     }
-  }, [actor, binding, patchProposal, projectId]);
+  }, [actor, binding, patchProposal, projectId, onProposalDecided]);
 
   const requireCleanWorkspace = useCallback((): boolean => {
     if (dirtyPaths.size === 0) return true;
@@ -1213,7 +1217,20 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
           {patchProposalLoading ? (
             <div role="status" data-testid="firmware-patch-loading">Loading patch proposal…</div>
           ) : patchProposalError ? (
-            <div role="alert" data-testid="firmware-patch-error">{patchProposalError}</div>
+            <div role="alert" data-testid="firmware-patch-error">
+              <span>{patchProposalError}</span>
+              <button
+                type="button"
+                data-testid="firmware-patch-dismiss-error"
+                onClick={() => {
+                  setPatchProposalError(null);
+                  setShowPatchPanel(false);
+                }}
+                style={btn(t)}
+              >
+                Close
+              </button>
+            </div>
           ) : !patchProposal ? (
             <>
               <label style={{ fontSize: 11, color: t.textMuted }} htmlFor="firmware-patch-request">
@@ -1307,9 +1324,9 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
                 <button
                   type="button"
                   data-testid="firmware-patch-apply"
-                  disabled={patchApplying}
+                  disabled={patchApplying || patchProposal.operations.length === 0}
                   onClick={() => void applyPatch()}
-                  style={btn(t, patchApplying)}
+                  style={btn(t, patchApplying || patchProposal.operations.length === 0)}
                 >
                   {patchApplying ? 'Applying…' : 'Apply patch'}
                 </button>
