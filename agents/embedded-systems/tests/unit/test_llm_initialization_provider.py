@@ -315,10 +315,15 @@ async def test_semantic_failure_names_node_and_component() -> None:
 async def test_live_init_preserves_supported_user_named_candidates(
     message: str, expected: dict[str, str]
 ) -> None:
+    from fake_generation_scripts import functional_architecture_draft
+
+    architecture = functional_architecture_draft()
+    architecture["edges"][0]["description"] = "Raw motion samples transferred over I2C."
     requirements = requirement_set_draft()
     requirements["requirements"][0]["statement"] = message
     provider = LlmInitializationProvider(
-        gateway=build_success_gateway(requirements=requirements), model_policy=MODEL_POLICY
+        gateway=build_success_gateway(requirements=requirements, architecture=architecture),
+        model_policy=MODEL_POLICY,
     )
     result = await provider.initialize(message, "collaborate", _context())
     assert validate_initialization_result_schema(result) == []
@@ -346,3 +351,33 @@ async def test_live_init_preserves_supported_user_named_candidates(
         )
         assert selection["selectedCandidateId"] == candidate["candidateId"]
         assert selection["selectionState"] == "awaiting-user"
+
+
+@pytest.mark.parametrize("usable", [True, False])
+async def test_complete_package_requires_usable_default_binding(usable: bool) -> None:
+    from fake_generation_scripts import functional_architecture_draft
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        derive_default_configuration,
+    )
+
+    architecture = functional_architecture_draft()
+    if usable:
+        architecture["edges"][0]["description"] = "Raw motion samples transferred over I2C."
+    gateway = build_success_gateway(architecture=architecture)
+    provider = LlmInitializationProvider(gateway=gateway, model_policy=MODEL_POLICY)
+    message = "Build an ESP32 DevKit V1 motion monitor using an MPU6050."
+    if usable:
+        result = await provider.initialize(message, "collaborate", _context())
+        assert derive_default_configuration(result)["i2c"]["connectionId"]
+        return
+
+    with pytest.raises(LlmInitializationError, match="no usable default binding") as error:
+        await provider.initialize(message, "collaborate", _context())
+    assert error.value.code == "LLM_INITIALIZATION_VALIDATION_FAILED"
+    assert "ESP32-DEVKIT-V1 + MPU6050 I2C binding" in error.value.message
+    run = error.value.workflow_run
+    assert run is not None
+    assert run["runStatus"] == "failed"
+    assert run["stepRecords"][-1]["stepType"] == "validate-complete-package"
+    assert run["stepRecords"][-1]["status"] == "failed"
+    assert not any("repair" in step["stepType"] for step in run["stepRecords"])

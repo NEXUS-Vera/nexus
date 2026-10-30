@@ -289,3 +289,173 @@ async def test_firmware_patch_requires_approved_plan(
         assert "Approve an execution plan first" in response.json()["error"]["message"]
         generator.generate.assert_not_called()
         snapshot.assert_not_called()
+
+
+async def _create_patch_workspace(client: AsyncClient) -> tuple[str, dict, dict, int]:
+    created = await client.post(
+        "/v1/projects/initialize",
+        json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
+    )
+    assert created.status_code == 200
+    project_id = created.json()["project"]["projectId"]
+    seed_approved_firmware_plan(api_main._kernel.workspace_runtime._projects, project_id)
+    actor = _actor()
+
+    binding_resp = await client.get(
+        f"/v1/projects/{project_id}/artifacts/firmware/workspace/runtime"
+    )
+    assert binding_resp.status_code == 200
+    binding_body = binding_resp.json()
+    binding = binding_body["binding"]
+    draft_version = binding_body["draft"]["draftVersion"]
+
+    lease = await client.post(
+        f"/v1/projects/{project_id}/artifact-commands",
+        json={
+            "schemaVersion": "1.0.0",
+            "commandId": _cmd_id(),
+            "commandType": "workspace.acquire-edit-lease",
+            "projectId": project_id,
+            "artifactId": binding["artifactId"],
+            "workspaceId": binding["workspaceId"],
+            "baseArtifactVersion": binding["baseArtifactVersion"],
+            "baseProjectStateVersion": binding["baseProjectStateVersion"],
+            "requestedBy": actor,
+            "requestedAt": "2026-08-11T00:00:00Z",
+            "input": {},
+        },
+    )
+    assert lease.status_code == 200, lease.text
+
+    scaffold = await client.post(
+        f"/v1/projects/{project_id}/artifacts/firmware/workspace/scaffold",
+        json={
+            "expectedDraftVersion": draft_version,
+            "baseArtifactVersion": binding["baseArtifactVersion"],
+            "baseProjectStateVersion": binding["baseProjectStateVersion"],
+            "requestedBy": actor,
+        },
+    )
+    assert scaffold.status_code == 200, scaffold.text
+    draft_version = scaffold.json()["draft"]["draftVersion"]
+
+    return project_id, binding, actor, draft_version
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", ["proposed", "applied", "discarded"])
+async def test_get_firmware_patch_proposal(status: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": "Bearer nexus-dev-session-token"},
+    ) as client:
+        project_id, binding, actor, draft_version = await _create_patch_workspace(client)
+        root = f"/v1/projects/{project_id}/artifacts/firmware/workspace"
+        proposed = await client.post(
+            f"{root}/patch/propose",
+            json={
+                "allowFixture": True,
+                "requestedChange": "Change serial baud to 9600.",
+                "requestedBy": actor,
+            },
+        )
+        assert proposed.status_code == 200, proposed.text
+        proposal = proposed.json()["proposal"]
+        proposal_id = proposal["proposalId"]
+        if status != "proposed":
+            decided = await client.post(
+                f"{root}/patch/{'apply' if status == 'applied' else 'discard'}",
+                json={
+                    "proposalId": proposal_id,
+                    "requestedBy": actor,
+                    "expectedDraftVersion": draft_version,
+                    "baseArtifactVersion": binding["baseArtifactVersion"],
+                    "baseProjectStateVersion": binding["baseProjectStateVersion"],
+                },
+            )
+            assert decided.status_code == 200, decided.text
+        runtime = api_main._kernel.workspace_runtime
+        stored = runtime._kernel.get_firmware_patch_proposal(proposal_id)
+        before_runtime = (await client.get(f"{root}/runtime")).json()
+        events_url = f"/v1/projects/{project_id}/events"
+        before_events = (await client.get(events_url)).json()
+        before_files = (await client.get(f"{root}/files")).json()
+
+        # Reading must not use the binding resolver that can create/bind state.
+        def deny_binding(**kwargs: Any) -> Any:
+            raise AssertionError("GET must not resolve a mutable binding")
+
+        monkeypatch.setattr(runtime, "resolve_binding", deny_binding)
+        response = await client.get(f"{root}/patch/{proposal_id}")
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["schemaVersion"] == "1.0.0"
+        assert body["status"] == status
+        assert body["proposal"] == stored
+        assert body["binding"] == before_runtime["binding"]
+        assert body["baseSnapshotId"] == stored["baseSnapshotId"]
+        assert stored["requestedChange"] == "Change serial baud to 9600."
+        assert "generatorMetadata" in stored
+        assert stored["operations"]
+        for operation in stored["operations"]:
+            assert {
+                "operationType",
+                "path",
+                "content",
+                "expectedBaseHash",
+                "contentHash",
+            } <= operation.keys()
+        assert runtime._kernel.get_firmware_patch_proposal(proposal_id) == stored
+        monkeypatch.undo()
+        assert (await client.get(f"{root}/runtime")).json() == before_runtime
+        assert (await client.get(f"{root}/files")).json() == before_files
+        assert (await client.get(events_url)).json() == before_events
+
+
+@pytest.mark.asyncio
+async def test_get_firmware_patch_proposal_scoping() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": "Bearer nexus-dev-session-token"},
+    ) as client:
+        project_id, binding, actor, _ = await _create_patch_workspace(client)
+        root = f"/v1/projects/{project_id}/artifacts/firmware/workspace/patch"
+        proposed = await client.post(
+            f"{root}/propose",
+            json={
+                "allowFixture": True,
+                "requestedChange": "Change serial baud to 9600.",
+                "requestedBy": actor,
+            },
+        )
+        assert proposed.status_code == 200, proposed.text
+        proposal = proposed.json()["proposal"]
+        other = await client.post("/v1/projects/initialize", json={"message": GREENHOUSE})
+        assert other.status_code == 200, other.text
+        other_id = other.json()["project"]["projectId"]
+        cross = await client.get(
+            f"/v1/projects/{other_id}/artifacts/firmware/workspace/patch/{proposal['proposalId']}"
+        )
+        assert cross.status_code == 404
+        assert cross.json()["error"]["code"] == "FIRMWARE_PATCH_NOT_FOUND"
+        missing = await client.get(f"{root}/fwpatch_missing")
+        assert missing.status_code == 404
+        assert missing.json()["error"]["code"] == "FIRMWARE_PATCH_NOT_FOUND"
+        cross_type = await client.get(
+            f"/v1/projects/{project_id}/artifacts/analysis/workspace/patch/{proposal['proposalId']}"
+        )
+        assert cross_type.status_code == 422
+        assert cross_type.json()["error"]["code"] == "FIRMWARE_PATCH_VALIDATION_FAILED"
+        store = api_main._kernel.workspace_runtime._kernel
+        store.update_firmware_patch_proposal(
+            proposal["proposalId"], {**proposal, "workspaceId": "ws_other"}
+        )
+        cross_workspace = await client.get(f"{root}/{proposal['proposalId']}")
+        assert cross_workspace.status_code == 422
+        assert cross_workspace.json()["error"]["code"] == "FIRMWARE_PATCH_VALIDATION_FAILED"
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        unauthorized = await client.get(f"{root}/{proposal['proposalId']}")
+        assert unauthorized.status_code == 401
+        assert unauthorized.json()["error"]["code"] == "SESSION_TOKEN_REQUIRED"

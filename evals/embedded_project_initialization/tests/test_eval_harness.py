@@ -183,6 +183,8 @@ def test_cli_module_is_invocable_via_python_dash_m() -> None:
     src_roots = (
         "apps/api/src",
         "agents/embedded-systems/src",
+        "packages/board/src",
+        "packages/persistence/src",
         "packages/contracts/src",
         "packages/contracts/generated/python",
         "packages/model-gateway/src",
@@ -225,3 +227,27 @@ async def test_esp32_imu_golden_prompt_passes_fake_provider_quality_gates() -> N
     assert result["structural"]["passed"] is True
     assert result["claims"]["passed"] is True
     assert result["passed"] is True
+
+
+def test_fake_eval_suite_without_board_or_persistence_dependencies() -> None:
+    env = dict(os.environ)
+    env["PYTHONPATH"] = os.pathsep.join(sys.path)
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, runpy; "
+            "sys.modules.update(dict.fromkeys(('alembic', 'sqlalchemy', 'nexus_board', "
+            "'nexus_persistence'))); "
+            "sys.argv = ['run_eval', '--provider', 'fake']; "
+            "runpy.run_module('evals.embedded_project_initialization.runners.run_eval', "
+            "run_name='__main__')",
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=env,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert '"passed": true' in completed.stdout
