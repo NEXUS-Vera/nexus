@@ -15,6 +15,9 @@ from nexus_embedded_systems.workflows.component_planning import (
     compose_component_plan_content,
     compose_component_plan_envelope,
 )
+from nexus_embedded_systems.workflows.component_planning.propose_candidates import (
+    requests_supported_prototype,
+)
 from nexus_embedded_systems.workflows.layered_architecture import (
     compose_electrical_architecture_content,
     compose_electrical_architecture_envelope,
@@ -31,7 +34,11 @@ from ..assembly import (
     normalize_requirement_draft,
 )
 from ..boundary import deterministic_boundary_check
-from ..execution_plan import compose_execution_plan
+from ..execution_plan import (
+    DefaultConfigurationError,
+    compose_execution_plan,
+    derive_default_configuration,
+)
 from ..generation.repair import repair_artifact
 from ..generation.schemas import (
     FUNCTIONAL_ARCHITECTURE_DRAFT_SCHEMA,
@@ -356,6 +363,17 @@ class LlmInitializationProvider:
                     workflow_run=ledger.to_workflow_run(),
                     details=[f"{e.code}: {e.path}: {e.message}" for e in blocking],
                 )
+            try:
+                if requests_supported_prototype(message):
+                    derive_default_configuration(result)
+            except DefaultConfigurationError as exc:
+                ledger.fail_step(step)
+                raise LlmInitializationError(
+                    code="LLM_INITIALIZATION_VALIDATION_FAILED",
+                    message=f"Assembled LLM package has no usable default binding: {exc}",
+                    workflow_run=ledger.to_workflow_run(),
+                    details=[str(exc)],
+                ) from exc
             ledger.complete_step(step)
 
             step = ledger.start_step("complete-workflow")

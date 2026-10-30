@@ -30,7 +30,11 @@ from nexus_persistence.errors import ArtifactNotFoundError
 from nexus_persistence.file_store.hashing import blob_digest
 
 from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+    DefaultConfigurationError,
     compose_execution_plan,
+)
+from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+    derive_default_configuration as _derive_default_configuration,
 )
 
 CONTENT_SCHEMA = (
@@ -117,86 +121,11 @@ IMU_VERIFICATION: dict[str, dict[str, Any]] = {
 
 
 def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
-    """Select the supported prototype pair from its current electrical binding.
-
-    Other architecture roles remain in the review plan, outside materialization.
-    Ambiguous or unresolved bindings require explicit user configuration.
-    """
-    by_type = {a["artifactType"]: a["content"] for a in package["artifacts"]}
-    candidates = {
-        c["candidateId"]: c
-        for c in by_type["component-plan"]["candidates"]
-        if isinstance(c, dict)
-        and all(
-            isinstance(c.get(k), str) for k in ("candidateId", "candidateState", "componentRoleId")
-        )
-        and c["candidateState"] not in {"blocked", "rejected", "superseded"}
-        and isinstance(c.get("partNumber"), str)
-        and isinstance(c.get("specifications"), list)
-    }
-    electrical = by_type.get("electrical-architecture", {})
-    nodes = {
-        n["nodeId"]: n
-        for n in electrical.get("nodes", [])
-        if isinstance(n, dict)
-        and isinstance(n.get("nodeId"), str)
-        and isinstance(n.get("componentCandidateId"), str)
-    }
-    options: dict[tuple[str, str], dict[str, Any]] = {}
-    for connection in electrical.get("connections", []):
-        if not isinstance(connection, dict) or not all(
-            isinstance(connection.get(k), str)
-            for k in ("interfaceType", "status", "fromNodeId", "toNodeId", "connectionId")
-        ):
-            continue
-        if connection["interfaceType"] != "i2c" or connection["status"] in {
-            "unresolved",
-            "needs-resolution",
-        }:
-            continue
-        pair = [
-            candidates.get(nodes.get(connection[key], {}).get("componentCandidateId"))
-            for key in ("fromNodeId", "toNodeId")
-        ]
-        if any(c is None for c in pair):
-            continue
-        selected = [c for c in pair if c is not None]
-        if {c.get("partNumber", "").upper() for c in selected} != {"ESP32-DEVKIT-V1", "MPU6050"}:
-            continue
-        compute = next(c for c in selected if c.get("partNumber", "").upper() == "ESP32-DEVKIT-V1")
-        specs = {
-            s["specKey"]: s["value"]
-            for s in compute.get("specifications", [])
-            if isinstance(s, dict) and isinstance(s.get("specKey"), str) and "value" in s
-        }
-        sensor = next(c for c in selected if c.get("partNumber", "").upper() == "MPU6050")
-        selected = [compute, sensor]
-        pair_key = (compute["candidateId"], sensor["candidateId"])
-        # Parallel functional flows share one physical bus. Preserve the electrical
-        # records and choose a stable representative independent of edge ordering.
-        if pair_key in options and (
-            options[pair_key]["i2c"]["connectionId"] <= connection["connectionId"]
-        ):
-            continue
-        options[pair_key] = {
-            "buildProfileId": "platformio-arduino-esp32-v1",
-            "analysisProfileId": "python-analysis-v1",
-            "components": [
-                {"componentRoleId": c["componentRoleId"], "candidateId": c["candidateId"]}
-                for c in selected
-            ],
-            "i2c": {
-                "connectionId": connection["connectionId"],
-                "sdaPin": specs.get("gpio-sda", 21),
-                "sclPin": specs.get("gpio-scl", 22),
-            },
-        }
-    if len(options) != 1:
-        raise CommandValidationError(
-            "Default configuration requires one usable ESP32-DEVKIT-V1 + MPU6050 I2C binding; "
-            "provide an explicit configuration."
-        )
-    return next(iter(options.values()))
+    """Select a prototype binding, preserving the board command error contract."""
+    try:
+        return _derive_default_configuration(package)
+    except DefaultConfigurationError as exc:
+        raise CommandValidationError(str(exc)) from exc
 
 
 class ExecutionPlanWorkflow:

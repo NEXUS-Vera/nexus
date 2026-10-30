@@ -36,7 +36,11 @@ each run is a stateless request/response over the supplied prompt.
   Component planning promotes supported user-named ESP32 (ESP32-DEVKIT-V1) and
   MPU6050 (including MPU-6050) parts on matching compute and motion-sensing roles as unverified,
   user-provided candidates pending approval; common ESP32 DevKit / DevKit V1 spellings
-  resolve to ESP32-DEVKIT-V1. I2C communication nodes between compute and sensing become electrical
+  resolve to ESP32-DEVKIT-V1. Explicitly named supported parts receive only their named
+  candidate, without fixture alternatives. For requests naming both supported parts,
+  complete-package validation rejects initialization if no usable default I2C binding
+  exists, with `LLM_INITIALIZATION_VALIDATION_FAILED`; it does not repair the package.
+  I2C transport nodes labeled communication, input, or control between compute and sensing become electrical
   connections between hardware roles, including control and return-data flow provenance,
   even when their names omit "bus". I2C may be specified in the name, responsibilities,
   or interfaces; unrelated WiFi/BLE and UART/serial nodes remain hardware roles.
