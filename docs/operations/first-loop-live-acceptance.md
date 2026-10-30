@@ -17,13 +17,19 @@ The N261 outline has been checked against this checkout's
 [request model](../../apps/api/src/nexus_api/models.py),
 [API README](../../apps/api/README.md), and
 [repair workflow](../../agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py).
-There are material differences from the integration-branch specification:
+Verified against main at `70fc27a` (2026-10-29); these are implementation
+facts, not live acceptance results:
 
-- `advance_embedded_repair` does **not** read `scope`. Full scope is today's
-  firmware repair path in `RepairWorkflow.advance` and `_launch`; sending
-  `scope: "full"` would not select or enforce it. Verify all downstream runs.
-- There is no `_downstream_lease` helper here. The operator must acquire the
-  analysis and electrical workspace leases using the same actor before repair.
+- `main.py:advance_embedded_repair` reads `scope` on repair start (default
+  `"full"`). `repair.py:RepairWorkflow.start` enforces `build` or `full` and
+  persists the scope; `RepairWorkflow.advance` completes `build` scope after a
+  successful rebuild without simulation, analysis or evidence promotion. Use
+  `scope:"full"` for this demonstration and verify all downstream runs.
+- `repair.py:RepairWorkflow._downstream_lease` reuses an active same-actor lease
+  or acquires one, rejects an active lease owned by another actor, and releases
+  only leases it acquired. `_import` and `_launch` use it for analysis import/run
+  and electrical snapshot/simulation. Operator-held leases remain intact;
+  manual setup and execution below still require operator leases.
 - Repair returns a proposal ID, not inline operations. Step 8 uses the read-only
   GET patch proposal route from PR #154, now merged into main. Inspect replacement
   bytes and generator metadata before approval; the unchanged draft is not the
@@ -69,16 +75,22 @@ startup command for this demonstration.
 
 - **PR #154 is merged into main:** the API host must include its read-only
   `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/{proposalId}`
-  route for Step 8. This branch's older API source does not yet contain that route;
-  use a host with the merged capability. No code update is part of this runbook edit.
-- **PR #155:** scripted offline F4/F5 regressions in
-  `apps/api/tests/test_repair_full_scope_api.py` exercise simulation and analysis
-  repair using stubs. Their PASS is separate from this real-model demonstration.
-- **N275 implementation remains in progress:** synchronous simulation diagnostics
-  need a `serial.log` fallback when `executionJob` is absent, and failed-case
-  `actualResult` excerpts need a 400-character bound to fit the serialized
-  4,096-character generation request. Confirm this fix is deployed before claiming
-  F4 live acceptance; retain full original evidence outside the bounded request.
+  route for Step 8, present in
+  [main.py:get_artifact_workspace_patch_proposal](../../apps/api/src/nexus_api/main.py).
+- **PR #155 is merged into main:** scripted offline F4/F5 regressions in
+  [test_repair_full_scope_api.py](../../apps/api/tests/test_repair_full_scope_api.py),
+  `test_scripted_offline_full_scope_f4_simulation_repair_http` and
+  `test_scripted_offline_full_scope_f5_analysis_criteria_repair_http`, exercise
+  simulation and analysis repair using stubs. A scripted PASS is separate from
+  this real-model demonstration; no live result is recorded here.
+- **PR #156 (N275 fix) is open, not merged:** synchronous Wokwi failure
+  diagnostics need a `serial.log` fallback when `executionJob` is absent, and
+  failed-case `actualResult` excerpts need a 400-character bound to fit the
+  serialized 4,096-character generation request. Main's
+  [repair.py:RepairWorkflow._inspect](../../agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py)
+  currently reads log chunks only when a job exists and copies `actualResult`
+  without that per-case bound. Live F4 acceptance depends on #156 being merged
+  and deployed; retain full original evidence outside the bounded request.
 
 Pranay's decisions are settled: run **F2, F4, and F5 each in a fresh project**,
 repeating Steps 1–4 independently. For F2 continue with Steps 5–9; for F4 or F5
@@ -272,14 +284,16 @@ failure. Preserve its immutable `inputSnapshotId` and the logs.
 
 ### 7. Request bounded model diagnosis
 
-Resolve and acquire/renew analysis and electrical-architecture leases with the
-same actor as firmware. This checkout uses the operator actor for downstream
-snapshot creation and serial import; it does not acquire those leases itself.
+Use the same actor as firmware for repair.
+[RepairWorkflow._downstream_lease](../../agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py)
+acquires or reuses downstream analysis and electrical-architecture leases for
+snapshot creation, serial import and downstream execution. Renew any operator-held
+leases; resolve another actor's active lease before proceeding.
 
 `POST /v1/projects/{projectId}/repair`:
 
 ```json
-{"action":"start","executionRunId":"{failedCompileRunId}","target":"firmware","maxAttempts":3,"requestedBy":actor,"requireReal":true}
+{"action":"start","executionRunId":"{failedCompileRunId}","target":"firmware","scope":"full","maxAttempts":3,"requestedBy":actor,"requireReal":true}
 ```
 
 Save `repairId` and the returned `revision`; expect `status:"inspect"`.
@@ -447,14 +461,15 @@ leases with the same actor and refresh versions before writes.
 5. Start firmware repair and then advance as in Step 7, substituting `simRunId`:
 
    ```json
-   {"action":"start","executionRunId":"{simRunId}","target":"firmware","maxAttempts":3,"requestedBy":actor,"requireReal":true}
+   {"action":"start","executionRunId":"{simRunId}","target":"firmware","scope":"full","maxAttempts":3,"requestedBy":actor,"requireReal":true}
    ```
 
    Expect `status:"inspect"`, `stage:"simulate"`, then `status:"review"` and
    `proposalId`. Check `evidenceMode:"real-requested"` and
    `attempts[].diagnostics`: failed criteria, output references and `logExcerpt`
    containing `NEXUS_MPU_INIT_FAIL`. This serial fallback and bounded case evidence
-   depend on N275; missing evidence or generation-bound errors block acceptance.
+   depend on open PR #156 (N275 fix), not yet merged; missing evidence or
+   generation-bound errors block acceptance.
 6. Perform all Step 8 GET inspection and explicit approval checks, requiring
    restoration of `MPU_ADDR = 0x68`. Continue through Step 9: rebuilt ELF,
    successful Wokwi markers/telemetry, imported serial bytes, real Python
@@ -539,7 +554,7 @@ and leave final sign-off pending Pranay's decision.
 ## Failure triage
 
 Paths below are repository-relative `file:function` targets verified in this
-checkout, except the explicitly labeled merged PR #154 additions. Preserve actual
+main checkout at `70fc27a`. Preserve actual
 error envelopes and run state; asynchronous failures can appear in run/repair state rather than as an HTTP error.
 
 | Symptom | Check/action | File:function |
@@ -553,6 +568,6 @@ error envelopes and run state; asynchronous failures can appear in run/repair st
 | `FIRMWARE_ELF_INVALID` | Selected output must be the actual completed rebuild ELF | `apps/api/src/nexus_api/circuit_simulation.py:CircuitSimulationExecutionAdapter._resolve_firmware` |
 | `SIMULATION_TIMEOUT` or no telemetry | Inspect simulation diagnostics, boot and S7 markers/schedule | `apps/api/src/nexus_api/circuit_simulation.py:CircuitSimulationExecutionAdapter.execute` |
 | 409 `REPAIR_CONFLICT` | Fetch repair state; send returned revision | `apps/api/src/nexus_api/main.py:advance_embedded_repair`; `agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py:RepairWorkflow.advance` |
-| 404 / 422 on `GET .../workspace/patch/{proposalId}` | Confirm API host includes merged PR #154; check proposal project/workspace/artifact identity. Stop before apply if inspection fails | PR #154 route (absent from this branch): `apps/api/src/nexus_api/main.py:get_artifact_workspace_patch_proposal`; `packages/board/src/nexus_board/services/workspace_runtime.py:WorkspaceRuntimeService.get_firmware_patch_proposal` |
-| `CommandValidationError: Failure criteria exceed generation bound` | Check deployment of the in-progress N275 fix; inspect failed-case count, serialized `actualResult` lengths and produced `serial.log` size. Preserve full evidence; do not drop criteria or disable real execution to bypass the 4,096-character request bound | `agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py:RepairWorkflow._inspect` |
+| 404 / 422 on `GET .../workspace/patch/{proposalId}` | Confirm API host includes merged PR #154; check proposal project/workspace/artifact identity. Stop before apply if inspection fails | Merged PR #154 route: `apps/api/src/nexus_api/main.py:get_artifact_workspace_patch_proposal`; `packages/board/src/nexus_board/services/workspace_runtime.py:WorkspaceRuntimeService.get_firmware_patch_proposal` |
+| `CommandValidationError: Failure criteria exceed generation bound` | Check merge and deployment of open PR #156 (N275 fix); inspect failed-case count, serialized `actualResult` lengths and produced `serial.log` size. Preserve full evidence; do not drop criteria or disable real execution to bypass the 4,096-character request bound | `agents/embedded-systems/src/nexus_embedded_systems/workflows/repair.py:RepairWorkflow._inspect` |
 | Missing telemetry/nonfinite values, R6/R7 FAIL | Inspect original serial input, sample timestamps and g conversion; do not replace input with fixture CSV | `agents/embedded-systems/src/nexus_embedded_systems/workflows/project_modification/imu_analysis.py:main`; `packages/board/src/nexus_board/firmware/live_patch_generator.py:LiveFirmwarePatchGenerator.generate` |
