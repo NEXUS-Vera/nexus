@@ -7,7 +7,6 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from nexus_board.errors import CommandValidationError
 from nexus_contracts.validation.semantic_validators import validate_component_plan_content
 from nexus_model_gateway import ModelGateway, ModelGatewayError, ModelPolicy
 from nexus_observability import GenerationObservation, ObservationRecorder, StructuredLogRecorder
@@ -25,9 +24,6 @@ from nexus_embedded_systems.workflows.layered_architecture import (
     compose_physical_architecture_content,
     compose_physical_architecture_envelope,
 )
-from nexus_embedded_systems.workflows.project_modification.execution_plan import (
-    derive_default_configuration,
-)
 
 from ..assembly import (
     ProjectStage,
@@ -38,7 +34,11 @@ from ..assembly import (
     normalize_requirement_draft,
 )
 from ..boundary import deterministic_boundary_check
-from ..execution_plan import compose_execution_plan
+from ..execution_plan import (
+    DefaultConfigurationError,
+    compose_execution_plan,
+    derive_default_configuration,
+)
 from ..generation.repair import repair_artifact
 from ..generation.schemas import (
     FUNCTIONAL_ARCHITECTURE_DRAFT_SCHEMA,
@@ -366,7 +366,7 @@ class LlmInitializationProvider:
             try:
                 if requests_supported_prototype(message):
                     derive_default_configuration(result)
-            except CommandValidationError as exc:
+            except DefaultConfigurationError as exc:
                 ledger.fail_step(step)
                 raise LlmInitializationError(
                     code="LLM_INITIALIZATION_VALIDATION_FAILED",
