@@ -652,6 +652,15 @@ export async function generateFirmwareScaffold(
 }
 
 
+export async function getFirmwarePatchProposal(
+  projectId: string,
+  proposalId: string,
+): Promise<Record<string, unknown>> {
+  return (await requestJson(
+    `/v1/projects/${encodeURIComponent(projectId)}/artifacts/firmware/workspace/patch/${encodeURIComponent(proposalId)}`,
+  )) as Record<string, unknown>;
+}
+
 export async function proposeFirmwarePatch(
   projectId: string,
   body: Record<string, unknown>,

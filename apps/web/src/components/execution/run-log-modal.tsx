@@ -11,8 +11,9 @@ export function redactDiagnostics(text: string): string {
     .replace(/\bsk-[\w-]+/g, '[REDACTED]');
 }
 
-export function RunLogModal({ projectId, runId, onClose, repair, setRepair }: {
+export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onReviewPatch }: {
   projectId: string; runId: string; onClose: () => void;
+  onReviewPatch?: (proposalId: string) => void;
   repair?: RepairState; setRepair: (repair: RepairState) => void;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
@@ -82,6 +83,9 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair }: {
         <button type="button" disabled={!run || busy || Boolean(stopped) || attempts >= 3 || !['failed', 'timed-out', 'completed', 'completed-with-warnings'].includes(run.status)} onClick={() => void diagnose()}>
           Diagnose &amp; Repair (Attempt {attempts} of 3)
         </button>
+        {repair?.status === 'review' && repair.target === 'firmware' && repair.proposalId && onReviewPatch && (
+          <button type="button" onClick={() => onReviewPatch(repair.proposalId!)}>Review repair patch in Workspace</button>
+        )}
         {repair && <p role="status">Repair: {repair.status}. {repair.status === 'review' ? 'Review and apply or reject the proposed correction in its workspace before continuing.' : ''}</p>}
       </div>
     </div>

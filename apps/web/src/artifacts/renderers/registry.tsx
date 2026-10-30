@@ -39,6 +39,7 @@ export type WorkspaceRendererKey =
   | 'risk-register';
 
 export type WorkspaceRenderProps = {
+  pendingProposalId?: string | null;
   projectId: string;
   rendererKey: WorkspaceRendererKey | string;
   state: ProjectCurrentState;
@@ -200,6 +201,7 @@ function FirmwareRenderer(props: WorkspaceRenderProps) {
     <FirmwareWorkspace
       projectId={props.projectId}
       isDark={props.isDark}
+      pendingProposalId={props.pendingProposalId}
       onCommandResult={props.onCommandResult}
     />
   );

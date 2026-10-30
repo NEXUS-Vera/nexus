@@ -23,6 +23,7 @@ import {
   discardFirmwarePatch,
   generateFirmwareScaffold,
   getWorkspaceRuntimeBinding,
+  getFirmwarePatchProposal,
   listWorkspaceRuntimeFiles,
   proposeFirmwarePatch,
   readWorkspaceRuntimeFile,
@@ -78,6 +79,7 @@ type PatchProposal = {
   requestedChange: string;
   operations: PatchOperation[];
   status: string;
+  generatorMetadata?: { mode?: string; model?: string };
 };
 
 type PatchPreview = {
@@ -88,6 +90,7 @@ type PatchPreview = {
 };
 
 type Props = {
+  pendingProposalId?: string | null;
   projectId: string;
   isDark: boolean;
   onCommandResult?: (result: ArtifactCommandResult) => void;
@@ -192,6 +195,7 @@ function parsePatchProposal(payload: Record<string, unknown>): PatchProposal | n
   if (typeof proposal.proposalId !== 'string' || !Array.isArray(proposal.operations)) {
     return null;
   }
+  if (proposal.operations.some(op => !isRecord(op))) return null;
   const operations = proposal.operations.filter(isRecord).map((op) => ({
     operationType: String(op.operationType) as PatchOperation['operationType'],
     path: String(op.path ?? ''),
@@ -204,6 +208,10 @@ function parsePatchProposal(payload: Record<string, unknown>): PatchProposal | n
     baseSnapshotId: String(proposal.baseSnapshotId ?? ''),
     requestedChange: String(proposal.requestedChange ?? ''),
     operations,
+    generatorMetadata: isRecord(proposal.generatorMetadata) ? {
+      mode: typeof proposal.generatorMetadata.mode === 'string' ? proposal.generatorMetadata.mode : undefined,
+      model: typeof proposal.generatorMetadata.model === 'string' ? proposal.generatorMetadata.model : undefined,
+    } : undefined,
     status: String(proposal.status ?? 'proposed'),
   };
 }
@@ -228,7 +236,7 @@ function errorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props) {
+export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingProposalId }: Props) {
   const t = themeColors(isDark);
   const [binding, setBinding] = useState<BindingInfo | null>(null);
   const [draftVersion, setDraftVersion] = useState(1);
@@ -247,6 +255,8 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props)
   const [createPath, setCreatePath] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [scaffolding, setScaffolding] = useState(false);
+  const [patchProposalLoading, setPatchProposalLoading] = useState(false);
+  const [patchProposalError, setPatchProposalError] = useState<string | null>(null);
   const [patchRequest, setPatchRequest] = useState('');
   const [patchProposing, setPatchProposing] = useState(false);
   const [patchProposal, setPatchProposal] = useState<PatchProposal | null>(null);
@@ -781,6 +791,42 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props)
     [buffers, projectId],
   );
 
+  // Buffer changes must not refetch a proposal or reopen a dismissed review.
+  const buildPatchPreviewsRef = useRef(buildPatchPreviews);
+  buildPatchPreviewsRef.current = buildPatchPreviews;
+  useEffect(() => {
+    let cancelled = false;
+    setPatchProposal(null);
+    setPatchPreviews([]);
+    setPatchProposalError(null);
+    setPatchProposalLoading(Boolean(pendingProposalId));
+    if (!pendingProposalId) return;
+    setShowPatchPanel(true);
+    async function loadProposal() {
+      try {
+        const result = await getFirmwarePatchProposal(projectId, pendingProposalId!);
+        const parsed = parsePatchProposal(result);
+        if (!parsed || parsed.proposalId !== pendingProposalId || parsed.status !== 'proposed' ||
+          parsed.operations.some(op => !op.path ||
+            !['create-file', 'replace-file', 'delete-file'].includes(op.operationType) ||
+            (op.operationType !== 'delete-file' && typeof op.content !== 'string'))) {
+          throw new Error('Invalid or no longer pending patch proposal.');
+        }
+        const previews = await buildPatchPreviewsRef.current(parsed);
+        if (cancelled) return;
+        setPatchProposal(parsed);
+        setPatchPreviews(previews);
+        setPatchPreviewIndex(0);
+      } catch (err) {
+        if (!cancelled) setPatchProposalError(errorMessage(err, 'Unable to load patch proposal.'));
+      } finally {
+        if (!cancelled) setPatchProposalLoading(false);
+      }
+    }
+    void loadProposal();
+    return () => { cancelled = true; };
+  }, [projectId, pendingProposalId]);
+
   const proposePatch = useCallback(async () => {
     if (!binding) return;
     const request = patchRequest.trim();
@@ -1152,7 +1198,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props)
         </div>
       ) : null}
 
-      {showPatchPanel && files.length > 0 ? (
+      {showPatchPanel ? (
         <div
           data-testid="firmware-patch-panel"
           style={{
@@ -1164,7 +1210,11 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props)
             gap: 8,
           }}
         >
-          {!patchProposal ? (
+          {patchProposalLoading ? (
+            <div role="status" data-testid="firmware-patch-loading">Loading patch proposal…</div>
+          ) : patchProposalError ? (
+            <div role="alert" data-testid="firmware-patch-error">{patchProposalError}</div>
+          ) : !patchProposal ? (
             <>
               <label style={{ fontSize: 11, color: t.textMuted }} htmlFor="firmware-patch-request">
                 Describe the firmware change
@@ -1202,6 +1252,20 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult }: Props)
             </>
           ) : (
             <>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span data-testid="firmware-patch-mode" style={{
+                  fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 4,
+                  background: patchProposal.generatorMetadata?.mode === 'llm' ? t.cobaltTint : t.surface,
+                  color: patchProposal.generatorMetadata?.mode === 'llm' ? t.cobalt : t.textMuted,
+                  border: `1px solid ${t.border}`,
+                }}>MODE: {(patchProposal.generatorMetadata?.mode ?? 'manual').toUpperCase()}</span>
+                {patchProposal.generatorMetadata?.model ? (
+                  <span data-testid="firmware-patch-model">Model: {patchProposal.generatorMetadata.model}</span>
+                ) : null}
+                <span>ID: {patchProposal.proposalId}</span>
+              </div>
+              <div data-testid="firmware-patch-requested-change">Requested change: {patchProposal.requestedChange}</div>
+              {patchProposal.operations.length === 0 ? <div>This proposal contains no file changes.</div> : null}
               <div data-testid="firmware-patch-summary" style={{ fontSize: 12, color: t.textSec }}>
                 <strong style={{ color: t.text }}>{patchProposal.operations.length}</strong> file
                 {patchProposal.operations.length === 1 ? '' : 's'} changed · base{' '}
