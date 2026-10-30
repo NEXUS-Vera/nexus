@@ -652,6 +652,59 @@ export async function generateFirmwareScaffold(
 }
 
 
+export type FirmwarePatchProposalOperation = {
+  operationType: 'create-file' | 'replace-file' | 'delete-file';
+  path: string;
+  content?: string;
+  expectedBaseHash?: string;
+  contentHash?: string;
+};
+
+export type FirmwarePatchProposalDetail = {
+  schemaVersion: string;
+  proposalId: string;
+  projectId: string;
+  artifactId: string;
+  artifactType: string;
+  workspaceId: string;
+  baseSnapshotId: string;
+  requestedChange: string;
+  generatorId?: string;
+  generatorVersion?: string;
+  generatorMetadata?: {
+    mode?: 'llm' | 'fixture' | 'regression' | string;
+    model?: string;
+    [key: string]: unknown;
+  };
+  inputArtifactReferences?: unknown[];
+  operations: FirmwarePatchProposalOperation[];
+  status: 'proposed' | 'applied' | 'discarded' | string;
+  requestedBy?: {
+    schemaVersion: string;
+    actorId: string;
+    actorType: string;
+    displayName?: string;
+  };
+  requestedAt?: string;
+};
+
+export type FirmwarePatchProposalEnvelope = {
+  schemaVersion: string;
+  status: string;
+  proposal: FirmwarePatchProposalDetail;
+  baseSnapshotId?: string;
+  binding?: Record<string, unknown>;
+};
+
+export async function getFirmwarePatchProposal(
+  projectId: string,
+  proposalId: string,
+): Promise<FirmwarePatchProposalEnvelope> {
+  return (await requestJson(
+    `/v1/projects/${encodeURIComponent(projectId)}/artifacts/firmware/workspace/patch/${encodeURIComponent(proposalId)}`,
+  )) as FirmwarePatchProposalEnvelope;
+}
+
 export async function proposeFirmwarePatch(
   projectId: string,
   body: Record<string, unknown>,

@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Toaster } from 'sonner';
 import type {
@@ -57,6 +57,7 @@ export function ProjectPage() {
   const { isDark, toggleDark } = useTheme();
   const t = themeColors(isDark);
   const url = useWorkspaceUrl();
+  const [searchParams] = useSearchParams();
 
   const [state, setState] = useState<ProjectCurrentState | null>(null);
   const [history, setHistory] = useState<ProjectHistory | null>(null);
@@ -327,6 +328,10 @@ export function ProjectPage() {
       >
         <Renderer
           projectId={projectId}
+          pendingProposalId={searchParams.get('proposalId') ?? Object.entries(repairs).find(
+            ([key, repair]) => key.startsWith(`${projectId}:`) && repair.status === 'review' && repair.target === 'firmware',
+          )?.[1].proposalId}
+          onProposalDecided={() => url.patchParams({ proposalId: null }, true)}
           rendererKey={rendererKey}
           state={state!}
           isDark={isDark}
@@ -453,6 +458,12 @@ export function ProjectPage() {
           setRepair={repair => setRepairs(previous => ({
             ...previous, [`${projectId}:${inspectedRun}`]: repair,
           }))}
+          onReviewPatch={proposalId => {
+            setShowEvidence(false);
+            setShowNextAction(false);
+            url.patchParams({ view: null, artifact: 'firmware-scaffold', proposalId });
+            setInspectedRun(null);
+          }}
           onClose={() => setInspectedRun(null)}
         />
       )}

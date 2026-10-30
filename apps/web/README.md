@@ -49,6 +49,7 @@ Workspace URL query params:
 - `sel`, `selId`, `revType`, `revVersion` — inspector selection
 - `panel` — `context` | `vera` (inspector sidecar mode)
 - `history=1` — open history panel
+- `proposalId` — load a pending firmware repair proposal for review
 
 Browser refresh reloads live project state from the API.
 
@@ -133,6 +134,11 @@ run IDs. The project page supplies it to open an in-place, keyboard-dismissable 
 modal. Logs refresh while open and credential-like diagnostic text is masked.
 Diagnose & Repair explicitly starts/advances the existing review-paused loop,
 with a revision guard and a three-attempt cap; it never approves corrections.
+Pending firmware repairs offer an explicit Review repair patch in Workspace action.
+The collapsible patch panel fetches the proposal through the read-only GET route,
+shows its generator mode/model and requested change, and reuses the side-by-side
+Monaco diff. Apply is hidden until the proposal and previews load. Apply and Discard
+retain their existing commands; Discard does not cancel the paused repair.
 Repair state is retained while the project page stays mounted, not across reloads.
 The header LIVE/FIXTURE pill reads initialization mode from health and opens
 diagnostics; tool availability is explicitly unknown because health does not

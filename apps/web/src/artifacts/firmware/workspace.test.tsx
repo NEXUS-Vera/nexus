@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
+import { useWorkspaceUrl } from '../../hooks/use-workspace-url';
 import { FirmwareWorkspace } from './workspace';
 
 vi.mock('@monaco-editor/react', () => ({
@@ -709,5 +711,130 @@ describe('FirmwareWorkspace', () => {
     await waitFor(() => {
       expect(screen.getByTestId('firmware-diagnostics')).toBeInTheDocument();
     });
+  });
+});
+
+
+describe('pending repair patch review', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  function mockWorkspace(proposal: () => Promise<Response>) {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/patch/pending')) return proposal();
+      if (url.endsWith('/workspace/runtime')) return jsonResponse({
+        binding: { projectId: 'proj_test', artifactId: 'art_fw', workspaceId: 'ws_fw',
+          filesystemEnabled: true, capabilities: { filesystem: true } }, draft: { draftVersion: 1 },
+      });
+      if (url.includes('/workspace/files')) return jsonResponse({ files: [{ path: 'src/main.cpp' }] });
+      if (url.includes('/workspace/file')) return jsonResponse({ content: '// original' });
+      if (url.includes('/artifact-commands')) return jsonResponse({ status: 'accepted',
+        resultPayload: { editLease: { leaseToken: 'tok_test' } } });
+      if (url.endsWith('/patch/apply') || url.endsWith('/patch/discard')) {
+        expect(JSON.parse(String(init?.body)).proposalId).toBe('pending');
+        return jsonResponse({ status: url.endsWith('/apply') ? 'applied' : 'discarded' });
+      }
+      return jsonResponse({}, 404);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  }
+
+  function proposalResponse(mode = 'llm', operations = [{ operationType: 'replace-file', path: 'src/main.cpp', content: '// repaired' }]) {
+    return jsonResponse({ schemaVersion: '1.0.0', status: 'proposed', proposal: {
+      proposalId: 'pending', baseSnapshotId: 'snap_base', requestedChange: 'Repair initialization',
+      status: 'proposed', generatorMetadata: { mode, ...(mode === 'llm' ? { model: 'test-model' } : {}) },
+      operations,
+    } });
+  }
+
+  it('shows loading and prevents Apply until proposal and previews load, then applies explicitly', async () => {
+    let resolve!: (response: Response) => void;
+    const pending = new Promise<Response>(done => { resolve = done; });
+    const fetchMock = mockWorkspace(() => pending);
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" />);
+    await waitFor(() => expect(screen.getByTestId('firmware-patch-loading')).toBeInTheDocument());
+    expect(screen.queryByTestId('firmware-patch-apply')).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.every(([, init]) => !init?.method || init.method === 'GET')).toBe(true);
+    resolve(proposalResponse());
+    await waitFor(() => expect(screen.getByTestId('firmware-patch-apply')).toBeEnabled());
+    expect(screen.getByTestId('firmware-patch-mode')).toHaveTextContent('MODE: LLM');
+    expect(screen.getByTestId('firmware-patch-model')).toHaveTextContent('test-model');
+    expect(screen.getByTestId('firmware-patch-requested-change')).toHaveTextContent('Repair initialization');
+    expect(screen.getByTestId('firmware-diff-original')).toHaveTextContent('// original');
+    expect(screen.getByTestId('firmware-diff-modified')).toHaveTextContent('// repaired');
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/patch/apply'))).toBe(false);
+    fireEvent.click(screen.getByTestId('firmware-patch-apply'));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/patch/apply'))).toBe(true));
+  });
+
+  it.each(['http', 'network'])('shows a %s fetch error and keeps the editor available', async kind => {
+    mockWorkspace(async () => {
+      if (kind === 'network') throw new Error('Network unavailable');
+      return jsonResponse({ error: { code: 'FIRMWARE_PATCH_NOT_FOUND', message: 'Patch proposal not found' } }, 404);
+    });
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" />);
+    await waitFor(() => expect(screen.getByTestId('firmware-patch-error')).toHaveTextContent(
+      kind === 'network' ? 'Network failure while contacting the API.' : 'Patch proposal not found'));
+    expect(screen.queryByTestId('firmware-patch-apply')).not.toBeInTheDocument();
+    expect(screen.getByTestId('firmware-tree-file-src/main.cpp')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('firmware-patch-dismiss-error'));
+    expect(screen.queryByTestId('firmware-patch-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('firmware-patch-panel')).not.toBeInTheDocument();
+    expect(screen.getByTestId('firmware-tree-file-src/main.cpp')).toBeInTheDocument();
+  });
+
+  it('disables Apply for an empty proposal while keeping Discard available', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse('fixture', []));
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" />);
+    await waitFor(() => expect(screen.getByTestId('firmware-patch-apply')).toBeDisabled());
+    expect(screen.getByText('This proposal contains no file changes.')).toBeInTheDocument();
+    expect(screen.getByTestId('firmware-patch-discard')).toBeEnabled();
+    fireEvent.click(screen.getByTestId('firmware-patch-apply'));
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/patch/apply'))).toBe(false);
+  });
+
+  it.each(['apply', 'discard'])('clears proposalId after %s resolves and preserves other URL parameters', async decision => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    let resolve!: (response: Response) => void;
+    const response = new Promise<Response>(done => { resolve = done; });
+    const defaultFetch = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((input, init) => String(input).endsWith(`/patch/${decision}`)
+      ? response : defaultFetch(input, init));
+
+    function RoutedWorkspace() {
+      const [params] = useSearchParams();
+      const url = useWorkspaceUrl();
+      const location = useLocation();
+      return <>
+        <output data-testid="workspace-search">{location.search}</output>
+        <FirmwareWorkspace projectId="proj_test" isDark={false}
+          pendingProposalId={params.get('proposalId')}
+          onProposalDecided={() => url.patchParams({ proposalId: null }, true)} />
+      </>;
+    }
+    render(<MemoryRouter initialEntries={['/projects/proj_test?artifact=firmware-scaffold&panel=vera&proposalId=pending']}>
+      <RoutedWorkspace />
+    </MemoryRouter>);
+    await waitFor(() => expect(screen.getByTestId(`firmware-patch-${decision}`)).toBeEnabled());
+    fireEvent.click(screen.getByTestId(`firmware-patch-${decision}`));
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith(`/patch/${decision}`))).toBe(true));
+    expect(screen.getByTestId('workspace-search')).toHaveTextContent('proposalId=pending');
+    resolve(jsonResponse({ status: decision === 'apply' ? 'applied' : 'discarded' }));
+    await waitFor(() => expect(screen.getByTestId('workspace-search')).not.toHaveTextContent('proposalId'));
+    expect(screen.getByTestId('workspace-search')).toHaveTextContent('artifact=firmware-scaffold&panel=vera');
+    expect(screen.queryByTestId('firmware-patch-panel')).not.toBeInTheDocument();
+  });
+
+  it('shows the fixture badge and discards without cancelling repair or writing files', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse('fixture'));
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" />);
+    await waitFor(() => expect(screen.getByTestId('firmware-patch-mode')).toHaveTextContent('MODE: FIXTURE'));
+    expect(screen.queryByTestId('firmware-patch-model')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('firmware-patch-discard'));
+    await waitFor(() => expect(screen.queryByTestId('firmware-patch-panel')).not.toBeInTheDocument());
+    const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== 'GET');
+    expect(mutations).toHaveLength(1);
+    expect(String(mutations[0][0])).toContain('/patch/discard');
   });
 });
