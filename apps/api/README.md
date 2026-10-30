@@ -77,6 +77,7 @@ Workspace-id addressed file routes (the workspace id comes from the runtime bind
 
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/scaffold` - generate the deterministic Firmware or Analysis scaffold
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/propose` - propose a Firmware or Analysis patch against an immutable base snapshot
+- `GET /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/{proposalId}` - read stored patch operations and generator metadata in any lifecycle status
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/apply` - apply a proposed patch
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/patch/discard` - discard a proposed patch without changing the workspace
 - `POST /v1/projects/{projectId}/artifacts/{artifactType}/workspace/compile` - compile firmware against an immutable pre-compile snapshot
