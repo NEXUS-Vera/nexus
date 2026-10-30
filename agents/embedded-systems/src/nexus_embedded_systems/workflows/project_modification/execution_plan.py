@@ -7,6 +7,7 @@ runs tools. Candidate selection authorizes a prototype, not physical validation.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from nexus_board.analysis.scaffold import get_analysis_scaffold_profile
@@ -275,6 +276,9 @@ class ExecutionPlanWorkflow:
             f.path: f.content
             for f in get_analysis_scaffold_profile(config["analysisProfileId"]).files
         }
+        # Validation bounds approved plans to ESP32-DEVKIT-V1 + MPU6050.
+        # Generic scaffold generation keeps python-analysis-v1 unchanged.
+        analysis["analysis.py"] = Path(__file__).with_name("imu_analysis.py").read_bytes()
         # This is deterministic workspace preparation, not sensor firmware generation (W3).
         firmware["include/nexus_plan.h"] = (
             "#pragma once\n"
