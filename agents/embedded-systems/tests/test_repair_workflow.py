@@ -1313,3 +1313,142 @@ def test_seeded_marker_promotion(repair_env: Any, ready: bool) -> None:
         assert cases[tid]["assessmentAuthority"] == "deterministic-code"
         assert cases[tid]["executionRunId"] == "run_marker"
     assert all("assessment" not in cases[tid] for tid in ("T2", "T3"))
+
+
+@pytest.fixture
+def inspection_env(monkeypatch: Any) -> Any:
+    """Exercise evidence extraction and the request bound without scheduling repairs."""
+    from types import SimpleNamespace
+    from unittest.mock import Mock
+
+    runtime = Mock()
+    runtime.get_execution.return_value = {
+        "executionRun": {
+            "status": "completed",
+            "inputSnapshotId": "snap_sim",
+            "outputReferences": ["out_serial"],
+        }
+    }
+    runtime.list_outputs_for_run.return_value = {"outputs": []}
+    runtime.propose_firmware_patch.return_value = {
+        "proposal": {"proposalId": "prop_repair", "generatorMetadata": {"mode": "llm"}}
+    }
+    kernel = SimpleNamespace(workspace_runtime=runtime)
+    workflow = RepairWorkflow(kernel)
+    golden = json.loads(
+        (
+            ROOT
+            / "packages/contracts/examples/valid/esp32-imu-vibration-monitor"
+            / "test-plan-artifact.json"
+        ).read_text()
+    )["content"]["testCases"]
+    cases = [copy.deepcopy(c) for c in golden if c["displayId"] in {"T1", "T4", "T5"}]
+    for case in cases:
+        case.update(assessment="FAIL", status="failed", actualResult="NEXUS_MPU_INIT_FAIL")
+    monkeypatch.setattr(workflow, "_cases", lambda *_: cases)
+    monkeypatch.setattr(workflow, "_save", lambda state, _: state)
+    state = {
+        "projectId": "proj_sim",
+        "runId": "run_sim",
+        "repairId": "repair_sim",
+        "stage": "simulate",
+        "target": "firmware",
+        "attempts": [{"runIds": ["run_sim"]}],
+        "maxAttempts": 3,
+    }
+    return workflow, runtime, state, cases
+
+
+def serial_output(text: str, *, truncated: bool = False) -> dict[str, Any]:
+    return {
+        "name": "serial.log",
+        "outputType": "log",
+        "content": {
+            "kind": "inline-structured",
+            "structuredResult": {"text": text, "truncated": truncated},
+        },
+    }
+
+
+def inspect_diagnostics(env: Any) -> Any:
+    workflow, runtime, state, _ = env
+    workflow._inspect(state, actor())
+    assert state["status"] == "review"
+    runtime.propose_firmware_patch.assert_called_once()
+    assert len(runtime.propose_firmware_patch.call_args.kwargs["requested_change"]) <= 4096
+    runtime.list_logs.assert_not_called()
+    return state["attempts"][0]["diagnostics"]
+
+
+def test_simulation_failure_populates_log_excerpt_from_serial_output(inspection_env: Any) -> None:
+    _, runtime, _, cases = inspection_env
+    text = "NEXUS_MPU_INIT_FAIL\nWire NACK at address 0x69\n"
+    runtime.list_outputs_for_run.return_value = {"outputs": [serial_output(text)]}
+    original = copy.deepcopy(cases)
+    diagnostics = inspect_diagnostics(inspection_env)
+    assert diagnostics["logExcerpt"] == text
+    assert diagnostics["logExcerptLimited"] is False
+    assert diagnostics["job"] == {"exitCode": None, "failure": None, "logTruncated": None}
+    assert cases == original
+
+
+@pytest.mark.parametrize("output_lookup_fails", [False, True])
+def test_simulation_failure_falls_back_to_test_case_actual_result(
+    inspection_env: Any, output_lookup_fails: bool
+) -> None:
+    _, runtime, _, cases = inspection_env
+    # Missing outputs and a failed lookup both leave the linked case evidence usable.
+    cases[0]["actualResult"] = "NEXUS_MPU_INIT_FAIL (contains 'NEXUS_MPU_READY')"
+    if output_lookup_fails:
+        runtime.list_outputs_for_run.side_effect = BoardError("Output unavailable")
+    diagnostics = inspect_diagnostics(inspection_env)
+    assert diagnostics["logExcerpt"] == cases[0]["actualResult"]
+    assert diagnostics["logExcerptLimited"] is False
+
+
+def test_simulation_verbose_serial_log_respects_4096_budget(inspection_env: Any) -> None:
+    _, runtime, _, _ = inspection_env
+    text = "START_BOOT\n" + "NEXUS_MPU_INIT_FAIL 0x69\n" * 400 + "END_LOG\n"
+    runtime.list_outputs_for_run.return_value = {"outputs": [serial_output(text)]}
+    diagnostics = inspect_diagnostics(inspection_env)
+    assert diagnostics["logExcerptLimited"] is True
+    assert diagnostics["logExcerpt"].startswith("START_BOOT\n")
+    assert diagnostics["logExcerpt"].endswith("END_LOG\n")
+    assert runtime.list_outputs_for_run.return_value["outputs"][0] == serial_output(text)
+
+
+def test_simulation_multi_case_actual_result_bounded_in_diagnostics(inspection_env: Any) -> None:
+    _, runtime, _, cases = inspection_env
+    text = "START_BOOT\n" + "NEXUS_MPU_INIT_FAIL 0x69\n" * 400 + "END_LOG\n"
+    for case in cases:
+        case["actualResult"] = text
+    original = copy.deepcopy(cases)
+    runtime.list_outputs_for_run.return_value = {"outputs": [serial_output(text)]}
+    diagnostics = inspect_diagnostics(inspection_env)
+    assert len(diagnostics["testCases"]) == 3
+    for case in diagnostics["testCases"]:
+        assert len(case["actualResult"]) <= 400
+        assert case["actualResult"].startswith("START_BOOT\n")
+        assert case["actualResult"].endswith("END_LOG\n")
+    assert diagnostics["logExcerptLimited"] is True
+    assert cases == original
+
+
+def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> None:
+    workflow, runtime, state, _ = inspection_env
+    state["stage"] = "compile"
+    job = {"exitCode": 1, "failure": "compiler failed", "logTruncated": False}
+    runtime.get_execution.return_value["executionJob"] = job
+    runtime.list_logs.return_value = {"chunks": [{"content": "INJECTED_DEFECT: compiler error"}]}
+    runtime.list_outputs_for_run.return_value = {"outputs": [serial_output("DECOY_SIM_LOG")]}
+    workflow._inspect(state, actor())
+    assert state["status"] == "review"
+    diagnostics = state["attempts"][0]["diagnostics"]
+    assert diagnostics["logExcerpt"] == "INJECTED_DEFECT: compiler error"
+    assert diagnostics["logExcerptLimited"] is False
+    assert diagnostics["job"] == job
+    assert diagnostics["testCases"] == []
+    runtime.list_outputs_for_run.assert_not_called()
+    runtime.list_logs.assert_called_once_with(
+        project_id=state["projectId"], execution_run_id=state["runId"], limit=100
+    )

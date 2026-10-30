@@ -552,7 +552,8 @@ async def _runtime_fault_repair_http(monkeypatch: pytest.MonkeyPatch, fault: str
             for c in diagnostics["testCases"]
         )
         if fault == "F4":
-            assert diagnostics["logExcerpt"] == ""  # Synchronous simulation has no execution job.
+            assert diagnostics["logExcerpt"] == "NEXUS_MPU_INIT_FAIL\n"
+            assert diagnostics["logExcerptLimited"] is False
             assert "NEXUS_MPU_INIT_FAIL" in diagnostics["testCases"][0]["actualResult"]
         assert await advance() == state
         assert (await client.get(f"{root}/file", params={"path": "src/main.cpp"})).json()[
