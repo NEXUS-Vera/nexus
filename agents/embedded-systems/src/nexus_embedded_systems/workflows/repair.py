@@ -8,11 +8,15 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Iterator
+from contextlib import contextmanager
 from threading import RLock
 from typing import Any
 
 from nexus_board.errors import BoardError, CommandValidationError
 from nexus_board.ids import new_id
+from nexus_board.services.draft_lease import is_lease_active
+from nexus_persistence.errors import ArtifactNotFoundError
 
 from nexus_embedded_systems.workflows.project_initialization.prompts.catalog import (
     EXECUTION_REPAIR_REQUEST,
@@ -27,6 +31,7 @@ ACTIVE = {"queued", "starting", "running", "cancelling"}
 
 def _unavailable(code: str) -> bool:
     return "UNAVAILABLE" in code or code in {
+        "ARCHITECTURE_UNSUPPORTED",
         "PROCESS_START_FAILED",
         "WOKWI_CLI_MISSING",
         "WOKWI_CREDENTIAL_MISSING",
@@ -95,7 +100,10 @@ class RepairWorkflow:
         target: str,
         max_attempts: int = 3,
         require_real: bool = True,
+        scope: str = "full",
     ) -> dict[str, Any]:
+        if not isinstance(scope, str) or scope not in {"build", "full"}:
+            raise CommandValidationError("scope must be build or full")
         if type(max_attempts) is not int or not 1 <= max_attempts <= 3:
             raise CommandValidationError(
                 "maxAttempts must be between 1 and 3 (initial run included)"
@@ -116,6 +124,12 @@ class RepairWorkflow:
         if run["status"] in ACTIVE or run["status"] == "cancelled":
             raise CommandValidationError("Repair requires a terminal failure or failed assessment")
         stage = self._stage(run)
+        if scope == "build" and (
+            target != "firmware" or stage != "compile" or run["status"] != "failed"
+        ):
+            raise CommandValidationError(
+                "Build scope requires a failed compile run and target firmware"
+            )
         if stage in {"compile", "test"} and target != "firmware":
             raise CommandValidationError("Compiler failures require a firmware correction")
         if stage == "simulate" and target != "firmware":
@@ -127,6 +141,7 @@ class RepairWorkflow:
             "revision": 0,
             "status": "inspect",
             "target": target,
+            "scope": scope,
             "maxAttempts": max_attempts,
             "requireReal": require_real,
             "evidenceMode": "real-requested" if require_real else "regression",
@@ -154,9 +169,12 @@ class RepairWorkflow:
         raise CommandValidationError("Unsupported repair execution operation")
 
     def _cases(self, project_id: str, run_id: str) -> list[dict[str, Any]]:
-        cases = self.kernel.project_store.get_artifact(project_id, "test-plan")["content"][
-            "testCases"
-        ]
+        try:
+            cases = self.kernel.project_store.get_artifact(project_id, "test-plan")["content"][
+                "testCases"
+            ]
+        except ArtifactNotFoundError:
+            return []
         return [
             c
             for c in cases
@@ -216,8 +234,24 @@ class RepairWorkflow:
                             status="cancelled" if run["status"] == "cancelled" else "stopped",
                             explanation=run["status"],
                         )
+                    elif _unavailable((run.get("error") or {}).get("code", "")):
+                        error = run["error"]
+                        state.update(
+                            status="unavailable",
+                            errorCode=error["code"],
+                            explanation=error.get("message")
+                            or "Execution prerequisite unavailable",
+                        )
                     elif run["status"] not in {"completed", "completed-with-warnings"}:
                         state["status"] = "inspect"
+                    elif state["stage"] == "compile" and state.get("scope", "full") == "build":
+                        state.update(
+                            status="completed",
+                            explanation=(
+                                "Build-only repair completed with a successful rebuild; "
+                                "no simulation, analysis or P1-P5 evidence promotion."
+                            ),
+                        )
                     elif state["stage"] == "compile":
                         state["firmwareOutputId"] = self._output(
                             state, ".pio/build/nexus/firmware.elf"
@@ -314,7 +348,7 @@ class RepairWorkflow:
         if _unavailable(error.get("code", "")):
             state.update(
                 status="unavailable",
-                explanation="Execution prerequisite unavailable",
+                explanation=error.get("message") or "Execution prerequisite unavailable",
                 errorCode=error.get("code"),
             )
             return
@@ -400,23 +434,50 @@ class RepairWorkflow:
             raise CommandValidationError(f"Required output missing or ambiguous: {name}")
         return matches[0]
 
+    @contextmanager
+    def _downstream_lease(
+        self, state: dict[str, Any], actor: dict[str, Any], artifact_type: str
+    ) -> Iterator[dict[str, Any]]:
+        binding = self.runtime.resolve_binding(
+            project_id=state["projectId"], artifact_type=artifact_type, actor=actor
+        )
+        lease = binding["draft"].get("editLease")
+        already_owned = is_lease_active(lease) and lease["ownerActorId"] == actor["actorId"]
+        # Ordinary acquisition rejects an active lease owned by another actor.
+        # Only release leases acquired here; caller-held leases remain intact.
+        if not already_owned:
+            try:
+                self.kernel.workspaces.acquire_edit_lease(
+                    workspace_id=binding["workspaceId"], actor=actor
+                )
+            except BoardError as exc:
+                raise BoardError(
+                    f"Repair cannot access {artifact_type} workspace: {exc.message}",
+                    code=exc.code,
+                ) from exc
+        try:
+            yield binding
+        finally:
+            if not already_owned:
+                self.kernel.workspaces.release_edit_lease(
+                    workspace_id=binding["workspaceId"], actor=actor
+                )
+
     def _import(self, state: dict[str, Any], actor: dict[str, Any]) -> None:
         output = self._output(state, "serial.log")
-        binding = self.runtime.resolve_binding(
-            project_id=state["projectId"], artifact_type="analysis", actor=actor
-        )
-        self.runtime.import_produced_output_into_analysis_input(
-            project_id=state["projectId"],
-            artifact_type="analysis",
-            actor=actor,
-            output_id=output["outputId"],
-            path="data/serial.log",
-            expected_draft_version=binding["draft"]["draftVersion"],
-            base_artifact_version=binding["baseArtifactVersion"],
-            base_project_state_version=self.kernel.project_store.get_project(state["projectId"])[
-                "currentStateVersion"
-            ],
-        )
+        with self._downstream_lease(state, actor, "analysis") as binding:
+            self.runtime.import_produced_output_into_analysis_input(
+                project_id=state["projectId"],
+                artifact_type="analysis",
+                actor=actor,
+                output_id=output["outputId"],
+                path="data/serial.log",
+                expected_draft_version=binding["draft"]["draftVersion"],
+                base_artifact_version=binding["baseArtifactVersion"],
+                base_project_state_version=self.kernel.project_store.get_project(
+                    state["projectId"]
+                )["currentStateVersion"],
+            )
 
     def _launch(self, state: dict[str, Any], actor: dict[str, Any]) -> None:
         state["status"] = "launching"
@@ -433,28 +494,27 @@ class RepairWorkflow:
         elif state["stage"] == "test":
             result = self.runtime.test_firmware(**common, artifact_type="firmware")
         elif state["stage"] == "analyze":
-            result = self.runtime.run_analysis(
-                **common, artifact_type="analysis", require_real=state["requireReal"]
-            )
+            with self._downstream_lease(state, actor, "analysis"):
+                result = self.runtime.run_analysis(
+                    **common, artifact_type="analysis", require_real=state["requireReal"]
+                )
         else:
-            binding = self.runtime.resolve_binding(
-                project_id=state["projectId"], artifact_type="electrical-architecture", actor=actor
-            )
-            snap = self.kernel.workspaces.create_snapshot(
-                workspace_id=binding["workspaceId"], actor=actor, reason="before-execution"
-            )
-            result = self.kernel.executions.execute(
-                **common,
-                artifact_id=binding["artifactId"],
-                artifact_type="electrical-architecture",
-                workspace_id=binding["workspaceId"],
-                snapshot_id=snap["snapshotId"],
-                capability="circuit-simulation",
-                base_artifact_version=binding["baseArtifactVersion"],
-                base_project_state_version=self.kernel.project_store.get_project(
-                    state["projectId"]
-                )["currentStateVersion"],
-                options={"firmwareOutputId": state["firmwareOutputId"]},
-            )
+            with self._downstream_lease(state, actor, "electrical-architecture") as binding:
+                snap = self.kernel.workspaces.create_snapshot(
+                    workspace_id=binding["workspaceId"], actor=actor, reason="before-execution"
+                )
+                result = self.kernel.executions.execute(
+                    **common,
+                    artifact_id=binding["artifactId"],
+                    artifact_type="electrical-architecture",
+                    workspace_id=binding["workspaceId"],
+                    snapshot_id=snap["snapshotId"],
+                    capability="circuit-simulation",
+                    base_artifact_version=binding["baseArtifactVersion"],
+                    base_project_state_version=self.kernel.project_store.get_project(
+                        state["projectId"]
+                    )["currentStateVersion"],
+                    options={"firmwareOutputId": state["firmwareOutputId"]},
+                )
         state.update(status="running", runId=result["executionRun"]["executionRunId"])
         state["attempts"][-1]["runIds"].append(state["runId"])

@@ -269,6 +269,11 @@ def seed_approved_firmware_plan(project_store: Any, project_id: str) -> None:
     """Seed reviewed source provenance for isolated firmware tests (no materializer)."""
     package = project_store.get_current_state(project_id)
     sources = package["artifacts"]
+    components = next((a["content"] for a in sources if a["artifactType"] == "component-plan"), {})
+    electrical = next(
+        (a["content"] for a in sources if a["artifactType"] == "electrical-architecture"), {}
+    )
+    i2c = next((c for c in electrical.get("connections", []) if c["interfaceType"] == "i2c"), None)
     plan = {
         **sources[0],
         "artifactId": new_id("art"),
@@ -280,9 +285,22 @@ def seed_approved_firmware_plan(project_store: Any, project_id: str) -> None:
                     {"artifactId": a["artifactId"], "artifactVersion": a["artifactVersion"]}
                     for a in sources
                 ]
-            }
+            },
         },
     }
+    if i2c and components.get("selectionDecisions"):
+        plan["content"]["configuration"] = {
+            "buildProfileId": "platformio-arduino-esp32-v1",
+            "analysisProfileId": "python-analysis-v1",
+            "components": [
+                {
+                    "componentRoleId": decision["componentRoleId"],
+                    "candidateId": decision["selectedCandidateId"],
+                }
+                for decision in components["selectionDecisions"]
+            ],
+            "i2c": {"connectionId": i2c["connectionId"], "sdaPin": 21, "sclPin": 22},
+        }
     package["artifacts"].append(plan)
     package["project"]["currentArtifactReferences"].append(
         {
