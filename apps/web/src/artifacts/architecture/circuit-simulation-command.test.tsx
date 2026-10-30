@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type {
@@ -34,11 +35,20 @@ vi.mock('./electrical/simulation/ElectricalSimulationView', () => ({
     onRunSimulation,
   }: {
     onRunSimulation: () => Promise<void>;
-  }) => (
-    <button type="button" onClick={() => void onRunSimulation()}>
-      Test run simulation
-    </button>
-  ),
+  }) => {
+    const [error, setError] = useState<string | null>(null);
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => void onRunSimulation().catch((err: Error) => setError(err.message))}
+        >
+          Test run simulation
+        </button>
+        {error && <div role="alert">{error}</div>}
+      </>
+    );
+  },
 }));
 
 vi.mock('./electrical/ElectricalGraphCanvas', () => ({
@@ -89,6 +99,7 @@ function result(
 
 describe('architecture circuit simulation command flow', () => {
   beforeEach(() => {
+    vi.resetAllMocks();
     vi.mocked(getWorkspace).mockResolvedValue(workspace);
     vi.mocked(listProducedOutputs).mockResolvedValue([
       { outputId: 'out_bin0000000000000', name: '.pio/build/nexus/firmware.bin' },
@@ -110,7 +121,65 @@ describe('architecture circuit simulation command flow', () => {
       .mockResolvedValue(result('release'));
   });
 
-  it('snapshots and submits the built firmware ELF and current readiness marker', async () => {
+  it.each([false, true])(
+    'snapshots and submits the newest firmware ELF and current readiness marker (rebuild: %s)',
+    async (rebuild) => {
+      if (rebuild) {
+        vi.mocked(listProducedOutputs).mockResolvedValue([
+          { outputId: 'out_stale', name: '.pio/build/nexus/firmware.elf' },
+          { outputId: 'out_elf0000000000000', name: '.pio/build/nexus/firmware.elf' },
+          { outputId: 'out_log', name: 'serial.log' },
+        ] as ProducedOutput[]);
+      }
+      const user = userEvent.setup();
+      const { unmount } = render(
+        <ArchitectureWorkspace
+          projectId={artifact.projectId}
+          viewId="electrical"
+          artifact={artifact}
+          isDark={false}
+          electricalMode="simulation"
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: 'Test run simulation' }));
+      await waitFor(() => expect(submitArtifactCommand).toHaveBeenCalledTimes(3));
+
+      expect(listProducedOutputs).toHaveBeenCalledWith(artifact.projectId);
+      const commands = vi.mocked(submitArtifactCommand).mock.calls.map((call) => call[1]);
+      expect(commands[0]).toMatchObject({
+        commandType: 'workspace.acquire-edit-lease',
+        workspaceId: workspace.workspaceId,
+      });
+      expect(commands[1]).toMatchObject({
+        commandType: 'workspace.create-snapshot',
+        workspaceId: workspace.workspaceId,
+      });
+      expect(commands[2]).toMatchObject({
+        commandType: 'artifact.execute',
+        input: {
+          snapshotId: 'snapshot_1',
+          capability: 'circuit-simulation',
+          executionMode: 'simulate',
+          firmwareOutputId: 'out_elf0000000000000',
+          expectedText: 'NEXUS_MPU_READY',
+        },
+      });
+      expect(commands.some((command) => command.commandType === 'artifact.propose-revision')).toBe(
+        false,
+      );
+      unmount();
+      expect(submitArtifactCommand).toHaveBeenLastCalledWith(
+        artifact.projectId,
+        expect.objectContaining({ commandType: 'workspace.release-edit-lease' }),
+      );
+    },
+  );
+
+  it('shows the build message without acquiring a lease or submitting commands when no ELF exists', async () => {
+    vi.mocked(listProducedOutputs).mockResolvedValue([
+      { outputId: 'out_bin', name: '.pio/build/nexus/firmware.bin' },
+    ] as ProducedOutput[]);
     const user = userEvent.setup();
     render(
       <ArchitectureWorkspace
@@ -123,30 +192,10 @@ describe('architecture circuit simulation command flow', () => {
     );
 
     await user.click(screen.getByRole('button', { name: 'Test run simulation' }));
-    await waitFor(() => expect(submitArtifactCommand).toHaveBeenCalledTimes(3));
-
-    expect(listProducedOutputs).toHaveBeenCalledWith(artifact.projectId);
-    const commands = vi.mocked(submitArtifactCommand).mock.calls.map((call) => call[1]);
-    expect(commands[0]).toMatchObject({
-      commandType: 'workspace.acquire-edit-lease',
-      workspaceId: workspace.workspaceId,
-    });
-    expect(commands[1]).toMatchObject({
-      commandType: 'workspace.create-snapshot',
-      workspaceId: workspace.workspaceId,
-    });
-    expect(commands[2]).toMatchObject({
-      commandType: 'artifact.execute',
-      input: {
-        snapshotId: 'snapshot_1',
-        capability: 'circuit-simulation',
-        executionMode: 'simulate',
-        firmwareOutputId: 'out_elf0000000000000',
-        expectedText: 'NEXUS_MPU_READY',
-      },
-    });
-    expect(commands.some((command) => command.commandType === 'artifact.propose-revision')).toBe(
-      false,
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Build firmware before running circuit simulation.',
     );
+    expect(listProducedOutputs).toHaveBeenCalledWith(artifact.projectId);
+    expect(submitArtifactCommand).not.toHaveBeenCalled();
   });
 });

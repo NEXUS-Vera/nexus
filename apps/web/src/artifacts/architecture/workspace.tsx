@@ -1152,11 +1152,18 @@ export function ArchitectureWorkspace({
       throw new Error('Circuit simulation requires an electrical architecture.');
     }
     if (commandBusy) throw new Error('Another architecture command is running.');
-    const leased = await ensureEditLease();
-    if (!leased) throw new Error('An active edit lease is required to snapshot simulation input.');
     setCommandBusy(true);
     setCommandMessage(null);
     try {
+      const outputs = await listProducedOutputs(projectId);
+      // Produced outputs are oldest-first, so prefer the most recent rebuild.
+      const firmware = [...outputs]
+        .reverse()
+        .find((output) => output.name === '.pio/build/nexus/firmware.elf');
+      if (!firmware) throw new Error('Build firmware before running circuit simulation.');
+
+      const leased = await ensureEditLease();
+      if (!leased) throw new Error('An active edit lease is required to snapshot simulation input.');
       const envelope = await ensureWorkspace();
       if (!envelope) throw new Error('Unable to create the electrical architecture workspace.');
       const ws = envelope.workspace;
@@ -1191,10 +1198,6 @@ export function ArchitectureWorkspace({
         }
       }
       if (!snapshotId) throw new Error('Snapshot command did not return a snapshot identifier.');
-
-      const outputs = await listProducedOutputs(projectId);
-      const firmware = outputs.find((output) => output.name === '.pio/build/nexus/firmware.elf');
-      if (!firmware) throw new Error('Build firmware before running circuit simulation.');
 
       const executionResult = await submitArtifactCommand(projectId, {
         schemaVersion: '1.0.0',
