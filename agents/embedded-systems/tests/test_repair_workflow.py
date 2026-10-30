@@ -122,9 +122,20 @@ def repair_env(monkeypatch, tmp_path, request):
         assert result["status"] == "completed", result
         seeded = ps.get_artifact(pid, "test-plan")
         assert all(
-            c["status"] == "planned" and "criterion" not in c
+            c["status"] == "planned" and "criterion" in c and "assessment" not in c
             for c in seeded["content"]["testCases"]
         )
+        golden_cases = json.loads(
+            (
+                ROOT
+                / "packages/contracts/examples/valid/esp32-imu-vibration-monitor"
+                / "test-plan-artifact.json"
+            ).read_text()
+        )["content"]["testCases"]
+        assert len(seeded["content"]["testCases"]) == len(golden_cases)
+        for case, golden_case in zip(seeded["content"]["testCases"], golden_cases, strict=True):
+            assert case["criterion"] == golden_case["criterion"]
+            assert case["verificationMethod"] == golden_case["verificationMethod"]
         workflow.retry_materialization(
             pid,
             user,
@@ -457,23 +468,24 @@ def test_stale_correction_requires_review_again(repair_env):
 
 
 @pytest.mark.parametrize(
-    "repair_env,simulator",
+    "repair_env,simulator,bad_evidence",
     [
-        (None, "ready"),
-        (None, "unavailable"),
-        (None, "failed"),
-        (None, "firmware-test"),
-        (None, "build"),
-        (None, "build-retry"),
-        (None, "build-exhausted"),
-        (None, "electrical-held"),
-        (None, "analysis-held"),
-        ("live", "live"),
+        (None, "ready", False),
+        (None, "unavailable", False),
+        (None, "failed", False),
+        (None, "firmware-test", False),
+        (None, "build", False),
+        (None, "build-retry", False),
+        (None, "build-exhausted", False),
+        (None, "electrical-held", False),
+        (None, "analysis-held", False),
+        ("live", "live", False),
+        ("live", "live", True),
     ],
     indirect=["repair_env"],
 )
 def test_firmware_defect_repair_reruns_existing_w4_path(
-    repair_env, monkeypatch, tmp_path, simulator
+    repair_env, monkeypatch, tmp_path, simulator, bad_evidence
 ):
     """Scripted compiler/model/simulator; real jobs, storage, import and Python analysis."""
     kernel, pid, user, _, _, write = repair_env
@@ -612,6 +624,10 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
     telemetry = b"NEXUS_MPU_READY\ntime_s,accel_x_g,accel_y_g,accel_z_g\n" + b"".join(
         f"TEL,{i / 50},0.01,0,1\n".encode() for i in range(100)
     )
+    if bad_evidence and simulator == "live":
+        telemetry = b"NEXUS_MPU_READY\ntime_s,accel_x_g,accel_y_g,accel_z_g\n" + b"".join(
+            f"TEL,{i / 25},0.01,0,1\n".encode() for i in range(100)
+        )
     consumed = []
 
     class Runner:
@@ -805,7 +821,7 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
         assert state["status"] == "running", state
         assert kernel.executions.get_run(state["runId"])["status"] == "completed"
         state = advance(workflow, state, user)
-        assert state["status"] == "inspect", str(state)
+        assert state["status"] == ("inspect" if bad_evidence else "completed"), str(state)
         assert not state.get("errorCode")
         return
     assert state["status"] == "completed", str(state)
@@ -1089,7 +1105,7 @@ def test_evidence_promotion_without_test_plan_is_structured(repair_env, monkeypa
 @pytest.mark.parametrize("repair_env", ["live"], indirect=True)
 @pytest.mark.parametrize("noisy,slow", [(False, False), (True, False), (False, True)])
 def test_materialized_imu_analysis_serial_metrics(repair_env: Any, noisy: bool, slow: bool) -> None:
-    """Real analysis runner and stored evidence; seeded criteria remain a separate blocker."""
+    """Real analysis runner promotes schema-valid seeded metric criteria."""
     from nexus_board.verification.close import promote_analysis_evidence_into_test_plan
     from nexus_embedded_systems.workflows.project_modification.execution_plan import (
         ExecutionPlanWorkflow,
@@ -1142,16 +1158,19 @@ def test_materialized_imu_analysis_serial_metrics(repair_env: Any, noisy: bool, 
     assert cases["T7"]["assessment"] == ("FAIL" if noisy else "PASS")
     assert cases["T8"]["assessment"] == "PASS"
     seeded = kernel.project_store.get_artifact(pid, "test-plan")["content"]
-    unchanged, changed = promote_analysis_evidence_into_test_plan(
+    assessed, changed = promote_analysis_evidence_into_test_plan(
         seeded,
         summary=summary,
         produced_output_names=names,
         execution_run_id=run["executionRunId"],
         output_id=output_id,
     )
-    assert not changed
-    assert unchanged == seeded
-    assert all(c["status"] == "planned" and "assessment" not in c for c in unchanged["testCases"])
+    assert changed
+    cases = {c["displayId"]: c for c in assessed["testCases"]}
+    assert cases["T6"]["assessment"] == ("FAIL" if slow else "PASS")
+    assert cases["T7"]["assessment"] == ("FAIL" if noisy else "PASS")
+    assert cases["T8"]["assessment"] == "PASS"
+    assert all(cases[t]["assessmentAuthority"] == "deterministic-code" for t in ("T6", "T7", "T8"))
 
 
 def test_generic_analysis_profile_remains_generic() -> None:
@@ -1162,3 +1181,85 @@ def test_generic_analysis_profile_remains_generic() -> None:
     assert b'"status": "ok"' in source
     assert b"accel_x_rms_noise_g" not in source
     assert b"serial.log" not in source
+
+
+@pytest.mark.parametrize("repair_env", ["live"], indirect=True)
+@pytest.mark.parametrize("changed_statement", [False, True])
+def test_unmapped_objective_stays_manual(
+    repair_env: Any, monkeypatch: Any, changed_statement: bool
+) -> None:
+    from nexus_board.verification.close import (
+        promote_analysis_evidence_into_test_plan,
+        promote_marker_evidence_into_test_plan,
+    )
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        ExecutionPlanWorkflow,
+    )
+    from nexus_persistence.errors import ArtifactNotFoundError
+
+    kernel, pid, _, _, _, _ = repair_env
+    original = kernel.project_store.get_artifact
+    requirements = copy.deepcopy(original(pid, "requirement-set"))
+    requirement = requirements["content"]["requirements"][0]
+    if changed_statement:
+        requirement["statement"] = "Unrelated R1 requirement."
+    else:
+        requirement["displayId"] = "R99"
+        requirement["statement"] = "An unknown objective."
+    plan = copy.deepcopy(original(pid, "execution-plan"))
+    plan["content"]["plan"]["verificationObjectives"] = [
+        plan["content"]["plan"]["verificationObjectives"][0]
+    ]
+    captured: dict[str, Any] = {}
+
+    def get(project_id: str, kind: str) -> Any:
+        if kind == "test-plan":
+            raise ArtifactNotFoundError("missing")
+        if kind == "requirement-set":
+            return requirements
+        return original(project_id, kind)
+
+    monkeypatch.setattr(kernel.project_store, "get_artifact", get)
+    monkeypatch.setattr(
+        kernel.project_store, "apply_accepted_artifact_revision", lambda **kw: captured.update(kw)
+    )
+    ExecutionPlanWorkflow(kernel)._seed_test_plan(pid, plan)
+    content = captured["new_artifact"]["content"]
+    case = content["testCases"][0]
+    assert case["verificationMethod"] == "manual"
+    assert "criterion" not in case
+    promoted, _ = promote_analysis_evidence_into_test_plan(
+        content,
+        summary={"sampling_hz": 50},
+        produced_output_names=[],
+        execution_run_id="run_unknown",
+    )
+    promoted, _ = promote_marker_evidence_into_test_plan(
+        promoted, log_text="NEXUS_MPU_READY", execution_run_id="run_unknown"
+    )
+    assert promoted == content
+
+
+@pytest.mark.parametrize("repair_env", ["live"], indirect=True)
+@pytest.mark.parametrize("ready", [False, True])
+def test_seeded_marker_promotion(repair_env: Any, ready: bool) -> None:
+    from nexus_board.verification.close import promote_marker_evidence_into_test_plan
+    from nexus_contracts.validation.schema_validator import validate_against_schema_id
+
+    kernel, pid, _, _, _, _ = repair_env
+    artifact = kernel.project_store.get_artifact(pid, "test-plan")
+    assert not validate_against_schema_id(
+        artifact, "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
+    )
+    promoted, changed = promote_marker_evidence_into_test_plan(
+        artifact["content"],
+        log_text="NEXUS_MPU_READY accel_x_g" if ready else "boot failed",
+        execution_run_id="run_marker",
+    )
+    assert changed
+    cases = {c["displayId"]: c for c in promoted["testCases"]}
+    for tid in ("T1", "T4", "T5"):
+        assert cases[tid]["assessment"] == ("PASS" if ready else "FAIL")
+        assert cases[tid]["assessmentAuthority"] == "deterministic-code"
+        assert cases[tid]["executionRunId"] == "run_marker"
+    assert all("assessment" not in cases[tid] for tid in ("T2", "T3"))
