@@ -63,12 +63,16 @@ async def _revise_candidates(
     content = copy.deepcopy(component["content"])
     for candidate in content["candidates"]:
         if candidate["candidateCategory"] == "compute":
-            candidate.update(partNumber="ESP32-DEVKIT-V1", displayName="ESP32 DevKit V1")
+            candidate.update(
+                manufacturer="Espressif",
+                partNumber="ESP32-DEVKIT-V1",
+                displayName="ESP32 DevKit V1",
+            )
             for spec in candidate["specifications"]:
                 if spec["specKey"] == "gpio-sda":
                     spec["value"] = sda_pin
         else:
-            candidate.update(partNumber="MPU6050", displayName="MPU6050")
+            candidate.update(manufacturer="InvenSense", partNumber="MPU6050", displayName="MPU6050")
     if overrides:
         content["candidates"][0].update(overrides)
     result = await _command(
