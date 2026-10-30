@@ -1184,6 +1184,56 @@ def test_generic_analysis_profile_remains_generic() -> None:
 
 
 @pytest.mark.parametrize("repair_env", ["live"], indirect=True)
+@pytest.mark.parametrize("timestamp_field", ["time_ms", "time_s"])
+def test_seeded_r5_telemetry_normalization(
+    repair_env: Any, monkeypatch: Any, timestamp_field: str
+) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        ExecutionPlanWorkflow,
+    )
+    from nexus_persistence.errors import ArtifactNotFoundError
+
+    kernel, pid, _, _, _, _ = repair_env
+    original = kernel.project_store.get_artifact
+    requirements = copy.deepcopy(original(pid, "requirement-set"))
+    r5 = next(r for r in requirements["content"]["requirements"] if r["displayId"] == "R5")
+    r5["statement"] = (
+        "Firmware streams acceleration telemetry in a machine-readable form "
+        f"containing {timestamp_field}, accel_x_g, accel_y_g, and accel_z_g."
+    )
+    plan = copy.deepcopy(original(pid, "execution-plan"))
+    captured: dict[str, Any] = {}
+
+    def get(project_id: str, kind: str) -> Any:
+        if kind == "test-plan":
+            raise ArtifactNotFoundError("missing")
+        if kind == "requirement-set":
+            return requirements
+        return original(project_id, kind)
+
+    monkeypatch.setattr(kernel.project_store, "get_artifact", get)
+    monkeypatch.setattr(
+        kernel.project_store, "apply_accepted_artifact_revision", lambda **kw: captured.update(kw)
+    )
+    ExecutionPlanWorkflow(kernel)._seed_test_plan(pid, plan)
+    cases = captured["new_artifact"]["content"]["testCases"]
+    baseline = original(pid, "test-plan")["content"]["testCases"]
+    for other in cases:
+        if other["linkedRequirementIds"] == [r5["requirementId"]]:
+            continue
+        unchanged = next(
+            c for c in baseline if c["linkedRequirementIds"] == other["linkedRequirementIds"]
+        )
+        assert other["criterion"] == unchanged["criterion"]
+        assert other["verificationMethod"] == unchanged["verificationMethod"]
+        assert other["expectedResult"] == unchanged["expectedResult"]
+    case = next(c for c in cases if c["linkedRequirementIds"] == [r5["requirementId"]])
+    assert case["verificationMethod"] == "execution-output"
+    assert case["criterion"] == {"criterionType": "contains", "marker": "accel_x_g"}
+    assert case["expectedResult"] == "Telemetry includes time_s, accel_x_g, accel_y_g, accel_z_g."
+
+
+@pytest.mark.parametrize("repair_env", ["live"], indirect=True)
 @pytest.mark.parametrize("changed_statement", [False, True])
 def test_unmapped_objective_stays_manual(
     repair_env: Any, monkeypatch: Any, changed_statement: bool

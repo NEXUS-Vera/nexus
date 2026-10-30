@@ -3,9 +3,58 @@ from __future__ import annotations
 from typing import Any
 
 from helpers import acquire_edit_lease, actor, build_test_kernel
-from nexus_board.firmware.live_patch_generator import LiveFirmwarePatchGenerator
+from nexus_board.firmware.live_patch_generator import (
+    IMU_SERIAL_CONTRACT,
+    LiveFirmwarePatchGenerator,
+)
 from nexus_board.firmware.patch import assemble_firmware_generation_context
 from nexus_model_gateway import FakeModelGateway, ModelPolicy
+
+
+def test_live_generator_sends_imu_serial_contract_to_model() -> None:
+    gateway = FakeModelGateway()
+    gateway.set_script(
+        "firmware.patch-proposal",
+        lambda *_args: {
+            "operations": [
+                {"operationType": "create-file", "path": "src/main.cpp", "content": "// test"}
+            ]
+        },
+    )
+    context = {
+        "requestedChange": "Implement ESP32 MPU6050 telemetry",
+        "baseSnapshotId": "base",
+        "inputArtifactReferences": [],
+        "artifacts": {},
+        "snapshotFiles": [],
+        "fileContents": {},
+    }
+    snapshot = {
+        "snapshotId": "base",
+        "content": {"kind": "filesystem", "filesystemManifest": {"entries": []}},
+    }
+    LiveFirmwarePatchGenerator(
+        gateway=gateway, model_policy=ModelPolicy(provider="fake", model="regression")
+    ).generate(context=context, base_snapshot=snapshot)
+
+    assert len(gateway.call_log) == 1
+    contract = gateway.call_log[0]["input_payload"]["serialContract"]
+    assert contract == IMU_SERIAL_CONTRACT
+    for instruction in (
+        "115200 baud",
+        "NEXUS_MPU_READY once after successful MPU6050 initialization",
+        "NEXUS_MPU_INIT_FAIL",
+        "do not stream samples",
+        "time_s,accel_x_g,accel_y_g,accel_z_g",
+        "TEL,<time_s>,<ax>,<ay>,<az> followed by a newline",
+        "fractional seconds (now / 1000.0) with 3 decimals",
+        "acceleration in g (raw / 16384.0f at +/-2g), with 5 decimals",
+        "20 ms (50 Hz",
+        "non-blocking millis() schedule",
+        "now - lastSampleMs < 20",
+        "Do not use delay() for sampling",
+    ):
+        assert instruction in contract
 
 
 def test_live_generator_materializes_replace_operation() -> None:
