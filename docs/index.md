@@ -44,6 +44,7 @@ Durable long-form documentation for Nexus lives under `docs/`. Module-level purp
 
 - [Local development](./operations/local-development.md)
 - [Driving the golden flow over HTTP](./operations/agent-http-golden-flow.md)
+- [First-loop live acceptance](./operations/first-loop-live-acceptance.md)
 
 ## Product
 

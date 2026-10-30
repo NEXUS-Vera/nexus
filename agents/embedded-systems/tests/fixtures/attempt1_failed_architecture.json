@@ -1,0 +1,132 @@
+{
+  "nodes": [
+    {
+      "nodeId": "node_M2DSSZNHJ6WPDHZ8D48NLXAP",
+      "name": "USB Power Input",
+      "functionalType": "power",
+      "responsibilities": [
+        "Accept USB bus power from the connected laptop",
+        "Supply regulated operating voltage to all on-device subsystems"
+      ]
+    },
+    {
+      "nodeId": "node_77WNIVV4QHILRXT6X08KE4S3",
+      "name": "3-Axis Acceleration Sensing (MPU6050 via I2C)",
+      "functionalType": "sensing",
+      "responsibilities": [
+        "Measure linear acceleration along the X, Y, and Z axes using the MPU6050 IMU (user-stated constraint)",
+        "Expose raw acceleration register data over the I2C bus (user-stated constraint)",
+        "Restrict active measurement to acceleration channels only \u2014 gyroscope and other MPU6050 outputs are not read (user-stated constraint)"
+      ]
+    },
+    {
+      "nodeId": "node_CEB8N5K9UKX1X0BVBS80KKY8",
+      "name": "I2C Acquisition Interface",
+      "functionalType": "input",
+      "responsibilities": [
+        "Initiate and manage I2C transactions to the MPU6050 at its configured device address",
+        "Issue register-read commands to retrieve raw acceleration data words for all three axes",
+        "Handle I2C timing, acknowledgement, and bus arbitration at the functional level"
+      ]
+    },
+    {
+      "nodeId": "node_IPT57XEKBDF90LY739JR0OH2",
+      "name": "Acceleration Data Processing & Formatting",
+      "functionalType": "processing",
+      "responsibilities": [
+        "Receive raw 16-bit acceleration register values from the I2C acquisition interface",
+        "Convert raw values to meaningful acceleration units (e.g., applying sensitivity scale factor)",
+        "Format X, Y, and Z acceleration values into a human-readable serial output string"
+      ]
+    },
+    {
+      "nodeId": "node_SUFAPR82ZZH30LAXSKFFUYTV",
+      "name": "Serial Transmission Output",
+      "functionalType": "communication",
+      "responsibilities": [
+        "Transmit formatted X/Y/Z acceleration strings over the USB-serial interface to the connected laptop",
+        "Maintain continuous streaming of acceleration data at the configured output rate"
+      ]
+    },
+    {
+      "nodeId": "node_F3QYB5101DX0FVX9GO0K8TXX",
+      "name": "Laptop Serial Monitor (External)",
+      "functionalType": "external-system",
+      "responsibilities": [
+        "Receive and display the streamed serial acceleration data for the user to observe in real time"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "edgeId": "edge_K1XASX5OD887BGEGH17GMHW4",
+      "fromNodeId": "node_M2DSSZNHJ6WPDHZ8D48NLXAP",
+      "toNodeId": "node_77WNIVV4QHILRXT6X08KE4S3",
+      "flowType": "power",
+      "description": "Regulated supply voltage delivered to the MPU6050 IMU sensing subsystem"
+    },
+    {
+      "edgeId": "edge_MSG5ZEGJFDOKUXQF10W9RQDZ",
+      "fromNodeId": "node_M2DSSZNHJ6WPDHZ8D48NLXAP",
+      "toNodeId": "node_CEB8N5K9UKX1X0BVBS80KKY8",
+      "flowType": "power",
+      "description": "Regulated supply voltage delivered to the I2C acquisition interface logic"
+    },
+    {
+      "edgeId": "edge_2IG149CRQCTN59CV7LIFXSPC",
+      "fromNodeId": "node_M2DSSZNHJ6WPDHZ8D48NLXAP",
+      "toNodeId": "node_IPT57XEKBDF90LY739JR0OH2",
+      "flowType": "power",
+      "description": "Regulated supply voltage delivered to the processing and formatting subsystem"
+    },
+    {
+      "edgeId": "edge_NVKUDQZC56R4EXJGAD8WFIUC",
+      "fromNodeId": "node_M2DSSZNHJ6WPDHZ8D48NLXAP",
+      "toNodeId": "node_SUFAPR82ZZH30LAXSKFFUYTV",
+      "flowType": "power",
+      "description": "Regulated supply voltage delivered to the serial transmission subsystem"
+    },
+    {
+      "edgeId": "edge_SOQLPTVD3VY8U2TE9OVV25P2",
+      "fromNodeId": "node_CEB8N5K9UKX1X0BVBS80KKY8",
+      "toNodeId": "node_77WNIVV4QHILRXT6X08KE4S3",
+      "flowType": "control",
+      "description": "I2C register-read commands and device address selection sent to the MPU6050"
+    },
+    {
+      "edgeId": "edge_7LGKNXOEK15X5W7K5VYAGN38",
+      "fromNodeId": "node_77WNIVV4QHILRXT6X08KE4S3",
+      "toNodeId": "node_CEB8N5K9UKX1X0BVBS80KKY8",
+      "flowType": "data",
+      "description": "Raw 16-bit acceleration register values for X, Y, and Z axes returned over I2C"
+    },
+    {
+      "edgeId": "edge_H6ZVKWGBYB6UFOWQ7GIHDUR9",
+      "fromNodeId": "node_CEB8N5K9UKX1X0BVBS80KKY8",
+      "toNodeId": "node_IPT57XEKBDF90LY739JR0OH2",
+      "flowType": "data",
+      "description": "Raw acceleration data words (X, Y, Z) passed to the processing subsystem for conversion and formatting"
+    },
+    {
+      "edgeId": "edge_PIQE03ZI30VXW3QWEMU7YB9I",
+      "fromNodeId": "node_IPT57XEKBDF90LY739JR0OH2",
+      "toNodeId": "node_SUFAPR82ZZH30LAXSKFFUYTV",
+      "flowType": "data",
+      "description": "Formatted human-readable acceleration string (X/Y/Z values) passed to the serial transmission subsystem"
+    },
+    {
+      "edgeId": "edge_ERGADYTU0LOY5138QIVYOSM9",
+      "fromNodeId": "node_SUFAPR82ZZH30LAXSKFFUYTV",
+      "toNodeId": "node_F3QYB5101DX0FVX9GO0K8TXX",
+      "flowType": "data",
+      "description": "Continuous stream of formatted X/Y/Z acceleration text transmitted over USB-serial to the laptop monitor"
+    },
+    {
+      "edgeId": "edge_LO7H08LB3B6UEB7J3W30OOGH",
+      "fromNodeId": "node_F3QYB5101DX0FVX9GO0K8TXX",
+      "toNodeId": "node_M2DSSZNHJ6WPDHZ8D48NLXAP",
+      "flowType": "power",
+      "description": "USB bus power sourced from the laptop to the device power input subsystem"
+    }
+  ]
+}

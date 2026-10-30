@@ -55,6 +55,11 @@ describe('FirmwareWorkspace', () => {
   });
 
   it('loads binding, empty tree, creates/opens/edits/saves/deletes through Phase 14 APIs', async () => {
+    let resolveRelease!: (response: Response) => void;
+    const pendingRelease = new Promise<Response>((resolve) => {
+      resolveRelease = resolve;
+    });
+    const releaseCommands: unknown[] = [];
     const draftVersion = { current: 1 };
     const files = new Map<string, string>();
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -147,6 +152,10 @@ describe('FirmwareWorkspace', () => {
             resultPayload: { editLease: { leaseToken: 'tok_test' } },
           });
         }
+        if (body.commandType === 'workspace.release-edit-lease') {
+          releaseCommands.push(body);
+          return pendingRelease;
+        }
         return jsonResponse({ status: 'accepted' });
       }
 
@@ -154,7 +163,7 @@ describe('FirmwareWorkspace', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<FirmwareWorkspace projectId="proj_abcdefghijklmnop" isDark={false} />);
+    const { unmount } = render(<FirmwareWorkspace projectId="proj_abcdefghijklmnop" isDark={false} />);
 
     await waitFor(() => {
       expect(screen.getByTestId('firmware-workspace')).toBeInTheDocument();
@@ -200,6 +209,26 @@ describe('FirmwareWorkspace', () => {
     await waitFor(() => {
       expect(screen.getByTestId('firmware-file-tree-empty')).toBeInTheDocument();
     });
+
+    unmount();
+    expect(releaseCommands).toEqual([
+      expect.objectContaining({
+        commandType: 'workspace.release-edit-lease',
+        projectId: 'proj_abcdefghijklmnop',
+        workspaceId: 'ws_firmware',
+        input: { leaseToken: 'tok_test' },
+      }),
+    ]);
+    // Model environment teardown while the release request is still pending.
+    const browserWindow = window;
+    vi.stubGlobal('window', undefined);
+    try {
+      resolveRelease(jsonResponse({ status: 'accepted' }));
+      // Drain the request and its continuations before restoring the environment.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    } finally {
+      vi.stubGlobal('window', browserWindow);
+    }
   });
 
   it('surfaces lease errors without silent overwrite', async () => {
