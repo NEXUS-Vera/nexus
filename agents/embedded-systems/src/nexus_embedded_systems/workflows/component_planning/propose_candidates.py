@@ -214,7 +214,7 @@ def propose_candidates_for_roles(
         templates = list(_FIXTURE_CANDIDATES.get(category) or _FIXTURE_CANDIDATES["sensor"])
         named = _named_template(role, user_message)
         if named is not None:
-            templates.insert(0, named)
+            templates = [named]
         for index, template in enumerate(templates[:max_per_role]):
             state = "preferred" if prefer_first and index == 0 else "proposed"
             candidates.append(
@@ -274,3 +274,11 @@ def _named_template(role: dict[str, Any], message: str) -> dict[str, Any] | None
         "advantages": ["Matches the user's named component"],
         "limitations": ["Specifications and compatibility remain unverified"],
     }
+
+
+def requests_supported_prototype(message: str) -> bool:
+    """Use the same bounded name resolver as candidate proposal for first-loop gating."""
+    return all(
+        _named_template({"category": category, "name": "Motion"}, message) is not None
+        for category in ("compute", "sensor")
+    )

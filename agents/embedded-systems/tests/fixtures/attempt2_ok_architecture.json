@@ -1,0 +1,122 @@
+{
+  "nodes": [
+    {
+      "nodeId": "node_2EBT9K2KKVSWWFYH1QIG76EV",
+      "name": "3-Axis Acceleration Sensing",
+      "functionalType": "sensing",
+      "responsibilities": [
+        "Measure raw acceleration along the X, Y, and Z axes using the MPU6050 IMU (user-stated constraint).",
+        "Maintain the sensor in an active measurement state.",
+        "Make digitized acceleration register values available for retrieval over I2C (user-stated constraint)."
+      ]
+    },
+    {
+      "nodeId": "node_LCA7F6NR4P8MOJTY7426LK47",
+      "name": "I2C Communication Interface",
+      "functionalType": "communication",
+      "responsibilities": [
+        "Manage the I2C bus protocol between the processing subsystem and the MPU6050 (user-stated constraint).",
+        "Issue read transactions to retrieve raw acceleration register data from the sensor.",
+        "Handle addressing, timing, and acknowledgement required by the I2C protocol."
+      ]
+    },
+    {
+      "nodeId": "node_M9ZOQBL7BPMB6QLMIB7Q92L1",
+      "name": "Acceleration Data Processing",
+      "functionalType": "processing",
+      "responsibilities": [
+        "Receive raw 16-bit acceleration register values from the I2C interface.",
+        "Convert raw register values into meaningful acceleration quantities for all three axes (X, Y, Z).",
+        "Exclude gyroscope and all other MPU6050 output channels from processing (user-stated constraint).",
+        "Format the three-axis acceleration values into a human-readable serial output string.",
+        "Orchestrate the periodic read-process-transmit cycle running on the ESP32 DevKit (user-stated constraint)."
+      ]
+    },
+    {
+      "nodeId": "node_69FUEKYMNOF0A6UL2EQZHS11",
+      "name": "Serial Output Transmission",
+      "functionalType": "output",
+      "responsibilities": [
+        "Transmit formatted X/Y/Z acceleration strings to the connected laptop over a serial (UART-to-USB) link.",
+        "Maintain the serial link at a baud rate compatible with standard laptop serial monitors.",
+        "Ensure each transmission is complete and delimited so the laptop terminal can display discrete readings."
+      ]
+    },
+    {
+      "nodeId": "node_ZO3O3ISSJAAXGDXEXBDLZ6YB",
+      "name": "Laptop Serial Monitor",
+      "functionalType": "external-system",
+      "responsibilities": [
+        "Receive serial data from the device over USB.",
+        "Display the streamed X/Y/Z acceleration values to the user in real time."
+      ]
+    },
+    {
+      "nodeId": "node_U7DC8H475LELNYQ4IO66MSH3",
+      "name": "Power Supply",
+      "functionalType": "power",
+      "responsibilities": [
+        "Deliver regulated power to the processing subsystem and the sensing subsystem.",
+        "Accept power from an external source (e.g., USB from the laptop or a dedicated supply)."
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "edgeId": "edge_WJ77ZLV2EVXBOJV34J15FXGI",
+      "fromNodeId": "node_U7DC8H475LELNYQ4IO66MSH3",
+      "toNodeId": "node_2EBT9K2KKVSWWFYH1QIG76EV",
+      "flowType": "power",
+      "description": "Regulated power delivered to the acceleration sensing subsystem to keep the MPU6050 active."
+    },
+    {
+      "edgeId": "edge_HQE7AOWUDYOOHIDCMBIIH83X",
+      "fromNodeId": "node_U7DC8H475LELNYQ4IO66MSH3",
+      "toNodeId": "node_M9ZOQBL7BPMB6QLMIB7Q92L1",
+      "flowType": "power",
+      "description": "Regulated power delivered to the processing subsystem (ESP32 DevKit) to sustain operation."
+    },
+    {
+      "edgeId": "edge_8CXSBU5DULBSJK4SE28M2VEH",
+      "fromNodeId": "node_M9ZOQBL7BPMB6QLMIB7Q92L1",
+      "toNodeId": "node_LCA7F6NR4P8MOJTY7426LK47",
+      "flowType": "control",
+      "description": "Processing subsystem initiates I2C read transactions on a periodic basis, controlling the communication interface."
+    },
+    {
+      "edgeId": "edge_66GR0B1A631HIQS8LFBJ0F7T",
+      "fromNodeId": "node_LCA7F6NR4P8MOJTY7426LK47",
+      "toNodeId": "node_2EBT9K2KKVSWWFYH1QIG76EV",
+      "flowType": "control",
+      "description": "I2C interface issues register-read commands to the sensing subsystem to trigger data retrieval."
+    },
+    {
+      "edgeId": "edge_NM8KW4E6YVARGA5CKYLLZVLM",
+      "fromNodeId": "node_2EBT9K2KKVSWWFYH1QIG76EV",
+      "toNodeId": "node_LCA7F6NR4P8MOJTY7426LK47",
+      "flowType": "data",
+      "description": "Raw 16-bit acceleration register values for X, Y, and Z axes returned from the sensing subsystem over I2C."
+    },
+    {
+      "edgeId": "edge_FMYZFLOGMM0S05431Q3PVE5G",
+      "fromNodeId": "node_LCA7F6NR4P8MOJTY7426LK47",
+      "toNodeId": "node_M9ZOQBL7BPMB6QLMIB7Q92L1",
+      "flowType": "data",
+      "description": "Raw acceleration data bytes delivered from the I2C interface to the processing subsystem for conversion and formatting."
+    },
+    {
+      "edgeId": "edge_XCA4LDPAE1NS4YCOYQ91JINA",
+      "fromNodeId": "node_M9ZOQBL7BPMB6QLMIB7Q92L1",
+      "toNodeId": "node_69FUEKYMNOF0A6UL2EQZHS11",
+      "flowType": "data",
+      "description": "Formatted X/Y/Z acceleration string passed from the processing subsystem to the serial output subsystem for transmission."
+    },
+    {
+      "edgeId": "edge_D4T6SX1SVHXWMS907PG0J9O8",
+      "fromNodeId": "node_69FUEKYMNOF0A6UL2EQZHS11",
+      "toNodeId": "node_ZO3O3ISSJAAXGDXEXBDLZ6YB",
+      "flowType": "data",
+      "description": "Serial (UART-over-USB) stream of formatted acceleration readings transmitted from the device to the laptop serial monitor."
+    }
+  ]
+}
