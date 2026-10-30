@@ -41,7 +41,7 @@ def wait(kernel, run_id):
 
 
 @pytest.fixture
-def repair_env(monkeypatch, tmp_path):
+def repair_env(monkeypatch, tmp_path, request):
     monkeypatch.setenv("NEXUS_ANALYSIS_USE_STUB", "0")
     ps, ks = build_stores("sqlite", f"sqlite:///{tmp_path}/repair.db")
     package, _ = materialize_fixture_package(
@@ -59,10 +59,78 @@ def repair_env(monkeypatch, tmp_path):
         {k: a[k] for k in ("artifactType", "artifactId", "artifactVersion", "contentSchemaVersion")}
         for a in package["artifacts"]
     ]
+    live = getattr(request, "param", None) == "live"
+    if live:
+        package["artifacts"] = [a for a in package["artifacts"] if a["artifactType"] != "test-plan"]
+        package["project"]["currentArtifactReferences"] = [
+            r
+            for r in package["project"]["currentArtifactReferences"]
+            if r["artifactType"] != "test-plan"
+        ]
     ps.save_initialization_package(package)
     kernel = build_project_kernel(ks, project_store=ps)
     user = actor()
     pid = package["project"]["projectId"]
+    if live:
+        from nexus_board.ids import new_id, utc_now_iso
+        from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+            ExecutionPlanWorkflow,
+        )
+
+        workflow = ExecutionPlanWorkflow(kernel)
+        kernel.commands.revision_validator = workflow.validate_revision
+        kernel.commands.revision_materializer = workflow.materialize
+        cp = ps.get_artifact(pid, "component-plan")["content"]
+        electrical = ps.get_artifact(pid, "electrical-architecture")["content"]
+        config = {
+            "buildProfileId": "platformio-arduino-esp32-v1",
+            "analysisProfileId": "python-analysis-v1",
+            "components": [
+                {"componentRoleId": c["componentRoleId"], "candidateId": c["candidateId"]}
+                for c in cp["candidates"]
+            ],
+            "i2c": {
+                "connectionId": next(
+                    c["connectionId"]
+                    for c in electrical["connections"]
+                    if c["interfaceType"] == "i2c"
+                ),
+                "sdaPin": 21,
+                "sclPin": 22,
+            },
+        }
+        proposed = workflow.propose(
+            pid, user, ps.get_project(pid)["currentStateVersion"], 0, config
+        )
+        ws = proposed["workspace"]
+        result = kernel.dispatch(
+            {
+                "schemaVersion": "1.0.0",
+                "commandId": new_id("cmd"),
+                "commandType": "artifact.accept-revision",
+                "projectId": pid,
+                "workspaceId": ws["workspaceId"],
+                "artifactId": ws["artifactId"],
+                "baseArtifactVersion": ws["baseArtifactVersion"],
+                "baseProjectStateVersion": ps.get_project(pid)["currentStateVersion"],
+                "requestedBy": user,
+                "requestedAt": utc_now_iso(),
+                "input": {"proposalId": proposed["commandResult"]["proposalId"]},
+            }
+        )
+        assert result["status"] == "completed", result
+        seeded = ps.get_artifact(pid, "test-plan")
+        assert all(
+            c["status"] == "planned" and "criterion" not in c
+            for c in seeded["content"]["testCases"]
+        )
+        workflow.retry_materialization(
+            pid,
+            user,
+            ps.get_artifact(pid, "execution-plan")["artifactId"],
+            ps.get_project(pid)["currentStateVersion"],
+        )
+        assert ps.get_artifact(pid, "test-plan") == seeded
     binding = kernel.workspace_runtime.resolve_binding(
         project_id=pid, artifact_type="analysis", actor=user
     )
@@ -73,14 +141,15 @@ def repair_env(monkeypatch, tmp_path):
         workspace_id=binding["workspaceId"],
         requested_by=user,
     )
-    kernel.workspace_runtime.generate_analysis_scaffold(
-        project_id=pid,
-        artifact_type="analysis",
-        actor=user,
-        expected_draft_version=1,
-        base_artifact_version=binding["baseArtifactVersion"],
-        base_project_state_version=binding["baseProjectStateVersion"],
-    )
+    if not live:
+        kernel.workspace_runtime.generate_analysis_scaffold(
+            project_id=pid,
+            artifact_type="analysis",
+            actor=user,
+            expected_draft_version=1,
+            base_artifact_version=binding["baseArtifactVersion"],
+            base_project_state_version=binding["baseProjectStateVersion"],
+        )
 
     def write(path, data):
         binding = kernel.workspace_runtime.resolve_binding(project_id=pid, artifact_type="analysis")
@@ -117,7 +186,11 @@ def repair_env(monkeypatch, tmp_path):
     def reply(_task, payload, _schema):
         requests.append(copy.deepcopy(payload))
         assert "INJECTED_DEFECT" in payload["requestedChange"]
-        for kind in ("requirement-set", "electrical-architecture", "test-plan"):
+        for kind in (
+            ("requirement-set", "electrical-architecture")
+            if live
+            else ("requirement-set", "electrical-architecture", "test-plan")
+        ):
             current = ps.get_artifact(pid, kind)
             assert {
                 k: current[k] for k in ("artifactType", "artifactId", "artifactVersion")
@@ -371,25 +444,28 @@ def test_stale_correction_requires_review_again(repair_env):
 
 
 @pytest.mark.parametrize(
-    "simulator",
+    "repair_env,simulator",
     [
-        "ready",
-        "unavailable",
-        "failed",
-        "firmware-test",
-        "electrical-held",
-        "analysis-held",
-        "build",
-        "build-retry",
-        "build-exhausted",
+        (None, "ready"),
+        (None, "unavailable"),
+        (None, "failed"),
+        (None, "firmware-test"),
+        (None, "build"),
+        (None, "build-retry"),
+        (None, "build-exhausted"),
+        (None, "electrical-held"),
+        (None, "analysis-held"),
+        ("live", "live"),
     ],
+    indirect=["repair_env"],
 )
 def test_firmware_defect_repair_reruns_existing_w4_path(
     repair_env, monkeypatch, tmp_path, simulator
 ):
     """Scripted compiler/model/simulator; real jobs, storage, import and Python analysis."""
     kernel, pid, user, _, _, write = repair_env
-    seed_approved_firmware_plan(kernel.project_store, pid)
+    if simulator != "live":
+        seed_approved_firmware_plan(kernel.project_store, pid)
     fixed_analysis = (
         (GOLDEN / "analysis.py")
         .read_text()
@@ -432,14 +508,15 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
         workspace_id=binding["workspaceId"],
         requested_by=user,
     )
-    kernel.workspace_runtime.generate_firmware_scaffold(
-        project_id=pid,
-        artifact_type="firmware",
-        actor=user,
-        expected_draft_version=1,
-        base_artifact_version=binding["baseArtifactVersion"],
-        base_project_state_version=binding["baseProjectStateVersion"],
-    )
+    if simulator != "live":
+        kernel.workspace_runtime.generate_firmware_scaffold(
+            project_id=pid,
+            artifact_type="firmware",
+            actor=user,
+            expected_draft_version=1,
+            base_artifact_version=binding["baseArtifactVersion"],
+            base_project_state_version=binding["baseProjectStateVersion"],
+        )
     source = (GOLDEN / "main.cpp").read_text()
     binding = kernel.workspace_runtime.resolve_binding(project_id=pid, artifact_type="firmware")
     kernel.filesystem.write_file(
@@ -482,7 +559,11 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
         assert "INJECTED_DEFECT: compiler regression error" in payload["requestedChange"]
         if len(corrections) == 1:
             assert failed["executionRunId"] in payload["requestedChange"]
-        for kind in ("requirement-set", "electrical-architecture", "test-plan"):
+        for kind in (
+            ("requirement-set", "electrical-architecture")
+            if simulator == "live"
+            else ("requirement-set", "electrical-architecture", "test-plan")
+        ):
             current = kernel.project_store.get_artifact(pid, kind)
             assert {
                 k: current[k] for k in ("artifactType", "artifactId", "artifactVersion")
@@ -605,6 +686,7 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             pid, user, failed["executionRunId"], "firmware", require_real=False
         )
     state = advance(workflow, initial, user)
+    assert state["status"] == "review", str(state)
     proposal = kernel.kernel_store.get_firmware_patch_proposal(state["proposalId"])
     assert proposal["generatorMetadata"]["mode"] == "regression"
     binding = kernel.workspace_runtime.resolve_binding(project_id=pid, artifact_type="firmware")
@@ -643,18 +725,10 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             wait(kernel, state["runId"])
         if state["status"] in {"completed", "stopped", "unavailable", "exhausted"}:
             break
+        if simulator == "live" and state["stage"] == "analyze":
+            break
         if simulator == "failed" and state["status"] == "inspect":
             break
-    if simulator in {"electrical-held", "analysis-held"}:
-        assert state["status"] == "stopped", state
-        assert state["errorCode"] == "DRAFT_EDIT_LEASE_HELD"
-        assert "another actor" in state["explanation"]
-        assert blocked["artifactType"] in state["explanation"]
-        assert (
-            kernel.kernel_store.get_draft(blocked["workspaceId"])["editLease"]["ownerActorId"]
-            == other["actorId"]
-        )
-        return
     if build_scope:
         assert state["scope"] == "build" and state["stage"] == "compile"
         assert workflow.get(pid, state["repairId"]) == state
@@ -665,6 +739,16 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
             assert "Build-only repair" in state["explanation"]
         assert not consumed
         assert kernel.project_store.get_artifact(pid, "test-plan") == before_plan
+        return
+    if simulator in {"electrical-held", "analysis-held"}:
+        assert state["status"] == "stopped", state
+        assert state["errorCode"] == "DRAFT_EDIT_LEASE_HELD"
+        assert "another actor" in state["explanation"]
+        assert blocked["artifactType"] in state["explanation"]
+        assert (
+            kernel.kernel_store.get_draft(blocked["workspaceId"])["editLease"]["ownerActorId"]
+            == other["actorId"]
+        )
         return
     if simulator in {"unavailable", "failed"}:
         assert len(state["attempts"][1]["runIds"]) == 2  # failed simulation also retained
@@ -693,6 +777,14 @@ def test_firmware_defect_repair_reruns_existing_w4_path(
                 ),
             )
             assert advance(workflow, state, user)["status"] == "review"
+        return
+    if simulator == "live":
+        assert state["stage"] == "analyze", state
+        assert state["status"] == "running", state
+        assert kernel.executions.get_run(state["runId"])["status"] == "completed"
+        state = advance(workflow, state, user)
+        assert state["status"] == "inspect", str(state)
+        assert not state.get("errorCode")
         return
     assert state["status"] == "completed", str(state)
     for downstream in (electrical, analysis):
@@ -911,3 +1003,62 @@ def test_build_scope_rejects_other_stages_and_targets(
     )
     with pytest.raises(BoardError, match="Build scope requires"):
         workflow.start(pid, user, failed["executionRunId"], target, scope="build")
+
+
+def test_cases_without_test_plan(repair_env, monkeypatch):
+    from nexus_persistence.errors import ArtifactNotFoundError
+
+    kernel, pid, _, _, _, _ = repair_env
+
+    def missing(*args, **kwargs):
+        raise ArtifactNotFoundError("missing test-plan")
+
+    monkeypatch.setattr(kernel.project_store, "get_artifact", missing)
+    assert RepairWorkflow(kernel)._cases(pid, "run_missing") == []
+
+
+@pytest.mark.parametrize(
+    "code", ["ARCHITECTURE_UNSUPPORTED", "SIMULATOR_UNAVAILABLE", "WOKWI_CLI_MISSING"]
+)
+@pytest.mark.parametrize("phase", ["inspect", "running"])
+def test_non_firmware_failure_stops_before_inspection(repair_env, monkeypatch, code, phase):
+    kernel, pid, user, failed, requests, _ = repair_env
+    workflow = RepairWorkflow(kernel)
+    state = workflow.start(pid, user, failed["executionRunId"], "analysis")
+    if phase == "running":
+        state["status"] = "running"
+        state = workflow._save(state, user)
+    original = kernel.workspace_runtime.get_execution
+
+    def get(**kwargs):
+        result = original(**kwargs)
+        result["executionRun"]["error"] = {
+            "code": code,
+            "message": "Simulation prerequisite unsupported",
+        }
+        return result
+
+    monkeypatch.setattr(kernel.workspace_runtime, "get_execution", get)
+    state = advance(workflow, state, user)
+    assert state["status"] == "unavailable"
+    assert state["errorCode"] == code
+    assert not requests
+
+
+def test_evidence_promotion_without_test_plan_is_structured(repair_env, monkeypatch):
+    from nexus_board.services.verification_service import VerificationError
+    from nexus_persistence.errors import ArtifactNotFoundError
+
+    kernel, pid, _, failed, _, _ = repair_env
+    run = {**failed, "status": "completed", "executionJobId": None}
+    monkeypatch.setattr(kernel.verification._kernel, "get_execution_run", lambda _: run)
+
+    def missing(*args, **kwargs):
+        raise ArtifactNotFoundError("missing test-plan")
+
+    monkeypatch.setattr(kernel.project_store, "get_artifact", missing)
+    with pytest.raises(VerificationError) as error:
+        kernel.verification.promote_execution_evidence(
+            project_id=pid, execution_run_id=run["executionRunId"], actor=actor()
+        )
+    assert error.value.code == "TEST_PLAN_MISSING"

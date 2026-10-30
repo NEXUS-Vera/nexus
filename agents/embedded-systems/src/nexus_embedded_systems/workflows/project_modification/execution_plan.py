@@ -17,10 +17,15 @@ from nexus_board.errors import (
     ProjectStateConflictError,
 )
 from nexus_board.firmware.scaffold import get_firmware_scaffold_profile
-from nexus_board.ids import content_digest, new_id
+from nexus_board.ids import content_digest, new_id, utc_now_iso
 from nexus_board.services.draft_lease import is_lease_active
+from nexus_board.verification.coverage import (
+    compute_requirement_coverage,
+    compute_test_plan_coverage_summary,
+)
 from nexus_contracts.validation.execution_plan_validator import validate_execution_plan
 from nexus_contracts.validation.schema_validator import validate_against_schema_id
+from nexus_persistence.errors import ArtifactNotFoundError
 from nexus_persistence.file_store.hashing import blob_digest
 
 from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
@@ -197,11 +202,19 @@ class ExecutionPlanWorkflow:
     ) -> dict[str, Any]:
         artifact = self.projects.get_artifact(project_id, "execution-plan")
         project = self.projects.get_project(project_id)
+        materialized_state = artifact["content"]["plan"]["basisProjectStateVersion"] + 1
+        try:
+            test_plan = self.projects.get_artifact(project_id, "test-plan")
+        except ArtifactNotFoundError:
+            test_plan = None
+        if test_plan and (test_plan["content"].get("provenance") or {}).get("notes") == (
+            f"Seeded from approved plan {artifact['artifactId']}"
+        ):
+            materialized_state += 1
         if (
             plan_artifact_id != artifact["artifactId"]
             or base != project["currentStateVersion"]
-            or project["currentStateVersion"]
-            != artifact["content"]["plan"]["basisProjectStateVersion"] + 1
+            or project["currentStateVersion"] != materialized_state
         ):
             raise ProjectStateConflictError("Approved plan is stale.")
         self.materialize(project_id, artifact, actor)
@@ -396,6 +409,85 @@ class ExecutionPlanWorkflow:
                 if is_lease_active(lease) and lease["ownerActorId"] != actor["actorId"]:
                     raise DraftEditLeaseHeldError("Workspace lease is held by another actor.")
 
+    def _seed_test_plan(self, project_id: str, artifact: dict[str, Any]) -> None:
+        try:
+            self.projects.get_artifact(project_id, "test-plan")
+            return
+        except ArtifactNotFoundError:
+            pass
+        requirements = self.projects.get_artifact(project_id, "requirement-set")["content"][
+            "requirements"
+        ]
+        methods = {
+            "inspection",
+            "simulation",
+            "firmware-test",
+            "analysis",
+            "execution-output",
+            "manual",
+        }
+        cases = [
+            {
+                "testId": new_id("test"),
+                "displayId": f"T{index}",
+                "title": objective["objectiveId"],
+                "linkedRequirementIds": [objective["requirementId"]],
+                "verificationMethod": objective["method"]
+                if objective["method"] in methods
+                else "manual",
+                "description": objective["method"],
+                "expectedResult": "\n".join(objective["acceptanceCriteria"])
+                or "Acceptance criteria require review.",
+                "status": "planned",
+            }
+            for index, objective in enumerate(
+                artifact["content"]["plan"]["verificationObjectives"], 1
+            )
+        ]
+        content = {
+            "schemaVersion": "1.0.0",
+            "testPlanId": new_id("tplan"),
+            "testCases": cases,
+            "coverageSummary": compute_test_plan_coverage_summary(
+                compute_requirement_coverage(requirements=requirements, test_cases=cases)
+            ),
+            "provenance": {
+                "generatedBy": "derived",
+                "notes": f"Seeded from approved plan {artifact['artifactId']}",
+            },
+        }
+        seeded = {
+            key: artifact[key]
+            for key in ("schemaVersion", "projectId", "sourceTurnId", "workflowRunId", "createdBy")
+        }
+        now = utc_now_iso()
+        seeded.update(
+            artifactId=new_id("art"),
+            artifactType="test-plan",
+            artifactVersion=1,
+            contentSchemaVersion="1.0.0",
+            lifecycleStatus="ready",
+            evidenceStatus="unverified",
+            approvalStatus="not-required",
+            createdAt=now,
+            updatedAt=now,
+            content=content,
+        )
+        errors = validate_against_schema_id(
+            seeded, "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
+        )
+        if errors:
+            raise CommandValidationError("Invalid seeded Test Plan: " + errors[0].message)
+        project = self.projects.get_project(project_id)
+        # The derived artifact advances state once; retries retain the existing plan.
+        self.projects.apply_accepted_artifact_revision(
+            project_id=project_id,
+            new_artifact=seeded,
+            next_state_version=project["currentStateVersion"] + 1,
+            updated_at=now,
+            expected_project_state_version=project["currentStateVersion"],
+        )
+
     def materialize(self, project_id: str, artifact: dict[str, Any], actor: dict[str, Any]) -> None:
         """Retry-safe approved writes, replacing only verified, unmodified scaffold output."""
         if actor.get("actorType") != "user" or artifact.get("approvalStatus") != "user-approved":
@@ -431,6 +523,7 @@ class ExecutionPlanWorkflow:
                     media_type="application/json" if path.endswith(".json") else "text/plain",
                 )
             self.kernel.workspaces.release_edit_lease(workspace_id=workspace_id, actor=actor)
+        self._seed_test_plan(project_id, artifact)
         self.kernel.ledger.append(
             project_id=project_id,
             event_type="workspace.plan-materialized",
