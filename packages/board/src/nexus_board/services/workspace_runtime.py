@@ -1015,6 +1015,55 @@ class WorkspaceRuntimeService:
             "applySemantics": "sequential-non-atomic",
         }
 
+    def get_firmware_patch_proposal(
+        self, *, project_id: str, artifact_type: str, proposal_id: str
+    ) -> dict[str, Any]:
+        """Read a stored proposal in any status without creating or rebinding workspaces."""
+        if artifact_type not in {FIRMWARE_ARTIFACT_TYPE, ANALYSIS_ARTIFACT_TYPE}:
+            raise WorkspaceRuntimeCapabilityError(
+                "Patch inspection is only available for firmware and analysis"
+            )
+        try:
+            proposal = self._kernel.get_firmware_patch_proposal(proposal_id)
+        except Exception as exc:  # noqa: BLE001
+            from nexus_persistence.errors import FirmwarePatchNotFoundError as StoreNotFound
+
+            if isinstance(exc, StoreNotFound):
+                raise FirmwarePatchNotFoundError(str(exc)) from exc
+            raise
+        if proposal.get("projectId") != project_id:
+            raise FirmwarePatchNotFoundError("Patch proposal not found for project")
+        existing = self._workspaces.get_or_none(project_id, artifact_type)
+        if (
+            existing is None
+            or proposal.get("workspaceId") != existing["workspace"]["workspaceId"]
+            or proposal.get("artifactType") != artifact_type
+        ):
+            raise FirmwarePatchValidationError("Patch proposal belongs to another workspace")
+        workspace = existing["workspace"]
+        required = list(self._types.get(artifact_type).get("requiredCapabilities") or [])
+        filesystem = CAPABILITY_FILESYSTEM in required
+        execution = CAPABILITY_SANDBOX in required
+        binding = _public_binding(
+            {
+                **workspace,
+                "capabilities": {
+                    "filesystem": filesystem,
+                    "snapshots": filesystem,
+                    "execution": execution,
+                    "logs": execution,
+                },
+                "requiredCapabilities": required,
+                "filesystemEnabled": bool(filesystem and is_filesystem_workspace(workspace)),
+            }
+        )
+        return {
+            "binding": binding,
+            "status": proposal["status"],
+            "proposal": proposal,
+            "baseSnapshotId": proposal.get("baseSnapshotId"),
+        }
+
     def discard_firmware_patch(
         self,
         *,
