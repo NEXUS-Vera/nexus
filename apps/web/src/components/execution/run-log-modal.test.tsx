@@ -53,3 +53,14 @@ it('does not restart the loop when an advance fails', async () => {
   expect(api.startRepair).toHaveBeenCalledOnce();
   expect(document.body.textContent).not.toContain('raw-upstream-detail');
 });
+
+it('offers explicit workspace review for a pending firmware repair', async () => {
+  const review = vi.fn();
+  render(<RunLogModal projectId="p" runId="r" onClose={vi.fn()} setRepair={vi.fn()}
+    repair={{ ...state, status: 'review', target: 'firmware', proposalId: 'pending' }} onReviewPatch={review} />);
+  await screen.findByText(/compile failed/);
+  expect(review).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Review repair patch in Workspace' }));
+  expect(review).toHaveBeenCalledWith('pending');
+  expect(api.advanceRepair).not.toHaveBeenCalled();
+});
