@@ -21,6 +21,7 @@ import {
   createWorkspace,
   ensureLayeredArchitecture,
   getWorkspace,
+  listProducedOutputs,
   submitArtifactCommand,
 } from '../../api/client';
 import { EngineeringGraphCanvas } from '../../lib/engineering-graph/EngineeringGraphCanvas';
@@ -1151,11 +1152,18 @@ export function ArchitectureWorkspace({
       throw new Error('Circuit simulation requires an electrical architecture.');
     }
     if (commandBusy) throw new Error('Another architecture command is running.');
-    const leased = await ensureEditLease();
-    if (!leased) throw new Error('An active edit lease is required to snapshot simulation input.');
     setCommandBusy(true);
     setCommandMessage(null);
     try {
+      const outputs = await listProducedOutputs(projectId);
+      // Produced outputs are oldest-first, so prefer the most recent rebuild.
+      const firmware = [...outputs]
+        .reverse()
+        .find((output) => output.name === '.pio/build/nexus/firmware.elf');
+      if (!firmware) throw new Error('Build firmware before running circuit simulation.');
+
+      const leased = await ensureEditLease();
+      if (!leased) throw new Error('An active edit lease is required to snapshot simulation input.');
       const envelope = await ensureWorkspace();
       if (!envelope) throw new Error('Unable to create the electrical architecture workspace.');
       const ws = envelope.workspace;
@@ -1206,7 +1214,8 @@ export function ArchitectureWorkspace({
           snapshotId,
           capability: 'circuit-simulation',
           executionMode: 'simulate',
-          expectedText: 'NEXUS_WOKWI_READY',
+          firmwareOutputId: firmware.outputId,
+          expectedText: 'NEXUS_MPU_READY',
           requestedOutputs: ['serial-log', 'provider-workspace'],
           maxDurationMs: 30_000,
           maxOutputBytes: 1_048_576,
