@@ -139,6 +139,10 @@ The collapsible patch panel fetches the proposal through the read-only GET route
 shows its generator mode/model and requested change, and reuses the side-by-side
 Monaco diff. Apply is hidden until the proposal and previews load. Apply and Discard
 retain their existing commands; Discard does not cancel the paused repair.
+After Apply succeeds, Continue repair (rebuild & verify) advances the associated
+repair with its revision guard. It disables while pending and after success,
+shows the returned repair status/run, and opens the run log through Inspect repair
+run. Failed requests permit retry with the same revision; Discard offers no continuation.
 Repair state is retained while the project page stays mounted, not across reloads.
 The header LIVE/FIXTURE pill reads initialization mode from health and opens
 diagnostics; tool availability is explicitly unknown because health does not

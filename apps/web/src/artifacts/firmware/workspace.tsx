@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import {
   ApiClientError,
+  advanceRepair,
+  type RepairState,
   applyFirmwarePatch,
   compileFirmware,
   deleteWorkspaceRuntimeFile,
@@ -90,6 +92,9 @@ type PatchPreview = {
 };
 
 type Props = {
+  repair?: RepairState;
+  onRepairChanged?: (repair: RepairState) => void;
+  onInspectRun?: (runId: string) => void;
   pendingProposalId?: string | null;
   onProposalDecided?: () => void;
   projectId: string;
@@ -237,7 +242,7 @@ function errorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingProposalId, onProposalDecided }: Props) {
+export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingProposalId, onProposalDecided, repair, onRepairChanged, onInspectRun }: Props) {
   const t = themeColors(isDark);
   const [binding, setBinding] = useState<BindingInfo | null>(null);
   const [draftVersion, setDraftVersion] = useState(1);
@@ -270,6 +275,27 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
   const [execSession, setExecSession] = useState<FirmwareExecutionSession | null>(null);
   const [compiling, setCompiling] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [appliedRepair, setAppliedRepair] = useState<RepairState | null>(null);
+  const [repairPending, setRepairPending] = useState(false);
+  const [continuedRepair, setContinuedRepair] = useState<RepairState | null>(null);
+  const repairInFlight = useRef(false);
+
+  const continueRepair = async () => {
+    if (!appliedRepair || appliedRepair.projectId !== projectId || repairInFlight.current || continuedRepair) return;
+    repairInFlight.current = true;
+    setRepairPending(true);
+    setError(null);
+    try {
+      const next = await advanceRepair(projectId, appliedRepair.repairId, appliedRepair.revision);
+      setContinuedRepair(next);
+      onRepairChanged?.(next);
+    } catch {
+      setError('Could not continue repair. Try again to retrieve or start the rebuild.');
+    } finally {
+      repairInFlight.current = false;
+      setRepairPending(false);
+    }
+  };
 
   const leaseTokenRef = useRef<string | null>(null);
   const bindingRef = useRef<BindingInfo | null>(null);
@@ -877,6 +903,11 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
         baseProjectStateVersion: binding.baseProjectStateVersion,
         requestedBy: actor,
       });
+      if (repair?.projectId === projectId && repair.target === 'firmware' &&
+          repair.status === 'review' && repair.proposalId === patchProposal.proposalId) {
+        setAppliedRepair(repair);
+        setContinuedRepair(null);
+      }
       onProposalDecided?.();
       const nextDraft = extractDraftVersion(result, draftVersion + 1);
       const bases = extractBases(result, binding);
@@ -913,6 +944,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     loadFile,
     patchProposal,
     onProposalDecided,
+    repair,
     projectId,
     refreshFiles,
   ]);
@@ -930,6 +962,8 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
       setPatchProposal(null);
       setPatchPreviews([]);
       setShowPatchPanel(false);
+      setAppliedRepair(null);
+      setContinuedRepair(null);
       setStatusMessage('Discarded firmware patch proposal');
     } catch (err) {
       setError(errorMessage(err, 'Failed to discard firmware patch proposal.'));
@@ -1344,6 +1378,24 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
           )}
         </div>
       ) : null}
+
+      {appliedRepair?.projectId === projectId && (
+        <div style={{ padding: '8px 12px' }}>
+          <button type="button" onClick={() => void continueRepair()}
+            disabled={repairPending || Boolean(continuedRepair)}>
+            Continue repair (rebuild &amp; verify)
+          </button>
+          {repairPending && <span role="status">Continuing repair…</span>}
+          {continuedRepair && <div role="status">
+            Repair: {continuedRepair.status}. {continuedRepair.explanation}
+            {continuedRepair.errorCode && <span> Error: {continuedRepair.errorCode}</span>}
+            <span> Run: {continuedRepair.runId}</span>
+            {onInspectRun && <button type="button" onClick={() => onInspectRun(continuedRepair.runId)}>
+              Inspect repair run
+            </button>}
+          </div>}
+        </div>
+      )}
 
       {leaseBlocked || error || statusMessage ? (
         <div

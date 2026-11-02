@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
 import { useWorkspaceUrl } from '../../hooks/use-workspace-url';
+import type { RepairState } from '../../api/client';
 import { FirmwareWorkspace } from './workspace';
 
 vi.mock('@monaco-editor/react', () => ({
@@ -748,6 +749,81 @@ describe('pending repair patch review', () => {
     } });
   }
 
+  const repair: RepairState = {
+    schemaVersion: '1.0.0', projectId: 'proj_test', repairId: 'repair_1', revision: 3,
+    status: 'review', target: 'firmware', proposalId: 'pending', runId: 'old_run',
+    stage: 'compile', attempts: [{ runIds: ['old_run'] }], maxAttempts: 3,
+    requireReal: false, evidenceMode: 'regression', rerunFirmwareTests: true,
+  };
+
+  it('continues only after Apply, blocks duplicate clicks, and opens the returned run', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    const original = fetchMock.getMockImplementation()!;
+    let resolve!: (response: Response) => void;
+    const pending = new Promise<Response>(done => { resolve = done; });
+    fetchMock.mockImplementation((input, init) => String(input).endsWith('/repair') ? pending : original(input, init));
+    const changed = vi.fn();
+    const inspect = vi.fn();
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending"
+      repair={repair} onRepairChanged={changed} onInspectRun={inspect} />);
+    expect(screen.queryByRole('button', { name: /Continue repair/ })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId('firmware-patch-apply'));
+    const button = await screen.findByRole('button', { name: /Continue repair/ });
+    fireEvent.click(button);
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    const calls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair'));
+    expect(calls()).toHaveLength(1);
+    expect(JSON.parse(String(calls()[0][1]?.body))).toEqual({ action: 'advance', repairId: 'repair_1', revision: 3 });
+    const next = { ...repair, revision: 4, status: 'running', runId: 'rebuild_run' };
+    resolve(jsonResponse(next));
+    expect(await screen.findByText('Run: rebuild_run')).toBeInTheDocument();
+    expect(changed).toHaveBeenCalledWith(next);
+    fireEvent.click(screen.getByRole('button', { name: 'Inspect repair run' }));
+    expect(inspect).toHaveBeenCalledWith('rebuild_run');
+    fireEvent.click(button);
+    expect(button).toBeDisabled();
+    expect(calls()).toHaveLength(1);
+  });
+
+  it('shows advance errors and retries with the same revision guard', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((input, init) => String(input).endsWith('/repair')
+      ? Promise.resolve(jsonResponse({}, 503)) : original(input, init));
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" repair={repair} />);
+    fireEvent.click(await screen.findByTestId('firmware-patch-apply'));
+    const button = await screen.findByRole('button', { name: /Continue repair/ });
+    fireEvent.click(button);
+    await screen.findByText(/Could not continue repair/);
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair'))).toHaveLength(2));
+    const bodies = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair')).map(([, init]) => JSON.parse(String(init?.body)));
+    expect(bodies[0]).toEqual(bodies[1]);
+  });
+
+  it('keeps Continue hidden when Apply fails', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((input, init) => String(input).endsWith('/patch/apply')
+      ? Promise.resolve(jsonResponse({ error: { code: 'CONFLICT', message: 'Apply failed' } }, 409))
+      : original(input, init));
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" repair={repair} />);
+    fireEvent.click(await screen.findByTestId('firmware-patch-apply'));
+    await screen.findByText('Apply failed');
+    expect(screen.queryByRole('button', { name: /Continue repair/ })).not.toBeInTheDocument();
+  });
+
+  it('does not offer Continue after rejecting a repair patch', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} pendingProposalId="pending" repair={repair} />);
+    fireEvent.click(await screen.findByTestId('firmware-patch-discard'));
+    await waitFor(() => expect(screen.queryByTestId('firmware-patch-panel')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /Continue repair/ })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/repair'))).toBe(false);
+  });
+
   it('shows loading and prevents Apply until proposal and previews load, then applies explicitly', async () => {
     let resolve!: (response: Response) => void;
     const pending = new Promise<Response>(done => { resolve = done; });
@@ -809,6 +885,7 @@ describe('pending repair patch review', () => {
       return <>
         <output data-testid="workspace-search">{location.search}</output>
         <FirmwareWorkspace projectId="proj_test" isDark={false}
+          repair={repair}
           pendingProposalId={params.get('proposalId')}
           onProposalDecided={() => url.patchParams({ proposalId: null }, true)} />
       </>;
@@ -824,6 +901,7 @@ describe('pending repair patch review', () => {
     await waitFor(() => expect(screen.getByTestId('workspace-search')).not.toHaveTextContent('proposalId'));
     expect(screen.getByTestId('workspace-search')).toHaveTextContent('artifact=firmware-scaffold&panel=vera');
     expect(screen.queryByTestId('firmware-patch-panel')).not.toBeInTheDocument();
+    expect(Boolean(screen.queryByRole('button', { name: /Continue repair/ }))).toBe(decision === 'apply');
   });
 
   it('shows the fixture badge and discards without cancelling repair or writing files', async () => {

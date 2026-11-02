@@ -328,6 +328,18 @@ export function ProjectPage() {
       >
         <Renderer
           projectId={projectId}
+          repair={Object.values(repairs).find(repair => repair.projectId === projectId &&
+            repair.status === 'review' && repair.target === 'firmware' &&
+            (!searchParams.get('proposalId') || repair.proposalId === searchParams.get('proposalId')))}
+          onRepairChanged={repair => setRepairs(previous => {
+            // Replace the tracked repair; on a cold deep-link it may not be tracked yet, so insert it.
+            const known = Object.values(previous).some(current => current.repairId === repair.repairId);
+            if (!known) return { ...previous, [`${repair.projectId}:${repair.runId}`]: repair };
+            return Object.fromEntries(
+              Object.entries(previous).map(([key, current]) => [key, current.repairId === repair.repairId ? repair : current]),
+            );
+          })}
+          onInspectRun={setInspectedRun}
           pendingProposalId={searchParams.get('proposalId') ?? Object.entries(repairs).find(
             ([key, repair]) => key.startsWith(`${projectId}:`) && repair.status === 'review' && repair.target === 'firmware',
           )?.[1].proposalId}
@@ -454,7 +466,9 @@ export function ProjectPage() {
           key={`${projectId}:${inspectedRun}`}
           projectId={projectId}
           runId={inspectedRun}
-          repair={repairs[`${projectId}:${inspectedRun}`]}
+          repair={repairs[`${projectId}:${inspectedRun}`] ?? Object.values(repairs).find(
+            repair => repair.projectId === projectId && repair.runId === inspectedRun,
+          )}
           setRepair={repair => setRepairs(previous => ({
             ...previous, [`${projectId}:${inspectedRun}`]: repair,
           }))}
