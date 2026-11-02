@@ -24,7 +24,7 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onRe
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
   const [repairTarget, setRepairTarget] = useState<'firmware' | 'analysis'>('firmware');
-  const canChooseRepairTarget = run?.capability === 'python-kernel' && run.status === 'failed';
+  const canChooseRepairTarget = run?.capability === 'python-kernel' && (run.status === 'failed' || run.status === 'timed-out');
   useEffect(() => { setRepairTarget('firmware'); }, [projectId, runId]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -72,8 +72,8 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onRe
         onKeyDown={event => {
           if (event.key === 'Escape') onClose();
           if (event.key === 'Tab') {
-            const buttons = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled)') ?? []);
-            const first = buttons[0]; const last = buttons[buttons.length - 1];
+            const focusables = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled)') ?? []);
+            const first = focusables[0]; const last = focusables[focusables.length - 1];
             if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last?.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
           }

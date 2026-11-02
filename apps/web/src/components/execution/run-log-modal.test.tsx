@@ -89,3 +89,9 @@ it('sends the operator-selected analysis target', async () => {
   await screen.findByText(/Repair: review/);
   expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'analysis', maxAttempts: 3 });
 });
+it('offers the repair target choice for timed-out analysis runs', async () => {
+  vi.mocked(api.getExecution).mockResolvedValue({ executionRun: { status: 'timed-out', capability: 'python-kernel' } as never });
+  render(<Harness />);
+  const target = await screen.findByRole('combobox', { name: 'Repair target' });
+  expect(target).toHaveValue('firmware');
+});
