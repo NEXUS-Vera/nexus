@@ -310,6 +310,29 @@ for intermediate diagnosing/launching transitions as well as the final response.
 To recover current state, POST the same route with
 `{"action":"get","repairId":"{repairId}","requestedBy":actor,"requireReal":true}`.
 
+**Optional web UI (F2/F4):** Open the relevant run with **Inspect Run Logs** in the
+Evidence Explorer, then click **Diagnose & Repair (Attempt 1 of 3)** in
+**Run logs**. Firmware/simulation runs use `target:"firmware"` without a selector.
+For failed or timed-out `python-kernel` runs, **Repair target** defaults to
+**Firmware (recommended)**; **Analysis code** sends `target:"analysis"`. The hint
+reads “Sampling/timing failures usually come from firmware.” The selector is
+disabled while submitting or once a repair exists. Diagnose is disabled before
+run details load, while submitting, for active run statuses, at the attempt cap,
+or after a terminal repair state. It calls `startRepair` then `advanceRepair`:
+`POST /v1/projects/{projectId}/repair` with
+`{"action":"start","executionRunId":"{runId}","target":"firmware","maxAttempts":3}`,
+then `{"action":"advance","repairId":"{repairId}","revision":returnedRevision}`.
+An existing repair is advanced without another start; neither action approves
+its patch.
+
+**Live UI limitation:** These UI repair calls omit `requireReal`, `requestedBy`,
+and explicit `scope`. UI patch review/apply also omit the live flag. Every live
+call still requires `requireReal:true` (GET query `requireReal=true`); use the API
+procedure above/below for live acceptance. The current repair endpoint defaults
+missing `requireReal` to `true` and `scope` to `"full"`; still verify
+`evidenceMode:"real-requested"`. The UI does not satisfy the explicit all-call
+flag convention.
+
 ### 8. Review and explicitly approve the repair patch
 
 After repair advance returns `status:"review"`, inspect its `proposalId` using:
@@ -359,6 +382,21 @@ On stale state, refresh and re-review. Never apply an unseen proposal.
 Advance repair using the latest revision and `requireReal:true` as in Step 7;
 expect `stage:"compile"`, `status:"running"`, `runId`. Continue through Step 9.
 
+**Optional web UI:** At repair `status:"review"`, click **Review repair patch in
+Workspace** to open the firmware proposal and diff. After the inspection above,
+**Apply patch** calls the same `POST .../artifacts/firmware/workspace/patch/apply`
+with `proposalId`, `requestedBy` and the three version guards shown above, but
+without `requireReal:true`. Apply is hidden until proposal/previews load and is
+disabled while applying or for an empty proposal. After successful Apply of the
+matching firmware repair proposal, **Continue repair (rebuild & verify)** appears.
+It calls `advanceRepair`: `POST /v1/projects/{projectId}/repair` with
+`{"action":"advance","repairId":"{repairId}","revision":appliedRepairRevision}`
+(no `requestedBy` or `requireReal`). It disables while pending and after a
+successful response; failures show an error and allow retry with the same
+revision. Returned status/run are shown, with **Inspect repair run** opening its
+run log. Discard offers no continuation; this state does not survive reload.
+Retain `requireReal:true` on the live API equivalent.
+
 ### 9. Drive full-scope completion and inspect deterministic evidence
 
 For each returned `runId`, poll execution and inspect logs/outputs as in step 4.
@@ -370,6 +408,11 @@ latest `revision`, `requestedBy`, and `requireReal:true`:
 | Rebuild (`compile`) | Select that run's ELF and launch `simulate` | Real PlatformIO profile, completed run, ELF output ID in `firmwareOutputId` |
 | Wokwi (`simulate`) | Promote markers, import `serial.log`, launch `analyze` | Completed simulation; serial header, readiness marker, `TEL,` samples; no init-failure marker |
 | Python (`analyze`) | Promote analysis and evaluate linked cases | Completed analysis; deterministic test-plan revision; repair `status:"completed"` |
+
+The web **Continue repair (rebuild & verify)** action above advances once to
+launch the rebuild; it does not automatically drive all stages in this table.
+Continue the API polling/advance procedure with `requireReal:true` for each live
+call and inspect all evidence below.
 
 The workflow itself selects `firmwareOutputId` in simulation options; operators
 must not substitute an unrelated ELF or upload synthetic CSV to obtain PASS.
@@ -520,6 +563,16 @@ criterion throughout diagnosis and repair.
    and `requireReal:true`; require `status:"review"`, a proposal ID, and
    `evidenceMode:"real-requested"`. Inspect diagnostics for the failed R6
    criterion/actual result and analysis output references.
+
+   **Optional web UI (F5):** Inspect `analysisRunId` in **Run logs** and click
+   **Diagnose & Repair (Attempt 1 of 3)**. This criteria-failure run is `completed`, so the
+   **Repair target** selector is absent and the start body still sends
+   `target:"firmware"`. For a failed/timed-out Python run, leave the selector at
+   **Firmware (recommended)**; choosing **Analysis code** would repair the wrong
+   target for F5. Start/advance bodies and the live-flag limitation are described
+   in Step 7: use the API with `requireReal:true` for live acceptance. Review and
+   Apply, then **Continue repair (rebuild & verify)**, follow Steps 8–9; require
+   the firmware sample interval fix, preserving `analysis.py` and R6.
 6. Use Step 8's GET review and explicit approval. Require the model's firmware
    replacement to restore `SAMPLE_INTERVAL_MS = 20`, retaining the 50 Hz serial
    contract. Do not modify `analysis.py` or relax the criterion to accept 25 Hz.
