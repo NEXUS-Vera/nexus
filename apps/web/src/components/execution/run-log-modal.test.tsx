@@ -22,6 +22,7 @@ it('loads logs safely and repairs only on explicit clicks, preserving revision g
   expect(screen.getByText('Log truncated')).toBeInTheDocument();
   expect(document.body.textContent).not.toContain('private-value');
   expect(document.body.textContent).not.toContain('hidden-value');
+  expect(screen.queryByRole('combobox', { name: 'Repair target' })).not.toBeInTheDocument();
   expect(api.startRepair).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
   await screen.findByText(/Repair: review/);
@@ -63,4 +64,28 @@ it('offers explicit workspace review for a pending firmware repair', async () =>
   fireEvent.click(screen.getByRole('button', { name: 'Review repair patch in Workspace' }));
   expect(review).toHaveBeenCalledWith('pending');
   expect(api.advanceRepair).not.toHaveBeenCalled();
+});
+it('defaults failed analysis repairs to firmware', async () => {
+  vi.mocked(api.getExecution).mockResolvedValue({ executionRun: { status: 'failed', capability: 'python-kernel' } as never });
+  render(<Harness />);
+  const target = await screen.findByRole('combobox', { name: 'Repair target' });
+  expect(target).toHaveValue('firmware');
+  expect(screen.getByRole('option', { name: 'Firmware (recommended)' })).toBeInTheDocument();
+  expect(target).toHaveAccessibleDescription('Sampling/timing failures usually come from firmware.');
+  expect(api.startRepair).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
+  await screen.findByText(/Repair: review/);
+  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'firmware', maxAttempts: 3 });
+  expect(target).toBeDisabled();
+});
+it('sends the operator-selected analysis target', async () => {
+  vi.mocked(api.getExecution).mockResolvedValue({ executionRun: { status: 'failed', capability: 'python-kernel' } as never });
+  render(<Harness />);
+  const target = await screen.findByRole('combobox', { name: 'Repair target' });
+  expect(screen.getByRole('option', { name: 'Analysis code' })).toBeInTheDocument();
+  fireEvent.change(target, { target: { value: 'analysis' } });
+  expect(target).toHaveValue('analysis');
+  fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
+  await screen.findByText(/Repair: review/);
+  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'analysis', maxAttempts: 3 });
 });

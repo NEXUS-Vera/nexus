@@ -23,6 +23,9 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onRe
   const [error, setError] = useState('');
   const [loadError, setLoadError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [repairTarget, setRepairTarget] = useState<'firmware' | 'analysis'>('firmware');
+  const canChooseRepairTarget = run?.capability === 'python-kernel' && run.status === 'failed';
+  useEffect(() => { setRepairTarget('firmware'); }, [projectId, runId]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     dialog.current?.focus();
@@ -53,7 +56,7 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onRe
     setError('');
     try {
       const current = repair ?? await startRepair(projectId, {
-        executionRunId: runId, target: run?.capability === 'python-kernel' ? 'analysis' : 'firmware', maxAttempts: 3,
+        executionRunId: runId, target: canChooseRepairTarget ? repairTarget : 'firmware', maxAttempts: 3,
       });
       setRepair(current);
       setRepair(await advanceRepair(projectId, current.repairId, current.revision));
@@ -69,7 +72,7 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onRe
         onKeyDown={event => {
           if (event.key === 'Escape') onClose();
           if (event.key === 'Tab') {
-            const buttons = Array.from(dialog.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)') ?? []);
+            const buttons = Array.from(dialog.current?.querySelectorAll<HTMLElement>('button:not(:disabled), select:not(:disabled)') ?? []);
             const first = buttons[0]; const last = buttons[buttons.length - 1];
             if (event.shiftKey && (document.activeElement === first || document.activeElement === dialog.current)) { event.preventDefault(); last?.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -80,6 +83,16 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onRe
         <p>Status: {run?.status ?? 'Loading…'}</p>
         {(error || loadError) && <p role="alert">{error || loadError}</p>}
         <ExecutionLogViewer chunks={logs} truncated={truncated} />
+        {canChooseRepairTarget && <div>
+          <label htmlFor="repair-target">Repair target</label>
+          <select id="repair-target" aria-describedby="repair-target-hint" value={repairTarget}
+            disabled={busy || Boolean(repair)}
+            onChange={event => setRepairTarget(event.target.value === 'analysis' ? 'analysis' : 'firmware')}>
+            <option value="firmware">Firmware (recommended)</option>
+            <option value="analysis">Analysis code</option>
+          </select>
+          <p id="repair-target-hint">Sampling/timing failures usually come from firmware.</p>
+        </div>}
         <button type="button" disabled={!run || busy || Boolean(stopped) || attempts >= 3 || !['failed', 'timed-out', 'completed', 'completed-with-warnings'].includes(run.status)} onClick={() => void diagnose()}>
           Diagnose &amp; Repair (Attempt {attempts} of 3)
         </button>
