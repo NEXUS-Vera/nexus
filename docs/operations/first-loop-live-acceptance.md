@@ -310,7 +310,7 @@ for intermediate diagnosing/launching transitions as well as the final response.
 To recover current state, POST the same route with
 `{"action":"get","repairId":"{repairId}","requestedBy":actor,"requireReal":true}`.
 
-**Optional web UI (F2/F4):** Open the relevant run with **Inspect run** in the
+**Optional web UI (F2/F4):** Open the relevant run with **Inspect Run Logs** in the
 Evidence Explorer, then click **Diagnose & Repair (Attempt 1 of 3)** in
 **Run logs**. Firmware/simulation runs use `target:"firmware"` without a selector.
 For failed or timed-out `python-kernel` runs, **Repair target** defaults to
