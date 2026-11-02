@@ -39,6 +39,9 @@ export type WorkspaceRendererKey =
   | 'risk-register';
 
 export type WorkspaceRenderProps = {
+  repair?: import('../../api/client').RepairState;
+  onRepairChanged?: (repair: import('../../api/client').RepairState) => void;
+  onInspectRun?: (runId: string) => void;
   pendingProposalId?: string | null;
   onProposalDecided?: () => void;
   projectId: string;
@@ -202,6 +205,9 @@ function FirmwareRenderer(props: WorkspaceRenderProps) {
     <FirmwareWorkspace
       projectId={props.projectId}
       isDark={props.isDark}
+      repair={props.repair}
+      onRepairChanged={props.onRepairChanged}
+      onInspectRun={props.onInspectRun}
       pendingProposalId={props.pendingProposalId}
       onProposalDecided={props.onProposalDecided}
       onCommandResult={props.onCommandResult}
