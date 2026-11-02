@@ -565,7 +565,7 @@ criterion throughout diagnosis and repair.
    criterion/actual result and analysis output references.
 
    **Optional web UI (F5):** Inspect `analysisRunId` in **Run logs** and click
-   **Diagnose & Repair**. This criteria-failure run is `completed`, so the
+   **Diagnose & Repair (Attempt 1 of 3)**. This criteria-failure run is `completed`, so the
    **Repair target** selector is absent and the start body still sends
    `target:"firmware"`. For a failed/timed-out Python run, leave the selector at
    **Firmware (recommended)**; choosing **Analysis code** would repair the wrong
