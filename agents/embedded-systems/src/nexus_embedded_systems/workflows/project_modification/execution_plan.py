@@ -138,25 +138,25 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
 def _validate_seeded_test_plan(seeded: dict[str, Any]) -> None:
     """Validate the known artifact branch and report a bounded leaf diagnostic."""
     store = load_schemas_by_id()
-    leaves: list[tuple[str, ValidationError]] = []
+    leaves: list[tuple[tuple[str | int, ...], ValidationError]] = []
 
-    def collect(error: ValidationError, prefix: str) -> None:
+    def collect(error: ValidationError, prefix: tuple[str | int, ...]) -> None:
         if error.context:
             for child in error.context:
                 collect(child, prefix)
         else:
-            path = ".".join(str(part) for part in error.absolute_path)
-            leaves.append((prefix + path, error))
+            leaves.append((prefix + tuple(error.absolute_path), error))
 
     for payload, schema_id, prefix in (
-        (seeded, "artifacts/envelope/artifact-envelope.v1", ""),
-        (seeded["content"], "artifacts/content/test-plan.v1", "content."),
+        (seeded, "artifacts/envelope/artifact-envelope.v1", ()),
+        (seeded["content"], "artifacts/content/test-plan.v1", ("content",)),
     ):
         schema = store[f"https://nexus.local/schemas/{schema_id}.schema.json"]
         for error in make_validator(schema, store).iter_errors(payload):
             collect(error, prefix)
     if leaves:
-        path, error = max(leaves, key=lambda item: len(item[0].split(".")))
+        segments, error = max(leaves, key=lambda item: len(item[0]))
+        path = ".".join(str(part) for part in segments)
         message = error.message
         instance_repr = repr(error.instance)
         if isinstance(error.instance, (dict, list)) or len(instance_repr) > 120:
@@ -245,6 +245,7 @@ class ExecutionPlanWorkflow:
     def retry_materialization(
         self, project_id: str, actor: dict[str, Any], plan_artifact_id: Any, base: int
     ) -> dict[str, Any]:
+        validate_requested_actor_id(actor)
         artifact = self.projects.get_artifact(project_id, "execution-plan")
         project = self.projects.get_project(project_id)
         materialized_state = artifact["content"]["plan"]["basisProjectStateVersion"] + 1
