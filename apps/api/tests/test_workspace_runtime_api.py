@@ -145,3 +145,75 @@ async def test_workspace_runtime_api_binding_files_snapshot_execute() -> None:
         outputs = await client.get(f"/v1/projects/{project_id}/outputs")
         assert outputs.status_code == 200
         assert any(o.get("name") == "out.txt" for o in outputs.json()["items"])
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("artifact_type", "filesystem", "execution"),
+    [("electrical-architecture", False, False), ("code-scratch", True, True)],
+)
+async def test_workspace_snapshot_capabilities_and_lease(
+    artifact_type: str, filesystem: bool, execution: bool
+) -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": "Bearer nexus-dev-session-token"},
+    ) as client:
+        created = await client.post(
+            "/v1/projects/initialize",
+            json={"message": GREENHOUSE, "autonomyMode": "collaborate"},
+        )
+        assert created.status_code == 200, created.text
+        project_id = created.json()["project"]["projectId"]
+        path = f"/v1/projects/{project_id}/artifacts/{artifact_type}/workspace"
+        runtime = await client.get(f"{path}/runtime")
+        assert runtime.status_code == 200, runtime.text
+        binding = runtime.json()["binding"]
+        assert binding["capabilities"] == {
+            "filesystem": filesystem,
+            "snapshots": True,
+            "execution": execution,
+            "logs": execution,
+        }
+        actor = _actor()
+        denied = await client.post(
+            f"{path}/snapshots", json={"requestedBy": actor, "reason": "regression"}
+        )
+        assert denied.status_code == 422, denied.text
+        assert denied.json()["error"]["code"] == "DRAFT_EDIT_LEASE_REQUIRED"
+        lease = await client.post(
+            f"/v1/projects/{project_id}/artifact-commands",
+            json={
+                "schemaVersion": "1.0.0",
+                "commandId": _cmd_id(),
+                "commandType": "workspace.acquire-edit-lease",
+                "projectId": project_id,
+                "artifactId": binding["artifactId"],
+                "workspaceId": binding["workspaceId"],
+                "baseArtifactVersion": binding["baseArtifactVersion"],
+                "baseProjectStateVersion": binding["baseProjectStateVersion"],
+                "requestedBy": actor,
+                "requestedAt": "2026-11-03T00:00:00Z",
+                "input": {},
+            },
+        )
+        assert lease.status_code == 200, lease.text
+        denied = await client.post(f"{path}/snapshots", json={"requestedBy": _actor()})
+        assert denied.status_code == 422, denied.text
+        assert denied.json()["error"]["code"] == "DRAFT_EDIT_LEASE_HELD"
+        snapshot = await client.post(
+            f"{path}/snapshots", json={"requestedBy": actor, "reason": "regression"}
+        )
+        assert snapshot.status_code == 200, snapshot.text
+        body = snapshot.json()
+        assert body["snapshotId"].startswith("snap_")
+        assert body["content"]["kind"] == ("filesystem" if filesystem else "structured")
+        if not filesystem:
+            assert binding["workspaceType"] == "graph-workspace"
+            assert body["content"]["structuredContent"] == runtime.json()["draft"]["content"]
+        listed = await client.get(f"{path}/snapshots")
+        assert listed.status_code == 200, listed.text
+        assert [s["snapshotId"] for s in listed.json()["snapshots"]] == [body["snapshotId"]]
+        refreshed = await client.get(f"{path}/runtime")
+        assert refreshed.json()["binding"]["currentSnapshotId"] == body["snapshotId"]

@@ -107,6 +107,9 @@ Live toolchain/container acceptance tests require explicit opt-in.
 Electrical and Physical Architecture use graph workspaces with deterministic
 validation, semantic editing, and functional-node deletion impact inspection.
 Accepted revisions materialize graph entities and update board projections.
+The workspace runtime also exposes structured draft snapshots through the same
+lease-guarded snapshot service as artifact commands; filesystem access remains
+a separate capability.
 Electrical execution delegates to an injected `circuit-simulation` executor;
 provider translation and invocation belong to `packages/circuit-simulation`.
 

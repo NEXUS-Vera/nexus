@@ -207,7 +207,7 @@ class WorkspaceRuntimeService:
         actor: dict[str, Any] | None = None,
         create_if_missing: bool = True,
     ) -> dict[str, Any]:
-        """Resolve the durable artifact ↔ filesystem-workspace relationship.
+        """Resolve the durable artifact ↔ workspace relationship.
 
         Workspaces are keyed by ``(projectId, artifactType)`` and survive
         accepted artifact revision changes. They are not recreated per revision.
@@ -220,7 +220,7 @@ class WorkspaceRuntimeService:
         required = list(definition.get("requiredCapabilities") or [])
         caps = {
             "filesystem": CAPABILITY_FILESYSTEM in required,
-            "snapshots": CAPABILITY_FILESYSTEM in required,
+            "snapshots": True,  # WorkspaceService snapshots both structured and filesystem drafts.
             "execution": CAPABILITY_SANDBOX in required,
             "logs": CAPABILITY_SANDBOX in required,
         }
@@ -244,7 +244,7 @@ class WorkspaceRuntimeService:
         if self.invalidation is not None:
             self.invalidation.bind_workspace(project_id, artifact_type)
 
-        # Capabilities remain registry-driven; filesystem ops still gate on them.
+        # Filesystem and execution capabilities remain registry-driven.
         filesystem_enabled = bool(caps["filesystem"] and is_filesystem_workspace(workspace))
         return {
             "schemaVersion": "1.0.0",
