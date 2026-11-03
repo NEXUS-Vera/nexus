@@ -2285,7 +2285,10 @@ async def cancel_project_execution(
 async def list_project_outputs(
     project_id: str,
     request: Request,
+    execution_run_id: str | None = Query(default=None, alias="executionRunId"),
 ) -> dict[str, Any] | JSONResponse:
+    if execution_run_id is not None and not execution_run_id.strip():
+        execution_run_id = None
     request_id = _request_id(request)
     invalid = _validate_project_id(project_id, request_id)
     if invalid:
@@ -2295,7 +2298,7 @@ async def list_project_outputs(
         return {
             "schemaVersion": "1.0.0",
             "projectId": project_id,
-            "items": _kernel.executions.list_outputs(project_id),
+            "items": _kernel.executions.list_outputs(project_id, execution_run_id=execution_run_id),
         }
     except ProjectNotFoundError:
         return _error(

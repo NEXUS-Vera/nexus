@@ -129,8 +129,15 @@ class ExecutionService:
         assert isinstance(job, dict)
         return job
 
-    def list_outputs(self, project_id: str) -> list[dict[str, Any]]:
-        return self._kernel.list_produced_outputs(project_id)
+    def list_outputs(
+        self, project_id: str, *, execution_run_id: str | None = None
+    ) -> list[dict[str, Any]]:
+        outputs = self._kernel.list_produced_outputs(project_id)
+        if execution_run_id is not None:
+            return [
+                output for output in outputs if output.get("executionRunId") == execution_run_id
+            ]
+        return outputs
 
     def get_output(self, output_id: str) -> dict[str, Any]:
         return self._kernel.get_produced_output(output_id)

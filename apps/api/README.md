@@ -99,7 +99,7 @@ Workspace-id addressed file routes (the workspace id comes from the runtime bind
 - `GET /v1/projects/{projectId}/executions/{executionRunId}` - one execution run, including its input snapshot and base versions
 - `GET /v1/projects/{projectId}/executions/{executionRunId}/logs?after=&limit=` - execution logs
 - `POST /v1/projects/{projectId}/executions/{executionRunId}/cancel` - cancel a run
-- `GET /v1/projects/{projectId}/outputs` - list produced outputs
+- `GET /v1/projects/{projectId}/outputs?executionRunId=` - list produced outputs, optionally filtered by execution run; unknown run IDs return an empty list
 - `GET /v1/projects/{projectId}/outputs/{outputId}` - one produced output
 
 ### Verification

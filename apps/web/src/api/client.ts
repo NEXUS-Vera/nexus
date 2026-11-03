@@ -376,8 +376,12 @@ export async function listExecutions(
 
 export async function listProducedOutputs(
   projectId: string,
+  executionRunId?: string,
 ): Promise<import('@nexus/contracts').ProducedOutput[]> {
-  const json = await requestJson(`/v1/projects/${projectId}/outputs`);
+  const query = executionRunId
+    ? `?executionRunId=${encodeURIComponent(executionRunId)}`
+    : '';
+  const json = await requestJson(`/v1/projects/${projectId}/outputs${query}`);
   if (isRecord(json) && Array.isArray(json.items)) {
     return json.items as import('@nexus/contracts').ProducedOutput[];
   }
