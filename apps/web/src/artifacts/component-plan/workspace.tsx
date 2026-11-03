@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import type {
   Artifact,
@@ -41,14 +42,6 @@ function newCommandId(): string {
     return `cmd_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
   }
   return `cmd_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function userActor() {
-  return {
-    schemaVersion: '1.0.0' as const,
-    actorId: 'user_local',
-    actorType: 'user' as const,
-  };
 }
 
 function formatSpecValue(
@@ -847,7 +840,7 @@ export function ComponentPlanWorkspace({
                 baseArtifactVersion: artifact!.artifactVersion,
                 baseProjectStateVersion: ws.baseProjectStateVersion,
                 requestedAt: new Date().toISOString(),
-                requestedBy: userActor(),
+                requestedBy: USER_ACTOR,
                 input: { reason: 'Manual snapshot from component-plan workspace' },
               }))
             }
@@ -867,7 +860,7 @@ export function ComponentPlanWorkspace({
                 baseArtifactVersion: artifact!.artifactVersion,
                 baseProjectStateVersion: ws.baseProjectStateVersion,
                 requestedAt: new Date().toISOString(),
-                requestedBy: userActor(),
+                requestedBy: USER_ACTOR,
                 input: {
                   snapshotId: ws.currentSnapshotId!,
                   consequenceLevel: 'medium',

@@ -7,6 +7,10 @@ from collections.abc import Callable
 from contextvars import ContextVar
 from typing import Any, Protocol
 
+from nexus_contracts.validation.schema_validator import (
+    load_schemas_by_id,
+    validate_against_schema,
+)
 from nexus_persistence.errors import ArtifactNotFoundError
 
 from nexus_board.errors import (
@@ -60,6 +64,22 @@ COMMAND_TYPES = {
     "artifact.execute",
     "artifact.inspect-deletion-impact",
 }
+
+
+def validate_requested_actor_id(actor: Any) -> None:
+    """Validate the copied ID using the shared actor contract, before any writes.
+
+    Internal board callers also use runtime actor kinds and partial references;
+    their existing governance remains independent of this artifact ID boundary.
+    """
+    if not isinstance(actor, dict):
+        raise CommandValidationError("requestedBy: must be an object.")
+    schema = load_schemas_by_id()[
+        "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+    ]
+    errors = validate_against_schema(actor.get("actorId"), schema["properties"]["actorId"])
+    if errors:
+        raise CommandValidationError(f"requestedBy.actorId: {errors[0].message}"[:400])
 
 
 class _KernelStore(Protocol):
@@ -226,6 +246,7 @@ class ArtifactCommandService:
             raise CommandValidationError("Unknown commandType.")
         if "projectId" not in command or "requestedBy" not in command:
             raise CommandValidationError("Command missing required fields.")
+        validate_requested_actor_id(command["requestedBy"])
 
     def _workspace_create(self, command: dict[str, Any], actor_kind: str) -> dict[str, Any]:
         del actor_kind

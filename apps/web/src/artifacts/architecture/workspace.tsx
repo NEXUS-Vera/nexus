@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import {
   useCallback,
   useEffect,
@@ -394,14 +395,6 @@ function newId(prefix: string): string {
     return `${prefix}${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`;
   }
   return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function userActor() {
-  return {
-    schemaVersion: '1.0.0' as const,
-    actorId: 'user_local',
-    actorType: 'user' as const,
-  };
 }
 
 function unwrapWorkspace(payload: unknown): WorkspaceEnvelope | null {
@@ -859,7 +852,7 @@ export function ArchitectureWorkspace({
         baseArtifactVersion: art.artifactVersion,
         baseProjectStateVersion: ws.baseProjectStateVersion,
         requestedAt: new Date().toISOString(),
-        requestedBy: userActor(),
+        requestedBy: USER_ACTOR,
         input: { leaseToken: token },
       }).catch(() => {
         /* best-effort release */
@@ -886,7 +879,7 @@ export function ArchitectureWorkspace({
             if (matches) setDraftContent(incoming);
           }
           const held = envelope.draft.editLease;
-          if (held && held.ownerActorId !== 'user_local' && held.leaseToken !== leaseTokenRef.current) {
+          if (held && held.ownerActorId !== USER_ACTOR.actorId && held.leaseToken !== leaseTokenRef.current) {
             setLeaseBlocked(true);
           }
         }
@@ -1063,7 +1056,7 @@ export function ArchitectureWorkspace({
         baseArtifactVersion: artifact.artifactVersion,
         baseProjectStateVersion: envelope.workspace.baseProjectStateVersion,
         requestedAt: new Date().toISOString(),
-        requestedBy: userActor(),
+        requestedBy: USER_ACTOR,
         input: {},
       });
       onCommandResult?.(result);
@@ -1114,7 +1107,7 @@ export function ArchitectureWorkspace({
         baseArtifactVersion: artifact.artifactVersion,
         baseProjectStateVersion: workspace.baseProjectStateVersion,
         requestedAt: new Date().toISOString(),
-        requestedBy: userActor(),
+        requestedBy: USER_ACTOR,
         input: { leaseToken: token },
       });
     } catch {
@@ -1177,7 +1170,7 @@ export function ArchitectureWorkspace({
         baseArtifactVersion: artifact.artifactVersion,
         baseProjectStateVersion: ws.baseProjectStateVersion,
         requestedAt: new Date().toISOString(),
-        requestedBy: userActor(),
+        requestedBy: USER_ACTOR,
         input: { reason: 'Circuit simulation input snapshot' },
       });
       onCommandResult?.(snapshotResult);
@@ -1209,7 +1202,7 @@ export function ArchitectureWorkspace({
         baseArtifactVersion: artifact.artifactVersion,
         baseProjectStateVersion: executionWorkspace.baseProjectStateVersion,
         requestedAt: new Date().toISOString(),
-        requestedBy: userActor(),
+        requestedBy: USER_ACTOR,
         input: {
           snapshotId,
           capability: 'circuit-simulation',
@@ -1272,7 +1265,7 @@ export function ArchitectureWorkspace({
         baseArtifactVersion: artifact.artifactVersion,
         baseProjectStateVersion: envelope.workspace.baseProjectStateVersion,
         requestedAt: new Date().toISOString(),
-        requestedBy: userActor(),
+        requestedBy: USER_ACTOR,
         input: {
           content: next as unknown as Record<string, unknown>,
           expectedDraftVersion: expected,
@@ -1371,7 +1364,7 @@ export function ArchitectureWorkspace({
         baseArtifactVersion: artifact.artifactVersion,
         baseProjectStateVersion: envelope.workspace.baseProjectStateVersion,
         requestedAt: new Date().toISOString(),
-        requestedBy: userActor(),
+        requestedBy: USER_ACTOR,
         input: { entityType: 'functional-node', entityId: nodeId },
       });
       onCommandResult?.(result);
@@ -1625,7 +1618,7 @@ export function ArchitectureWorkspace({
           baseArtifactVersion: artifact.artifactVersion,
           baseProjectStateVersion: envelope.workspace.baseProjectStateVersion,
           requestedAt: new Date().toISOString(),
-          requestedBy: userActor(),
+          requestedBy: USER_ACTOR,
           input: {
             expectedDraftVersion: envelope.draft?.draftVersion ?? draftVersion,
           },
@@ -1993,7 +1986,7 @@ export function ArchitectureWorkspace({
                 baseArtifactVersion: artifact.artifactVersion,
                 baseProjectStateVersion: ws.baseProjectStateVersion,
                 requestedAt: new Date().toISOString(),
-                requestedBy: userActor(),
+                requestedBy: USER_ACTOR,
                 input: { reason: 'Manual snapshot from architecture workspace' },
               }))
             }
@@ -2016,7 +2009,7 @@ export function ArchitectureWorkspace({
                 baseArtifactVersion: artifact.artifactVersion,
                 baseProjectStateVersion: ws.baseProjectStateVersion,
                 requestedAt: new Date().toISOString(),
-                requestedBy: userActor(),
+                requestedBy: USER_ACTOR,
                 input: {
                   snapshotId: ws.currentSnapshotId!,
                   consequenceLevel: 'medium',
