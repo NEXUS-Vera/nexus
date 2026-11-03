@@ -5,7 +5,9 @@ from __future__ import annotations
 import time
 from typing import Any
 
+import pytest
 from helpers import acquire_edit_lease, actor, build_test_kernel
+from nexus_board.errors import CommandValidationError
 
 
 def _wait_run(kernel: Any, run_id: str, *, timeout: float = 5.0) -> dict[str, Any]:
@@ -202,3 +204,56 @@ def test_workspace_runtime_denies_non_filesystem_artifact() -> None:
     assert binding["capabilities"]["execution"] is False
     with pytest.raises(WorkspaceRuntimeCapabilityError):
         kernel.workspace_runtime.list_files(project_id=project_id, artifact_type="project-brief")
+
+
+def test_graph_workspace_snapshot_capability() -> None:
+    kernel, project_store, _ks, project_id = build_test_kernel(auto_start_scheduler=False)
+    artifact = project_store.get_artifact(project_id, "functional-architecture")
+    artifact = {
+        **artifact,
+        "artifactId": artifact["artifactId"] + "_electrical",
+        "artifactType": "electrical-architecture",
+    }
+    project = project_store.get_project(project_id)
+    project_store.apply_accepted_artifact_revision(
+        project_id=project_id,
+        new_artifact=artifact,
+        next_state_version=int(project["currentStateVersion"]) + 1,
+        updated_at=artifact["updatedAt"],
+        expected_project_state_version=project["currentStateVersion"],
+    )
+    binding = kernel.workspace_runtime.resolve_binding(
+        project_id=project_id, artifact_type="electrical-architecture"
+    )
+    assert binding["workspaceType"] == "graph-workspace"
+    assert binding["capabilities"]["snapshots"] is True
+
+
+@pytest.mark.parametrize("kind", ["unsupported", None])
+def test_restore_rejects_unsupported_snapshot_kind(kind: str | None) -> None:
+    kernel, _ps, store, project_id = build_test_kernel(auto_start_scheduler=False)
+    user = actor("user")
+    binding = kernel.workspace_runtime.resolve_binding(
+        project_id=project_id, artifact_type="functional-architecture", actor=user
+    )
+    workspace_id = binding["workspaceId"]
+    acquire_edit_lease(
+        kernel,
+        project_id=project_id,
+        artifact_id=binding["artifactId"],
+        workspace_id=workspace_id,
+        requested_by=user,
+    )
+    snapshot = kernel.workspaces.create_snapshot(
+        workspace_id=workspace_id, actor=user, reason="unsupported-kind"
+    )
+    # Seed an unsupported stored snapshot without changing an immutable snapshot.
+    snapshot["snapshotId"] += "_unsupported"
+    snapshot["content"] = {"kind": kind, "structuredContent": {"unexpected": True}}
+    store.create_snapshot(snapshot)
+    before = store.get_draft(workspace_id)
+    with pytest.raises(CommandValidationError, match="Unsupported snapshot content kind"):
+        kernel.workspaces.restore_snapshot(
+            workspace_id=workspace_id, snapshot_id=snapshot["snapshotId"], actor=user
+        )
+    assert store.get_draft(workspace_id) == before

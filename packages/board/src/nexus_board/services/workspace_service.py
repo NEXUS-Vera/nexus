@@ -83,6 +83,10 @@ class WorkspaceService:
         self._projection = projection
         self._filesystem = filesystem
 
+    def can_snapshot(self, workspace: dict[str, Any]) -> bool:
+        """Structured drafts are supported directly; filesystem drafts need the adapter."""
+        return not is_filesystem_workspace(workspace) or self._filesystem is not None
+
     def get_or_none(self, project_id: str, artifact_type: str) -> dict[str, Any] | None:
         workspace = self._kernel.get_workspace_by_project_artifact(project_id, artifact_type)
         if workspace is None:
@@ -424,8 +428,10 @@ class WorkspaceService:
                 actor=actor,
             )
             draft_content = filesystem_draft_content()
-        else:
+        elif kind == "structured":
             draft_content = dict(content.get("structuredContent") or {})
+        else:
+            raise CommandValidationError(f"Unsupported snapshot content kind: {kind!r}")
         draft = dict(draft)
         draft["content"] = draft_content
         draft["draftVersion"] = int(draft["draftVersion"]) + 1
