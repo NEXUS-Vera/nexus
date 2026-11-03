@@ -72,6 +72,8 @@ async def test_command_run_read_and_project_isolation(failed: bool) -> None:
             other_project_id = (await initialize())["project"]["projectId"]
             for target_project, target_run, code in [
                 (project_id, "cmdrun_missing", "COMMAND_RUN_NOT_FOUND"),
+                ("malformed-project-id", run_id, "PROJECT_NOT_FOUND"),
+                ("proj_00000000000000000000000000", "cmdrun_missing", "PROJECT_NOT_FOUND"),
                 ("proj_00000000000000000000000000", run_id, "PROJECT_NOT_FOUND"),
                 (other_project_id, run_id, "COMMAND_RUN_NOT_FOUND"),
             ]:
@@ -81,6 +83,7 @@ async def test_command_run_read_and_project_isolation(failed: bool) -> None:
                 )
                 assert response.status_code == 404, response.text
                 assert response.json()["error"]["code"] == code
+                assert response.json()["error"]["requestId"] == "command-read-test"
                 assert "commandRun" not in response.json()
 
         assert (await client.get(f"/v1/projects/{project_id}")).json() == before
