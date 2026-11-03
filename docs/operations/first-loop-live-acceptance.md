@@ -59,10 +59,14 @@ Configuration names: `NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`, optional
 `NEXUS_DATABASE_URL`, and optionally `NEXUS_FILE_STORE_ROOT`. Do not record a
 credential-bearing database URL. Choose a provider/model supported by the
 configured gateway. Set `NEXUS_INITIALIZATION_PROVIDER=llm`,
-`NEXUS_FIRMWARE_USE_STUB=0`, and `NEXUS_ANALYSIS_USE_STUB=0`:
+`NEXUS_FIRMWARE_USE_STUB=0`, and `NEXUS_ANALYSIS_USE_STUB=0`. For live runs,
+recommend `NEXUS_MODEL_TIMEOUT_SECONDS=240`: the real-model
+`generate-functional-architecture` stage took about 65 seconds in the November 2
+attempt, exceeding the default 60-second timeout and causing
+`POST /v1/projects/initialize` to return HTTP 503 `MODEL_PROVIDER_UNAVAILABLE`:
 
 ```bash
-NEXUS_INITIALIZATION_PROVIDER=llm NEXUS_FIRMWARE_USE_STUB=0 NEXUS_ANALYSIS_USE_STUB=0 make dev-api
+NEXUS_MODEL_TIMEOUT_SECONDS=240 NEXUS_INITIALIZATION_PROVIDER=llm NEXUS_FIRMWARE_USE_STUB=0 NEXUS_ANALYSIS_USE_STUB=0 make dev-api
 ```
 
 `make dev-api` otherwise defaults to fixture initialization. Settings and model
@@ -163,7 +167,13 @@ The command envelope for `POST /v1/projects/{projectId}/artifact-commands` is:
 
 Replace both example integers with current binding versions. Use a fresh
 `cmd_` ID with at least 16 alphanumeric suffix characters for each command.
-Require `status: "completed"`, not just HTTP 200. Acquire/renew leases for
+The artifact-command response returns result fields at the top level.
+Require `status: "completed"`, not just HTTP 200. Before polling an execution
+launched by a command, require `status:"completed"` and a present,
+non-null `executionRunId`. If the command failed, read its
+`error.code` and message in the response and triage before continuing. Do not
+poll with a missing ID or substitute a `commandRunId` for an `executionRunId`.
+Acquire/renew leases for
 `firmware`, `analysis`, and `electrical-architecture` with this envelope and
 one actor. Release them at the end with `workspace.release-edit-lease` and
 `input:{}`. Another actor's lease is a stop-and-triage condition.
@@ -216,12 +226,12 @@ not an assumed project state of 2. Stop on partial materialization errors.
 
 ### 3. Generate firmware with the real model
 
-Resolve the firmware runtime, acquire its lease, then
-`POST /v1/projects/{projectId}/artifacts/firmware/workspace/scaffold` with
-`requestedBy`, `expectedDraftVersion`, `baseArtifactVersion`,
-`baseProjectStateVersion`, and `requireReal:true`. Expect `platformio.ini`,
-`src/main.cpp`, and `nexus/approved-plan.json`; matching pre-materialized files
-may already exist.
+Resolve the firmware runtime and acquire its draft edit lease. Plan acceptance
+in Step 2 already materialized `platformio.ini`, `src/main.cpp`,
+`include/nexus_plan.h`, and `nexus/approved-plan.json`; inspect those files and
+proceed directly to patch proposal. Do not call the firmware workspace scaffold
+route again: plan-generated files differ from scaffold templates and cause
+HTTP 409 `WORKSPACE_SCAFFOLD_CONFLICT`.
 
 `POST /v1/projects/{projectId}/artifacts/firmware/workspace/patch/propose`:
 
@@ -243,7 +253,10 @@ Require `status:"applied"`; refresh runtime versions.
 ### 4. Baseline real compilation
 
 `POST /v1/projects/{projectId}/artifacts/firmware/workspace/compile` with
-`{"requestedBy":actor,"requireReal":true}`. Save
+`{"requestedBy":actor,"requireReal":true}`. This REST route returns `executionRun`
+directly, without a `commandResult` envelope. Require HTTP success and a present,
+non-null `executionRun.executionRunId` before polling. On failure, read the
+response error code and message and triage instead of polling a missing ID. Save
 `executionRun.executionRunId`; require `toolchainProfile.executionMode:"platformio"`.
 Poll `GET /v1/projects/{projectId}/executions/{executionRunId}` until terminal;
 require `executionRun.status:"completed"`. Inspect diagnostics via
@@ -257,6 +270,11 @@ available through the returned content representation; a filename alone is not
 proof. Wokwi also validates the selected ELF before execution.
 
 ### 5. Inject F2 as a labeled user edit
+
+Before the fault edit, acquire/renew the firmware draft edit lease using
+`workspace.acquire-edit-lease` with the same actor, then refresh runtime versions.
+Do not rely on the setup lease still being active; an expired lease causes
+`DRAFT_EDIT_LEASE_REQUIRED`. Keep it active for compilation as well.
 
 Record in the acceptance evidence: **F2 — operator/user edit: Wire.begin →
 Wire.begn; intentional compiler fault, not an agent generation failure.**
@@ -277,7 +295,10 @@ Do not invent a fault-label request field; the label belongs in operator evidenc
 ### 6. Observe the intentional compiler failure
 
 Repeat the compile POST from step 4, including `requireReal:true`. Save its new
-run ID as `failedCompileRunId`, poll its execution and read its logs. Require
+run ID as `failedCompileRunId` only after the Step 4 checks for HTTP success and a
+present, non-null `executionRun.executionRunId`, then poll its execution and read
+its logs. A successful compile request can launch an execution that fails
+compilation. Require
 `status:"failed"` and a diagnostic about `TwoWire` lacking `begn` (wording can
 vary by compiler). An unavailable compiler or timeout is not the expected F2
 failure. Preserve its immutable `inputSnapshotId` and the logs.
@@ -462,7 +483,9 @@ All calls inherit the Authorization and `requireReal:true` conventions above,
 including `requireReal=true` on every GET. Acquire/renew the three workspace
 leases with the same actor and refresh versions before writes.
 
-1. Record **F4 — operator/user edit: MPU_ADDR 0x68 → 0x69; intentional runtime
+1. Before writing the F4 fault, acquire/renew the firmware draft edit lease
+   with `workspace.acquire-edit-lease` and refresh runtime versions.
+   Record **F4 — operator/user edit: MPU_ADDR 0x68 → 0x69; intentional runtime
    I2C NACK fault, not an agent generation failure.** Read `src/main.cpp` through
    the workspace file GET. Locate the actual MPU6050 address constant and change
    only `MPU_ADDR` from `0x68` to `0x69`, preserving the generated declaration's
@@ -473,9 +496,13 @@ leases with the same actor and refresh versions before writes.
 2. Repeat Step 4 compile with `requireReal:true`; require a completed real
    PlatformIO run. Save that run's `.pio/build/nexus/firmware.elf` output ID.
    A compiler failure is not the intended F4 fault.
-3. Snapshot the electrical workspace:
-   `POST /v1/projects/{projectId}/artifacts/electrical-architecture/workspace/snapshots`
-   with `{"requestedBy":actor,"reason":"before-execution","requireReal":true}`.
+3. Snapshot the electrical workspace by sending the command envelope from
+   Request conventions to `POST /v1/projects/{projectId}/artifact-commands`,
+   using the current electrical binding, `commandType:"workspace.create-snapshot"`,
+   and `input:{"reason":"before-execution"}`. Keep `requireReal:true` at the
+   envelope's top level. Require HTTP success, `status:"completed"`,
+   and a present, non-null `snapshotId` before continuing. Use this
+   existing command instead of the electrical workspace snapshots REST route.
    Save `snapshotId`. Send the command envelope from Request conventions to
    `POST /v1/projects/{projectId}/artifact-commands`, using the current electrical
    binding, `commandType:"artifact.execute"`, a fresh command ID, and this input:
@@ -484,8 +511,12 @@ leases with the same actor and refresh versions before writes.
    {"snapshotId":"{snapshotId}","capability":"circuit-simulation","firmwareOutputId":"{elfOutputId}"}
    ```
 
-   Keep `requireReal:true` at the envelope's top level. Save the command result's
-   `executionRunId` as `simRunId`; poll the execution and inspect outputs by run ID.
+   Keep `requireReal:true` at the envelope's top level. Before polling, require
+   `status:"completed"` and a present, non-null
+   `executionRunId`. HTTP 200 alone is insufficient: on a failed
+   command, read `error.code` and its message in the response and triage; do not
+   poll a missing execution ID. Save the validated `executionRunId` as `simRunId`,
+   then poll the execution and inspect outputs by run ID.
    Apply the default 30-second hang triage threshold. Expected F4 is a completed
    runner with `serial.log` containing `NEXUS_MPU_INIT_FAIL`, no
    `NEXUS_MPU_READY`, and no telemetry samples. A timeout or unavailable simulator
@@ -527,7 +558,9 @@ Use another **fresh project**, repeating Steps 1–4. Keep every live request
 same-actor leases. F5 targets firmware; preserve `analysis.py` and R6's 45–55 Hz
 criterion throughout diagnosis and repair.
 
-1. Record **F5 — operator/user edit: SAMPLE_INTERVAL_MS 20 → 40; intentional
+1. Before writing the F5 fault, acquire/renew the firmware draft edit lease
+   with `workspace.acquire-edit-lease` and refresh runtime versions.
+   Record **F5 — operator/user edit: SAMPLE_INTERVAL_MS 20 → 40; intentional
    analysis criteria fault (25 Hz instead of 50 Hz), not an agent generation
    failure.** Read `src/main.cpp`, locate its sample interval constant and change
    only `SAMPLE_INTERVAL_MS` from `20` to `40`. Stop for review if the generated
