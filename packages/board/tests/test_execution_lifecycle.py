@@ -5,6 +5,21 @@ from __future__ import annotations
 from helpers import acquire_edit_lease, actor, build_test_kernel, cmd
 
 
+def test_list_outputs_filters_by_execution_run_id() -> None:
+    kernel, _, kernel_store, project_id = build_test_kernel()
+    outputs = [
+        {"outputId": "out_first", "projectId": project_id, "executionRunId": "exec_123"},
+        {"outputId": "out_other", "projectId": project_id, "executionRunId": "exec_456"},
+        {"outputId": "out_missing_run", "projectId": project_id},
+    ]
+    for output in outputs:
+        kernel_store.create_produced_output(output)
+
+    assert kernel.executions.list_outputs(project_id) == outputs
+    assert kernel.executions.list_outputs(project_id, execution_run_id="exec_123") == outputs[:1]
+    assert kernel.executions.list_outputs(project_id, execution_run_id="exec_unknown") == []
+
+
 class _InjectedExecutor:
     def execute(self, request: dict) -> dict:
         return {

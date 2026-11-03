@@ -134,7 +134,9 @@ class ExecutionService:
     ) -> list[dict[str, Any]]:
         outputs = self._kernel.list_produced_outputs(project_id)
         if execution_run_id is not None:
-            return [output for output in outputs if output["executionRunId"] == execution_run_id]
+            return [
+                output for output in outputs if output.get("executionRunId") == execution_run_id
+            ]
         return outputs
 
     def get_output(self, output_id: str) -> dict[str, Any]:

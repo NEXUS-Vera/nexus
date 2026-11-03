@@ -152,6 +152,13 @@ async def test_workspace_runtime_api_binding_files_snapshot_execute() -> None:
         items = outputs.json()["items"]
         assert len(items) == 2
         assert {o["executionRunId"] for o in items} == set(run_ids)
+        for blank in ("", "   ", "\t\n"):
+            unfiltered = await client.get(
+                f"/v1/projects/{project_id}/outputs",
+                params={"executionRunId": blank},
+            )
+            assert unfiltered.status_code == 200
+            assert unfiltered.json() == outputs.json()
         for execution_run_id in run_ids:
             filtered = await client.get(
                 f"/v1/projects/{project_id}/outputs",
@@ -169,6 +176,21 @@ async def test_workspace_runtime_api_binding_files_snapshot_execute() -> None:
         )
         assert unknown.status_code == 200
         assert unknown.json()["items"] == []
+
+
+@pytest.mark.asyncio
+async def test_outputs_filter_preserves_project_not_found() -> None:
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+        headers={"Authorization": "Bearer nexus-dev-session-token"},
+    ) as client:
+        response = await client.get(
+            "/v1/projects/proj_DOESNOTEXIST00001/outputs",
+            params={"executionRunId": "exec_123"},
+        )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "PROJECT_NOT_FOUND"
 
 
 def test_outputs_openapi_execution_run_filter() -> None:
