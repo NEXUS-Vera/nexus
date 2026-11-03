@@ -50,6 +50,10 @@ CONTENT_SCHEMA = (
 )
 
 
+# Readiness marker emitted by nexus_board/firmware/patch.py.
+PLATFORM_MPU_READY_MARKER = "NEXUS_MPU_READY"
+
+
 # Exact requirement semantics and criteria from packages/contracts/examples/valid/
 # esp32-imu-vibration-monitor/{requirement-set,test-plan}-artifact.json.
 # Display IDs are local labels and cannot authorize a deterministic criterion.
@@ -57,7 +61,7 @@ IMU_VERIFICATION: dict[str, dict[str, Any]] = {
     "The system uses an ESP32-based design that communicates with an MPU6050 over I²C.": {
         "title": "I²C communication",
         "verificationMethod": "simulation",
-        "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+        "criterion": {"criterionType": "contains", "marker": PLATFORM_MPU_READY_MARKER},
     },
     "I²C wiring for the MPU6050 uses SDA GPIO21 and SCL GPIO22.": {
         "title": "I²C pin mapping",
@@ -76,7 +80,7 @@ IMU_VERIFICATION: dict[str, dict[str, Any]] = {
     "Firmware initializes the MPU6050 and reports readiness before streaming.": {
         "title": "MPU6050 initialization",
         "verificationMethod": "execution-output",
-        "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+        "criterion": {"criterionType": "contains", "marker": PLATFORM_MPU_READY_MARKER},
     },
     (
         "Firmware streams acceleration telemetry in a machine-readable form "
@@ -141,7 +145,7 @@ def _structured_verification(
     """Derive definitions only; board verification alone assesses evidence."""
     text = requirement.get("statement", "").lower().replace("mpu-6050", "mpu6050")
     category = requirement.get("category")
-    if "inspection" in requirement.get("verificationMethod", "").lower():
+    if "inspection" in str(requirement.get("verificationMethod") or "").lower():
         return None
     quantity = requirement.get("targetQuantity") or {}
     value = quantity.get("value")
@@ -155,8 +159,8 @@ def _structured_verification(
     ):
         if re.search(r"sampl|telemetry interval", text) and unit in {"Hz", "ms", "s"}:
             hz = value if unit == "Hz" else (1000 if unit == "ms" else 1) / value
-            low = hz * (1 - PLATFORM_SAMPLING_TOLERANCE)
-            high = hz * (1 + PLATFORM_SAMPLING_TOLERANCE)
+            low = round(hz * (1 - PLATFORM_SAMPLING_TOLERANCE), 4)
+            high = round(hz * (1 + PLATFORM_SAMPLING_TOLERANCE), 4)
             if not all(math.isfinite(v) and v > 0 for v in (low, high)):
                 return None
             return {
@@ -174,7 +178,7 @@ def _structured_verification(
             and "accel_x" in text
             and "rms" in text
             and "noise" in text
-            and re.search(r"below|less than", text)
+            and re.search(r"\b(?:below|less than|under|not exceed|at most)\b", text)
         ):
             return {
                 "verificationMethod": "analysis",
@@ -196,7 +200,7 @@ def _structured_verification(
     ):
         return {
             "verificationMethod": "execution-output",
-            "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+            "criterion": {"criterionType": "contains", "marker": PLATFORM_MPU_READY_MARKER},
         }
     return None
 

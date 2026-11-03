@@ -1456,8 +1456,9 @@ def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> Non
 
 @pytest.mark.parametrize("repair_env", ["live"], indirect=True)
 @pytest.mark.parametrize("unit,value", [("Hz", 50), ("ms", 20), ("s", 0.02)])
+@pytest.mark.parametrize("noise,assessment", [(0.04, "PASS"), (0.12, "FAIL")])
 def test_live_structured_objectives(
-    repair_env: Any, monkeypatch: Any, unit: str, value: float
+    repair_env: Any, monkeypatch: Any, unit: str, value: float, noise: float, assessment: str
 ) -> None:
     from nexus_board.verification.close import (
         promote_analysis_evidence_into_test_plan,
@@ -1478,6 +1479,9 @@ def test_live_structured_objectives(
     reqs[4]["category"] = "performance"
     reqs[4]["targetQuantity"] = {"schemaVersion": "1.0.0", "value": value, "unit": unit}
     reqs[4]["acceptanceCriteria"] = ["Sampling meets the configured target."]
+    reqs[6]["statement"] = "The accel_x RMS noise shall remain under 0.08 g at rest."
+    reqs[6]["category"] = "performance"
+    reqs[6]["targetQuantity"] = {"schemaVersion": "1.0.0", "value": 0.08, "unit": "g"}
     plan = copy.deepcopy(original(pid, "execution-plan"))
     for objective, req in zip(plan["content"]["plan"]["verificationObjectives"], reqs, strict=True):
         objective["acceptanceCriteria"] = req.get("acceptanceCriteria", [])
@@ -1502,13 +1506,13 @@ def test_live_structured_objectives(
         "criterionType": "range",
         "metricId": "sampling_hz",
         "minValue": 45,
-        "maxValue": pytest.approx(55),
+        "maxValue": 55,
         "unit": "Hz",
     }
     assert all(c["status"] == "planned" and "assessment" not in c for c in cases)
     promoted, _ = promote_analysis_evidence_into_test_plan(
         content,
-        summary={"sampling_hz": 50},
+        summary={"sampling_hz": 50, "accel_x_rms_noise_g": noise},
         produced_output_names=[],
         execution_run_id="run_live",
     )
@@ -1517,6 +1521,8 @@ def test_live_structured_objectives(
     )
     assert promoted["testCases"][3]["assessment"] == "PASS"
     assert promoted["testCases"][4]["assessment"] == "PASS"
+    assert cases[6]["criterion"]["metricId"] == "accel_x_rms_noise_g"
+    assert promoted["testCases"][6]["assessment"] == assessment
     assert all(promoted["testCases"][i]["status"] == "planned" for i in (1, 2))
 
 
@@ -1549,14 +1555,16 @@ def test_structured_fallback_requires_derivable_target(changes: Any, configurati
     assert _structured_verification(requirement, configuration) is None
 
 
-def test_structured_noise_target() -> None:
+@pytest.mark.parametrize("phrase", ["below", "less than", "under", "not exceed", "at most"])
+def test_structured_noise_target(phrase: str) -> None:
     from nexus_embedded_systems.workflows.project_modification.execution_plan import (
         _structured_verification,
     )
 
     assert _structured_verification(
         {
-            "statement": "The accel_x RMS noise shall remain below 0.08 g at rest.",
+            "statement": f"The accel_x RMS noise shall remain {phrase} 0.08 g at rest.",
+            "verificationMethod": None,
             "category": "performance",
             "targetQuantity": {"value": 0.08, "unit": "g"},
         },
@@ -1571,3 +1579,23 @@ def test_structured_noise_target() -> None:
             "unit": "g",
         },
     }
+
+
+@pytest.mark.parametrize("unit", ["mg", "Hz", "G", ""])
+@pytest.mark.parametrize("phrase", ["under", "not exceed", "at most"])
+def test_structured_noise_rejects_unsupported_units(unit: str, phrase: str) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _structured_verification,
+    )
+
+    assert (
+        _structured_verification(
+            {
+                "statement": f"The accel_x RMS noise shall remain {phrase} 0.08 g at rest.",
+                "category": "performance",
+                "targetQuantity": {"value": 0.08, "unit": unit},
+            },
+            {},
+        )
+        is None
+    )
