@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from .schema_validator import validate_against_schema_id
+from .schema_validator import make_validator, validate_against_schema_id
 from .semantic_validators import SemanticValidationError
 
 SCHEMA_ID = "https://nexus.local/schemas/project/execution-plan.v1.schema.json"
@@ -84,6 +85,8 @@ def validate_execution_plan(
     requirement_ids = {r["entityId"] for r in plan["requirements"]}
     objective_ids = unique(plan["verificationObjectives"], "objectiveId")
     for objective in plan["verificationObjectives"]:
+        if "criterion" in objective and not valid_criterion_proposal(objective["criterion"]):
+            reject("Invalid or oversized criterion definition.")
         if objective["requirementId"] not in requirement_ids:
             reject(f"Unknown objective requirement: {objective}.")
         if objective["workspaceKey"] not in workspace_keys:
@@ -104,3 +107,21 @@ def validate_execution_plan(
             reject(f"Unknown step objective: {step['stepId']}.")
         preceding.add(step["stepId"])
     return errors
+
+
+def valid_criterion_proposal(criterion: Any) -> bool:
+    """Accept only bounded definitions; never accept model-authored assessments."""
+    if not isinstance(criterion, dict):
+        return False
+    try:
+        encoded = json.dumps(criterion, allow_nan=False)
+    except (ValueError, TypeError):
+        return False
+    if len(encoded) > 4096:
+        return False
+    schema = {"$ref": SCHEMA_ID + "#/properties/verificationObjectives/items/properties/criterion"}
+    if not make_validator(schema).is_valid(criterion):
+        return False
+    if criterion["criterionType"] == "range":
+        return bool(criterion["minValue"] <= criterion["maxValue"])
+    return True

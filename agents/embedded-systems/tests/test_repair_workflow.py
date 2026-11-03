@@ -1456,8 +1456,9 @@ def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> Non
 
 @pytest.mark.parametrize("repair_env", ["live"], indirect=True)
 @pytest.mark.parametrize("unit,value", [("Hz", 50), ("ms", 20), ("s", 0.02)])
+@pytest.mark.parametrize("proposal", [None, "valid", "criterion-only", "result", "unknown"])
 def test_live_structured_objectives(
-    repair_env: Any, monkeypatch: Any, unit: str, value: float
+    repair_env: Any, monkeypatch: Any, unit: str, value: float, proposal: str | None
 ) -> None:
     from nexus_board.verification.close import (
         promote_analysis_evidence_into_test_plan,
@@ -1481,6 +1482,26 @@ def test_live_structured_objectives(
     plan = copy.deepcopy(original(pid, "execution-plan"))
     for objective, req in zip(plan["content"]["plan"]["verificationObjectives"], reqs, strict=True):
         objective["acceptanceCriteria"] = req.get("acceptanceCriteria", [])
+    if proposal:
+        inspection = plan["content"]["plan"]["verificationObjectives"][1]
+        inspection.update(
+            criterion={"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+            verificationMethod="simulation",
+        )
+        objective = plan["content"]["plan"]["verificationObjectives"][4]
+        objective["verificationMethod"] = "analysis"
+        objective["criterion"] = {
+            "criterionType": "range",
+            "metricId": "sampling_hz",
+            "minValue": 48,
+            "maxValue": 52,
+        }
+        if proposal == "criterion-only":
+            objective.pop("verificationMethod")
+        if proposal == "result":
+            objective["criterion"]["result"] = "PASS"
+        elif proposal == "unknown":
+            objective["criterion"]["criterionType"] = "unknown"
     captured: dict[str, Any] = {}
 
     def get(project_id: str, kind: str) -> Any:
@@ -1498,13 +1519,22 @@ def test_live_structured_objectives(
     content = captured["new_artifact"]["content"]
     cases = content["testCases"]
     assert cases[3]["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
-    assert cases[4]["criterion"] == {
-        "criterionType": "range",
-        "metricId": "sampling_hz",
-        "minValue": 45,
-        "maxValue": pytest.approx(55),
-        "unit": "Hz",
-    }
+    assert cases[4]["criterion"] == (
+        {
+            "criterionType": "range",
+            "metricId": "sampling_hz",
+            "minValue": 48,
+            "maxValue": 52,
+        }
+        if proposal in {"valid", "criterion-only"}
+        else {
+            "criterionType": "range",
+            "metricId": "sampling_hz",
+            "minValue": 45,
+            "maxValue": pytest.approx(55),
+            "unit": "Hz",
+        }
+    )
     assert all(c["status"] == "planned" and "assessment" not in c for c in cases)
     promoted, _ = promote_analysis_evidence_into_test_plan(
         content,

@@ -1504,11 +1504,44 @@ class Step(TypedDict, closed=True):
     title: str
     workspaceKeys: list[str]
 
+class Criterion1(TypedDict, closed=True):
+    criterionType: Literal[
+        'numeric-comparison',
+        'exact-match',
+        'contains',
+        'existence',
+        'structural-mapping',
+        'range',
+    ]
+    expectedMapping: NotRequired[str]
+    expectedValue: NotRequired[str | float | bool]
+    marker: NotRequired[str]
+    maxValue: NotRequired[float]
+    metricId: NotRequired[str]
+    minValue: NotRequired[float]
+    operator: NotRequired[Literal['<', '<=', '>', '>=', '==', '!=']]
+    outputName: NotRequired[str]
+    signal: NotRequired[str]
+    tolerance: NotRequired[float]
+    toleranceUnit: NotRequired[Literal['absolute', 'percent']]
+    unit: NotRequired[str]
+
 class VerificationObjective(TypedDict, closed=True):
     acceptanceCriteria: list[str]
+    criterion: NotRequired[Criterion1]
     method: str
     objectiveId: str
     requirementId: str
+    verificationMethod: NotRequired[
+        Literal[
+            'inspection',
+            'simulation',
+            'firmware-test',
+            'analysis',
+            'execution-output',
+            'manual',
+        ]
+    ]
     workspaceKey: str
 
 class Workspace(TypedDict, closed=True):
@@ -1675,6 +1708,24 @@ class CurrentArtifactReference(TypedDict, closed=True):
     artifactVersion: int
     contentSchemaVersion: Literal['1.0.0']
 
+class VerificationObjective1(TypedDict, closed=True):
+    acceptanceCriteria: list[str]
+    criterion: NotRequired[Criterion1]
+    method: str
+    objectiveId: str
+    requirementId: str
+    verificationMethod: NotRequired[
+        Literal[
+            'inspection',
+            'simulation',
+            'firmware-test',
+            'analysis',
+            'execution-output',
+            'manual',
+        ]
+    ]
+    workspaceKey: str
+
 class ExecutionPlan(TypedDict, closed=True):
     assumptions: list[Assumption4]
     basisProjectStateVersion: int
@@ -1686,7 +1737,7 @@ class ExecutionPlan(TypedDict, closed=True):
     sourceArtifacts: list[SourceArtifact]
     status: Literal['proposed']
     steps: list[Step]
-    verificationObjectives: list[VerificationObjective]
+    verificationObjectives: list[VerificationObjective1]
     workspaces: list[Workspace]
 
 class OpenQuestionReference(TypedDict, closed=True):

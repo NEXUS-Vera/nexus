@@ -251,3 +251,36 @@ def test_fake_eval_suite_without_board_or_persistence_dependencies() -> None:
     )
     assert completed.returncode == 0, completed.stderr
     assert '"passed": true' in completed.stdout
+
+
+@pytest.mark.parametrize("with_result", [False, True])
+async def test_plan_criterion_proposals_preserve_golden_behavior(
+    monkeypatch: pytest.MonkeyPatch, with_result: bool
+) -> None:
+    from evals.embedded_project_initialization.runners import run_eval
+    from evals.embedded_project_initialization.runners.fake_provider import build_gateway_for_case
+
+    case = load_golden_cases()[0]
+    gateway = build_gateway_for_case(case)
+
+    def proposal(_task, payload, _schema):
+        criterion = {"criterionType": "contains", "marker": "DEVICE_READY"}
+        if with_result:
+            criterion["result"] = "PASS"
+        return {
+            "objectives": [
+                {
+                    "objectiveId": payload["objectives"][0]["objectiveId"],
+                    "criterion": criterion,
+                    "verificationMethod": "simulation",
+                }
+            ]
+        }
+
+    gateway.set_script("propose-execution-plan-criteria", proposal)
+    provider = run_eval.LlmInitializationProvider(
+        gateway=gateway, model_policy=run_eval.FAKE_MODEL_POLICY
+    )
+    monkeypatch.setattr(run_eval, "_build_fake_provider", lambda _case: provider)
+    outcome = await run_case(case)
+    assert outcome["passed"] is True

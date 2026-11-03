@@ -72,3 +72,92 @@ def test_seeded_test_plan_depth_counts_segments(monkeypatch: pytest.MonkeyPatch)
     )
     with pytest.raises(CommandValidationError, match=r"content\.testCases\.0\.status: deep leaf"):
         _validate_seeded_test_plan({"content": {}})
+
+
+@pytest.mark.parametrize(
+    "criterion",
+    [
+        {"criterionType": "unknown"},
+        {"criterionType": "contains", "marker": "ok", "result": "PASS"},
+        {"criterionType": "contains", "marker": "x" * 4097},
+        {"criterionType": "range", "metricId": "sampling_hz", "minValue": 60, "maxValue": 40},
+        {
+            "criterionType": "numeric-comparison",
+            "metricId": "m",
+            "operator": "<",
+            "expectedValue": float("inf"),
+        },
+        {
+            "criterionType": "numeric-comparison",
+            "metricId": "m",
+            "operator": "<",
+            "expectedValue": True,
+        },
+        {"criterionType": "exact-match", "expectedValue": {"verdict": "PASS"}},
+        {"criterionType": "contains"},
+    ],
+)
+def test_invalid_criterion_proposals(criterion: dict) -> None:
+    from nexus_contracts.validation.execution_plan_validator import valid_criterion_proposal
+
+    assert not valid_criterion_proposal(criterion)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", [False, True])
+async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool) -> None:
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+        propose_execution_plan_criteria,
+    )
+
+    criterion = {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    if invalid:
+        criterion["result"] = "PASS"
+    gateway = SimpleNamespace(
+        generate_structured=AsyncMock(
+            return_value=SimpleNamespace(
+                parsed_output={
+                    "objectives": [
+                        {
+                            "objectiveId": "o1",
+                            "criterion": criterion,
+                            "verificationMethod": "simulation",
+                        }
+                    ]
+                }
+            )
+        )
+    )
+    plan = {"verificationObjectives": [{"objectiveId": "o1"}]}
+    await propose_execution_plan_criteria(
+        plan,
+        {"artifacts": [{"artifactType": "requirement-set", "content": {"requirements": []}}]},
+        gateway,
+        None,
+    )
+    if invalid:
+        assert plan["verificationObjectives"] == [{"objectiveId": "o1"}]
+    else:
+        assert plan["verificationObjectives"][0]["criterion"] == criterion
+    from nexus_contracts.validation.schema_validator import make_validator
+
+    output_schema = gateway.generate_structured.call_args.kwargs["output_schema"]
+    assert make_validator(output_schema).is_valid(
+        gateway.generate_structured.return_value.parsed_output
+    ) == (not invalid)
+    prompt = gateway.generate_structured.call_args.kwargs["system_instructions"]
+    assert "Never author results" in prompt
+
+
+def test_criterion_definition_serialized_budget() -> None:
+    from nexus_contracts.validation.execution_plan_validator import valid_criterion_proposal
+
+    criterion = {"criterionType": "contains", "marker": ""}
+    criterion["marker"] = "x" * (4096 - len(json.dumps(criterion)))
+    assert len(json.dumps(criterion)) == 4096
+    assert valid_criterion_proposal(criterion)
+    criterion["marker"] += "x"
+    assert not valid_criterion_proposal(criterion)

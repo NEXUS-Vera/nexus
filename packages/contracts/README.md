@@ -174,3 +174,9 @@ roles, electrical connections, open decisions, planned workspace targets, object
 and ordered review steps. Schema and semantic validation jointly reject unsupported
 versions and dangling links. See the existing [initialization boundary document](../../docs/product/embedded-project-initialization-v1.md)
 for persistence, basis/version semantics and W1 limitations.
+
+Execution Plan objectives optionally carry a `criterion` and `verificationMethod`.
+Criteria reuse the Test Plan v1 closed vocabulary, with bounded proposal fields and
+required operands per type. Semantic validation additionally rejects inverted ranges
+and definitions exceeding 4096 serialized characters. Results and assessments are
+not part of this additive definition contract. Legacy objectives remain valid.

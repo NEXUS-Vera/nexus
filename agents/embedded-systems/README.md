@@ -120,7 +120,11 @@ Plan methods and deterministic criteria (R1–R8). Live requirements can also de
 structured sampling targets (Hz or intervals), accel_x RMS noise targets, or
 MPU6050 initialization on the approved I2C prototype. Sampling uses the golden
 ±10% platform tolerance. Acceptance prose is retained; unmapped objectives remain
-manual without a criterion. Inspection cases remain planned. Repair
+manual without a criterion. Live initialization optionally proposes typed criteria per
+Execution Plan objective. Definitions reuse the Test Plan vocabulary and are validated
+before review (including a 4096-character definition bound); rejected or absent
+proposals retain the platform rules above, then manual review. No model-authored
+results are accepted. Inspection cases remain planned. Repair
 stops on unsupported architectures and unavailable simulator prerequisites, retaining
 the error code rather than proposing a firmware correction. Missing legacy Test Plans
 yield empty inspection cases and `TEST_PLAN_MISSING` on evidence promotion.

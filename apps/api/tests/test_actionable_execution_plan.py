@@ -1194,3 +1194,30 @@ async def test_plan_rejects_malformed_requested_actor_before_writes(
         assert "requestedBy.actorId" in result["error"]["message"]
         assert (await client.get(f"/v1/projects/{pid}")).json() == before
         assert (await client.get(f"/v1/projects/{pid}/events")).json() == events
+
+
+@pytest.mark.asyncio
+async def test_initial_model_criterion_survives_default_proposal() -> None:
+    from nexus_api.main import _store, app
+
+    actor = _actor()
+    criterion = {
+        "criterionType": "range",
+        "metricId": "sampling_hz",
+        "minValue": 48,
+        "maxValue": 52,
+    }
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor, fixture=True)
+        state = _store.get_current_state(pid)
+        objective = state["project"]["executionPlan"]["verificationObjectives"][5]
+        objective.update(criterion=criterion, verificationMethod="analysis")
+        _store.save_initialization_package(state)
+        response = await _propose(client, pid, actor, config)
+        assert response.status_code == 200, response.text
+        proposed = response.json()["content"]["plan"]["verificationObjectives"][5]
+        assert proposed["criterion"] == criterion
+        assert proposed["verificationMethod"] == "analysis"
+        assert "assessment" not in proposed

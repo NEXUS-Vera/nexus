@@ -178,3 +178,109 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
             "provide an explicit configuration."
         )
     return next(iter(options.values()))
+
+
+async def propose_execution_plan_criteria(
+    plan: dict[str, Any], package: dict[str, Any], gateway: Any, model_policy: Any
+) -> None:
+    """Optional live definitions; invalid/missing proposals leave platform fallback intact."""
+    from nexus_contracts.validation.execution_plan_validator import valid_criterion_proposal
+    from nexus_contracts.validation.schema_validator import load_schemas_by_id
+    from nexus_model_gateway import ModelGatewayError
+
+    from .prompts.catalog import EXECUTION_PLAN_CRITERIA
+
+    prompt = EXECUTION_PLAN_CRITERIA
+    criterion_fields = load_schemas_by_id()[
+        "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json"
+    ]["$defs"]["criterion"]["properties"]
+    variants = []
+    for kind, fields in {
+        "numeric-comparison": ["metricId", "operator", "expectedValue"],
+        "range": ["metricId", "minValue", "maxValue"],
+        "exact-match": ["expectedValue"],
+        "contains": ["marker"],
+        "existence": ["outputName"],
+        "structural-mapping": ["signal", "expectedMapping"],
+    }.items():
+        properties = {key: criterion_fields[key] for key in fields}
+        properties["criterionType"] = {"type": "string", "enum": [kind]}
+        if "expectedValue" in properties:
+            properties["expectedValue"] = {
+                "type": "number"
+                if kind == "numeric-comparison"
+                else ["string", "number", "boolean"]
+            }
+        variants.append(
+            {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": properties,
+                "required": list(properties),
+            }
+        )
+    try:
+        generated = await gateway.generate_structured(
+            task_name="propose-execution-plan-criteria",
+            system_instructions=prompt.system_instructions,
+            input_payload={
+                "criterionSchema": load_schemas_by_id()[
+                    "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json"
+                ]["$defs"]["criterion"],
+                "objectives": plan["verificationObjectives"],
+                "requirements": next(
+                    a["content"]["requirements"]
+                    for a in package["artifacts"]
+                    if a["artifactType"] == "requirement-set"
+                ),
+            },
+            output_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["objectives"],
+                "properties": {
+                    "objectives": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["objectiveId", "criterion", "verificationMethod"],
+                            "properties": {
+                                "objectiveId": {"type": "string"},
+                                "criterion": {"anyOf": variants},
+                                "verificationMethod": {"type": "string"},
+                            },
+                        },
+                    }
+                },
+            },
+            model_policy=model_policy,
+            prompt_id=prompt.prompt_id,
+            prompt_version=prompt.version,
+        )
+    except ModelGatewayError:
+        return
+    if not isinstance(generated.parsed_output, dict) or set(generated.parsed_output) != {
+        "objectives"
+    }:
+        return
+    proposals = generated.parsed_output["objectives"]
+    if not isinstance(proposals, list):
+        return
+    for objective in plan["verificationObjectives"]:
+        matches = [
+            p
+            for p in proposals
+            if isinstance(p, dict) and p.get("objectiveId") == objective["objectiveId"]
+        ]
+        if len(matches) != 1:
+            continue
+        proposal = matches[0]
+        if (
+            set(proposal) != {"objectiveId", "criterion", "verificationMethod"}
+            or proposal.get("verificationMethod")
+            not in {"analysis", "simulation", "execution-output", "firmware-test", "inspection"}
+            or not valid_criterion_proposal(proposal.get("criterion"))
+        ):
+            continue
+        objective.update({k: proposal[k] for k in ("criterion", "verificationMethod")})

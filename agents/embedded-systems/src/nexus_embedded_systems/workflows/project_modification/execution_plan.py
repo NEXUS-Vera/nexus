@@ -28,7 +28,10 @@ from nexus_board.verification.coverage import (
     compute_requirement_coverage,
     compute_test_plan_coverage_summary,
 )
-from nexus_contracts.validation.execution_plan_validator import validate_execution_plan
+from nexus_contracts.validation.execution_plan_validator import (
+    valid_criterion_proposal,
+    validate_execution_plan,
+)
 from nexus_contracts.validation.schema_validator import (
     load_schemas_by_id,
     make_validator,
@@ -264,6 +267,16 @@ class ExecutionPlanWorkflow:
         current["artifacts"] = [
             a for a in current["artifacts"] if a["artifactType"] != "execution-plan"
         ]
+        initial_plan = current["project"].get("executionPlan")
+        if (
+            plan is None
+            and initial_plan
+            and initial_plan["basisProjectStateVersion"] == base
+            and not validate_execution_plan(
+                initial_plan, current["artifacts"], current["openQuestions"]
+            )
+        ):
+            plan = initial_plan
         content = {
             "plan": plan or compose_execution_plan(current),
             "configuration": (
@@ -563,6 +576,33 @@ class ExecutionPlanWorkflow:
             mapped = IMU_VERIFICATION.get(statement) or _structured_verification(
                 requirement, artifact["content"]["configuration"]
             )
+            if (
+                valid_criterion_proposal(objective.get("criterion"))
+                and objective.get("verificationMethod")
+                in {
+                    None,
+                    "analysis",
+                    "simulation",
+                    "execution-output",
+                    "firmware-test",
+                    "inspection",
+                }
+                and not (mapped and mapped["verificationMethod"] == "inspection")
+                and "inspection" not in requirement.get("verificationMethod", "").lower()
+            ):
+                criterion = objective["criterion"]
+                default_method = {
+                    "numeric-comparison": "analysis",
+                    "range": "analysis",
+                    "existence": "analysis",
+                    "contains": "execution-output",
+                    "exact-match": "execution-output",
+                    "structural-mapping": "inspection",
+                }[criterion["criterionType"]]
+                mapped = {
+                    "criterion": criterion,
+                    "verificationMethod": objective.get("verificationMethod") or default_method,
+                }
             if mapped:
                 case.update(mapped)
                 case["expectedResult"] = mapped.get(
