@@ -390,6 +390,21 @@ async def test_complete_package_requires_usable_default_binding(usable: bool) ->
     "variant",
     [
         "captured",
+        "Arduino IDE",
+        "Arduino framework",
+        "Arduino core",
+        "Arduino library",
+        "Arduino board",
+        "Arduino Uno",
+        "Arduino Nano",
+        "Arduino Mega",
+        "two microcontrollers",
+        "multiple MCUs",
+        "two ESP32s",
+        "dual processors",
+        "ESP32S3",
+        "ESP32C3",
+        "ESP32C6",
         "no-assumptions",
         "disconnected",
         "extra-mcu",
@@ -438,6 +453,8 @@ async def test_captured_live_initialization(fixture: str, variant: str) -> None:
                 edge["description"] = f"Sensor transport uses {variant.upper()}."
     elif variant == "unnamed":
         message = "Build a vibration monitor with a microcontroller and a motion sensor."
+    elif variant != "captured":
+        message += f" Use {variant}."
     provider = LlmInitializationProvider(
         gateway=build_success_gateway(
             interpretation=captured["interpret-project"],
@@ -447,7 +464,14 @@ async def test_captured_live_initialization(fixture: str, variant: str) -> None:
         ),
         model_policy=MODEL_POLICY,
     )
-    if variant not in {"captured", "no-assumptions"}:
+    if variant not in {
+        "captured",
+        "no-assumptions",
+        "Arduino IDE",
+        "Arduino framework",
+        "Arduino core",
+        "Arduino library",
+    }:
         with pytest.raises(LlmInitializationError) as error:
             await provider.initialize(message, "collaborate", _context())
         assert error.value.code == "LLM_INITIALIZATION_VALIDATION_FAILED"
@@ -471,6 +495,13 @@ async def test_captured_live_initialization(fixture: str, variant: str) -> None:
     assert configuration["i2c"]["sclPin"] == 22
     plan = next(a["content"] for a in result["artifacts"] if a["artifactType"] == "component-plan")
     compute = [r for r in plan["componentRoles"] if r["category"] == "compute"]
+    sensors = [r for r in plan["componentRoles"] if r["category"] == "sensor"]
+    assert len(sensors) == 1
+    sensor_candidates = [
+        c for c in plan["candidates"] if c["componentRoleId"] == sensors[0]["componentRoleId"]
+    ]
+    assert [c["partNumber"] for c in sensor_candidates] == ["MPU6050"]
+    assert all(c["source"] == "user-provided" for c in sensor_candidates)
     assert len(compute) == 1
     assert compute[0]["name"] == "ESP32 host compute role"
     named = [c for c in plan["candidates"] if c["source"] == "user-provided"]

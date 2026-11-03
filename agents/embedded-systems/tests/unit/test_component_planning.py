@@ -484,3 +484,41 @@ def test_i2c_acquisition_interface_is_not_a_sensor_without_topology() -> None:
         }
     )
     assert roles[0]["category"] == "communication"
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Signal Acquisition and Buffering Subsystem", "Sensor Sampling Interface"],
+)
+@pytest.mark.parametrize("sensor_type", ["sensing", "input"])
+def test_single_platform_acquisition_keeps_named_sensor(name: str, sensor_type: str) -> None:
+    architecture = {
+        "nodes": [
+            {"nodeId": "node_host", "name": "Host", "functionalType": "processing"},
+            {
+                "nodeId": "node_sensor",
+                "name": "MPU6050 inertial sensor sampling",
+                "functionalType": sensor_type,
+            },
+            {"nodeId": "node_acquisition", "name": name, "functionalType": "input"},
+        ],
+        "edges": [
+            {
+                "fromNodeId": "node_sensor",
+                "toNodeId": "node_acquisition",
+                "flowType": "data",
+                "description": "Raw acceleration samples",
+            }
+        ],
+    }
+    plan = compose_component_plan_content(
+        architecture_content=architecture,
+        requirement_set_content={"requirements": []},
+        user_message="Build an ESP32 monitor with an MPU6050.",
+    )
+    compute = [r for r in plan["componentRoles"] if r["category"] == "compute"]
+    sensors = [r for r in plan["componentRoles"] if r["category"] == "sensor"]
+    assert len(compute) == len(sensors) == 1
+    assert set(compute[0]["architectureNodeIds"]) == {"node_host", "node_acquisition"}
+    assert sensors[0]["architectureNodeIds"] == ["node_sensor"]
+    assert sorted(c["partNumber"] for c in plan["candidates"]) == ["ESP32-DEVKIT-V1", "MPU6050"]
