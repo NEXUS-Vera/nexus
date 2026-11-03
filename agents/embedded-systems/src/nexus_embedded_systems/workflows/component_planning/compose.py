@@ -39,9 +39,9 @@ def compose_component_plan_content(
     # separate processors. Explicit additional platforms remain ambiguous.
     single_platform = requests_supported_prototype(user_message) and not re.search(
         r"\b(?:STM32\w*|RP2040|RP2350|ATmega\w*|"
-        r"Arduino\s+(?:board|Uno|Nano|Mega|Due|Leonardo|Micro|MKR|Giga)|Raspberry\s+Pi|"
+        r"Arduino\s+(?:boards?|Uno|Nano|Mega|Due|Leonardo|Micro|Zero|MKR\w*|Giga)|Raspberry\s+Pi|"
         r"ESP8266|ESP32[- ]?(?:S[23]|C[236]|H2|P4)s?|"
-        r"(?:two|multiple|dual|second|another|additional)\s+"
+        r"(?:two|multiple|dual|second|another|additional|multi|[2-9]|\d{2,})[-\s]+"
         r"(?:ESP32s?|MCUs?|processors?|microcontrollers?))\b",
         user_message,
         re.I,
@@ -51,7 +51,8 @@ def compose_component_plan_content(
         acquisition_nodes = {
             n["nodeId"]
             for n in architecture_content.get("nodes", [])
-            if n.get("functionalType") == "input"
+            if isinstance(n.get("nodeId"), str)
+            and n.get("functionalType") == "input"
             and re.search(r"\b(?:acquisition|sampling)\b", n.get("name", ""), re.I)
             and not re.search(r"\bMPU[- ]?6050\b", n.get("name", ""), re.I)
         }
