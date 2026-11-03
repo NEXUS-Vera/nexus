@@ -206,12 +206,16 @@ class WokwiProvider:
             not result.timed_out
             and result.exit_code == 42
             and not request.expect_text
-            and f"Timeout: simulation did not finish in {simulation_timeout_ms}ms"
-            in result.stderr.decode("utf-8", errors="replace").splitlines()
+            and any(
+                line.strip() == f"Timeout: simulation did not finish in {simulation_timeout_ms}ms"
+                for line in result.stderr.decode("utf-8", errors="replace").splitlines()
+            )
         )
         diagnostic = self._diagnostic(result.stdout, result.stderr)
         if not result.timed_out and result.exit_code != 0 and not capture_window_reached:
-            stderr_tail = sanitize_diagnostic(self._redact(result.stderr)[-600:], self._token)
+            stderr_tail = sanitize_diagnostic(
+                self._redact(result.stderr)[-600:], self._token
+            ).strip()
             diagnostic = (
                 f"Circuit simulation exited with exit code {result.exit_code}; "
                 f"stderr tail: {stderr_tail or '(empty)'}"

@@ -626,9 +626,10 @@ def test_real_golden_parts_have_exact_i2c_mappings(source: str) -> None:
     ("exit_code", "expect_text", "stderr", "succeeded"),
     (
         (42, (), b"Timeout: simulation did not finish in 5000ms\n", True),
+        (42, (), b"other line\n \tTimeout: simulation did not finish in 5000ms \t\n", True),
         (42, ("ready",), b"Timeout: simulation did not finish in 5000ms\n", False),
         (42, (), b"unrelated error", False),
-        (1, (), b"head" + b"x" * 2000 + b"fatal secret-value failure", False),
+        (1, (), b"head" + b"x" * 2000 + b"fatal secret-value failure\n\n", False),
     ),
 )
 def test_capture_window_and_failure_diagnostics(
@@ -671,6 +672,23 @@ def test_capture_window_and_failure_diagnostics(
             assert "head" not in result.diagnostic
             assert "secret-value" not in result.diagnostic
             assert len(result.diagnostic) < 700
+
+
+@pytest.mark.parametrize("stderr", [b"", b" \t\n\r\n"])
+def test_failure_diagnostic_with_empty_stderr_tail(stderr: bytes) -> None:
+    runner = RecordingRunner(
+        RunnerResult(exit_code=1, timed_out=False, stdout=b"", stderr=stderr, outputs={})
+    )
+    provider = WokwiProvider(token="secret-value", executable=sys.executable, runner=runner)
+    result = provider.execute(
+        ExecutionRequest(
+            provider.materialize(simulation_request()),
+            firmware_elf_bytes=b"ELF",
+        )
+    )
+    assert not result.succeeded
+    assert result.diagnostic == "Circuit simulation exited with exit code 1; stderr tail: (empty)"
+    assert result.findings[-1].message == result.diagnostic
 
 
 def test_safe_runner_preserves_stderr_tail() -> None:
