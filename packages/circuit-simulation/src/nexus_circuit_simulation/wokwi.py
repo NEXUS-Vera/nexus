@@ -202,6 +202,20 @@ class WokwiProvider:
                         truncated=result.timed_out or truncated or name in result.truncated_outputs,
                     )
                 )
+        capture_window_reached = (
+            not result.timed_out
+            and result.exit_code == 42
+            and not request.expect_text
+            and f"Timeout: simulation did not finish in {simulation_timeout_ms}ms"
+            in result.stderr.decode("utf-8", errors="replace").splitlines()
+        )
+        diagnostic = self._diagnostic(result.stdout, result.stderr)
+        if not result.timed_out and result.exit_code != 0 and not capture_window_reached:
+            stderr_tail = sanitize_diagnostic(self._redact(result.stderr)[-600:], self._token)
+            diagnostic = (
+                f"Circuit simulation exited with exit code {result.exit_code}; "
+                f"stderr tail: {stderr_tail or '(empty)'}"
+            )
         findings = list(request.workspace.findings)
         if result.timed_out:
             findings.append(
@@ -211,17 +225,24 @@ class WokwiProvider:
                     severity=FindingSeverity.ERROR,
                 )
             )
+        elif capture_window_reached:
+            findings.append(
+                Finding(
+                    code="CAPTURE_WINDOW_REACHED",
+                    message="Circuit simulation capture window reached",
+                    severity=FindingSeverity.INFO,
+                )
+            )
         elif result.exit_code != 0:
             findings.append(
                 Finding(
                     code="SIMULATION_FAILED",
-                    message="Circuit simulation exited unsuccessfully",
+                    message=diagnostic,
                     severity=FindingSeverity.ERROR,
                 )
             )
-        diagnostic = self._diagnostic(result.stdout, result.stderr)
         return ExecutionResult(
-            succeeded=not result.timed_out and result.exit_code == 0,
+            succeeded=not result.timed_out and (result.exit_code == 0 or capture_window_reached),
             exit_code=result.exit_code,
             timed_out=result.timed_out,
             outputs=tuple(outputs),

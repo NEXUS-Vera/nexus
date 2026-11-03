@@ -620,3 +620,67 @@ def test_real_golden_parts_have_exact_i2c_mappings(source: str) -> None:
     assert {p["type"] for p in diagram["parts"]} == {"wokwi-esp32-devkit-v1", "wokwi-mpu6050"}
     assert ["mcu1:D21", "imu1:SDA", "green", []] in diagram["connections"]
     assert ["mcu1:D22", "imu1:SCL", "blue", []] in diagram["connections"]
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "expect_text", "stderr", "succeeded"),
+    (
+        (42, (), b"Timeout: simulation did not finish in 5000ms\n", True),
+        (42, ("ready",), b"Timeout: simulation did not finish in 5000ms\n", False),
+        (42, (), b"unrelated error", False),
+        (1, (), b"head" + b"x" * 2000 + b"fatal secret-value failure", False),
+    ),
+)
+def test_capture_window_and_failure_diagnostics(
+    exit_code: int, expect_text: tuple[str, ...], stderr: bytes, succeeded: bool
+) -> None:
+    runner = RecordingRunner(
+        RunnerResult(
+            exit_code=exit_code,
+            timed_out=False,
+            stdout=b"TEL,0\n" * 1000,
+            stderr=stderr,
+            outputs={"serial.log": b"TEL,0\n", "trace.vcd": b"trace", "screenshot.png": b"png"},
+        )
+    )
+    provider = WokwiProvider(token="secret-value", executable=sys.executable, runner=runner)
+    result = provider.execute(
+        ExecutionRequest(
+            provider.materialize(simulation_request()),
+            firmware_elf_bytes=b"ELF",
+            timeout_seconds=5,
+            expect_text=expect_text,
+            capture_vcd=True,
+            capture_screenshot=True,
+        )
+    )
+    assert result.succeeded is succeeded
+    assert result.exit_code == exit_code
+    assert not result.timed_out
+    if succeeded:
+        assert result.findings[-1].code == "CAPTURE_WINDOW_REACHED"
+        assert result.findings[-1].severity.value == "info"
+        assert {o.name for o in result.outputs} >= {"serial.log", "trace.vcd", "screenshot.png"}
+        assert not any(o.truncated for o in result.outputs)
+    else:
+        assert result.findings[-1].code == "SIMULATION_FAILED"
+        assert f"exit code {exit_code}" in result.diagnostic
+        assert "stderr tail:" in result.diagnostic
+        if exit_code == 1:
+            assert result.diagnostic.endswith("fatal [REDACTED] failure")
+            assert "head" not in result.diagnostic
+            assert "secret-value" not in result.diagnostic
+            assert len(result.diagnostic) < 700
+
+
+def test_safe_runner_preserves_stderr_tail() -> None:
+    result = SafeSubprocessRunner(max_output_bytes=4).run(
+        RunnerRequest(
+            executable=Path(sys.executable),
+            arguments=("-c", "import sys; sys.stderr.write('abcdefgh'); sys.exit(1)"),
+            files={},
+            timeout_seconds=5,
+        )
+    )
+    assert result.stderr == b"efgh"
+    assert "stderr" in result.truncated_outputs

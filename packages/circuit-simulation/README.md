@@ -54,3 +54,10 @@ plus 10 seconds for startup, capped at 310 seconds. On host timeout, available
 serial output is retained on the timed-out run as unverified, truncated evidence;
 it does not make the simulation successful. These budgets do not guarantee a
 live provider will finish under every load.
+
+Without expected serial text, a Wokwi simulation timeout (exit 42 with the
+matching timeout diagnostic) completes the fixed capture window successfully.
+The result retains exit code 42 and an informational `CAPTURE_WINDOW_REACHED`
+finding. Requested observations must still be present and complete. With
+expected text, the same timeout fails. Other nonzero exits fail with the exit
+code and a bounded, credential-redacted stderr tail in the diagnostic.
