@@ -1,0 +1,656 @@
+{
+  "interpret-project": {
+    "withinBoundary": true,
+    "supportedDomain": true,
+    "projectStage": "concept",
+    "primaryGoal": "Design an ESP32-based vibration monitor that streams acceleration telemetry and verifies that the stationary accel_x RMS noise remains below 0.10 g.",
+    "physicalComputingPresent": true,
+    "embeddedProductPresent": true,
+    "candidateProjectTitle": "ESP32 Vibration Monitor with Acceleration Telemetry and Noise Verification",
+    "explicitUserClaims": [
+      "The microcontroller must be an ESP32 (user-stated constraint).",
+      "The inertial sensor must be an MPU6050 (user-stated constraint).",
+      "The device must stream acceleration telemetry.",
+      "The device must analyze stationary sensor noise.",
+      "The accel_x RMS noise must be verified to stay below 0.10 g."
+    ],
+    "likelyMissingDimensions": [
+      "Telemetry transport or connectivity method (e.g., wired vs. wireless, protocol, destination host) not specified.",
+      "Sampling rate or data-rate configuration for the inertial sensor not specified.",
+      "Power source and power budget not described.",
+      "Physical form factor, enclosure, or mounting method not described.",
+      "How RMS noise verification results are reported or acted upon (alert, log, display) not specified.",
+      "Duration or conditions of the stationary noise characterization test not defined.",
+      "Axes other than accel_x and whether they have noise requirements not addressed."
+    ],
+    "unsupportedReasons": []
+  },
+  "userMessage": "Build an ESP32-based vibration monitor using an MPU6050. It should stream acceleration telemetry and analyze stationary sensor noise to verify that accel_x RMS noise stays below 0.10 g.",
+  "generate-project-brief": {
+    "goal": "Design and prototype an ESP32-based vibration monitor that continuously streams acceleration telemetry from an MPU6050 inertial sensor and verifies that the stationary accel_x RMS noise level remains below 0.10 g.",
+    "problemStatement": "Vibration monitoring applications require confidence that the sensing system's own noise floor does not corrupt measurements. Without a verified noise baseline, it is impossible to distinguish genuine low-amplitude vibration events from sensor artifact. A prototype is needed that both streams live acceleration data and performs an in-situ stationary noise characterization to confirm the accel_x RMS noise budget of 0.10 g is met.",
+    "intendedContext": "Early-concept embedded prototype intended for vibration sensing and telemetry, targeting a benchtop or field-mounted deployment where the device is held stationary during noise characterization and then exposed to vibration sources during normal operation.",
+    "projectStage": "concept",
+    "scope": [
+      "Interface an MPU6050 inertial sensor with an ESP32 microcontroller to acquire tri-axis acceleration data.",
+      "Stream acceleration telemetry from the ESP32 to an external destination.",
+      "Implement a stationary noise characterization routine that computes the RMS value of accel_x samples over a defined capture window.",
+      "Enforce and report a pass/fail verdict against the 0.10 g accel_x RMS noise threshold.",
+      "Define and document the sensor data-rate configuration used during noise characterization and telemetry streaming.",
+      "Validate the end-to-end data path from sensor acquisition through telemetry output."
+    ],
+    "outOfScope": [
+      "PCB layout, schematic design, or hardware validation of a custom board.",
+      "Regulatory certification or compliance testing.",
+      "Production firmware development or deployment.",
+      "Detailed component selection beyond the user-stated ESP32 and MPU6050 constraints.",
+      "Final bill-of-materials generation or purchasing.",
+      "Enclosure design or mechanical mounting engineering.",
+      "Manufacturing planning.",
+      "Debugging or diagnosing an existing implementation."
+    ],
+    "successCriteria": [
+      "The ESP32 successfully reads acceleration data from the MPU6050 and the data stream contains no systematic gaps or corruption.",
+      "Acceleration telemetry is continuously transmitted to an external destination at a defined and documented sampling rate.",
+      "The stationary noise characterization routine captures a sufficient window of accel_x samples and computes an RMS value.",
+      "The computed accel_x RMS noise is verified to be below 0.10 g under stationary conditions, with a clear pass/fail result reported.",
+      "The noise verification result is observable by the developer (via log, display, or transmitted report).",
+      "The system behavior and noise characterization procedure are documented well enough to reproduce the test."
+    ],
+    "assumptions": [
+      {
+        "statement": "The microcontroller is an ESP32, as explicitly required by the user.",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "The inertial sensor is an MPU6050, as explicitly required by the user.",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "The device must stream acceleration telemetry to an external destination.",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "The accel_x RMS noise must remain below 0.10 g under stationary conditions.",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "The noise characterization is performed while the device is physically stationary, isolating sensor self-noise from external vibration.",
+        "sourceType": "user-implied",
+        "confidence": "high",
+        "confirmationStatus": "proposed"
+      },
+      {
+        "statement": "All three acceleration axes (x, y, z) will be acquired and streamed, even though only accel_x has an explicit noise requirement.",
+        "sourceType": "user-implied",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      },
+      {
+        "statement": "The project is at the concept stage and no existing implementation is being debugged or modified.",
+        "sourceType": "user-implied",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "A single ESP32 and single MPU6050 unit constitute the prototype hardware.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "The telemetry destination is a host computer or networked endpoint reachable from the ESP32.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "The noise characterization routine will be triggered on demand or at startup, not run continuously in parallel with telemetry streaming.",
+        "sourceType": "system-inferred",
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "This workflow covers only concept and prototype-planning stages and does not include production firmware, PCB layout, or manufacturing.",
+        "sourceType": "project-policy",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      }
+    ],
+    "unknownStatements": [
+      "The telemetry transport method and destination protocol are unspecified (e.g., wired serial, Wi-Fi, Bluetooth, MQTT, UDP, or other).",
+      "The inertial sensor sampling rate and full-scale range configuration to be used during both telemetry streaming and noise characterization are unspecified.",
+      "The duration and minimum sample count of the stationary noise characterization window are unspecified.",
+      "The power source and power budget for the device are unspecified.",
+      "The physical form factor, enclosure type, and mounting method are unspecified.",
+      "Whether accel_y and accel_z have noise requirements analogous to the 0.10 g accel_x limit is unspecified.",
+      "How the noise verification pass/fail result is reported or acted upon (e.g., serial log, LED indicator, transmitted alert, display) is unspecified.",
+      "The environmental conditions (temperature range, vibration isolation quality) under which the stationary noise test must be valid are unspecified."
+    ]
+  },
+  "generate-requirements": {
+    "requirements": [
+      {
+        "localRequirementKey": "REQ-001",
+        "statement": "The microcontroller used in the device shall be an ESP32.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "rationale": "The user explicitly stated the ESP32 as a fixed hardware constraint.",
+        "verificationMethod": "Inspection of hardware design and bill of materials.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-002",
+        "statement": "The inertial measurement unit used in the device shall be an MPU6050.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "rationale": "The user explicitly stated the MPU6050 as a fixed sensor constraint.",
+        "verificationMethod": "Inspection of hardware design and bill of materials.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-003",
+        "statement": "The device shall continuously acquire three-axis acceleration data from the inertial sensor.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-implied",
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "rationale": "Streaming acceleration telemetry and performing noise analysis both necessarily require continuous acquisition of acceleration data from the sensor.",
+        "verificationMethod": "Functional test: verify that acceleration samples on all three axes are read and available at the output interface.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-004",
+        "statement": "The device shall stream acceleration telemetry to an external destination in real time.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "rationale": "The user explicitly required streaming of acceleration telemetry as a primary function.",
+        "verificationMethod": "Functional test: confirm that acceleration data packets are received at the destination host during device operation.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-005",
+        "statement": "The device shall implement a stationary noise characterization mode in which it collects a defined window of acceleration samples while the sensor is held stationary.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "rationale": "The user explicitly required analysis of stationary sensor noise as a device function.",
+        "verificationMethod": "Functional test: trigger the noise characterization mode and confirm that a sample window is collected under stationary conditions.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-006",
+        "statement": "The device shall compute the RMS noise of the accel_x axis over the stationary sample window and verify that the result is below 0.10 g.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed",
+        "rationale": "The user explicitly stated that accel_x RMS noise must be verified to remain below 0.10 g.",
+        "acceptanceCriteria": [
+          "The computed accel_x RMS noise value is less than 0.10 g during the stationary characterization test.",
+          "The device produces a distinct pass or fail outcome based on the 0.10 g threshold."
+        ],
+        "verificationMethod": "Test: place device on a vibration-isolated stationary surface, trigger noise characterization mode, and confirm the reported accel_x RMS value is below 0.10 g.",
+        "targetQuantity": {
+          "comparator": "lte",
+          "value": 0.1,
+          "unit": "g"
+        }
+      },
+      {
+        "localRequirementKey": "REQ-007",
+        "statement": "The device shall report the outcome of the accel_x RMS noise verification (pass or fail) through an observable output channel.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "user-implied",
+        "confidence": "high",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "Verification of a threshold is only useful if the result is communicated; the specific output channel (serial log, telemetry stream, display, indicator) has not been specified by the user.",
+        "verificationMethod": "Functional test: trigger noise characterization and confirm that a pass/fail result is observable at the output channel.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-008",
+        "statement": "The device shall operate at a defined, configurable acceleration data sampling rate sufficient to characterize vibration and compute RMS noise accurately.",
+        "category": "functional",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "A defined sampling rate is required for both telemetry streaming and RMS noise computation to be meaningful; the specific rate has not been stated by the user.",
+        "verificationMethod": "Test: measure the actual sample acquisition rate and confirm it matches the configured value.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-009",
+        "statement": "The telemetry stream shall include a timestamp or sequence number with each acceleration data packet to allow ordering and latency assessment at the receiver.",
+        "category": "interface",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "Timestamping or sequencing is a standard practice for telemetry streams to enable data integrity checks and latency measurement; not stated by the user.",
+        "verificationMethod": "Inspection of telemetry packet format; confirm presence of timestamp or sequence field in received packets.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-010",
+        "statement": "The device shall maintain telemetry streaming without data loss under normal operating conditions.",
+        "category": "performance",
+        "priority": "should",
+        "sourceType": "user-implied",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "Streaming telemetry implies continuous, reliable data delivery; the acceptable packet loss rate has not been quantified by the user.",
+        "verificationMethod": "Test: stream telemetry for a defined duration and measure packet loss rate at the receiver.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-011",
+        "statement": "The device shall be powered by a supply source compatible with its operating environment.",
+        "category": "resource",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "All embedded devices require a power source; the user has not specified whether the device is mains-powered, battery-powered, or USB-powered, nor any power budget.",
+        "verificationMethod": "Inspection: confirm power supply compatibility with device operating voltage and current requirements.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-012",
+        "statement": "The device shall operate reliably within its intended physical deployment environment.",
+        "category": "environmental",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "No operating temperature range, humidity range, or environmental conditions have been specified by the user.",
+        "verificationMethod": "Test: operate device across the specified environmental range and confirm correct function.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-013",
+        "statement": "The device shall provide a means to mount or attach it to the monitored structure in a manner that does not introduce additional vibration artifacts into the sensor measurements.",
+        "category": "physical",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "confidence": "low",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "Vibration monitoring accuracy depends on secure, artifact-free mounting; no form factor or mounting method has been specified by the user.",
+        "verificationMethod": "Inspection and test: verify mounting method does not introduce measurable vibration artifacts under stationary conditions.",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-014",
+        "statement": "The noise characterization test shall be conducted over a stationary window of sufficient duration to produce a statistically stable RMS estimate.",
+        "category": "verification",
+        "priority": "must",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "RMS noise computed over too short a window may not be statistically representative; the required window duration has not been specified by the user.",
+        "verificationMethod": "Analysis: confirm that the sample count used for RMS computation meets a minimum statistical sufficiency criterion (e.g., defined minimum number of samples or duration).",
+        "targetQuantity": null
+      },
+      {
+        "localRequirementKey": "REQ-015",
+        "statement": "The noise characterization mode shall be clearly distinguishable from the normal telemetry streaming mode, either through a dedicated trigger mechanism or a separate operational state.",
+        "category": "usability",
+        "priority": "should",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation",
+        "rationale": "Having two distinct operational modes (streaming and noise characterization) requires a clear mechanism to switch between them to avoid ambiguity during use.",
+        "verificationMethod": "Functional test: confirm that the device enters and exits noise characterization mode via the defined trigger and that the two modes do not interfere.",
+        "targetQuantity": null
+      }
+    ],
+    "requirementSummary": "Fifteen requirements have been derived for the ESP32-based vibration monitor. Five are confirmed user-explicit requirements covering the ESP32 MCU constraint, the MPU6050 sensor constraint, continuous acceleration acquisition, real-time telemetry streaming, stationary noise characterization mode, and the hard accel_x RMS noise threshold of less than 0.10 g. Two further requirements are user-implied (noise result reporting and telemetry reliability). The remaining eight are system-inferred sensible defaults covering sampling rate configurability, telemetry packet integrity, power supply, environmental operating range, physical mounting, noise window statistical sufficiency, and mode distinguishability \u2014 all of which require user confirmation before being treated as binding.",
+    "missingDimensions": [
+      "telemetry transport and connectivity method (wired vs. wireless, protocol, destination host)",
+      "acceleration sampling rate or sensor data-rate configuration",
+      "noise characterization window duration and minimum sample count",
+      "noise verification result reporting channel (serial log, telemetry, display, indicator, alert)",
+      "noise requirements for accel_y and accel_z axes",
+      "power source type and power budget",
+      "physical form factor, enclosure, and mounting method",
+      "operating temperature and environmental conditions"
+    ]
+  },
+  "generate-functional-architecture": {
+    "systemBoundary": "The system boundary encompasses the embedded vibration monitor device, including: inertial sensing, raw acceleration data acquisition, noise analysis (RMS computation and threshold verification), telemetry streaming, and result/status reporting. External to the boundary are: the telemetry destination host/receiver, any external power supply or battery, and any external display or alerting infrastructure not embedded on the device.",
+    "nodes": [
+      {
+        "localNodeKey": "N01",
+        "name": "Inertial Sensing Subsystem",
+        "functionalType": "sensing",
+        "responsibilities": [
+          "Acquire raw 3-axis acceleration measurements from the MPU6050 (user-stated constraint) at a configured data rate.",
+          "Apply any sensor-internal digital low-pass filter settings to condition the raw signal.",
+          "Expose calibrated acceleration samples (in g) on all three axes to downstream subsystems.",
+          "Maintain continuous sample availability to avoid data gaps during streaming and noise analysis."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-SENSOR",
+          "R-ACCEL-STREAM",
+          "R-NOISE-AXES"
+        ]
+      },
+      {
+        "localNodeKey": "N02",
+        "name": "Data Acquisition and Buffering Subsystem",
+        "functionalType": "processing",
+        "responsibilities": [
+          "Receive timestamped acceleration samples from the Inertial Sensing Subsystem.",
+          "Buffer samples into fixed-length windows suitable for both telemetry packaging and noise analysis.",
+          "Manage sample timing to ensure consistent inter-sample intervals.",
+          "Route buffered sample windows to both the Telemetry Streaming Subsystem and the Noise Analysis Subsystem concurrently."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-ACCEL-STREAM",
+          "R-NOISE-ANALYSIS",
+          "R-SAMPLE-RATE"
+        ]
+      },
+      {
+        "localNodeKey": "N03",
+        "name": "Noise Analysis Subsystem",
+        "functionalType": "analysis",
+        "responsibilities": [
+          "Receive stationary-condition acceleration sample windows from the Data Acquisition and Buffering Subsystem.",
+          "Compute the RMS value of the accel_x channel over each analysis window.",
+          "Compare the computed accel_x RMS against the 0.10 g threshold.",
+          "Produce a pass/fail verification result for each analysis window.",
+          "Optionally compute RMS for accel_y and accel_z axes for extended characterization.",
+          "Forward verification results to the Status and Reporting Subsystem."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-NOISE-ANALYSIS",
+          "R-RMS-THRESHOLD",
+          "R-NOISE-AXES"
+        ]
+      },
+      {
+        "localNodeKey": "N04",
+        "name": "Telemetry Streaming Subsystem",
+        "functionalType": "communication",
+        "responsibilities": [
+          "Receive packaged acceleration sample windows from the Data Acquisition and Buffering Subsystem.",
+          "Serialize acceleration data (all axes, timestamps) into a transmittable payload format.",
+          "Transmit telemetry payloads continuously to the external telemetry receiver via the available communication interface on the ESP32 (user-stated constraint).",
+          "Handle transmission errors and implement retry or drop logic to maintain stream continuity.",
+          "Report transmission status back to the Status and Reporting Subsystem."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-ACCEL-STREAM",
+          "R-TELEMETRY-DEST"
+        ]
+      },
+      {
+        "localNodeKey": "N05",
+        "name": "Status and Reporting Subsystem",
+        "functionalType": "output",
+        "responsibilities": [
+          "Receive noise verification pass/fail results from the Noise Analysis Subsystem.",
+          "Receive telemetry transmission status from the Telemetry Streaming Subsystem.",
+          "Aggregate and format status information (noise verdict, threshold value, computed RMS, stream health).",
+          "Emit status reports via an available output channel (e.g., local log, indicator, or piggybacked telemetry field).",
+          "Raise an indication when accel_x RMS exceeds the 0.10 g threshold."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-RMS-THRESHOLD",
+          "R-STATUS-REPORT"
+        ]
+      },
+      {
+        "localNodeKey": "N06",
+        "name": "Processing and Control Core",
+        "functionalType": "control",
+        "responsibilities": [
+          "Orchestrate initialization and sequencing of all subsystems at startup.",
+          "Manage the operating mode (streaming-only vs. stationary noise characterization) and transitions between modes.",
+          "Enforce timing constraints for sampling, analysis windows, and telemetry intervals.",
+          "Supervise subsystem health and trigger recovery actions on fault conditions.",
+          "Provide the execution environment for all embedded software subsystems running on the ESP32 (user-stated constraint)."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-ACCEL-STREAM",
+          "R-NOISE-ANALYSIS",
+          "R-SAMPLE-RATE",
+          "R-MCU"
+        ]
+      },
+      {
+        "localNodeKey": "N07",
+        "name": "Power Management Subsystem",
+        "functionalType": "power",
+        "responsibilities": [
+          "Accept power from an external supply source.",
+          "Regulate and distribute appropriate voltage and current levels to the sensing, processing, and communication subsystems.",
+          "Monitor supply voltage to detect under-voltage conditions.",
+          "Support any low-power modes if defined by operational requirements."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-POWER"
+        ]
+      },
+      {
+        "localNodeKey": "N08",
+        "name": "External Telemetry Receiver",
+        "functionalType": "external-system",
+        "responsibilities": [
+          "Receive streamed acceleration telemetry payloads from the Telemetry Streaming Subsystem.",
+          "Provide an endpoint or interface for the telemetry stream (transport method to be determined)."
+        ],
+        "satisfiesLocalRequirementKeys": [
+          "R-TELEMETRY-DEST"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "localEdgeKey": "E01",
+        "fromLocalNodeKey": "N07",
+        "toLocalNodeKey": "N01",
+        "flowType": "power",
+        "description": "Regulated power supplied to the Inertial Sensing Subsystem (MPU6050)."
+      },
+      {
+        "localEdgeKey": "E02",
+        "fromLocalNodeKey": "N07",
+        "toLocalNodeKey": "N06",
+        "flowType": "power",
+        "description": "Regulated power supplied to the Processing and Control Core (ESP32)."
+      },
+      {
+        "localEdgeKey": "E03",
+        "fromLocalNodeKey": "N06",
+        "toLocalNodeKey": "N01",
+        "flowType": "control",
+        "description": "Initialization commands and data-rate/filter configuration sent from the Processing and Control Core to the Inertial Sensing Subsystem."
+      },
+      {
+        "localEdgeKey": "E04",
+        "fromLocalNodeKey": "N01",
+        "toLocalNodeKey": "N02",
+        "flowType": "data",
+        "description": "Timestamped raw 3-axis acceleration samples (in g) streamed from the Inertial Sensing Subsystem to the Data Acquisition and Buffering Subsystem."
+      },
+      {
+        "localEdgeKey": "E05",
+        "fromLocalNodeKey": "N06",
+        "toLocalNodeKey": "N02",
+        "flowType": "control",
+        "description": "Window-size parameters and mode signals (streaming vs. noise-characterization) sent from the Processing and Control Core to the Data Acquisition and Buffering Subsystem."
+      },
+      {
+        "localEdgeKey": "E06",
+        "fromLocalNodeKey": "N02",
+        "toLocalNodeKey": "N04",
+        "flowType": "data",
+        "description": "Packaged acceleration sample windows forwarded from the Data Acquisition and Buffering Subsystem to the Telemetry Streaming Subsystem for transmission."
+      },
+      {
+        "localEdgeKey": "E07",
+        "fromLocalNodeKey": "N02",
+        "toLocalNodeKey": "N03",
+        "flowType": "data",
+        "description": "Stationary-condition acceleration sample windows forwarded from the Data Acquisition and Buffering Subsystem to the Noise Analysis Subsystem for RMS computation."
+      },
+      {
+        "localEdgeKey": "E08",
+        "fromLocalNodeKey": "N06",
+        "toLocalNodeKey": "N03",
+        "flowType": "control",
+        "description": "Analysis trigger and window configuration (analysis duration, axis selection) sent from the Processing and Control Core to the Noise Analysis Subsystem."
+      },
+      {
+        "localEdgeKey": "E09",
+        "fromLocalNodeKey": "N03",
+        "toLocalNodeKey": "N05",
+        "flowType": "data",
+        "description": "Computed accel_x RMS value and pass/fail verification result forwarded from the Noise Analysis Subsystem to the Status and Reporting Subsystem."
+      },
+      {
+        "localEdgeKey": "E10",
+        "fromLocalNodeKey": "N04",
+        "toLocalNodeKey": "N05",
+        "flowType": "data",
+        "description": "Telemetry transmission status (success, error, retry count) reported from the Telemetry Streaming Subsystem to the Status and Reporting Subsystem."
+      },
+      {
+        "localEdgeKey": "E11",
+        "fromLocalNodeKey": "N04",
+        "toLocalNodeKey": "N08",
+        "flowType": "data",
+        "description": "Serialized acceleration telemetry payload transmitted from the Telemetry Streaming Subsystem to the External Telemetry Receiver over the chosen communication interface."
+      },
+      {
+        "localEdgeKey": "E12",
+        "fromLocalNodeKey": "N06",
+        "toLocalNodeKey": "N04",
+        "flowType": "control",
+        "description": "Streaming enable/disable and transmission interval configuration sent from the Processing and Control Core to the Telemetry Streaming Subsystem."
+      },
+      {
+        "localEdgeKey": "E13",
+        "fromLocalNodeKey": "N06",
+        "toLocalNodeKey": "N05",
+        "flowType": "control",
+        "description": "Reporting mode and output channel configuration sent from the Processing and Control Core to the Status and Reporting Subsystem."
+      }
+    ],
+    "assumptions": [
+      {
+        "statement": "The ESP32 is accepted as the processing and communication platform, as explicitly stated by the user.",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "The MPU6050 is accepted as the inertial sensor, as explicitly stated by the user.",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "The accel_x RMS noise threshold is 0.10 g, as explicitly stated by the user.",
+        "sourceType": "user-explicit",
+        "confidence": "high",
+        "confirmationStatus": "confirmed"
+      },
+      {
+        "statement": "Acceleration telemetry is streamed continuously during normal operation, not only during noise characterization windows.",
+        "sourceType": "user-implied",
+        "confidence": "high",
+        "confirmationStatus": "proposed"
+      },
+      {
+        "statement": "Noise characterization is performed under stationary (no external vibration) conditions; the mechanism for determining or signaling the stationary state has not been specified and is treated as a mode controlled by the Processing and Control Core.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "The telemetry transport method (wired vs. wireless, protocol, destination host) has not been specified; the architecture treats it as an unresolved decision and does not fix a protocol or physical interface.",
+        "sourceType": "system-inferred",
+        "confidence": "high",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "The inertial sensor sampling rate and analysis window duration have not been specified; they are treated as configurable parameters managed by the Processing and Control Core.",
+        "sourceType": "system-inferred",
+        "confidence": "high",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "Noise analysis is applied to accel_x as a hard requirement; accel_y and accel_z noise characterization is treated as optional extended functionality with no threshold requirement at this stage.",
+        "sourceType": "user-implied",
+        "confidence": "medium",
+        "confirmationStatus": "proposed"
+      },
+      {
+        "statement": "The power source (battery, USB, regulated bench supply, etc.) has not been specified; the Power Management Subsystem is included functionally but its input source type is unresolved.",
+        "sourceType": "system-inferred",
+        "confidence": "high",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "The output channel for noise verification results and status (local log, on-device indicator, piggybacked telemetry field, separate alert channel) has not been specified and is treated as an unresolved decision.",
+        "sourceType": "system-inferred",
+        "confidence": "high",
+        "confirmationStatus": "needs-confirmation"
+      },
+      {
+        "statement": "The device operates as a single-unit embedded monitor without a local user interface (no display, keypad, or touchscreen) unless specified later.",
+        "sourceType": "system-inferred",
+        "confidence": "medium",
+        "confirmationStatus": "needs-confirmation"
+      }
+    ],
+    "unresolvedDecisionStatements": [
+      "The telemetry transport method remains undecided: whether the acceleration stream is transmitted over a wireless interface, a wired serial interface, or another communication channel has not been determined, nor has the destination host or protocol been defined.",
+      "The inertial sensor sampling rate (ODR) and the length of the noise analysis window (number of samples or duration in seconds) have not been specified; these directly affect RMS accuracy and telemetry bandwidth.",
+      "The mechanism for entering and exiting the stationary noise characterization mode has not been defined: whether it is time-triggered, command-triggered, motion-threshold-triggered, or always-on alongside streaming is undecided.",
+      "The output channel and format for noise verification results (pass/fail verdict, computed RMS value) have not been specified: options include a dedicated log, a status field appended to the telemetry stream, an on-device indicator, or an out-of-band alert.",
+      "Whether noise analysis and threshold verification apply to accel_y and accel_z axes (and if so, what thresholds apply) has not been decided.",
+      "The power source type, voltage level, and power budget for the device have not been defined, leaving the Power Management Subsystem's input interface and any low-power mode requirements unresolved.",
+      "The physical form factor, enclosure, and mounting method have not been specified, which may constrain sensor orientation, connector selection, and thermal management at later design stages.",
+      "The duration and repeatability requirements for the stationary noise characterization test (single one-time verification vs. continuous background monitoring) have not been defined."
+    ],
+    "requirementCoverageLocalKeys": [
+      "R-MCU",
+      "R-SENSOR",
+      "R-ACCEL-STREAM",
+      "R-NOISE-ANALYSIS",
+      "R-RMS-THRESHOLD",
+      "R-NOISE-AXES",
+      "R-SAMPLE-RATE",
+      "R-TELEMETRY-DEST",
+      "R-STATUS-REPORT",
+      "R-POWER"
+    ]
+  }
+}

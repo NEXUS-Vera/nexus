@@ -34,21 +34,27 @@ def compose_component_plan_content(
     stamp = now or utc_now()
     actor = proposed_by or default_actor("vera", display_name="Vera")
     roles = derive_roles_from_architecture(architecture_content, source=source)
-    # A functional decomposition is not a bill of separate processors. Honor an
-    # explicit single-platform assumption for the bounded supported prototype,
-    # preserving all functional-node coverage on its one physical compute role.
-    single_platform = requests_supported_prototype(user_message) and any(
-        a.get("sourceType") == "user-explicit"
-        and re.search(r"\bESP32\b", str(a.get("statement", "")), re.I)
-        and re.search(
-            r"\b(?:no other (?:processing unit|processor|microcontroller)|"
-            r"(?:single|only) (?:ESP32|processor|microcontroller))\b",
-            str(a.get("statement", "")),
-            re.I,
-        )
-        for a in architecture_content.get("assumptions", [])
-        if isinstance(a, dict)
+    # Functional compute/control/analysis nodes share the user-named MCU in the
+    # bounded ESP32/MPU6050 prototype; model assumption prose is not evidence of
+    # separate processors. Explicit additional platforms remain ambiguous.
+    single_platform = requests_supported_prototype(user_message) and not re.search(
+        r"\b(?:STM32\w*|RP2040|RP2350|ATmega\w*|Arduino|Raspberry\s+Pi|"
+        r"ESP8266|ESP32[- ](?:S[23]|C[236]|H2|P4)|"
+        r"(?:two|multiple|second|another|additional)\s+(?:ESP32|MCU|processor|microcontroller))\b",
+        user_message,
+        re.I,
     )
+    if single_platform:
+        # Sensor acquisition is firmware on the host, not another physical IMU.
+        acquisition_nodes = {
+            n["nodeId"]
+            for n in architecture_content.get("nodes", [])
+            if n.get("functionalType") == "input"
+            and re.search(r"sensor.*acquisition|acquisition.*interface", n.get("name", ""), re.I)
+        }
+        for role in roles:
+            if acquisition_nodes.intersection(role["architectureNodeIds"]):
+                role["category"] = "compute"
     compute_roles = [r for r in roles if r.get("category") == "compute"]
     if single_platform and compute_roles:
         primary = compute_roles[0]
@@ -56,7 +62,9 @@ def compose_component_plan_content(
             for key in ("architectureNodeIds", "requirementIds"):
                 primary[key] = list(dict.fromkeys([*primary[key], *role[key]]))
             roles.remove(role)
-        primary["rationale"] += " Functional compute roles share the stated single ESP32 platform."
+        primary["name"] = "ESP32 host compute role"
+        primary["description"] = "Hosts the functional compute, control, and analysis subsystems."
+        primary["rationale"] += " Functional compute roles share the user-named ESP32 platform."
     requirements = list(requirement_set_content.get("requirements") or [])
     constraints = derive_constraints_from_requirements(roles=roles, requirements=requirements)
     candidates = (

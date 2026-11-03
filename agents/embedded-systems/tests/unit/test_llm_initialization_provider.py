@@ -363,6 +363,8 @@ async def test_complete_package_requires_usable_default_binding(usable: bool) ->
     architecture = functional_architecture_draft()
     if usable:
         architecture["edges"][0]["description"] = "Raw motion samples transferred over I2C."
+    if not usable:
+        architecture["edges"][0]["flowType"] = "power"
     gateway = build_success_gateway(architecture=architecture)
     provider = LlmInitializationProvider(gateway=gateway, model_policy=MODEL_POLICY)
     message = "Build an ESP32 DevKit V1 motion monitor using an MPU6050."
@@ -383,17 +385,23 @@ async def test_complete_package_requires_usable_default_binding(usable: bool) ->
     assert not any("repair" in step["stepType"] for step in run["stepRecords"])
 
 
-@pytest.mark.parametrize("variant", ["captured", "disconnected", "ambiguous", "spi"])
-async def test_captured_n305_initialization(variant: str) -> None:
-    """Replay real Sonnet 4.6 tool inputs captured on 2026-11-02 (14:38 CST).
-
-    Only tool payloads and the demo prompt are retained, without response/request
-    metadata. No I2C wording or corrected requirement keys have been invented.
-    The architecture explicitly assumes one ESP32 and no other processing unit;
-    its processing/control/analysis functions share that provisional platform.
-    I2C is a supported prototype assumption, not a verified model/datasheet claim.
-    Removing sensor signal/control flows must still fail complete validation.
-    """
+@pytest.mark.parametrize("fixture", ["n305", "n307-1", "n307-2", "n307-3"])
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "captured",
+        "no-assumptions",
+        "disconnected",
+        "extra-mcu",
+        "extra-esp32",
+        "spi",
+        "uart",
+        "analog",
+        "unnamed",
+    ],
+)
+async def test_captured_live_initialization(fixture: str, variant: str) -> None:
+    """Replay sanitized live tool inputs; topology and transport must remain usable."""
     import json
     from pathlib import Path
 
@@ -402,22 +410,34 @@ async def test_captured_n305_initialization(variant: str) -> None:
     )
 
     captured = json.loads(
-        (Path(__file__).parents[1] / "fixtures" / "live-init-n305.json").read_text()
+        (Path(__file__).parents[1] / "fixtures" / f"live-init-{fixture}.json").read_text()
     )
     architecture = captured["generate-functional-architecture"]
+    message = captured["userMessage"]
+    sensor_keys = {
+        n["localNodeKey"] for n in architecture["nodes"] if n["functionalType"] == "sensing"
+    }
     if variant == "disconnected":
         architecture["edges"] = [
-            edge
-            for edge in architecture["edges"]
-            if edge["flowType"] == "power"
-            or "N01" not in (edge["fromLocalNodeKey"], edge["toLocalNodeKey"])
+            e
+            for e in architecture["edges"]
+            if e["flowType"] == "power"
+            or not sensor_keys.intersection((e["fromLocalNodeKey"], e["toLocalNodeKey"]))
         ]
-    elif variant == "ambiguous":
+    elif variant == "no-assumptions":
         architecture["assumptions"] = []
-    elif variant == "spi":
-        next(e for e in architecture["edges"] if e["localEdgeKey"] == "E08")["description"] = (
-            "Configure the sensor over SPI."
-        )
+    elif variant in {"extra-mcu", "extra-esp32"}:
+        part = "STM32" if variant == "extra-mcu" else "ESP32"
+        message += f" Use a second {part} microcontroller for analysis."
+        architecture["assumptions"] = []
+    elif variant in {"spi", "uart", "analog"}:
+        for edge in architecture["edges"]:
+            if edge["flowType"] in {"data", "control"} and sensor_keys.intersection(
+                (edge["fromLocalNodeKey"], edge["toLocalNodeKey"])
+            ):
+                edge["description"] = f"Sensor transport uses {variant.upper()}."
+    elif variant == "unnamed":
+        message = "Build a vibration monitor with a microcontroller and a motion sensor."
     provider = LlmInitializationProvider(
         gateway=build_success_gateway(
             interpretation=captured["interpret-project"],
@@ -427,12 +447,19 @@ async def test_captured_n305_initialization(variant: str) -> None:
         ),
         model_policy=MODEL_POLICY,
     )
-    if variant != "captured":
-        with pytest.raises(LlmInitializationError, match="no usable default binding") as error:
-            await provider.initialize(captured["userMessage"], "collaborate", _context())
+    if variant not in {"captured", "no-assumptions"}:
+        with pytest.raises(LlmInitializationError) as error:
+            await provider.initialize(message, "collaborate", _context())
         assert error.value.code == "LLM_INITIALIZATION_VALIDATION_FAILED"
+        run = error.value.workflow_run
+        assert run is not None and run["runStatus"] == "failed"
+        assert run["stepRecords"][-1]["stepType"] == "validate-complete-package"
+        assert run["stepRecords"][-1]["status"] == "failed"
+        if variant != "unnamed":
+            assert "no usable default binding" in error.value.message
+        assert not any("repair" in step["stepType"] for step in run["stepRecords"])
         return
-    result = await provider.initialize(captured["userMessage"], "collaborate", _context())
+    result = await provider.initialize(message, "collaborate", _context())
     assert validate_initialization_result_schema(result) == []
     assert not [
         e
@@ -443,6 +470,9 @@ async def test_captured_n305_initialization(variant: str) -> None:
     assert configuration["i2c"]["sdaPin"] == 21
     assert configuration["i2c"]["sclPin"] == 22
     plan = next(a["content"] for a in result["artifacts"] if a["artifactType"] == "component-plan")
+    compute = [r for r in plan["componentRoles"] if r["category"] == "compute"]
+    assert len(compute) == 1
+    assert compute[0]["name"] == "ESP32 host compute role"
     named = [c for c in plan["candidates"] if c["source"] == "user-provided"]
     assert sorted(c["partNumber"] for c in named) == ["ESP32-DEVKIT-V1", "MPU6050"]
     assert all(c["evidenceStatus"] == "unverified" for c in named)

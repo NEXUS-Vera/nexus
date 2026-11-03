@@ -40,7 +40,7 @@ each run is a stateless request/response over the supplied prompt.
   candidate, without fixture alternatives. For requests naming both supported parts,
   complete-package validation rejects initialization if no usable default I2C binding
   exists, with `LLM_INITIALIZATION_VALIDATION_FAILED`; it does not repair the package.
-  When the architecture explicitly identifies a single ESP32 processing platform,
+  When the user names the supported ESP32/MPU6050 pair without another MCU,
   functional compute/control/analysis roles share one provisional hardware role.
   This bounded prototype may infer an unverified I2C interface for the named pair
   when sensor flows do not specify another transport. A sensor signal/control
