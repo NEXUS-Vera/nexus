@@ -14,9 +14,15 @@ from nexus_board.firmware.patch import assemble_firmware_generation_context
 from nexus_model_gateway import FakeModelGateway, ModelPolicy
 
 
-@pytest.mark.parametrize("timeout_seconds", [240.0, 1.0])
+@pytest.mark.parametrize(
+    ("timeout_seconds", "should_hang", "expected_timeout"),
+    [(240.0, False, 245.0), (1.0, True, 6.0), (-10.0, False, 5.0)],
+)
 def test_live_generator_honors_policy_timeout(
-    monkeypatch: pytest.MonkeyPatch, timeout_seconds: float
+    monkeypatch: pytest.MonkeyPatch,
+    timeout_seconds: float,
+    should_hang: bool,
+    expected_timeout: float,
 ) -> None:
     wait_for = asyncio.wait_for
     observed_timeouts: list[float] = []
@@ -25,11 +31,11 @@ def test_live_generator_honors_policy_timeout(
     async def bounded_wait_for(coro: Any, timeout: float) -> Any:
         observed_timeouts.append(timeout)
         # Exercise actual timeout cancellation without waiting for the policy deadline.
-        return await wait_for(coro, 0.01 if timeout_seconds < 120.0 else timeout)
+        return await wait_for(coro, 0.01 if should_hang else timeout)
 
     class Gateway(FakeModelGateway):
         async def generate_structured(self, **kwargs: Any) -> Any:
-            if timeout_seconds < 120.0:
+            if should_hang:
                 try:
                     await asyncio.Event().wait()
                 finally:
@@ -64,7 +70,7 @@ def test_live_generator_honors_policy_timeout(
         "content": {"kind": "filesystem", "filesystemManifest": {"entries": []}},
     }
     monkeypatch.setattr(asyncio, "wait_for", bounded_wait_for)
-    if timeout_seconds < 120.0:
+    if should_hang:
         with pytest.raises(FirmwarePatchGenerationError, match="TimeoutError") as caught:
             generator.generate(context=context, base_snapshot=snapshot)
         assert caught.value.code == "MODEL_PROVIDER_UNAVAILABLE"
@@ -73,7 +79,7 @@ def test_live_generator_honors_policy_timeout(
     else:
         result = generator.generate(context=context, base_snapshot=snapshot)
         assert result["operations"][0]["content"] == "// test"
-    assert observed_timeouts == [timeout_seconds + 5.0]
+    assert observed_timeouts == [expected_timeout]
 
 
 def test_live_generator_sends_imu_serial_contract_to_model() -> None:
