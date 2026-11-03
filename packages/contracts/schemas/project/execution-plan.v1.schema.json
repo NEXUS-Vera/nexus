@@ -229,6 +229,7 @@
                   },
                   "marker": {
                     "type": "string",
+                    "pattern": "\\S",
                     "minLength": 1,
                     "maxLength": 4096
                   },

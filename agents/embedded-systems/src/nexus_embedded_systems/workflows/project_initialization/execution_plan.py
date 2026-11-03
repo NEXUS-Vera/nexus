@@ -196,8 +196,8 @@ async def propose_execution_plan_criteria(
     ]["$defs"]["criterion"]["properties"]
     variants = []
     for kind, fields in {
-        "numeric-comparison": ["metricId", "operator", "expectedValue"],
-        "range": ["metricId", "minValue", "maxValue"],
+        "numeric-comparison": ["metricId", "operator", "expectedValue", "unit"],
+        "range": ["metricId", "minValue", "maxValue", "unit"],
         "exact-match": ["expectedValue"],
         "contains": ["marker"],
         "existence": ["outputName"],
@@ -216,7 +216,7 @@ async def propose_execution_plan_criteria(
                 "type": "object",
                 "additionalProperties": False,
                 "properties": properties,
-                "required": list(properties),
+                "required": [key for key in properties if key != "unit"],
             }
         )
     try:

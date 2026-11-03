@@ -122,6 +122,8 @@ def valid_criterion_proposal(criterion: Any) -> bool:
     schema = {"$ref": SCHEMA_ID + "#/properties/verificationObjectives/items/properties/criterion"}
     if not make_validator(schema).is_valid(criterion):
         return False
+    if criterion["criterionType"] == "contains" and not criterion["marker"].strip():
+        return False
     if criterion["criterionType"] == "range":
         return bool(criterion["minValue"] <= criterion["maxValue"])
     return True

@@ -208,6 +208,37 @@ def _structured_verification(
     return None
 
 
+def _preserves_platform_bounds(proposal: dict[str, Any], platform: dict[str, Any]) -> bool:
+    """Require a subset of the platform's accepted values for the same metric."""
+    if not platform.get("metricId") or proposal.get("metricId") != platform["metricId"]:
+        return True
+    if proposal.get("unit", platform.get("unit")) != platform.get("unit"):
+        return False
+
+    def bounds(criterion: dict[str, Any]) -> tuple[float, bool, float, bool] | None:
+        if criterion["criterionType"] == "range":
+            return criterion["minValue"], True, criterion["maxValue"], True
+        if criterion["criterionType"] == "numeric-comparison":
+            value = criterion["expectedValue"]
+            return {
+                "<": (-math.inf, False, value, False),
+                "<=": (-math.inf, False, value, True),
+                ">": (value, False, math.inf, False),
+                ">=": (value, True, math.inf, False),
+                "==": (value, True, value, True),
+            }.get(criterion["operator"])
+        return None
+
+    proposed, required = bounds(proposal), bounds(platform)
+    if proposed is None or required is None:
+        return False
+    low, low_closed, high, high_closed = proposed
+    floor, floor_closed, ceiling, ceiling_closed = required
+    return (low > floor or (low == floor and (not low_closed or floor_closed))) and (
+        high < ceiling or (high == ceiling and (not high_closed or ceiling_closed))
+    )
+
+
 def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
     """Select a prototype binding, preserving the board command error contract."""
     try:
@@ -582,6 +613,10 @@ class ExecutionPlanWorkflow:
             )
             if (
                 valid_criterion_proposal(objective.get("criterion"))
+                and (
+                    not mapped
+                    or _preserves_platform_bounds(objective["criterion"], mapped["criterion"])
+                )
                 and objective.get("verificationMethod")
                 in {
                     None,

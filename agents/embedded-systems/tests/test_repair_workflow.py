@@ -1456,7 +1456,10 @@ def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> Non
 
 @pytest.mark.parametrize("repair_env", ["live"], indirect=True)
 @pytest.mark.parametrize("unit,value", [("Hz", 50), ("ms", 20), ("s", 0.02)])
-@pytest.mark.parametrize("proposal", [None, "valid", "criterion-only", "result", "unknown"])
+@pytest.mark.parametrize(
+    "proposal",
+    [None, "valid", "criterion-only", "result", "unknown", "blank", "weaker", "equal", "inverted"],
+)
 @pytest.mark.parametrize("noise,assessment", [(0.04, "PASS"), (0.12, "FAIL")])
 def test_live_structured_objectives(
     repair_env: Any,
@@ -1480,6 +1483,8 @@ def test_live_structured_objectives(
     original = kernel.project_store.get_artifact
     requirements = copy.deepcopy(original(pid, "requirement-set"))
     reqs = requirements["content"]["requirements"]
+    reqs[1]["statement"] = "Inspect the live prototype wiring before acquisition."
+    reqs[1]["verificationMethod"] = "Hardware inspection"
     reqs[3]["statement"] = "Initialize the MPU-6050 at I2C address 0x68 before acquisition."
     reqs[3]["acceptanceCriteria"] = ["Report readiness after initialization."]
     reqs[4]["statement"] = "Acquire acceleration samples at the configured sampling cadence."
@@ -1506,6 +1511,20 @@ def test_live_structured_objectives(
             "minValue": 48,
             "maxValue": 52,
         }
+        if proposal == "blank":
+            objective["criterion"] = {"criterionType": "contains", "marker": " "}
+        elif proposal in {"weaker", "equal"}:
+            objective["criterion"].update(
+                minValue=40 if proposal == "weaker" else 45,
+                maxValue=60 if proposal == "weaker" else 55,
+            )
+        elif proposal == "inverted":
+            objective["criterion"] = {
+                "criterionType": "numeric-comparison",
+                "metricId": "sampling_hz",
+                "operator": ">",
+                "expectedValue": 45,
+            }
         if proposal == "criterion-only":
             objective.pop("verificationMethod")
         if proposal == "result":
@@ -1528,15 +1547,17 @@ def test_live_structured_objectives(
     ExecutionPlanWorkflow(kernel)._seed_test_plan(pid, plan)
     content = captured["new_artifact"]["content"]
     cases = content["testCases"]
+    assert cases[1]["verificationMethod"] == "manual"
+    assert cases[1].get("criterion") is None
     assert cases[3]["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
     assert cases[4]["criterion"] == (
         {
             "criterionType": "range",
             "metricId": "sampling_hz",
-            "minValue": 48,
-            "maxValue": 52,
+            "minValue": 45 if proposal == "equal" else 48,
+            "maxValue": 55 if proposal == "equal" else 52,
         }
-        if proposal in {"valid", "criterion-only"}
+        if proposal in {"valid", "criterion-only", "equal"}
         else {
             "criterionType": "range",
             "metricId": "sampling_hz",

@@ -184,7 +184,9 @@ def test_actionable_plan_contract_preserves_initialization_plan(package, mutatio
     )
 
 
-@pytest.mark.parametrize("invalid", [None, "result", "unknown", "oversize", "range"])
+@pytest.mark.parametrize(
+    "invalid", [None, "result", "unknown", "oversize", "range", "blank", "empty"]
+)
 def test_optional_typed_criterion_contract(package: dict[str, Any], invalid: str | None) -> None:
     plan = deepcopy(package["project"]["executionPlan"])
     objective = plan["verificationObjectives"][0]
@@ -192,7 +194,9 @@ def test_optional_typed_criterion_contract(package: dict[str, Any], invalid: str
         criterion={"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
         verificationMethod="simulation",
     )
-    if invalid == "result":
+    if invalid in {"blank", "empty"}:
+        objective["criterion"]["marker"] = " " if invalid == "blank" else ""
+    elif invalid == "result":
         objective["criterion"]["result"] = "PASS"
     elif invalid == "unknown":
         objective["criterion"]["criterionType"] = "model-verdict"

@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 from nexus_board.errors import CommandValidationError
@@ -95,6 +96,7 @@ def test_seeded_test_plan_depth_counts_segments(monkeypatch: pytest.MonkeyPatch)
         },
         {"criterionType": "exact-match", "expectedValue": {"verdict": "PASS"}},
         {"criterionType": "contains"},
+        *[{"criterionType": "contains", "marker": m} for m in ["", " ", "\t\n"]],
     ],
 )
 def test_invalid_criterion_proposals(criterion: dict) -> None:
@@ -105,7 +107,8 @@ def test_invalid_criterion_proposals(criterion: dict) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("invalid", [False, True])
-async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool) -> None:
+@pytest.mark.parametrize("kind", ["contains", "range", "numeric-comparison"])
+async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool, kind: str) -> None:
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
 
@@ -113,7 +116,23 @@ async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool)
         propose_execution_plan_criteria,
     )
 
-    criterion = {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    criterion: dict[str, Any] = {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    if kind == "range":
+        criterion = {
+            "criterionType": kind,
+            "metricId": "sampling_hz",
+            "minValue": 45,
+            "maxValue": 55,
+            "unit": "Hz",
+        }
+    elif kind == "numeric-comparison":
+        criterion = {
+            "criterionType": kind,
+            "metricId": "accel_x_rms_noise_g",
+            "operator": "<",
+            "expectedValue": 0.08,
+            "unit": "g",
+        }
     if invalid:
         criterion["result"] = "PASS"
     gateway = SimpleNamespace(
@@ -161,3 +180,30 @@ def test_criterion_definition_serialized_budget() -> None:
     assert valid_criterion_proposal(criterion)
     criterion["marker"] += "x"
     assert not valid_criterion_proposal(criterion)
+
+
+@pytest.mark.parametrize(
+    "operator,value,accepted",
+    [
+        ("<", 0.1, False),
+        (">", 0.08, False),
+        ("<=", 0.08, False),
+        ("<", 0.08, True),
+        ("<", 0.04, True),
+        ("<=", 0.04, True),
+    ],
+)
+def test_numeric_platform_bounds(operator: str, value: float, accepted: bool) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _preserves_platform_bounds,
+    )
+
+    platform = {
+        "criterionType": "numeric-comparison",
+        "metricId": "accel_x_rms_noise_g",
+        "operator": "<",
+        "expectedValue": 0.08,
+        "unit": "g",
+    }
+    proposal = {**platform, "operator": operator, "expectedValue": value}
+    assert _preserves_platform_bounds(proposal, platform) is accepted
