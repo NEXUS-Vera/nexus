@@ -144,7 +144,8 @@ class LiveFirmwarePatchGenerator:
                     model_policy=self.model_policy,
                     prompt_id=self.prompt_id,
                     prompt_version=self.prompt_version,
-                )
+                ),
+                timeout_seconds=self.model_policy.timeout_seconds + 5.0,
             )
         except ModelGatewayError as exc:
             logging.getLogger(__name__).warning(
