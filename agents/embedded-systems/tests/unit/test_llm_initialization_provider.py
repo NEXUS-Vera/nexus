@@ -363,6 +363,8 @@ async def test_complete_package_requires_usable_default_binding(usable: bool) ->
     architecture = functional_architecture_draft()
     if usable:
         architecture["edges"][0]["description"] = "Raw motion samples transferred over I2C."
+    if not usable:
+        architecture["edges"][0]["flowType"] = "power"
     gateway = build_success_gateway(architecture=architecture)
     provider = LlmInitializationProvider(gateway=gateway, model_policy=MODEL_POLICY)
     message = "Build an ESP32 DevKit V1 motion monitor using an MPU6050."
@@ -381,3 +383,127 @@ async def test_complete_package_requires_usable_default_binding(usable: bool) ->
     assert run["stepRecords"][-1]["stepType"] == "validate-complete-package"
     assert run["stepRecords"][-1]["status"] == "failed"
     assert not any("repair" in step["stepType"] for step in run["stepRecords"])
+
+
+@pytest.mark.parametrize("fixture", ["n305", "n307-1", "n307-2", "n307-3"])
+@pytest.mark.parametrize(
+    "variant",
+    [
+        "captured",
+        "Arduino IDE",
+        "Arduino framework",
+        "Arduino core",
+        "Arduino library",
+        "Arduino board",
+        "Arduino Uno",
+        "Arduino Nano",
+        "Arduino Mega",
+        "two microcontrollers",
+        "multiple MCUs",
+        "two ESP32s",
+        "dual processors",
+        "ESP32S3",
+        "ESP32C3",
+        "ESP32C6",
+        "no-assumptions",
+        "disconnected",
+        "extra-mcu",
+        "extra-esp32",
+        "spi",
+        "uart",
+        "analog",
+        "unnamed",
+    ],
+)
+async def test_captured_live_initialization(fixture: str, variant: str) -> None:
+    """Replay sanitized live tool inputs; topology and transport must remain usable."""
+    import json
+    from pathlib import Path
+
+    from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+        derive_default_configuration,
+    )
+
+    captured = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / f"live-init-{fixture}.json").read_text()
+    )
+    architecture = captured["generate-functional-architecture"]
+    message = captured["userMessage"]
+    sensor_keys = {
+        n["localNodeKey"] for n in architecture["nodes"] if n["functionalType"] == "sensing"
+    }
+    if variant == "disconnected":
+        architecture["edges"] = [
+            e
+            for e in architecture["edges"]
+            if e["flowType"] == "power"
+            or not sensor_keys.intersection((e["fromLocalNodeKey"], e["toLocalNodeKey"]))
+        ]
+    elif variant == "no-assumptions":
+        architecture["assumptions"] = []
+    elif variant in {"extra-mcu", "extra-esp32"}:
+        part = "STM32" if variant == "extra-mcu" else "ESP32"
+        message += f" Use a second {part} microcontroller for analysis."
+        architecture["assumptions"] = []
+    elif variant in {"spi", "uart", "analog"}:
+        for edge in architecture["edges"]:
+            if edge["flowType"] in {"data", "control"} and sensor_keys.intersection(
+                (edge["fromLocalNodeKey"], edge["toLocalNodeKey"])
+            ):
+                edge["description"] = f"Sensor transport uses {variant.upper()}."
+    elif variant == "unnamed":
+        message = "Build a vibration monitor with a microcontroller and a motion sensor."
+    elif variant != "captured":
+        message += f" Use {variant}."
+    provider = LlmInitializationProvider(
+        gateway=build_success_gateway(
+            interpretation=captured["interpret-project"],
+            brief=captured["generate-project-brief"],
+            requirements=captured["generate-requirements"],
+            architecture=architecture,
+        ),
+        model_policy=MODEL_POLICY,
+    )
+    if variant not in {
+        "captured",
+        "no-assumptions",
+        "Arduino IDE",
+        "Arduino framework",
+        "Arduino core",
+        "Arduino library",
+    }:
+        with pytest.raises(LlmInitializationError) as error:
+            await provider.initialize(message, "collaborate", _context())
+        assert error.value.code == "LLM_INITIALIZATION_VALIDATION_FAILED"
+        run = error.value.workflow_run
+        assert run is not None and run["runStatus"] == "failed"
+        assert run["stepRecords"][-1]["stepType"] == "validate-complete-package"
+        assert run["stepRecords"][-1]["status"] == "failed"
+        if variant != "unnamed":
+            assert "no usable default binding" in error.value.message
+        assert not any("repair" in step["stepType"] for step in run["stepRecords"])
+        return
+    result = await provider.initialize(message, "collaborate", _context())
+    assert validate_initialization_result_schema(result) == []
+    assert not [
+        e
+        for e in validate_project_package_bundle(initialization_dict_to_package_bundle(result))
+        if e.blocking
+    ]
+    configuration = derive_default_configuration(result)
+    assert configuration["i2c"]["sdaPin"] == 21
+    assert configuration["i2c"]["sclPin"] == 22
+    plan = next(a["content"] for a in result["artifacts"] if a["artifactType"] == "component-plan")
+    compute = [r for r in plan["componentRoles"] if r["category"] == "compute"]
+    sensors = [r for r in plan["componentRoles"] if r["category"] == "sensor"]
+    assert len(sensors) == 1
+    sensor_candidates = [
+        c for c in plan["candidates"] if c["componentRoleId"] == sensors[0]["componentRoleId"]
+    ]
+    assert [c["partNumber"] for c in sensor_candidates] == ["MPU6050"]
+    assert all(c["source"] == "user-provided" for c in sensor_candidates)
+    assert len(compute) == 1
+    assert compute[0]["name"] == "ESP32 host compute role"
+    named = [c for c in plan["candidates"] if c["source"] == "user-provided"]
+    assert sorted(c["partNumber"] for c in named) == ["ESP32-DEVKIT-V1", "MPU6050"]
+    assert all(c["evidenceStatus"] == "unverified" for c in named)

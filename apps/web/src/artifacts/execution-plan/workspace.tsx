@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import { useEffect, useRef, useState } from 'react';
 import {
   ApiClientError, acceptArtifactRevision, rejectArtifactRevision, getExecutionPlan,
@@ -59,7 +60,7 @@ export function ExecutionPlanWorkspace({ projectId, state, isDark, onCommandResu
       const proposal = await proposeExecutionPlan(projectId, {
         baseProjectStateVersion: state.project.currentStateVersion,
         basePlanVersion: 0,
-        requestedBy: { schemaVersion: '1.0.0', actorType: 'user', actorId: 'user_local' },
+        requestedBy: USER_ACTOR,
         configuration: {
           components: [
             { componentRoleId: candidates[0].componentRoleId, candidateId: candidates[0].candidateId },
@@ -87,7 +88,7 @@ export function ExecutionPlanWorkspace({ projectId, state, isDark, onCommandResu
     setBusy(true);
     setError(undefined);
     try {
-      const requestedBy = { schemaVersion: '1.0.0' as const, actorType: 'user' as const, actorId: 'user_local' };
+      const requestedBy = USER_ACTOR;
       const proposal = pending.current ?? await proposeExecutionPlan(projectId, {
         baseProjectStateVersion: state.project.currentStateVersion,
         basePlanVersion: artifact.artifactVersion,

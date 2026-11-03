@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import {
   useCallback,
   useEffect,
@@ -98,15 +99,6 @@ type Props = {
   onCommandResult?: (result: ArtifactCommandResult) => void;
 };
 
-function userActor() {
-  return {
-    schemaVersion: '1.0.0' as const,
-    actorId: 'user_local',
-    actorType: 'user' as const,
-    displayName: 'User',
-  };
-}
-
 function newCommandId(): string {
   return `cmd_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
@@ -200,7 +192,7 @@ function isLeaseHeldResult(result: ArtifactCommandResult): boolean {
 
 export function AnalysisWorkspace({ projectId, isDark, onCommandResult }: Props) {
   const t = themeColors(isDark);
-  const actor = useMemo(() => userActor(), []);
+  const actor = USER_ACTOR;
 
   const [binding, setBinding] = useState<BindingInfo | null>(null);
   const [draftVersion, setDraftVersion] = useState(1);

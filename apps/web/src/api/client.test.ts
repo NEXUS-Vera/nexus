@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { getProject } from './client';
+import { getProject, listProducedOutputs } from './client';
 
 /**
  * Where the client gets its address and its credential from.
@@ -37,6 +37,28 @@ function captureRequest(): { calls: Array<[string, RequestInit | undefined]> } {
   });
   return { calls };
 }
+
+describe('listProducedOutputs', () => {
+  it.each([
+    [undefined, ''],
+    ['', ''],
+    ['run/a b?c&d=é', '?executionRunId=run%2Fa%20b%3Fc%26d%3D%C3%A9'],
+  ])('requests the expected URL for executionRunId %j', async (executionRunId, query) => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ items: [] }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(listProducedOutputs('project-1', executionRunId)).resolves.toEqual([]);
+
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(
+      `http://127.0.0.1:8000/v1/projects/project-1/outputs${query}`,
+      expect.any(Object),
+    );
+  });
+});
 
 describe('API client host resolution', () => {
   it('addresses the sidecar the preload bridge names, with the token it minted', async () => {

@@ -1129,3 +1129,68 @@ async def test_s0c_parallel_i2c_default_propose() -> None:
             "MPU6050",
         ]
         assert _store.get_current_state(pid) == state
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["propose", "accept", "materialize"])
+async def test_plan_rejects_malformed_requested_actor_before_writes(
+    action: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from nexus_api.main import app
+
+    actor = _actor()
+    malformed = {**actor, "actorId": "actor_acceptance_operator"}
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, config = await _setup(client, actor)
+        if action in {"accept", "materialize"}:
+            proposed = await _propose(client, pid, actor, config)
+            assert proposed.status_code == 200, proposed.text
+            proposal = proposed.json()
+        if action == "materialize":
+            await _command(
+                client,
+                pid,
+                actor,
+                "artifact.accept-revision",
+                proposal["workspace"],
+                {"proposalId": proposal["commandResult"]["proposalId"]},
+            )
+            from nexus_api.main import _plan_workflow
+
+            def unexpected_materialization(*args: Any, **kwargs: Any) -> None:
+                pytest.fail("Malformed actor reached workspace materialization")
+
+            monkeypatch.setattr(_plan_workflow, "materialize", unexpected_materialization)
+        before = (await client.get(f"/v1/projects/{pid}")).json()
+        events = (await client.get(f"/v1/projects/{pid}/events")).json()
+        if action == "propose":
+            response = await _propose(client, pid, malformed, config)
+            assert response.status_code == 422, response.text
+            result = response.json()
+        elif action == "materialize":
+            response = await client.post(
+                f"/v1/projects/{pid}/execution-plan/materialize",
+                json={
+                    "requestedBy": malformed,
+                    "planArtifactId": proposal["workspace"]["artifactId"],
+                    "baseProjectStateVersion": before["project"]["currentStateVersion"],
+                },
+            )
+            assert response.status_code == 422, response.text
+            result = response.json()
+        else:
+            result = await _command(
+                client,
+                pid,
+                malformed,
+                "artifact.accept-revision",
+                proposal["workspace"],
+                {"proposalId": proposal["commandResult"]["proposalId"]},
+                expected_status=422,
+            )
+        assert result["error"]["code"] == "COMMAND_VALIDATION_FAILED"
+        assert "requestedBy.actorId" in result["error"]["message"]
+        assert (await client.get(f"/v1/projects/{pid}")).json() == before
+        assert (await client.get(f"/v1/projects/{pid}/events")).json() == events

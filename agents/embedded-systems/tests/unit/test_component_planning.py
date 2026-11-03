@@ -484,3 +484,123 @@ def test_i2c_acquisition_interface_is_not_a_sensor_without_topology() -> None:
         }
     )
     assert roles[0]["category"] == "communication"
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Signal Acquisition and Buffering Subsystem", "Sensor Sampling Interface"],
+)
+@pytest.mark.parametrize("sensor_type", ["sensing", "input"])
+def test_single_platform_acquisition_keeps_named_sensor(name: str, sensor_type: str) -> None:
+    architecture = {
+        "nodes": [
+            {"nodeId": "node_host", "name": "Host", "functionalType": "processing"},
+            {
+                "nodeId": "node_sensor",
+                "name": "MPU6050 inertial sensor sampling",
+                "functionalType": sensor_type,
+            },
+            {"nodeId": "node_acquisition", "name": name, "functionalType": "input"},
+        ],
+        "edges": [
+            {
+                "fromNodeId": "node_sensor",
+                "toNodeId": "node_acquisition",
+                "flowType": "data",
+                "description": "Raw acceleration samples",
+            }
+        ],
+    }
+    plan = compose_component_plan_content(
+        architecture_content=architecture,
+        requirement_set_content={"requirements": []},
+        user_message="Build an ESP32 monitor with an MPU6050.",
+    )
+    compute = [r for r in plan["componentRoles"] if r["category"] == "compute"]
+    sensors = [r for r in plan["componentRoles"] if r["category"] == "sensor"]
+    assert len(compute) == len(sensors) == 1
+    assert set(compute[0]["architectureNodeIds"]) == {"node_host", "node_acquisition"}
+    assert sensors[0]["architectureNodeIds"] == ["node_sensor"]
+    assert sorted(c["partNumber"] for c in plan["candidates"]) == ["ESP32-DEVKIT-V1", "MPU6050"]
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "Arduino boards",
+        "Arduino Zero",
+        "Arduino MKR",
+        "Arduino MKR1000",
+        "Arduino MKRZero",
+        "Arduino MKR WiFi 1010",
+        "2 MCUs",
+        "2 microcontrollers",
+        "2 ESP32s",
+        "10 MCUs",
+        "dual-MCU",
+        "dual-processor",
+        "multi-MCU",
+        "multi MCU",
+    ],
+)
+def test_additional_platform_phrases_preserve_separate_compute_roles(phrase: str) -> None:
+    plan = compose_component_plan_content(
+        architecture_content={
+            "nodes": [
+                {"nodeId": "host", "name": "Host", "functionalType": "processing"},
+                {"nodeId": "analysis", "name": "Analysis", "functionalType": "analysis"},
+            ]
+        },
+        requirement_set_content={"requirements": []},
+        user_message=f"Build an ESP32 monitor with an MPU6050. Use {phrase}.",
+    )
+    compute = [r for r in plan["componentRoles"] if r["category"] == "compute"]
+    assert [r["architectureNodeIds"] for r in compute] == [["host"], ["analysis"]]
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "Arduino IDE",
+        "Arduino framework",
+        "Arduino core",
+        "Arduino library",
+        "1 MCU",
+        "1 microcontroller",
+        "1 ESP32",
+        "2 sensors",
+        "dual-core",
+        "multi-axis",
+    ],
+)
+def test_non_platform_phrases_keep_single_compute_role(phrase: str) -> None:
+    plan = compose_component_plan_content(
+        architecture_content={
+            "nodes": [
+                {"nodeId": "host", "name": "Host", "functionalType": "processing"},
+                {"nodeId": "analysis", "name": "Analysis", "functionalType": "analysis"},
+            ]
+        },
+        requirement_set_content={"requirements": []},
+        user_message=f"Build an ESP32 monitor with an MPU6050. Use {phrase}.",
+    )
+    compute = [r for r in plan["componentRoles"] if r["category"] == "compute"]
+    assert len(compute) == 1
+    assert compute[0]["architectureNodeIds"] == ["host", "analysis"]
+
+
+@pytest.mark.parametrize("node_id", [{}, {"nodeId": None}, {"nodeId": 123}, {"nodeId": []}])
+@pytest.mark.parametrize("name", ["Signal acquisition", "Sensor sampling"])
+def test_acquisition_ignores_nodes_without_string_id(node_id: dict, name: str) -> None:
+    plan = compose_component_plan_content(
+        architecture_content={
+            "nodes": [
+                {"nodeId": "host", "name": "Host", "functionalType": "processing"},
+                {**node_id, "name": name, "functionalType": "input"},
+            ]
+        },
+        requirement_set_content={"requirements": []},
+        user_message="Build an ESP32 monitor with an MPU6050.",
+    )
+    assert len(plan["componentRoles"]) == 1
+    assert plan["componentRoles"][0]["architectureNodeIds"] == ["host"]

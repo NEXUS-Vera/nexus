@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
@@ -118,7 +119,7 @@ describe('FirmwareWorkspace', () => {
         expect(body.expectedDraftVersion).toBe(draftVersion.current);
         expect(body.baseArtifactVersion).toBe(1);
         expect(body.baseProjectStateVersion).toBe(1);
-        expect(body.requestedBy.actorId).toBe('user_local');
+        expect(body.requestedBy.actorId).toBe(USER_ACTOR.actorId);
         files.set(body.path, body.content);
         draftVersion.current += 1;
         return jsonResponse({
@@ -134,7 +135,7 @@ describe('FirmwareWorkspace', () => {
       if (url.includes('/workspace/file') && method === 'DELETE') {
         const parsed = new URL(url);
         const path = parsed.searchParams.get('path') ?? '';
-        expect(parsed.searchParams.get('actorId')).toBe('user_local');
+        expect(parsed.searchParams.get('actorId')).toBe(USER_ACTOR.actorId);
         expect(Number(parsed.searchParams.get('expectedDraftVersion'))).toBe(draftVersion.current);
         files.delete(path);
         draftVersion.current += 1;
