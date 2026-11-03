@@ -457,6 +457,20 @@ export async function getProjectGraph(
   )) as import('@nexus/contracts').GraphTraversalResult;
 }
 
+export type CommandRunEnvelope = {
+  schemaVersion: string;
+  commandRun: import('@nexus/contracts').ArtifactCommandResult;
+};
+
+export async function getCommandRun(
+  projectId: string,
+  commandRunId: string,
+): Promise<CommandRunEnvelope> {
+  return (await requestJson(
+    `/v1/projects/${encodeURIComponent(projectId)}/command-runs/${encodeURIComponent(commandRunId)}`,
+  )) as CommandRunEnvelope;
+}
+
 export async function getExecution(
   projectId: string,
   executionRunId: string,

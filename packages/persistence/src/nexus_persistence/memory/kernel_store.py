@@ -8,6 +8,7 @@ from typing import Any
 
 from nexus_persistence.errors import (
     ArtifactVersionConflictError,
+    CommandRunNotFoundError,
     ExecutionNotFoundError,
     FirmwarePatchNotFoundError,
     LedgerImmutableError,
@@ -296,7 +297,7 @@ class InMemoryKernelStore:
         with self._lock:
             run = self._command_runs.get(command_run_id)
             if run is None:
-                raise ProjectPersistenceError(f"Command run not found: {command_run_id}")
+                raise CommandRunNotFoundError(f"Command run not found: {command_run_id}")
             return copy.deepcopy(run)
 
     # --- executions ---

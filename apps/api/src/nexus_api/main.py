@@ -50,6 +50,7 @@ from nexus_model_gateway import AnthropicGateway, ModelPolicy, OpenAICompatibleG
 from nexus_persistence import (
     ArtifactNotFoundError,
     ArtifactVersionNotFoundError,
+    CommandRunNotFoundError,
     ExecutionNotFoundError,
     InMemoryFileStore,
     LocalFileStore,
@@ -2149,6 +2150,35 @@ async def delete_workspace_file(
     except BoardError as exc:
         status = 404 if exc.code.endswith("NOT_FOUND") else 422
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.get("/v1/projects/{project_id}/command-runs/{command_run_id}", response_model=None)
+async def get_project_command_run(
+    project_id: str,
+    command_run_id: str,
+    request: Request,
+) -> dict[str, Any] | JSONResponse:
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    try:
+        _store.get_project(project_id)  # type: ignore[attr-defined]
+        run = _kernel_store.get_command_run(command_run_id)
+        if run.get("projectId") != project_id:
+            raise CommandRunNotFoundError("Command run not found.")
+        return {"schemaVersion": "1.0.0", "commandRun": run}
+    except ProjectNotFoundError:
+        return _error(
+            404, code="PROJECT_NOT_FOUND", message="Project not found.", request_id=request_id
+        )
+    except CommandRunNotFoundError:
+        return _error(
+            404,
+            code="COMMAND_RUN_NOT_FOUND",
+            message="Command run not found.",
+            request_id=request_id,
+        )
 
 
 @app.get("/v1/projects/{project_id}/executions/{execution_run_id}", response_model=None)

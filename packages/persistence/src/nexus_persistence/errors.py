@@ -57,6 +57,10 @@ class ProposalNotFoundError(PersistenceNotFoundError):
     code = "PROPOSAL_NOT_FOUND"
 
 
+class CommandRunNotFoundError(PersistenceNotFoundError):
+    code = "COMMAND_RUN_NOT_FOUND"
+
+
 class ExecutionNotFoundError(PersistenceNotFoundError):
     code = "EXECUTION_NOT_FOUND"
 
