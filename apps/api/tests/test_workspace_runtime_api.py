@@ -104,38 +104,41 @@ async def test_workspace_runtime_api_binding_files_snapshot_execute() -> None:
         assert snap.status_code == 200, snap.text
         snapshot_id = snap.json()["snapshotId"]
 
-        started = await client.post(
-            f"/v1/projects/{project_id}/artifacts/code-scratch/workspace/executions",
-            json={
-                "snapshotId": snapshot_id,
-                "requestedBy": actor,
-                "commandSpec": {
-                    "schemaVersion": "1.0.0",
-                    "executable": "python3",
-                    "arguments": [
-                        "-c",
-                        "print('NEXUS_RUNTIME_READY'); open('out.txt','w').write('ok')",
-                    ],
-                    "workingDirectory": "",
-                    "environment": [],
-                    "declaredOutputs": [{"path": "out.txt", "kind": "result"}],
+        run_ids = []
+        for _ in range(2):
+            started = await client.post(
+                f"/v1/projects/{project_id}/artifacts/code-scratch/workspace/executions",
+                json={
+                    "snapshotId": snapshot_id,
+                    "requestedBy": actor,
+                    "commandSpec": {
+                        "schemaVersion": "1.0.0",
+                        "executable": "python3",
+                        "arguments": [
+                            "-c",
+                            "print('NEXUS_RUNTIME_READY'); open('out.txt','w').write('ok')",
+                        ],
+                        "workingDirectory": "",
+                        "environment": [],
+                        "declaredOutputs": [{"path": "out.txt", "kind": "result"}],
+                    },
                 },
-            },
-        )
-        assert started.status_code == 200, started.text
-        run_id = started.json()["executionRun"]["executionRunId"]
+            )
+            assert started.status_code == 200, started.text
+            run_id = started.json()["executionRun"]["executionRunId"]
 
-        final = None
-        deadline = time.monotonic() + 10.0
-        while time.monotonic() < deadline:
-            status = await client.get(f"/v1/projects/{project_id}/executions/{run_id}")
-            assert status.status_code == 200
-            final = status.json()["executionRun"]
-            if final["status"] not in {"queued", "starting", "running", "cancelling"}:
-                break
-            time.sleep(0.05)
-        assert final is not None
-        assert final["status"] in {"completed", "completed-with-warnings"}, final
+            final = None
+            deadline = time.monotonic() + 10.0
+            while time.monotonic() < deadline:
+                status = await client.get(f"/v1/projects/{project_id}/executions/{run_id}")
+                assert status.status_code == 200
+                final = status.json()["executionRun"]
+                if final["status"] not in {"queued", "starting", "running", "cancelling"}:
+                    break
+                time.sleep(0.05)
+            assert final is not None
+            assert final["status"] in {"completed", "completed-with-warnings"}, final
+            run_ids.append(run_id)
 
         logs = await client.get(f"/v1/projects/{project_id}/executions/{run_id}/logs")
         assert logs.status_code == 200
@@ -145,3 +148,31 @@ async def test_workspace_runtime_api_binding_files_snapshot_execute() -> None:
         outputs = await client.get(f"/v1/projects/{project_id}/outputs")
         assert outputs.status_code == 200
         assert any(o.get("name") == "out.txt" for o in outputs.json()["items"])
+
+        items = outputs.json()["items"]
+        assert len(items) == 2
+        assert {o["executionRunId"] for o in items} == set(run_ids)
+        for execution_run_id in run_ids:
+            filtered = await client.get(
+                f"/v1/projects/{project_id}/outputs",
+                params={"executionRunId": execution_run_id},
+            )
+            assert filtered.status_code == 200
+            assert filtered.json() == {
+                "schemaVersion": "1.0.0",
+                "projectId": project_id,
+                "items": [o for o in items if o["executionRunId"] == execution_run_id],
+            }
+        unknown = await client.get(
+            f"/v1/projects/{project_id}/outputs",
+            params={"executionRunId": "run_unknown"},
+        )
+        assert unknown.status_code == 200
+        assert unknown.json()["items"] == []
+
+
+def test_outputs_openapi_execution_run_filter() -> None:
+    parameters = app.openapi()["paths"]["/v1/projects/{project_id}/outputs"]["get"]["parameters"]
+    execution_run = next(p for p in parameters if p["name"] == "executionRunId")
+    assert execution_run["in"] == "query"
+    assert execution_run["required"] is False
