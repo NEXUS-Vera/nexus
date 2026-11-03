@@ -167,9 +167,10 @@ The command envelope for `POST /v1/projects/{projectId}/artifact-commands` is:
 
 Replace both example integers with current binding versions. Use a fresh
 `cmd_` ID with at least 16 alphanumeric suffix characters for each command.
+The artifact-command response returns result fields at the top level.
 Require `status: "completed"`, not just HTTP 200. Before polling an execution
-launched by a command, require `commandResult.status:"completed"` and a present,
-non-null `commandResult.executionRunId`. If the command failed, read its
+launched by a command, require `status:"completed"` and a present,
+non-null `executionRunId`. If the command failed, read its
 `error.code` and message in the response and triage before continuing. Do not
 poll with a missing ID or substitute a `commandRunId` for an `executionRunId`.
 Acquire/renew leases for
@@ -294,9 +295,10 @@ Do not invent a fault-label request field; the label belongs in operator evidenc
 ### 6. Observe the intentional compiler failure
 
 Repeat the compile POST from step 4, including `requireReal:true`. Save its new
-run ID as `failedCompileRunId` only after the Step 4 command-status and run-ID
-checks for the compile REST response, then poll its execution and read its logs. A completed command can launch
-an execution that fails compilation. Require
+run ID as `failedCompileRunId` only after the Step 4 checks for HTTP success and a
+present, non-null `executionRun.executionRunId`, then poll its execution and read
+its logs. A successful compile request can launch an execution that fails
+compilation. Require
 `status:"failed"` and a diagnostic about `TwoWire` lacking `begn` (wording can
 vary by compiler). An unavailable compiler or timeout is not the expected F2
 failure. Preserve its immutable `inputSnapshotId` and the logs.
@@ -498,8 +500,8 @@ leases with the same actor and refresh versions before writes.
    Request conventions to `POST /v1/projects/{projectId}/artifact-commands`,
    using the current electrical binding, `commandType:"workspace.create-snapshot"`,
    and `input:{"reason":"before-execution"}`. Keep `requireReal:true` at the
-   envelope's top level. Require HTTP success, `commandResult.status:"completed"`,
-   and a present, non-null `commandResult.snapshotId` before continuing. Use this
+   envelope's top level. Require HTTP success, `status:"completed"`,
+   and a present, non-null `snapshotId` before continuing. Use this
    existing command instead of the electrical workspace snapshots REST route.
    Save `snapshotId`. Send the command envelope from Request conventions to
    `POST /v1/projects/{projectId}/artifact-commands`, using the current electrical
@@ -510,8 +512,8 @@ leases with the same actor and refresh versions before writes.
    ```
 
    Keep `requireReal:true` at the envelope's top level. Before polling, require
-   `commandResult.status:"completed"` and a present, non-null
-   `commandResult.executionRunId`. HTTP 200 alone is insufficient: on a failed
+   `status:"completed"` and a present, non-null
+   `executionRunId`. HTTP 200 alone is insufficient: on a failed
    command, read `error.code` and its message in the response and triage; do not
    poll a missing execution ID. Save the validated `executionRunId` as `simRunId`,
    then poll the execution and inspect outputs by run ID.
