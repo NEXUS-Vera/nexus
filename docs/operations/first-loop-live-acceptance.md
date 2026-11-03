@@ -136,7 +136,7 @@ such as `draftVersion` must be replaced by current response values, and string
 placeholders must be replaced before sending:
 
 ```json
-{"schemaVersion":"1.0.0","actorId":"actor_acceptance_operator","actorType":"user","displayName":"Acceptance Operator"}
+{"schemaVersion":"1.0.0","actorId":"actor_acceptanceoperator01","actorType":"user","displayName":"Acceptance Operator"}
 ```
 
 For all workspace writes, obtain current `binding` and `draft` from
