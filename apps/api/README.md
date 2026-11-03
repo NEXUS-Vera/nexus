@@ -95,6 +95,7 @@ Workspace-id addressed file routes (the workspace id comes from the runtime bind
 
 ### Executions and outputs
 
+- `GET /v1/projects/{projectId}/command-runs/{commandRunId}` - persisted command result (`schemaVersion`, `commandRun`); unknown or cross-project runs return `404 COMMAND_RUN_NOT_FOUND`, unknown projects return `404 PROJECT_NOT_FOUND`
 - `GET /v1/projects/{projectId}/executions?limit=&cursor=` - list execution runs
 - `GET /v1/projects/{projectId}/executions/{executionRunId}` - one execution run, including its input snapshot and base versions
 - `GET /v1/projects/{projectId}/executions/{executionRunId}/logs?after=&limit=` - execution logs

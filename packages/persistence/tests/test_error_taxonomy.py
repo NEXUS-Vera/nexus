@@ -8,6 +8,7 @@ import nexus_persistence
 from nexus_persistence import errors
 
 NOT_FOUND = {
+    "CommandRunNotFoundError": "COMMAND_RUN_NOT_FOUND",
     "ProjectNotFoundError": "PROJECT_NOT_FOUND",
     "ArtifactNotFoundError": "ARTIFACT_NOT_FOUND",
     "ArtifactVersionNotFoundError": "ARTIFACT_VERSION_NOT_FOUND",

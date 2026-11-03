@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 from nexus_persistence import build_stores
 from nexus_persistence.errors import (
+    CommandRunNotFoundError,
     LedgerImmutableError,
     ProjectStateConflictError,
     SnapshotImmutableError,
@@ -498,3 +499,10 @@ def test_firmware_patch_proposal_persistence(stores: Any) -> None:
         store.get_firmware_patch_proposal("missing")
     with pytest.raises(FirmwarePatchNotFoundError):
         store.update_firmware_patch_proposal("missing", proposal)
+
+
+def test_missing_command_run_has_specific_not_found_error(stores: Any) -> None:
+    _, kernel_store = stores
+    with pytest.raises(CommandRunNotFoundError) as exc:
+        kernel_store.get_command_run("cmdrun_missing")
+    assert exc.value.code == "COMMAND_RUN_NOT_FOUND"

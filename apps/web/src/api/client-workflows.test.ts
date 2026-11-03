@@ -60,6 +60,12 @@ function expectRequest(mock: ReturnType<typeof mockResponse>, path: string, body
 afterEach(() => vi.unstubAllGlobals());
 
 describe('W8 workflow client payloads', () => {
+  it('reads a persisted command run', async () => {
+    const response = { schemaVersion: '1.0.0', commandRun: result };
+    const mock = mockResponse(response);
+    expect(await api.getCommandRun(projectId, result.commandRunId)).toEqual(response);
+    expectRequest(mock, `/v1/projects/${projectId}/command-runs/${result.commandRunId}`);
+  });
   it('reads the execution-plan artifact envelope', async () => {
     const mock = mockResponse(artifact);
     expect(await api.getExecutionPlan(projectId)).toEqual(artifact);

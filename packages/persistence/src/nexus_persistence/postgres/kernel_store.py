@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from nexus_persistence.errors import (
     ArtifactVersionConflictError,
+    CommandRunNotFoundError,
     ExecutionNotFoundError,
     FirmwarePatchNotFoundError,
     LedgerImmutableError,
@@ -432,7 +433,7 @@ class PostgresKernelStore:
         with self._session_factory() as session:
             row = session.get(ArtifactCommandRunRow, command_run_id)
             if row is None:
-                raise ProjectPersistenceError(f"Command run not found: {command_run_id}")
+                raise CommandRunNotFoundError(f"Command run not found: {command_run_id}")
             return dict(row.payload)
 
     def create_execution_run(self, execution_run: dict[str, Any]) -> None:
