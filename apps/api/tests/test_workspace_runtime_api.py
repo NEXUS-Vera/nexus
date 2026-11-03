@@ -217,3 +217,41 @@ async def test_workspace_snapshot_capabilities_and_lease(
         assert [s["snapshotId"] for s in listed.json()["snapshots"]] == [body["snapshotId"]]
         refreshed = await client.get(f"{path}/runtime")
         assert refreshed.json()["binding"]["currentSnapshotId"] == body["snapshotId"]
+
+        if not filesystem:
+            draft = refreshed.json()["draft"]
+            edited_content = {**draft["content"], "summary": "Edited after snapshot"}
+            edited = await client.post(
+                f"/v1/projects/{project_id}/artifact-commands",
+                json={
+                    "schemaVersion": "1.0.0",
+                    "commandId": _cmd_id(),
+                    "commandType": "workspace.update-draft",
+                    "projectId": project_id,
+                    "artifactId": binding["artifactId"],
+                    "workspaceId": binding["workspaceId"],
+                    "baseArtifactVersion": binding["baseArtifactVersion"],
+                    "baseProjectStateVersion": binding["baseProjectStateVersion"],
+                    "requestedBy": actor,
+                    "requestedAt": "2026-11-03T00:00:00Z",
+                    "input": {
+                        "content": edited_content,
+                        "expectedDraftVersion": draft["draftVersion"],
+                    },
+                },
+            )
+            assert edited.status_code == 200, edited.text
+            assert edited.json()["status"] == "completed", edited.text
+            changed = await client.get(f"{path}/runtime")
+            assert changed.json()["draft"]["content"] == edited_content
+            restore_path = f"{path}/snapshots/{body['snapshotId']}/restore"
+            denied = await client.post(restore_path, json={"requestedBy": _actor()})
+            assert denied.status_code == 422, denied.text
+            assert denied.json()["error"]["code"] == "DRAFT_EDIT_LEASE_HELD"
+            restored = await client.post(restore_path, json={"requestedBy": actor})
+            assert restored.status_code == 200, restored.text
+            restored_draft = restored.json()["draft"]
+            assert restored_draft["draftVersion"] == changed.json()["draft"]["draftVersion"] + 1
+            assert restored_draft["content"] == body["content"]["structuredContent"]
+            persisted = await client.get(f"{path}/runtime")
+            assert persisted.json()["draft"] == restored_draft

@@ -220,7 +220,7 @@ class WorkspaceRuntimeService:
         required = list(definition.get("requiredCapabilities") or [])
         caps = {
             "filesystem": CAPABILITY_FILESYSTEM in required,
-            "snapshots": True,  # WorkspaceService snapshots both structured and filesystem drafts.
+            "snapshots": self._workspaces.can_snapshot(definition),
             "execution": CAPABILITY_SANDBOX in required,
             "logs": CAPABILITY_SANDBOX in required,
         }
