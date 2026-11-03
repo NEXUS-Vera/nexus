@@ -123,7 +123,9 @@ MPU6050 initialization on the approved I2C prototype. Sampling uses the golden
 manual without a criterion. Live initialization optionally proposes typed criteria per
 Execution Plan objective. Definitions reuse the Test Plan vocabulary and are validated
 before review (including a 4096-character definition bound); rejected or absent
-proposals retain the platform rules above, then manual review. No model-authored
+proposals fall back to manual review. Platform rules above always take precedence;
+proposals must use the platform catalog of emitted metrics, outputs, markers, and
+wiring signals, with a compatible verification method. No model-authored
 results are accepted. Inspection cases remain planned. Repair
 stops on unsupported architectures and unavailable simulator prerequisites, retaining
 the error code rather than proposing a firmware correction. Missing legacy Test Plans

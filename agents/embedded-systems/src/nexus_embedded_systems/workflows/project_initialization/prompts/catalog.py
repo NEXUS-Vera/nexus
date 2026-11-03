@@ -329,7 +329,7 @@ EXECUTION_REPAIR_REQUEST = (
 
 EXECUTION_PLAN_CRITERIA = PromptSpec(
     prompt_id="execution-plan-criteria",
-    version="1.0.0",
+    version="1.1.0",
     purpose="Propose optional deterministic criterion definitions for plan review.",
     system_instructions=(
         _UNTRUSTED_INPUT_POLICY
@@ -343,6 +343,8 @@ EXECUTION_PLAN_CRITERIA = PromptSpec(
         "simulation for runtime markers, and inspection for wiring/configuration. "
         "Use criterionType as discriminator. numeric-comparison requires operator and "
         "numeric expectedValue; range requires minValue <= maxValue. Follow criterionSchema. "
+        "Choose only metricIds, markers, outputNames (comma-separated for multiple outputs), "
+        "and signals from evaluableEvidence. Platform rules always take precedence. "
         "Omit objectives without a justified deterministic criterion. Each criterion must "
         "fit 4096 characters. Never author results, verdicts, assessments, PASS or FAIL. "
         "Only deterministic code evaluates evidence; definitions do not prove success."

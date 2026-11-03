@@ -521,7 +521,7 @@ async def test_live_initialization_requests_validated_plan_criterion() -> None:
             "objectives": [
                 {
                     "objectiveId": objectives[0]["objectiveId"],
-                    "criterion": {"criterionType": "contains", "marker": "DEVICE_READY"},
+                    "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
                     "verificationMethod": "simulation",
                 }
             ]
@@ -532,6 +532,6 @@ async def test_live_initialization_requests_validated_plan_criterion() -> None:
         WEARABLE_TREMOR_PROMPT, "collaborate", _context()
     )
     objective = result["project"]["executionPlan"]["verificationObjectives"][0]
-    assert objective["criterion"] == {"criterionType": "contains", "marker": "DEVICE_READY"}
+    assert objective["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
     assert objective["verificationMethod"] == "simulation"
     assert validate_initialization_result_schema(result) == []

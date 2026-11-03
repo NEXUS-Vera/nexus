@@ -4,6 +4,48 @@ from __future__ import annotations
 
 from typing import Any
 
+PLATFORM_MPU_READY_MARKER = "NEXUS_MPU_READY"
+# Evidence emitted by approved IMU analysis, firmware and wiring promotion.
+EVALUABLE_EVIDENCE = {
+    "metricIds": [
+        "sampling_hz",
+        "accel_x_rms_noise_g",
+        "mean_accel_x_g",
+        "mean_accel_y_g",
+        "mean_accel_z_g",
+        "sampleCount",
+    ],
+    "markers": [PLATFORM_MPU_READY_MARKER, "time_s", "accel_x_g", "accel_y_g", "accel_z_g"],
+    "outputNames": ["summary.json", "processed.csv", "accel_plot.png", "results.json"],
+    "signals": ["SDA", "SCL"],
+}
+
+
+def evaluable_criterion_proposal(criterion: Any, method: str | None = None) -> bool:
+    """Accept definitions only for evidence the platform can promote."""
+    from nexus_contracts.validation.execution_plan_validator import valid_criterion_proposal
+
+    if not valid_criterion_proposal(criterion):
+        return False
+    kind = criterion["criterionType"]
+    if kind in {"numeric-comparison", "range"}:
+        return (
+            method in {None, "analysis"}
+            and criterion["metricId"] in EVALUABLE_EVIDENCE["metricIds"]
+        )
+    if kind == "existence":
+        return method in {None, "analysis"} and all(
+            name.strip() in EVALUABLE_EVIDENCE["outputNames"]
+            for name in criterion["outputName"].split(",")
+        )
+    if kind in {"contains", "exact-match"}:
+        return (
+            method in {None, "simulation", "execution-output", "firmware-test"}
+            and criterion.get("marker", criterion.get("expectedValue"))
+            in EVALUABLE_EVIDENCE["markers"]
+        )
+    return method in {None, "inspection"} and criterion["signal"] in EVALUABLE_EVIDENCE["signals"]
+
 
 def compose_execution_plan(package: dict[str, Any]) -> dict[str, Any]:
     artifacts = package["artifacts"]
@@ -184,7 +226,6 @@ async def propose_execution_plan_criteria(
     plan: dict[str, Any], package: dict[str, Any], gateway: Any, model_policy: Any
 ) -> None:
     """Optional live definitions; invalid/missing proposals leave platform fallback intact."""
-    from nexus_contracts.validation.execution_plan_validator import valid_criterion_proposal
     from nexus_contracts.validation.schema_validator import load_schemas_by_id
     from nexus_model_gateway import ModelGatewayError
 
@@ -224,6 +265,7 @@ async def propose_execution_plan_criteria(
             task_name="propose-execution-plan-criteria",
             system_instructions=prompt.system_instructions,
             input_payload={
+                "evaluableEvidence": EVALUABLE_EVIDENCE,
                 "criterionSchema": load_schemas_by_id()[
                     "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json"
                 ]["$defs"]["criterion"],
@@ -280,7 +322,9 @@ async def propose_execution_plan_criteria(
             set(proposal) != {"objectiveId", "criterion", "verificationMethod"}
             or proposal.get("verificationMethod")
             not in {"analysis", "simulation", "execution-output", "firmware-test", "inspection"}
-            or not valid_criterion_proposal(proposal.get("criterion"))
+            or not evaluable_criterion_proposal(
+                proposal.get("criterion"), proposal.get("verificationMethod")
+            )
         ):
             continue
         objective.update({k: proposal[k] for k in ("criterion", "verificationMethod")})

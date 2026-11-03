@@ -1458,7 +1458,21 @@ def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> Non
 @pytest.mark.parametrize("unit,value", [("Hz", 50), ("ms", 20), ("s", 0.02)])
 @pytest.mark.parametrize(
     "proposal",
-    [None, "valid", "criterion-only", "result", "unknown", "blank", "weaker", "equal", "inverted"],
+    [
+        None,
+        "valid",
+        "criterion-only",
+        "result",
+        "unknown",
+        "blank",
+        "weaker",
+        "equal",
+        "inverted",
+        "imu_sample_rate_hz",
+        "configured-sample-rate-hz",
+        "inter_sample_interval_deviation_percent",
+        "power_stable_during_full_load",
+    ],
 )
 @pytest.mark.parametrize("noise,assessment", [(0.04, "PASS"), (0.12, "FAIL")])
 def test_live_structured_objectives(
@@ -1483,6 +1497,7 @@ def test_live_structured_objectives(
     original = kernel.project_store.get_artifact
     requirements = copy.deepcopy(original(pid, "requirement-set"))
     reqs = requirements["content"]["requirements"]
+    reqs[0]["statement"] = "Power stays stable during full load."
     reqs[1]["statement"] = "Inspect the live prototype wiring before acquisition."
     reqs[1]["verificationMethod"] = "Hardware inspection"
     reqs[3]["statement"] = "Initialize the MPU-6050 at I2C address 0x68 before acquisition."
@@ -1497,6 +1512,10 @@ def test_live_structured_objectives(
     plan = copy.deepcopy(original(pid, "execution-plan"))
     for objective, req in zip(plan["content"]["plan"]["verificationObjectives"], reqs, strict=True):
         objective["acceptanceCriteria"] = req.get("acceptanceCriteria", [])
+    plan["content"]["plan"]["verificationObjectives"][0].update(
+        criterion={"criterionType": "existence", "outputName": "power_stable_during_full_load"},
+        verificationMethod="analysis",
+    )
     if proposal:
         inspection = plan["content"]["plan"]["verificationObjectives"][1]
         inspection.update(
@@ -1525,6 +1544,14 @@ def test_live_structured_objectives(
                 "operator": ">",
                 "expectedValue": 45,
             }
+        if proposal in {
+            "imu_sample_rate_hz",
+            "configured-sample-rate-hz",
+            "power_stable_during_full_load",
+        }:
+            objective["criterion"] = {"criterionType": "existence", "outputName": proposal}
+        elif proposal == "inter_sample_interval_deviation_percent":
+            objective["criterion"]["metricId"] = proposal
         if proposal == "criterion-only":
             objective.pop("verificationMethod")
         if proposal == "result":
@@ -1547,25 +1574,18 @@ def test_live_structured_objectives(
     ExecutionPlanWorkflow(kernel)._seed_test_plan(pid, plan)
     content = captured["new_artifact"]["content"]
     cases = content["testCases"]
+    assert cases[0]["verificationMethod"] == "manual"
+    assert "criterion" not in cases[0]
     assert cases[1]["verificationMethod"] == "manual"
     assert cases[1].get("criterion") is None
     assert cases[3]["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
-    assert cases[4]["criterion"] == (
-        {
-            "criterionType": "range",
-            "metricId": "sampling_hz",
-            "minValue": 45 if proposal == "equal" else 48,
-            "maxValue": 55 if proposal == "equal" else 52,
-        }
-        if proposal in {"valid", "criterion-only", "equal"}
-        else {
-            "criterionType": "range",
-            "metricId": "sampling_hz",
-            "minValue": 45,
-            "maxValue": 55,
-            "unit": "Hz",
-        }
-    )
+    assert cases[4]["criterion"] == {
+        "criterionType": "range",
+        "metricId": "sampling_hz",
+        "minValue": 45,
+        "maxValue": 55,
+        "unit": "Hz",
+    }
     assert all(c["status"] == "planned" and "assessment" not in c for c in cases)
     promoted, _ = promote_analysis_evidence_into_test_plan(
         content,
@@ -1578,6 +1598,11 @@ def test_live_structured_objectives(
     )
     assert promoted["testCases"][3]["assessment"] == "PASS"
     assert promoted["testCases"][4]["assessment"] == "PASS"
+    slow, _ = promote_analysis_evidence_into_test_plan(
+        content, summary={"sampling_hz": 25}, execution_run_id="run_live_slow"
+    )
+    assert slow["testCases"][4]["assessment"] == "FAIL"
+
     assert cases[6]["criterion"]["metricId"] == "accel_x_rms_noise_g"
     assert promoted["testCases"][6]["assessment"] == assessment
     assert all(promoted["testCases"][i]["status"] == "planned" for i in (1, 2))

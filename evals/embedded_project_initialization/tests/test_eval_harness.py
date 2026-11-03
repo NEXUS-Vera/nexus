@@ -254,8 +254,9 @@ def test_fake_eval_suite_without_board_or_persistence_dependencies() -> None:
 
 
 @pytest.mark.parametrize("with_result", [False, True])
+@pytest.mark.parametrize("marker", ["NEXUS_MPU_READY", "DEVICE_READY"])
 async def test_plan_criterion_proposals_preserve_golden_behavior(
-    monkeypatch: pytest.MonkeyPatch, with_result: bool
+    monkeypatch: pytest.MonkeyPatch, with_result: bool, marker: str
 ) -> None:
     from evals.embedded_project_initialization.runners import run_eval
     from evals.embedded_project_initialization.runners.fake_provider import build_gateway_for_case
@@ -264,7 +265,8 @@ async def test_plan_criterion_proposals_preserve_golden_behavior(
     gateway = build_gateway_for_case(case)
 
     def proposal(_task, payload, _schema):
-        criterion = {"criterionType": "contains", "marker": "DEVICE_READY"}
+        assert "evaluableEvidence" in payload
+        criterion = {"criterionType": "contains", "marker": marker}
         if with_result:
             criterion["result"] = "PASS"
         return {

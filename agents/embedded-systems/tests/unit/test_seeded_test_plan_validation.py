@@ -106,9 +106,11 @@ def test_invalid_criterion_proposals(criterion: dict) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("invalid", [False, True])
+@pytest.mark.parametrize("invalid", [False, True, "unknown"])
 @pytest.mark.parametrize("kind", ["contains", "range", "numeric-comparison"])
-async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool, kind: str) -> None:
+async def test_model_criterion_proposal_is_optional_and_validated(
+    invalid: bool | str, kind: str
+) -> None:
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
 
@@ -133,7 +135,9 @@ async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool,
             "expectedValue": 0.08,
             "unit": "g",
         }
-    if invalid:
+    if invalid == "unknown":
+        criterion["marker" if kind == "contains" else "metricId"] = "invented"
+    elif invalid:
         criterion["result"] = "PASS"
     gateway = SimpleNamespace(
         generate_structured=AsyncMock(
@@ -143,7 +147,9 @@ async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool,
                         {
                             "objectiveId": "o1",
                             "criterion": criterion,
-                            "verificationMethod": "simulation",
+                            "verificationMethod": "simulation"
+                            if kind == "contains"
+                            else "analysis",
                         }
                     ]
                 }
@@ -166,7 +172,8 @@ async def test_model_criterion_proposal_is_optional_and_validated(invalid: bool,
     output_schema = gateway.generate_structured.call_args.kwargs["output_schema"]
     assert make_validator(output_schema).is_valid(
         gateway.generate_structured.return_value.parsed_output
-    ) == (not invalid)
+    ) == (invalid is not True)
+    assert "evaluableEvidence" in gateway.generate_structured.call_args.kwargs["input_payload"]
     prompt = gateway.generate_structured.call_args.kwargs["system_instructions"]
     assert "Never author results" in prompt
 
@@ -183,27 +190,41 @@ def test_criterion_definition_serialized_budget() -> None:
 
 
 @pytest.mark.parametrize(
-    "operator,value,accepted",
+    "name",
     [
-        ("<", 0.1, False),
-        (">", 0.08, False),
-        ("<=", 0.08, False),
-        ("<", 0.08, True),
-        ("<", 0.04, True),
-        ("<=", 0.04, True),
+        "imu_sample_rate_hz",
+        "configured-sample-rate-hz",
+        "power_stable_during_full_load",
+        "accel_x_rms",
+        "operating-temperature-range",
+        "summary.json,unknown",
     ],
 )
-def test_numeric_platform_bounds(operator: str, value: float, accepted: bool) -> None:
-    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
-        _preserves_platform_bounds,
+def test_live_unknown_outputs(name: str) -> None:
+    from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+        evaluable_criterion_proposal,
     )
 
-    platform = {
-        "criterionType": "numeric-comparison",
-        "metricId": "accel_x_rms_noise_g",
-        "operator": "<",
-        "expectedValue": 0.08,
-        "unit": "g",
-    }
-    proposal = {**platform, "operator": operator, "expectedValue": value}
-    assert _preserves_platform_bounds(proposal, platform) is accepted
+    assert not evaluable_criterion_proposal({"criterionType": "existence", "outputName": name})
+
+
+def test_evidence_catalog_validation() -> None:
+    from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+        evaluable_criterion_proposal,
+    )
+
+    assert not evaluable_criterion_proposal(
+        {
+            "criterionType": "range",
+            "metricId": "inter_sample_interval_deviation_percent",
+            "minValue": 0,
+            "maxValue": 10,
+        }
+    )
+    assert not evaluable_criterion_proposal({"criterionType": "contains", "marker": "invented"})
+    assert not evaluable_criterion_proposal(
+        {"criterionType": "structural-mapping", "signal": "invented", "expectedMapping": "GPIO21"}
+    )
+    assert evaluable_criterion_proposal(
+        {"criterionType": "existence", "outputName": "summary.json,processed.csv,accel_plot.png"}
+    )
