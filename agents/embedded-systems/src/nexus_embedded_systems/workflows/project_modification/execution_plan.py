@@ -7,6 +7,8 @@ runs tools. Candidate selection authorizes a prototype, not physical validation.
 from __future__ import annotations
 
 import json
+import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -125,6 +127,78 @@ IMU_VERIFICATION: dict[str, dict[str, Any]] = {
         },
     },
 }
+
+
+# Golden IMU test-plan-artifact.json: 45–55 Hz around a 50 Hz target (±10%).
+PLATFORM_SAMPLING_TOLERANCE = 0.10
+# Supported prototype address: nexus_board/firmware/patch.py MPU6050_ADDR.
+PLATFORM_MPU6050_ADDRESS = "0x68"
+
+
+def _structured_verification(
+    requirement: dict[str, Any], configuration: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Derive definitions only; board verification alone assesses evidence."""
+    text = requirement.get("statement", "").lower().replace("mpu-6050", "mpu6050")
+    category = requirement.get("category")
+    if "inspection" in requirement.get("verificationMethod", "").lower():
+        return None
+    quantity = requirement.get("targetQuantity") or {}
+    value = quantity.get("value")
+    unit = quantity.get("unit")
+    if (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+        and category == "performance"
+    ):
+        if re.search(r"sampl|telemetry interval", text) and unit in {"Hz", "ms", "s"}:
+            hz = value if unit == "Hz" else (1000 if unit == "ms" else 1) / value
+            low = hz * (1 - PLATFORM_SAMPLING_TOLERANCE)
+            high = hz * (1 + PLATFORM_SAMPLING_TOLERANCE)
+            if not all(math.isfinite(v) and v > 0 for v in (low, high)):
+                return None
+            return {
+                "verificationMethod": "analysis",
+                "criterion": {
+                    "criterionType": "range",
+                    "metricId": "sampling_hz",
+                    "minValue": low,
+                    "maxValue": high,
+                    "unit": "Hz",
+                },
+            }
+        if (
+            unit == "g"
+            and "accel_x" in text
+            and "rms" in text
+            and "noise" in text
+            and re.search(r"below|less than", text)
+        ):
+            return {
+                "verificationMethod": "analysis",
+                "criterion": {
+                    "criterionType": "numeric-comparison",
+                    "metricId": "accel_x_rms_noise_g",
+                    "operator": "<",
+                    "expectedValue": value,
+                    "unit": "g",
+                },
+            }
+    addresses = re.findall(r"0x[0-9a-f]+", text)
+    if (
+        category in {"functional", "interface"}
+        and "mpu6050" in text
+        and re.search(r"initializ|initialis|readiness", text)
+        and configuration.get("i2c")
+        and all(address == PLATFORM_MPU6050_ADDRESS for address in addresses)
+    ):
+        return {
+            "verificationMethod": "execution-output",
+            "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+        }
+    return None
 
 
 def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
@@ -486,13 +560,18 @@ class ExecutionPlanWorkflow:
             statement = requirement.get("statement", "").replace(
                 "containing time_ms,", "containing time_s,"
             )
-            mapped = IMU_VERIFICATION.get(statement)
-            # Additional acceptance criteria need review rather than a partial mapping.
-            if mapped and not objective["acceptanceCriteria"]:
+            mapped = IMU_VERIFICATION.get(statement) or _structured_verification(
+                requirement, artifact["content"]["configuration"]
+            )
+            if mapped:
                 case.update(mapped)
                 case["expectedResult"] = mapped.get(
                     "expectedResult",
-                    ("See deterministic criterion for the golden IMU requirement."),
+                    (
+                        case["expectedResult"]
+                        if objective["acceptanceCriteria"]
+                        else "See deterministic criterion for the golden IMU requirement."
+                    ),
                 )
             else:
                 case["expectedResult"] += (

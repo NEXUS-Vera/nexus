@@ -115,9 +115,12 @@ control flow only. This workflow does not add W6 provenance or W8 UI integration
 
 Approved execution-plan materialization seeds a missing Test Plan from its
 verification objectives without replacing existing cases. Seeded cases are planned
-and unassessed. Exact golden IMU requirement statements without additional acceptance
-criteria receive the golden Test Plan methods and deterministic criteria (R1–R8);
-unmapped objectives remain manual without a criterion. Repair
+and unassessed. Exact golden IMU requirement statements receive the golden Test
+Plan methods and deterministic criteria (R1–R8). Live requirements can also derive criteria from
+structured sampling targets (Hz or intervals), accel_x RMS noise targets, or
+MPU6050 initialization on the approved I2C prototype. Sampling uses the golden
+±10% platform tolerance. Acceptance prose is retained; unmapped objectives remain
+manual without a criterion. Inspection cases remain planned. Repair
 stops on unsupported architectures and unavailable simulator prerequisites, retaining
 the error code rather than proposing a firmware correction. Missing legacy Test Plans
 yield empty inspection cases and `TEST_PLAN_MISSING` on evidence promotion.

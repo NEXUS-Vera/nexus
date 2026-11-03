@@ -1452,3 +1452,122 @@ def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> Non
     runtime.list_logs.assert_called_once_with(
         project_id=state["projectId"], execution_run_id=state["runId"], limit=100
     )
+
+
+@pytest.mark.parametrize("repair_env", ["live"], indirect=True)
+@pytest.mark.parametrize("unit,value", [("Hz", 50), ("ms", 20), ("s", 0.02)])
+def test_live_structured_objectives(
+    repair_env: Any, monkeypatch: Any, unit: str, value: float
+) -> None:
+    from nexus_board.verification.close import (
+        promote_analysis_evidence_into_test_plan,
+        promote_marker_evidence_into_test_plan,
+    )
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        ExecutionPlanWorkflow,
+    )
+    from nexus_persistence.errors import ArtifactNotFoundError
+
+    kernel, pid, _, _, _, _ = repair_env
+    original = kernel.project_store.get_artifact
+    requirements = copy.deepcopy(original(pid, "requirement-set"))
+    reqs = requirements["content"]["requirements"]
+    reqs[3]["statement"] = "Initialize the MPU-6050 at I2C address 0x68 before acquisition."
+    reqs[3]["acceptanceCriteria"] = ["Report readiness after initialization."]
+    reqs[4]["statement"] = "Acquire acceleration samples at the configured sampling cadence."
+    reqs[4]["category"] = "performance"
+    reqs[4]["targetQuantity"] = {"schemaVersion": "1.0.0", "value": value, "unit": unit}
+    reqs[4]["acceptanceCriteria"] = ["Sampling meets the configured target."]
+    plan = copy.deepcopy(original(pid, "execution-plan"))
+    for objective, req in zip(plan["content"]["plan"]["verificationObjectives"], reqs, strict=True):
+        objective["acceptanceCriteria"] = req.get("acceptanceCriteria", [])
+    captured: dict[str, Any] = {}
+
+    def get(project_id: str, kind: str) -> Any:
+        if kind == "test-plan":
+            raise ArtifactNotFoundError("missing")
+        if kind == "requirement-set":
+            return requirements
+        return original(project_id, kind)
+
+    monkeypatch.setattr(kernel.project_store, "get_artifact", get)
+    monkeypatch.setattr(
+        kernel.project_store, "apply_accepted_artifact_revision", lambda **kw: captured.update(kw)
+    )
+    ExecutionPlanWorkflow(kernel)._seed_test_plan(pid, plan)
+    content = captured["new_artifact"]["content"]
+    cases = content["testCases"]
+    assert cases[3]["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    assert cases[4]["criterion"] == {
+        "criterionType": "range",
+        "metricId": "sampling_hz",
+        "minValue": 45,
+        "maxValue": pytest.approx(55),
+        "unit": "Hz",
+    }
+    assert all(c["status"] == "planned" and "assessment" not in c for c in cases)
+    promoted, _ = promote_analysis_evidence_into_test_plan(
+        content,
+        summary={"sampling_hz": 50},
+        produced_output_names=[],
+        execution_run_id="run_live",
+    )
+    promoted, _ = promote_marker_evidence_into_test_plan(
+        promoted, log_text="NEXUS_MPU_READY", execution_run_id="run_live"
+    )
+    assert promoted["testCases"][3]["assessment"] == "PASS"
+    assert promoted["testCases"][4]["assessment"] == "PASS"
+    assert all(promoted["testCases"][i]["status"] == "planned" for i in (1, 2))
+
+
+@pytest.mark.parametrize(
+    "changes,configuration",
+    [
+        ({"targetQuantity": {"value": 0, "unit": "Hz"}}, {"i2c": {"sdaPin": 21}}),
+        ({"targetQuantity": {"value": float("inf"), "unit": "Hz"}}, {}),
+        ({"targetQuantity": {"value": 50, "unit": "rpm"}}, {}),
+        ({"targetQuantity": {}}, {}),
+        (
+            {"statement": "Initialize MPU6050 at 0x69", "category": "functional"},
+            {"i2c": {"sdaPin": 21}},
+        ),
+        ({"statement": "Initialize MPU6050 at 0x68", "category": "functional"}, {}),
+        ({"verificationMethod": "inspection"}, {"i2c": {"sdaPin": 21}}),
+    ],
+)
+def test_structured_fallback_requires_derivable_target(changes: Any, configuration: Any) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _structured_verification,
+    )
+
+    requirement = {
+        "statement": "Acquire acceleration samples at the configured sampling cadence.",
+        "category": "performance",
+        "targetQuantity": {"value": 50, "unit": "Hz"},
+        **changes,
+    }
+    assert _structured_verification(requirement, configuration) is None
+
+
+def test_structured_noise_target() -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _structured_verification,
+    )
+
+    assert _structured_verification(
+        {
+            "statement": "The accel_x RMS noise shall remain below 0.08 g at rest.",
+            "category": "performance",
+            "targetQuantity": {"value": 0.08, "unit": "g"},
+        },
+        {},
+    ) == {
+        "verificationMethod": "analysis",
+        "criterion": {
+            "criterionType": "numeric-comparison",
+            "metricId": "accel_x_rms_noise_g",
+            "operator": "<",
+            "expectedValue": 0.08,
+            "unit": "g",
+        },
+    }
