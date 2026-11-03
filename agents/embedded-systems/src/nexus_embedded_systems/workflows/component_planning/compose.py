@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from nexus_embedded_systems.workflows.project_initialization.ids import (
@@ -15,7 +16,7 @@ from .coverage import compute_coverage_summary
 from .derive_constraints import derive_constraints_from_requirements
 from .derive_roles import derive_roles_from_architecture, is_i2c_bus
 from .maturity import compute_maturity
-from .propose_candidates import propose_candidates_for_roles
+from .propose_candidates import propose_candidates_for_roles, requests_supported_prototype
 
 
 def compose_component_plan_content(
@@ -33,6 +34,41 @@ def compose_component_plan_content(
     stamp = now or utc_now()
     actor = proposed_by or default_actor("vera", display_name="Vera")
     roles = derive_roles_from_architecture(architecture_content, source=source)
+    # Functional compute/control/analysis nodes share the user-named MCU in the
+    # bounded ESP32/MPU6050 prototype; model assumption prose is not evidence of
+    # separate processors. Explicit additional platforms remain ambiguous.
+    single_platform = requests_supported_prototype(user_message) and not re.search(
+        r"\b(?:STM32\w*|RP2040|RP2350|ATmega\w*|"
+        r"Arduino\s+(?:boards?|Uno|Nano|Mega|Due|Leonardo|Micro|Zero|MKR\w*|Giga)|Raspberry\s+Pi|"
+        r"ESP8266|ESP32[- ]?(?:S[23]|C[236]|H2|P4)s?|"
+        r"(?:two|multiple|dual|second|another|additional|multi|[2-9]|\d{2,})[-\s]+"
+        r"(?:ESP32s?|MCUs?|processors?|microcontrollers?))\b",
+        user_message,
+        re.I,
+    )
+    if single_platform:
+        # Sensor acquisition is firmware on the host, not another physical IMU.
+        acquisition_nodes = {
+            n["nodeId"]
+            for n in architecture_content.get("nodes", [])
+            if isinstance(n.get("nodeId"), str)
+            and n.get("functionalType") == "input"
+            and re.search(r"\b(?:acquisition|sampling)\b", n.get("name", ""), re.I)
+            and not re.search(r"\bMPU[- ]?6050\b", n.get("name", ""), re.I)
+        }
+        for role in roles:
+            if acquisition_nodes.intersection(role["architectureNodeIds"]):
+                role["category"] = "compute"
+    compute_roles = [r for r in roles if r.get("category") == "compute"]
+    if single_platform and compute_roles:
+        primary = compute_roles[0]
+        for role in compute_roles[1:]:
+            for key in ("architectureNodeIds", "requirementIds"):
+                primary[key] = list(dict.fromkeys([*primary[key], *role[key]]))
+            roles.remove(role)
+        primary["name"] = "ESP32 host compute role"
+        primary["description"] = "Hosts the functional compute, control, and analysis subsystems."
+        primary["rationale"] += " Functional compute roles share the user-named ESP32 platform."
     requirements = list(requirement_set_content.get("requirements") or [])
     constraints = derive_constraints_from_requirements(roles=roles, requirements=requirements)
     candidates = (
@@ -66,17 +102,34 @@ def compose_component_plan_content(
     i2c_roles = {
         r["componentRoleId"] for r in roles if i2c_nodes.intersection(r["architectureNodeIds"])
     }
+    sensor_nodes = {
+        node_id
+        for role in roles
+        if role.get("category") == "sensor"
+        for node_id in role["architectureNodeIds"]
+        if isinstance(node_id, str)
+    }
+    # Do not replace an explicitly different sensor transport with the prototype
+    # assumption. Missing topology still produces no usable electrical binding.
+    prototype_i2c = single_platform and not any(
+        edge.get("flowType") in {"data", "control"}
+        and sensor_nodes.intersection((edge.get("fromNodeId"), edge.get("toNodeId")))
+        and re.search(r"\b(spi|uart|serial|analog)\b", str(edge.get("description", "")), re.I)
+        for edge in architecture_content.get("edges", [])
+    )
     for candidate in candidates:
         if (
             candidate.get("source") == "user-provided"
             and candidate.get("partNumber") in {"ESP32-DEVKIT-V1", "MPU6050"}
-            and candidate["componentRoleId"] in i2c_roles
+            and (candidate["componentRoleId"] in i2c_roles or prototype_i2c)
         ):
             candidate["specifications"].append(
                 {"specKey": "interface", "value": "I2C", "operator": "eq"}
             )
             candidate["notes"] += (
-                " I2C interface inferred from functional architecture; unverified."
+                " I2C interface inferred from supported single-platform prototype; unverified."
+                if single_platform
+                else " I2C interface inferred from functional architecture; unverified."
             )
 
     selections: list[dict[str, Any]] = []

@@ -40,6 +40,11 @@ each run is a stateless request/response over the supplied prompt.
   candidate, without fixture alternatives. For requests naming both supported parts,
   complete-package validation rejects initialization if no usable default I2C binding
   exists, with `LLM_INITIALIZATION_VALIDATION_FAILED`; it does not repair the package.
+  When the user names the supported ESP32/MPU6050 pair without another MCU,
+  functional compute/control/analysis roles share one provisional hardware role.
+  This bounded prototype may infer an unverified I2C interface for the named pair
+  when sensor flows do not specify another transport. A sensor signal/control
+  connection is still required; missing topology or ambiguous platforms fail validation.
   I2C transport nodes labeled communication, input, or control between compute and sensing become electrical
   connections between hardware roles, including control and return-data flow provenance,
   even when their names omit "bus". I2C may be specified in the name, responsibilities,
