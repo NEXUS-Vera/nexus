@@ -1,7 +1,8 @@
+import { USER_ACTOR } from './actor';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as api from './client';
 
-const actor = { schemaVersion: '1.0.0', actorId: 'actor_02USERACTOR000000000000001', actorType: 'user' } as const;
+const actor = USER_ACTOR;
 const projectId = 'proj_02PHASE11PROJ000000000001';
 const content: api.ExecutionPlanArtifact['content'] = {
   configuration: {

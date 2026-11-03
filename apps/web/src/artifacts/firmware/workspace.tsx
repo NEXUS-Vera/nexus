@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import {
   useCallback,
   useEffect,
@@ -101,15 +102,6 @@ type Props = {
   isDark: boolean;
   onCommandResult?: (result: ArtifactCommandResult) => void;
 };
-
-function userActor() {
-  return {
-    schemaVersion: '1.0.0' as const,
-    actorId: 'user_local',
-    actorType: 'user' as const,
-    displayName: 'User',
-  };
-}
 
 function newCommandId(): string {
   return `cmd_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
@@ -299,7 +291,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
 
   const leaseTokenRef = useRef<string | null>(null);
   const bindingRef = useRef<BindingInfo | null>(null);
-  const actor = useMemo(() => userActor(), []);
+  const actor = USER_ACTOR;
 
   useEffect(() => {
     leaseTokenRef.current = leaseToken;

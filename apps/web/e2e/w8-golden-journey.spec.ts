@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../src/api/actor';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
@@ -73,7 +74,7 @@ test('W8 golden journey through the real API and SQLite', async ({ page, request
 
     const pid = new URL(projectURL).hash.match(/projects\/([^?]+)/)![1];
     const root = `${apiURL}/v1/projects/${pid}`;
-    const actor = { schemaVersion: '1.0.0', actorType: 'user', actorId: 'user_local', displayName: 'User' };
+    const actor = USER_ACTOR;
     async function body(response: { ok(): boolean; text(): Promise<string>; json(): Promise<any> }) {
       expect(response.ok(), await response.text()).toBeTruthy();
       return response.json();
