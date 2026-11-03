@@ -381,3 +381,68 @@ async def test_complete_package_requires_usable_default_binding(usable: bool) ->
     assert run["stepRecords"][-1]["stepType"] == "validate-complete-package"
     assert run["stepRecords"][-1]["status"] == "failed"
     assert not any("repair" in step["stepType"] for step in run["stepRecords"])
+
+
+@pytest.mark.parametrize("variant", ["captured", "disconnected", "ambiguous", "spi"])
+async def test_captured_n305_initialization(variant: str) -> None:
+    """Replay real Sonnet 4.6 tool inputs captured on 2026-11-02 (14:38 CST).
+
+    Only tool payloads and the demo prompt are retained, without response/request
+    metadata. No I2C wording or corrected requirement keys have been invented.
+    The architecture explicitly assumes one ESP32 and no other processing unit;
+    its processing/control/analysis functions share that provisional platform.
+    I2C is a supported prototype assumption, not a verified model/datasheet claim.
+    Removing sensor signal/control flows must still fail complete validation.
+    """
+    import json
+    from pathlib import Path
+
+    from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+        derive_default_configuration,
+    )
+
+    captured = json.loads(
+        (Path(__file__).parents[1] / "fixtures" / "live-init-n305.json").read_text()
+    )
+    architecture = captured["generate-functional-architecture"]
+    if variant == "disconnected":
+        architecture["edges"] = [
+            edge
+            for edge in architecture["edges"]
+            if edge["flowType"] == "power"
+            or "N01" not in (edge["fromLocalNodeKey"], edge["toLocalNodeKey"])
+        ]
+    elif variant == "ambiguous":
+        architecture["assumptions"] = []
+    elif variant == "spi":
+        next(e for e in architecture["edges"] if e["localEdgeKey"] == "E08")["description"] = (
+            "Configure the sensor over SPI."
+        )
+    provider = LlmInitializationProvider(
+        gateway=build_success_gateway(
+            interpretation=captured["interpret-project"],
+            brief=captured["generate-project-brief"],
+            requirements=captured["generate-requirements"],
+            architecture=architecture,
+        ),
+        model_policy=MODEL_POLICY,
+    )
+    if variant != "captured":
+        with pytest.raises(LlmInitializationError, match="no usable default binding") as error:
+            await provider.initialize(captured["userMessage"], "collaborate", _context())
+        assert error.value.code == "LLM_INITIALIZATION_VALIDATION_FAILED"
+        return
+    result = await provider.initialize(captured["userMessage"], "collaborate", _context())
+    assert validate_initialization_result_schema(result) == []
+    assert not [
+        e
+        for e in validate_project_package_bundle(initialization_dict_to_package_bundle(result))
+        if e.blocking
+    ]
+    configuration = derive_default_configuration(result)
+    assert configuration["i2c"]["sdaPin"] == 21
+    assert configuration["i2c"]["sclPin"] == 22
+    plan = next(a["content"] for a in result["artifacts"] if a["artifactType"] == "component-plan")
+    named = [c for c in plan["candidates"] if c["source"] == "user-provided"]
+    assert sorted(c["partNumber"] for c in named) == ["ESP32-DEVKIT-V1", "MPU6050"]
+    assert all(c["evidenceStatus"] == "unverified" for c in named)
