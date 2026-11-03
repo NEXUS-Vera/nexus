@@ -31,12 +31,12 @@ def evaluable_criterion_proposal(criterion: Any, method: str | None = None) -> b
     if kind in {"numeric-comparison", "range"}:
         return (
             method in {None, "analysis"}
-            and criterion["metricId"] in EVALUABLE_EVIDENCE["metricIds"]
+            and criterion.get("metricId") in EVALUABLE_EVIDENCE["metricIds"]
         )
     if kind == "existence":
         return method in {None, "analysis"} and all(
             name.strip() in EVALUABLE_EVIDENCE["outputNames"]
-            for name in criterion["outputName"].split(",")
+            for name in criterion.get("outputName", "").split(",")
         )
     if kind in {"contains", "exact-match"}:
         return (
@@ -44,7 +44,12 @@ def evaluable_criterion_proposal(criterion: Any, method: str | None = None) -> b
             and criterion.get("marker", criterion.get("expectedValue"))
             in EVALUABLE_EVIDENCE["markers"]
         )
-    return method in {None, "inspection"} and criterion["signal"] in EVALUABLE_EVIDENCE["signals"]
+    if kind == "structural-mapping":
+        return (
+            method in {None, "inspection"}
+            and criterion.get("signal") in EVALUABLE_EVIDENCE["signals"]
+        )
+    return False
 
 
 def compose_execution_plan(package: dict[str, Any]) -> dict[str, Any]:

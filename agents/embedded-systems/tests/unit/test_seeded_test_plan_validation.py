@@ -208,6 +208,39 @@ def test_live_unknown_outputs(name: str) -> None:
     assert not evaluable_criterion_proposal({"criterionType": "existence", "outputName": name})
 
 
+@pytest.mark.parametrize(
+    "criterion",
+    [
+        {"criterionType": "numeric-comparison", "operator": ">=", "expectedValue": 50},
+        {"criterionType": "range", "minValue": 45, "maxValue": 55},
+        {"criterionType": "existence"},
+        {"criterionType": "structural-mapping", "expectedMapping": "GPIO21"},
+    ],
+)
+def test_evidence_catalog_rejects_missing_fields(criterion: dict[str, Any]) -> None:
+    from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+        evaluable_criterion_proposal,
+    )
+
+    assert not evaluable_criterion_proposal(criterion)
+
+
+def test_evidence_catalog_rejects_unknown_criterion_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+        evaluable_criterion_proposal,
+    )
+
+    # Keep the catalog gate defensive if contract validation gains another type.
+    monkeypatch.setattr(
+        "nexus_contracts.validation.execution_plan_validator.valid_criterion_proposal",
+        lambda criterion: True,
+    )
+    assert not evaluable_criterion_proposal(
+        {"criterionType": "unknown", "signal": "SDA", "expectedMapping": "GPIO21"},
+        "inspection",
+    )
+
+
 def test_evidence_catalog_validation() -> None:
     from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
         evaluable_criterion_proposal,
