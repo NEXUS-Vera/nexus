@@ -1,14 +1,85 @@
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
+import pytest
 from helpers import acquire_edit_lease, actor, build_test_kernel
+from nexus_board.errors import FirmwarePatchGenerationError
 from nexus_board.firmware.live_patch_generator import (
     IMU_SERIAL_CONTRACT,
     LiveFirmwarePatchGenerator,
 )
 from nexus_board.firmware.patch import assemble_firmware_generation_context
 from nexus_model_gateway import FakeModelGateway, ModelPolicy
+
+
+@pytest.mark.parametrize(
+    ("timeout_seconds", "should_hang", "expected_timeout"),
+    [(240.0, False, 245.0), (1.0, True, 6.0), (-10.0, False, 5.0)],
+)
+def test_live_generator_honors_policy_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+    timeout_seconds: float,
+    should_hang: bool,
+    expected_timeout: float,
+) -> None:
+    wait_for = asyncio.wait_for
+    observed_timeouts: list[float] = []
+    cancelled = []
+
+    async def bounded_wait_for(coro: Any, timeout: float) -> Any:
+        observed_timeouts.append(timeout)
+        # Exercise actual timeout cancellation without waiting for the policy deadline.
+        return await wait_for(coro, 0.01 if should_hang else timeout)
+
+    class Gateway(FakeModelGateway):
+        async def generate_structured(self, **kwargs: Any) -> Any:
+            if should_hang:
+                try:
+                    await asyncio.Event().wait()
+                finally:
+                    cancelled.append(True)
+            return await super().generate_structured(**kwargs)
+
+    gateway = Gateway()
+    gateway.set_script(
+        "firmware.patch-proposal",
+        lambda *_args: {
+            "operations": [
+                {"operationType": "create-file", "path": "src/main.cpp", "content": "// test"}
+            ]
+        },
+    )
+    generator = LiveFirmwarePatchGenerator(
+        gateway=gateway,
+        model_policy=ModelPolicy(
+            provider="fake", model="regression", timeout_seconds=timeout_seconds
+        ),
+    )
+    context = {
+        "requestedChange": "Implement firmware",
+        "baseSnapshotId": "base",
+        "inputArtifactReferences": [],
+        "artifacts": {},
+        "snapshotFiles": [],
+        "fileContents": {},
+    }
+    snapshot = {
+        "snapshotId": "base",
+        "content": {"kind": "filesystem", "filesystemManifest": {"entries": []}},
+    }
+    monkeypatch.setattr(asyncio, "wait_for", bounded_wait_for)
+    if should_hang:
+        with pytest.raises(FirmwarePatchGenerationError, match="TimeoutError") as caught:
+            generator.generate(context=context, base_snapshot=snapshot)
+        assert caught.value.code == "MODEL_PROVIDER_UNAVAILABLE"
+        assert isinstance(caught.value.__cause__, TimeoutError)
+        assert cancelled == [True]
+    else:
+        result = generator.generate(context=context, base_snapshot=snapshot)
+        assert result["operations"][0]["content"] == "// test"
+    assert observed_timeouts == [expected_timeout]
 
 
 def test_live_generator_sends_imu_serial_contract_to_model() -> None:
