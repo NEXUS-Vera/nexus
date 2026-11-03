@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from jsonschema.exceptions import ValidationError
 from nexus_board.analysis.scaffold import get_analysis_scaffold_profile
 from nexus_board.errors import (
     ArtifactVersionConflictError,
@@ -19,13 +20,18 @@ from nexus_board.errors import (
 )
 from nexus_board.firmware.scaffold import get_firmware_scaffold_profile
 from nexus_board.ids import content_digest, new_id, utc_now_iso
+from nexus_board.services.command_service import validate_requested_actor_id
 from nexus_board.services.draft_lease import is_lease_active
 from nexus_board.verification.coverage import (
     compute_requirement_coverage,
     compute_test_plan_coverage_summary,
 )
 from nexus_contracts.validation.execution_plan_validator import validate_execution_plan
-from nexus_contracts.validation.schema_validator import validate_against_schema_id
+from nexus_contracts.validation.schema_validator import (
+    load_schemas_by_id,
+    make_validator,
+    validate_against_schema_id,
+)
 from nexus_persistence.errors import ArtifactNotFoundError
 from nexus_persistence.file_store.hashing import blob_digest
 
@@ -129,6 +135,35 @@ def derive_default_configuration(package: dict[str, Any]) -> dict[str, Any]:
         raise CommandValidationError(str(exc)) from exc
 
 
+def _validate_seeded_test_plan(seeded: dict[str, Any]) -> None:
+    """Validate the known artifact branch and report a bounded leaf diagnostic."""
+    store = load_schemas_by_id()
+    leaves: list[tuple[str, ValidationError]] = []
+
+    def collect(error: ValidationError, prefix: str) -> None:
+        if error.context:
+            for child in error.context:
+                collect(child, prefix)
+        else:
+            path = ".".join(str(part) for part in error.absolute_path)
+            leaves.append((prefix + path, error))
+
+    for payload, schema_id, prefix in (
+        (seeded, "artifacts/envelope/artifact-envelope.v1", ""),
+        (seeded["content"], "artifacts/content/test-plan.v1", "content."),
+    ):
+        schema = store[f"https://nexus.local/schemas/{schema_id}.schema.json"]
+        for error in make_validator(schema, store).iter_errors(payload):
+            collect(error, prefix)
+    if leaves:
+        path, error = max(leaves, key=lambda item: len(item[0].split(".")))
+        message = error.message
+        instance_repr = repr(error.instance)
+        if isinstance(error.instance, (dict, list)) or len(instance_repr) > 120:
+            message = message.replace(instance_repr, "<value>")
+        raise CommandValidationError(f"Invalid seeded Test Plan: {path or '$'}: {message}"[:400])
+
+
 class ExecutionPlanWorkflow:
     def __init__(self, kernel: Any) -> None:
         self.kernel = kernel
@@ -143,6 +178,7 @@ class ExecutionPlanWorkflow:
         configuration: Any,
         plan: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        validate_requested_actor_id(actor)
         current = self.projects.get_current_state(project_id)
         if current["project"]["currentStateVersion"] != base:
             raise ProjectStateConflictError("Stale plan basis.")
@@ -491,11 +527,7 @@ class ExecutionPlanWorkflow:
             updatedAt=now,
             content=content,
         )
-        errors = validate_against_schema_id(
-            seeded, "https://nexus.local/schemas/artifacts/artifact.v1.schema.json"
-        )
-        if errors:
-            raise CommandValidationError("Invalid seeded Test Plan: " + errors[0].message)
+        _validate_seeded_test_plan(seeded)
         project = self.projects.get_project(project_id)
         # The derived artifact advances state once; retries retain the existing plan.
         self.projects.apply_accepted_artifact_revision(
