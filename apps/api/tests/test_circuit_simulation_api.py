@@ -550,7 +550,10 @@ async def test_simulate_approved_pair_with_unapproved_fixture_roles(
                 return RunnerResult(exit_code=0, timed_out=False)
             captured.append(json.loads(request.files["diagram.json"]))
             return RunnerResult(
-                exit_code=0, timed_out=False, outputs={"serial.log": b"TEL,0,0,0,1\n"}
+                exit_code=42,
+                timed_out=False,
+                stderr=b"Timeout: simulation did not finish in 5000ms\n",
+                outputs={"serial.log": b"TEL,0,0,0,1\n"},
             )
 
     executable = tmp_path / "wokwi-cli"
@@ -630,6 +633,20 @@ async def test_simulate_approved_pair_with_unapproved_fixture_roles(
             },
         )
         assert result["status"] in {"completed", "completed-with-warnings"}, result
+        stored = (await client.get(f"/v1/projects/{pid}/outputs")).json()["items"]
+        assert any(output["name"] == "serial.log" for output in stored)
+        structured = next(
+            output["content"]["structuredResult"]
+            for output in stored
+            if output["name"] == "circuit-simulation-result"
+        )
+        assert structured["exitCode"] == 42
+        assert structured["succeeded"] is True
+        assert any(
+            finding["reasonCode"] == "CAPTURE_WINDOW_REACHED"
+            and finding["mappingType"] == "surrogate"
+            for finding in structured["findings"]
+        )
         assert len(captured) == 1
         assert {p["type"] for p in captured[0]["parts"]} == {
             "wokwi-esp32-devkit-v1",

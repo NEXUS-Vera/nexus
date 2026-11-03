@@ -129,7 +129,8 @@ class SafeSubprocessRunner:
                 if was_truncated:
                     truncated.add(filename)
             stdout, stdout_truncated = self._truncate(stdout)
-            stderr, stderr_truncated = self._truncate(stderr)
+            stderr_truncated = len(stderr) > self.max_output_bytes
+            stderr = stderr[-self.max_output_bytes :]
             if stdout_truncated:
                 truncated.add("stdout")
             if stderr_truncated:
