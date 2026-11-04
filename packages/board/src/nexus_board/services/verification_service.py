@@ -424,7 +424,7 @@ class VerificationService:
             names.append(name)
             content = output.get("content") or {}
             text = self._output_text(content)
-            if name == "serial.log":
+            if name == "serial.log" or name.endswith("/serial.log"):
                 has_serial_log = True
                 serial_log_text = text
                 structured_log = content.get("structuredResult")

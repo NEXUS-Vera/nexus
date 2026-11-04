@@ -304,3 +304,37 @@ def test_execution_log_evidence_prefers_serial_log(
     assert case["actualResult"] == f"{expected} (contains 'NEXUS_MPU_READY')"
     if "NEXUS_MPU_READY" in expected:
         assert "Timeout" not in case["actualResult"]
+
+
+def test_execution_log_evidence_joins_serial_structured_lines() -> None:
+    names = ["outputs/serial.log", "stderr"]
+    outputs = {
+        "outputs/serial.log": {
+            "name": "outputs/serial.log",
+            "outputType": "log",
+            "content": {
+                "kind": "inline-structured",
+                "structuredResult": {"lines": ["boot", "NEXUS_MPU_READY", "t=1"]},
+            },
+        },
+        "stderr": {
+            "name": "stderr",
+            "outputType": "log",
+            "content": {
+                "kind": "inline-structured",
+                "structuredResult": {"text": "Timeout: simulation did not finish in 5000ms"},
+            },
+        },
+    }
+    store = Mock()
+    run = {"projectId": "p1", "status": "completed", "outputReferences": names}
+    store.get_produced_output.side_effect = outputs.__getitem__
+    service = VerificationService(
+        kernel_store=store,
+        project_store=Mock(),
+        workspaces=Mock(),
+        commands=Mock(),
+        ledger=Mock(),
+        projection=Mock(),
+    )
+    assert service._extract_run_evidence(run)[3] == "boot\nNEXUS_MPU_READY\nt=1"
