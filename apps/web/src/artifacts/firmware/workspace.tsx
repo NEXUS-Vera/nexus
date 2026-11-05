@@ -276,6 +276,8 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
 
   useEffect(() => {
     setRepairPending(false);
+    setAppliedRepair(null);
+    setContinuedRepair(null);
     return () => {
       repairLoop.current?.cancel();
       repairLoop.current = null;
@@ -283,8 +285,10 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     };
   }, [projectId]);
 
+  const repairContinuationStopped = continuedRepair !== null && continuedRepair.status !== 'running';
+
   const continueRepair = async () => {
-    if (!appliedRepair || appliedRepair.projectId !== projectId || repairInFlight.current || continuedRepair) return;
+    if (!appliedRepair || appliedRepair.projectId !== projectId || repairInFlight.current || repairContinuationStopped) return;
     repairInFlight.current = true;
     setRepairPending(true);
     setError(null);
@@ -297,7 +301,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
       wake?.();
     } };
     repairLoop.current = loop;
-    let current = appliedRepair;
+    let current = continuedRepair ?? appliedRepair;
     try {
       // advance is also a status poll: active executions return the same revision.
       for (let calls = 0; calls < 120; calls += 1) {
@@ -306,7 +310,8 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
         current = next;
         setContinuedRepair(next);
         onRepairChanged?.(next);
-        if (next.errorCode || !['inspect', 'diagnosing', 'launching', 'running'].includes(next.status)) return;
+        // Advancing inspect requests a model proposal; only running is a safe poll.
+        if (next.errorCode || next.status !== 'running') return;
         if (calls === 119) {
           setError('Repair continuation reached the 120-call limit. Inspect the repair run before continuing.');
           return;
@@ -1413,7 +1418,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
       {appliedRepair?.projectId === projectId && (
         <div style={{ padding: '8px 12px' }}>
           <button type="button" onClick={() => void continueRepair()}
-            disabled={repairPending || Boolean(continuedRepair)}>
+            disabled={repairPending || repairContinuationStopped}>
             Continue repair (rebuild &amp; verify)
           </button>
           {repairPending && <span role="status">Continuing repair…</span>}

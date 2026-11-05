@@ -844,7 +844,7 @@ describe('pending repair patch review', () => {
     expect(advance).toHaveBeenCalledTimes(5);
   });
 
-  it.each(['review', 'exhausted', 'cancelled', 'rejected', 'unavailable', 'stopped', 'completed'] as const)(
+  it.each(['inspect', 'diagnosing', 'launching', 'review', 'exhausted', 'cancelled', 'rejected', 'unavailable', 'stopped', 'completed'] as const)(
     'stops continuation at %s', async status => {
       const { advance } = await startContinuation([
         { ...repair, revision: 4, status: 'running' },
@@ -853,16 +853,33 @@ describe('pending repair patch review', () => {
       await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
       expect(advance).toHaveBeenCalledTimes(2);
       expect(screen.getByText(new RegExp(`Repair: ${status}`))).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Continue repair/ })).toBeDisabled();
     },
   );
 
-  it('stops polling and shows an error when a later advance fails', async () => {
+  it('stops on an error and retries from the latest revision', async () => {
     const { advance } = await startContinuation([
       { ...repair, revision: 4, status: 'running' }, new Error('advance failed'),
+      { ...repair, revision: 5, status: 'completed' },
     ]);
     await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
     expect(advance).toHaveBeenCalledTimes(2);
     expect(screen.getByText(/Could not continue repair/)).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /Continue repair/ });
+    expect(button).toBeEnabled();
+    await act(async () => { fireEvent.click(button); });
+    expect(advance.mock.calls.map(([body]) => body.revision)).toEqual([3, 4, 4]);
+    expect(screen.getByText(/Repair: completed/)).toBeInTheDocument();
+  });
+
+  it('stops polling when the response includes an error code', async () => {
+    const { advance } = await startContinuation([
+      { ...repair, revision: 4, status: 'running', errorCode: 'EXECUTION_ERROR' },
+    ]);
+    await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
+    expect(advance).toHaveBeenCalledTimes(1);
+    expect(screen.getByText(/Error: EXECUTION_ERROR/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Continue repair/ })).toBeEnabled();
   });
 
   it.each(['unmount', 'project change'])('cleans up continuation on %s', async reason => {
@@ -871,6 +888,11 @@ describe('pending repair patch review', () => {
     ]);
     if (reason === 'unmount') unmount();
     else rerender(<FirmwareWorkspace projectId="proj_other" isDark={false} />);
+    if (reason === 'project change') {
+      rerender(<FirmwareWorkspace projectId="proj_test" isDark={false} repair={repair} />);
+      expect(screen.queryByRole('button', { name: /Continue repair/ })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Repair: running/)).not.toBeInTheDocument();
+    }
     expect(vi.getTimerCount()).toBe(0);
     await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
     expect(advance).toHaveBeenCalledTimes(1);
@@ -883,6 +905,11 @@ describe('pending repair patch review', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(120 * 2500); });
     expect(advance).toHaveBeenCalledTimes(120);
     expect(screen.getByText(/120-call limit/)).toBeInTheDocument();
+    const button = screen.getByRole('button', { name: /Continue repair/ });
+    expect(button).toBeEnabled();
+    advance.mockResolvedValueOnce(jsonResponse({ ...repair, revision: 5, status: 'completed' }));
+    await act(async () => { fireEvent.click(button); });
+    expect(advance.mock.calls[120][0].revision).toBe(4);
   });
 
   it('keeps Continue hidden when Apply fails', async () => {
