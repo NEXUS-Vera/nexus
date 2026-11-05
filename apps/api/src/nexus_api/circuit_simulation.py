@@ -324,7 +324,7 @@ class CircuitSimulationExecutionAdapter:
         if mode == "simulate":
             timeout_seconds = max(
                 0.1,
-                min(float((request.get("maxDurationMs") or 5_000) / 1000), 300),
+                min(float((request.get("maxDurationMs") or 30_000) / 1000), 300),
             )
             result = self._provider.execute(
                 ExecutionRequest(
