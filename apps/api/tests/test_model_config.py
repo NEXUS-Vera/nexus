@@ -6,8 +6,14 @@ from urllib.error import HTTPError
 
 import pytest
 from nexus_api import main
-from nexus_api.config import load_settings
+from nexus_api.config import Settings, load_settings
 from nexus_board.errors import AnalysisPatchGenerationError, FirmwarePatchGenerationError
+from nexus_embedded_systems.workflows.project_initialization.providers.factory import (
+    build_initialization_provider,
+)
+from nexus_embedded_systems.workflows.project_initialization.providers.llm_provider import (
+    LlmInitializationProvider,
+)
 from nexus_model_gateway import AnthropicGateway, ModelGatewayError
 
 
@@ -77,3 +83,18 @@ def test_patch_gateway_default_and_safe_error_log(
     assert any(record.levelname == "WARNING" for record in caplog.records)
     assert "private-" not in caplog.text
     assert "test-only-credential" not in caplog.text
+
+
+@pytest.mark.parametrize("timeout,expected", [(None, 240.0), ("123.5", 123.5)])
+def test_model_timeout(
+    monkeypatch: pytest.MonkeyPatch, timeout: str | None, expected: float
+) -> None:
+    monkeypatch.delenv("NEXUS_MODEL_TIMEOUT_SECONDS", raising=False)
+    if timeout is not None:
+        monkeypatch.setenv("NEXUS_MODEL_TIMEOUT_SECONDS", timeout)
+
+    assert Settings(cors_origins=[]).model_timeout_seconds == 240.0
+    assert load_settings().model_timeout_seconds == expected
+    provider = build_initialization_provider(mode="llm", gateway=object())
+    assert isinstance(provider, LlmInitializationProvider)
+    assert provider.model_policy.timeout_seconds == expected
