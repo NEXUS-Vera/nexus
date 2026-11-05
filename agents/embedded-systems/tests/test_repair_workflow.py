@@ -1721,6 +1721,9 @@ def test_structured_noise_rejects_unsupported_units(unit: str, phrase: str) -> N
     "statement,acceptance,quantity,expected",
     [
         ("Sample acceleration at 100 Hz.", [], None, (90, 110)),
+        ("Sampling rate: 100 Hz", [], None, (90, 110)),
+        ("sampling rate = 100 Hz", [], None, (90, 110)),
+        ("sample acceleration at 20 ms", [], None, (45, 55)),
         ("Telemetry interval is 40 ms.", [], None, (22.5, 27.5)),
         ("Use a 50 Hz sampling rate.", [], None, (45, 55)),
         ("Sample acceleration data at a rate of 100 Hz.", [], None, (90, 110)),

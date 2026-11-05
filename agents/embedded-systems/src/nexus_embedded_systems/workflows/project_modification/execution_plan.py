@@ -163,7 +163,7 @@ def _structured_verification(
     sample_at = r"\bsampl(?:e|es|ing)\b(?:\s+[a-z_]+){0,4}\s+at\s+"
     number = r"(\d+(?:\.\d+)?)\s*(Hz|ms)\b"
     if re.search(
-        rf"{rate_phrase}|{sample_at}(?:(?:a|the|target|configured|defined|consistent)\s+)*(?:rate\b|\d+(?:\.\d+)?\s*Hz\b)",
+        rf"{rate_phrase}|{sample_at}(?:(?:a|the|target|configured|defined|consistent)\s+)*(?:rate\b|\d+(?:\.\d+)?\s*(?:Hz|ms)\b)",
         text,
         re.IGNORECASE,
     ) and category in {
@@ -183,7 +183,7 @@ def _structured_verification(
             )
             # Require a direct rate/value link, excluding window and filter values.
             target = re.search(
-                rf"{rate_phrase}\s+(?:(?:is|of|at|target|shall|be|configured|to)\s+)*{number}"
+                rf"{rate_phrase}(?:\s*[:=]\s*|\s+)(?:(?:is|of|at|target|shall|be|configured|to)\s+)*{number}"
                 rf"|\b{number}\s+{rate_phrase}"
                 rf"|{sample_at}(?:(?:a|the)\s+rate\s+(?:of\s+)?)?{number}",
                 prose,
