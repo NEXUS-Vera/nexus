@@ -272,20 +272,59 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
   const [continuedRepair, setContinuedRepair] = useState<RepairState | null>(null);
   const repairInFlight = useRef(false);
 
+  const repairLoop = useRef<{ cancel: () => void } | null>(null);
+
+  useEffect(() => {
+    setRepairPending(false);
+    return () => {
+      repairLoop.current?.cancel();
+      repairLoop.current = null;
+      repairInFlight.current = false;
+    };
+  }, [projectId]);
+
   const continueRepair = async () => {
     if (!appliedRepair || appliedRepair.projectId !== projectId || repairInFlight.current || continuedRepair) return;
     repairInFlight.current = true;
     setRepairPending(true);
     setError(null);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let wake: (() => void) | undefined;
+    const loop = { cancel: () => {
+      cancelled = true;
+      clearTimeout(timer);
+      wake?.();
+    } };
+    repairLoop.current = loop;
+    let current = appliedRepair;
     try {
-      const next = await advanceRepair(projectId, appliedRepair.repairId, appliedRepair.revision, false, actor);
-      setContinuedRepair(next);
-      onRepairChanged?.(next);
+      // advance is also a status poll: active executions return the same revision.
+      for (let calls = 0; calls < 120; calls += 1) {
+        const next = await advanceRepair(projectId, current.repairId, current.revision, false, actor);
+        if (cancelled) return;
+        current = next;
+        setContinuedRepair(next);
+        onRepairChanged?.(next);
+        if (next.errorCode || !['inspect', 'diagnosing', 'launching', 'running'].includes(next.status)) return;
+        if (calls === 119) {
+          setError('Repair continuation reached the 120-call limit. Inspect the repair run before continuing.');
+          return;
+        }
+        await new Promise<void>(resolve => {
+          wake = resolve;
+          timer = setTimeout(resolve, 2500);
+        });
+        if (cancelled) return;
+      }
     } catch {
-      setError('Could not continue repair. Try again to retrieve or start the rebuild.');
+      if (!cancelled) setError('Could not continue repair. Inspect the repair run before trying again.');
     } finally {
-      repairInFlight.current = false;
-      setRepairPending(false);
+      if (repairLoop.current === loop) {
+        repairLoop.current = null;
+        repairInFlight.current = false;
+        setRepairPending(false);
+      }
     }
   };
 
@@ -1379,7 +1418,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
           </button>
           {repairPending && <span role="status">Continuing repair…</span>}
           {continuedRepair && <div role="status">
-            Repair: {continuedRepair.status}. {continuedRepair.explanation}
+            Repair: {continuedRepair.status}. Stage: {continuedRepair.stage}. {continuedRepair.explanation}
             {continuedRepair.errorCode && <span> Error: {continuedRepair.errorCode}</span>}
             <span> Run: {continuedRepair.runId}</span>
             {onInspectRun && <button type="button" onClick={() => onInspectRun(continuedRepair.runId)}>
