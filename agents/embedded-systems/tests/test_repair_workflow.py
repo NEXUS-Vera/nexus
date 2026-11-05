@@ -1722,7 +1722,24 @@ def test_structured_noise_rejects_unsupported_units(unit: str, phrase: str) -> N
     [
         ("Sample acceleration at 100 Hz.", [], None, (90, 110)),
         ("Telemetry interval is 40 ms.", [], None, (22.5, 27.5)),
-        ("Sample acceleration at the target rate.", ["Target is 100 Hz."], None, (90, 110)),
+        ("Use a 50 Hz sampling rate.", [], None, (45, 55)),
+        ("Sample acceleration data at a rate of 100 Hz.", [], None, (90, 110)),
+        ("Sample acceleration at the target rate.", ["Target is 100 Hz."], None, (45, 55)),
+        ("Use a sample interval of 20 ms.", [], None, (45, 55)),
+        ("Configure the sampling rate and low-pass filter at 10 Hz.", [], None, (45, 55)),
+        ("Configure the sampling rate over a 500 ms sample window.", [], None, (45, 55)),
+        (
+            "Configure the sampling rate.",
+            ["Verify noise over a 500 ms sample window."],
+            None,
+            (45, 55),
+        ),
+        (
+            "Sample acceleration at the target rate.",
+            ["Sample rate target is 100 Hz."],
+            None,
+            (90, 110),
+        ),
         ("Sample acceleration at 100 Hz.", [], {"value": 50, "unit": "Hz"}, (45, 55)),
     ],
 )
@@ -1749,3 +1766,30 @@ def test_sampling_target_precedence(
     assert mapped is not None
     criterion = mapped["criterion"]
     assert (criterion["minValue"], criterion["maxValue"]) == expected
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "The system shall collect 500 samples in a buffer for RMS computation.",
+        "Verify noise over a 500 ms sample window.",
+        "Apply a low-pass filter at 10 Hz to the acceleration samples.",
+        "Sampling duration shall be 500 ms.",
+    ],
+)
+def test_non_rate_sample_requirements_are_not_sampling_criteria(statement: str) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _structured_verification,
+    )
+
+    assert (
+        _structured_verification(
+            {
+                "statement": statement,
+                "category": "performance",
+                "verificationMethod": "Measurement",
+            },
+            {"buildProfileId": "platformio-arduino-esp32-v1", "i2c": {"sdaPin": 21}},
+        )
+        is None
+    )

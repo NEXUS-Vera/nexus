@@ -157,19 +157,42 @@ def _structured_verification(
     quantity = requirement.get("targetQuantity") or {}
     value = quantity.get("value")
     unit = quantity.get("unit")
-    if re.search(r"sampl|telemetry (?:interval|rate|frequency)", text) and category in {
+    rate_phrase = (
+        r"\b(?:sampl(?:e|es|ing)|telemetry)\s+(?:rate|frequency|interval|cadence|period)\b"
+    )
+    sample_at = r"\bsampl(?:e|es|ing)\b(?:\s+[a-z_]+){0,4}\s+at\s+"
+    number = r"(\d+(?:\.\d+)?)\s*(Hz|ms)\b"
+    if re.search(
+        rf"{rate_phrase}|{sample_at}(?:(?:a|the|target|configured|defined|consistent)\s+)*(?:rate\b|\d+(?:\.\d+)?\s*Hz\b)",
+        text,
+        re.IGNORECASE,
+    ) and category in {
         "performance",
         "functional",
     }:
         # Explicit targets take precedence; invalid targets must not use the default.
         if not quantity:
-            prose = " ".join(
-                [text, *(requirement.get("acceptanceCriteria") or []), *(acceptance_criteria or [])]
+            prose = " . ".join(
+                dict.fromkeys(
+                    [
+                        text,
+                        *(requirement.get("acceptanceCriteria") or []),
+                        *(acceptance_criteria or []),
+                    ]
+                )
             )
-            target = re.search(r"\b(\d+(?:\.\d+)?)\s*(Hz|ms)\b", prose, re.IGNORECASE)
+            # Require a direct rate/value link, excluding window and filter values.
+            target = re.search(
+                rf"{rate_phrase}\s+(?:(?:is|of|at|target|shall|be|configured|to)\s+)*{number}"
+                rf"|\b{number}\s+{rate_phrase}"
+                rf"|{sample_at}(?:(?:a|the)\s+rate\s+(?:of\s+)?)?{number}",
+                prose,
+                re.IGNORECASE,
+            )
             if target:
-                value = float(target.group(1))
-                unit = "Hz" if target.group(2).lower() == "hz" else "ms"
+                value_text, unit_text = [group for group in target.groups() if group is not None]
+                value = float(value_text)
+                unit = "Hz" if unit_text.lower() == "hz" else "ms"
             elif configuration.get(
                 "buildProfileId"
             ) == "platformio-arduino-esp32-v1" and configuration.get("i2c"):
@@ -604,7 +627,9 @@ class ExecutionPlanWorkflow:
                 "containing time_ms,", "containing time_s,"
             )
             mapped = IMU_VERIFICATION.get(statement) or _structured_verification(
-                requirement, artifact["content"]["configuration"], objective["acceptanceCriteria"]
+                requirement,
+                artifact["content"]["configuration"],
+                objective.get("acceptanceCriteria"),
             )
             if (
                 not mapped
