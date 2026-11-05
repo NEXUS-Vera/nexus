@@ -121,7 +121,8 @@ def _numeric(criterion: dict[str, Any], actual: Any) -> tuple[AssessmentResult, 
     if operator not in ops:
         return "INCONCLUSIVE", f"Unknown operator {operator!r}"
     unit = criterion.get("unit") or ""
-    detail = f"{value} {operator} {threshold}" + (f" {unit}" if unit else "")
+    comparison = f"{value} {operator} {threshold}"
+    detail = (comparison if ops[operator] else f"not ({comparison})") + (f" {unit}" if unit else "")
     return ("PASS" if ops[operator] else "FAIL"), detail
 
 
@@ -136,7 +137,7 @@ def _range(criterion: dict[str, Any], actual: Any) -> tuple[AssessmentResult, st
         return "INCONCLUSIVE", "Range criterion or actual is not comparable."
     ok = lo <= value <= hi
     unit = criterion.get("unit") or ""
-    detail = f"{value} in [{lo}, {hi}]" + (f" {unit}" if unit else "")
+    detail = f"{value} {'in' if ok else 'not in'} [{lo}, {hi}]" + (f" {unit}" if unit else "")
     return ("PASS" if ok else "FAIL"), detail
 
 
