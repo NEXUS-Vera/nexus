@@ -6,7 +6,7 @@ import asyncio
 import json
 import threading
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import jsonschema
 import pytest
@@ -237,3 +237,104 @@ def test_live_analysis_patch_generator_times_out() -> None:
     finally:
         release.set()
         caller.join(timeout=2)
+
+
+@pytest.mark.parametrize(
+    "names,serial_text,expected",
+    [
+        (
+            ["serial.log", "stdout", "stderr"],
+            "NEXUS_MPU_READY\ntelemetry\n",
+            "NEXUS_MPU_READY\ntelemetry\n",
+        ),
+        (["stderr", "stdout", "serial.log"], "NEXUS_MPU_READY", "NEXUS_MPU_READY"),
+        (["serial.log", "stdout", "stderr"], "", ""),
+        (["stderr"], "", "\nTimeout: simulation did not finish in 5000ms\n"),
+    ],
+)
+def test_execution_log_evidence_prefers_serial_log(
+    names: list[str], serial_text: str, expected: str
+) -> None:
+    timeout = "\nTimeout: simulation did not finish in 5000ms\n"
+    outputs = {
+        name: {
+            "name": name,
+            "outputType": "log",
+            "content": {
+                "kind": "inline-structured",
+                "structuredResult": {"text": serial_text if name == "serial.log" else timeout},
+            },
+        }
+        for name in names
+    }
+    store = Mock()
+    run = {"projectId": "p1", "status": "completed", "outputReferences": names}
+    store.get_execution_run.return_value = run
+    store.get_produced_output.side_effect = outputs.__getitem__
+    projects = Mock()
+    projects.get_artifact.return_value = {
+        "artifactId": "tp1",
+        "artifactVersion": 1,
+        "content": {
+            "testCases": [
+                {
+                    "testId": "t1",
+                    "verificationMethod": "simulation",
+                    "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+                }
+            ]
+        },
+    }
+    service = VerificationService(
+        kernel_store=store,
+        project_store=projects,
+        workspaces=Mock(),
+        commands=Mock(),
+        ledger=Mock(),
+        projection=Mock(),
+    )
+    assert service._extract_run_evidence(run)[3] == expected
+    with patch.object(service, "_revise_test_plan", return_value={}) as revise:
+        result = service.promote_execution_evidence(
+            project_id="p1", execution_run_id="run1", actor={"actorType": "user"}
+        )
+    assert result["changed"] is True
+    case = revise.call_args.kwargs["content"]["testCases"][0]
+    assert case["assessment"] == ("PASS" if "NEXUS_MPU_READY" in expected else "FAIL")
+    assert case["actualResult"] == f"{expected} (contains 'NEXUS_MPU_READY')"
+    if "NEXUS_MPU_READY" in expected:
+        assert "Timeout" not in case["actualResult"]
+
+
+def test_execution_log_evidence_joins_serial_structured_lines() -> None:
+    names = ["outputs/serial.log", "stderr"]
+    outputs = {
+        "outputs/serial.log": {
+            "name": "outputs/serial.log",
+            "outputType": "log",
+            "content": {
+                "kind": "inline-structured",
+                "structuredResult": {"lines": ["boot", "NEXUS_MPU_READY", "t=1"]},
+            },
+        },
+        "stderr": {
+            "name": "stderr",
+            "outputType": "log",
+            "content": {
+                "kind": "inline-structured",
+                "structuredResult": {"text": "Timeout: simulation did not finish in 5000ms"},
+            },
+        },
+    }
+    store = Mock()
+    run = {"projectId": "p1", "status": "completed", "outputReferences": names}
+    store.get_produced_output.side_effect = outputs.__getitem__
+    service = VerificationService(
+        kernel_store=store,
+        project_store=Mock(),
+        workspaces=Mock(),
+        commands=Mock(),
+        ledger=Mock(),
+        projection=Mock(),
+    )
+    assert service._extract_run_evidence(run)[3] == "boot\nNEXUS_MPU_READY\nt=1"

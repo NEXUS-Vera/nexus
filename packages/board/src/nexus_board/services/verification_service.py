@@ -413,6 +413,8 @@ class VerificationService:
         summary: dict[str, Any] | None = None
         summary_output_id: str | None = None
         log_text: str | None = None
+        serial_log_text: str | None = None
+        has_serial_log = False
         for oid in output_ids:
             try:
                 output = self._kernel.get_produced_output(oid)
@@ -422,6 +424,14 @@ class VerificationService:
             names.append(name)
             content = output.get("content") or {}
             text = self._output_text(content)
+            if name == "serial.log" or name.endswith("/serial.log"):
+                has_serial_log = True
+                serial_log_text = text
+                structured_log = content.get("structuredResult")
+                if isinstance(structured_log, dict) and isinstance(
+                    structured_log.get("lines"), list
+                ):
+                    serial_log_text = "\n".join(str(x) for x in structured_log["lines"])
             if "summary.json" in name and text:
                 try:
                     parsed = json.loads(text)
@@ -452,7 +462,13 @@ class VerificationService:
                         log_text = structured["text"]
             if text and ("log" in name.lower() or output.get("outputType") == "log"):
                 log_text = text if log_text is None else log_text
-        return summary, names, summary_output_id, log_text
+        # Simulator diagnostics must not replace device evidence, even when empty.
+        return (
+            summary,
+            names,
+            summary_output_id,
+            serial_log_text if has_serial_log else log_text,
+        )
 
     def _output_text(self, content: dict[str, Any]) -> str | None:
         kind = content.get("kind")
