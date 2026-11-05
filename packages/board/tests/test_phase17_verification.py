@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from nexus_board.verification.apply import apply_evidence_to_test_case
 from nexus_board.verification.assessment import evaluate_criterion, status_from_assessment
 from nexus_board.verification.close import apply_analysis_summary_to_test_plan
@@ -84,6 +85,42 @@ def test_range_sampling() -> None:
     crit = {"criterionType": "range", "minValue": 45, "maxValue": 55, "unit": "Hz"}
     assert evaluate_criterion(crit, actual=50)[0] == "PASS"
     assert evaluate_criterion(crit, actual=40)[0] == "FAIL"
+    assert evaluate_criterion(crit, actual=50) == ("PASS", "50.0 in [45.0, 55.0] Hz")
+    assert evaluate_criterion(crit, actual=40) == ("FAIL", "40.0 not in [45.0, 55.0] Hz")
+
+
+@pytest.mark.parametrize("value", [25.0, 60.0, 45.0, 50.0, 55.0])
+def test_range_actual_result(value: float) -> None:
+    criterion = {"criterionType": "range", "minValue": 45, "maxValue": 55, "unit": "Hz"}
+    evidence = resolve_analysis_metric_evidence(
+        summary={"sampling_rate_hz": value}, metric_id="sampling_rate_hz"
+    )
+    updated = apply_evidence_to_test_case({"criterion": criterion}, evidence)
+    passing = 45 <= value <= 55
+    assert updated["assessment"] == ("PASS" if passing else "FAIL")
+    relation = "in" if passing else "not in"
+    assert updated["actualResult"] == f"{value} ({value} {relation} [45.0, 55.0] Hz)"
+
+
+@pytest.mark.parametrize(
+    ("operator", "passing", "failing"),
+    [("<", 4, 5), ("<=", 5, 6), (">", 6, 5), (">=", 5, 4), ("==", 5, 4), ("!=", 4, 5)],
+)
+def test_numeric_detail(operator: str, passing: int, failing: int) -> None:
+    criterion = {
+        "criterionType": "numeric-comparison",
+        "operator": operator,
+        "expectedValue": 5,
+        "unit": "Hz",
+    }
+    assert evaluate_criterion(criterion, actual=passing) == (
+        "PASS",
+        f"{float(passing)} {operator} 5.0 Hz",
+    )
+    assert evaluate_criterion(criterion, actual=failing) == (
+        "FAIL",
+        f"not ({float(failing)} {operator} 5.0) Hz",
+    )
 
 
 def test_analysis_metric_evidence_to_test_pass() -> None:
