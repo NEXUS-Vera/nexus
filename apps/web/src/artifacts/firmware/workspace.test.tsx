@@ -734,6 +734,7 @@ describe('pending repair patch review', () => {
         resultPayload: { editLease: { leaseToken: 'tok_test' } } });
       if (url.endsWith('/patch/apply') || url.endsWith('/patch/discard')) {
         expect(JSON.parse(String(init?.body)).proposalId).toBe('pending');
+        expect(JSON.parse(String(init?.body)).requestedBy.actorId).toBe(USER_ACTOR.actorId);
         return jsonResponse({ status: url.endsWith('/apply') ? 'applied' : 'discarded' });
       }
       return jsonResponse({}, 404);
@@ -775,7 +776,7 @@ describe('pending repair patch review', () => {
     expect(button).toBeDisabled();
     const calls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair'));
     expect(calls()).toHaveLength(1);
-    expect(JSON.parse(String(calls()[0][1]?.body))).toEqual({ action: 'advance', repairId: 'repair_1', revision: 3 });
+    expect(JSON.parse(String(calls()[0][1]?.body))).toEqual({ action: 'advance', repairId: 'repair_1', revision: 3, requestedBy: USER_ACTOR });
     const next = { ...repair, revision: 4, status: 'running', runId: 'rebuild_run' };
     resolve(jsonResponse(next));
     expect(await screen.findByText('Run: rebuild_run')).toBeInTheDocument();

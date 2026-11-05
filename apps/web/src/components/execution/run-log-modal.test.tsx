@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, expect, it, vi } from 'vitest';
 import { useState } from 'react';
@@ -26,8 +27,8 @@ it('loads logs safely and repairs only on explicit clicks, preserving revision g
   expect(api.startRepair).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
   await screen.findByText(/Repair: review/);
-  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'firmware', maxAttempts: 3 });
-  expect(api.advanceRepair).toHaveBeenCalledWith('p', 'repair_1', 1);
+  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'firmware', maxAttempts: 3, requireReal: true, requestedBy: USER_ACTOR });
+  expect(api.advanceRepair).toHaveBeenCalledWith('p', 'repair_1', 1, false, USER_ACTOR);
 });
 it('disables repair after three attempts and closes with Escape', async () => {
   const close = vi.fn();
@@ -75,7 +76,7 @@ it('defaults failed analysis repairs to firmware', async () => {
   expect(api.startRepair).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
   await screen.findByText(/Repair: review/);
-  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'firmware', maxAttempts: 3 });
+  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'firmware', maxAttempts: 3, requireReal: true, requestedBy: USER_ACTOR });
   expect(target).toBeDisabled();
 });
 it('sends the operator-selected analysis target', async () => {
@@ -87,11 +88,42 @@ it('sends the operator-selected analysis target', async () => {
   expect(target).toHaveValue('analysis');
   fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
   await screen.findByText(/Repair: review/);
-  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'analysis', maxAttempts: 3 });
+  expect(api.startRepair).toHaveBeenCalledWith('p', { executionRunId: 'run_1', target: 'analysis', maxAttempts: 3, requireReal: true, requestedBy: USER_ACTOR });
 });
 it('offers the repair target choice for timed-out analysis runs', async () => {
   vi.mocked(api.getExecution).mockResolvedValue({ executionRun: { status: 'timed-out', capability: 'python-kernel' } as never });
   render(<Harness />);
   const target = await screen.findByRole('combobox', { name: 'Repair target' });
   expect(target).toHaveValue('firmware');
+});
+
+it('sends the live operator identity in start and advance JSON bodies', async () => {
+  const client = await vi.importActual<typeof api>('../../api/client');
+  vi.mocked(api.startRepair).mockImplementation(client.startRepair);
+  vi.mocked(api.advanceRepair).mockImplementation(client.advanceRepair);
+  const bodies: Record<string, unknown>[] = [];
+  const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+    const body = JSON.parse(String(init?.body));
+    bodies.push(body);
+    return new Response(JSON.stringify(body.action === 'start' ? state : { ...state, status: 'review' }), {
+      status: 200, headers: { 'Content-Type': 'application/json' },
+    });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  try {
+    render(<Harness />);
+    await screen.findByText(/compile failed/);
+    fireEvent.click(screen.getByRole('button', { name: /Diagnose/ }));
+    await screen.findByText(/Repair: review/);
+    expect(bodies).toEqual([
+      { action: 'start', executionRunId: 'run_1', target: 'firmware', maxAttempts: 3,
+        requireReal: true, requestedBy: USER_ACTOR },
+      { action: 'advance', repairId: 'repair_1', revision: 1, requestedBy: USER_ACTOR },
+    ]);
+    for (const body of bodies) {
+      expect(body.requestedBy).toMatchObject({ actorId: USER_ACTOR.actorId });
+    }
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

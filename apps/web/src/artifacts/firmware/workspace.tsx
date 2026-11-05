@@ -278,7 +278,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     setRepairPending(true);
     setError(null);
     try {
-      const next = await advanceRepair(projectId, appliedRepair.repairId, appliedRepair.revision);
+      const next = await advanceRepair(projectId, appliedRepair.repairId, appliedRepair.revision, false, actor);
       setContinuedRepair(next);
       onRepairChanged?.(next);
     } catch {

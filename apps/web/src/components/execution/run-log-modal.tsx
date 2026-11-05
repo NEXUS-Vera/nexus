@@ -1,3 +1,4 @@
+import { USER_ACTOR } from '../../api/actor';
 import { useEffect, useRef, useState } from 'react';
 import type { ExecutionRun } from '@nexus/contracts';
 import { advanceRepair, getExecution, getExecutionLogs, startRepair, type RepairState } from '../../api/client';
@@ -57,9 +58,10 @@ export function RunLogModal({ projectId, runId, onClose, repair, setRepair, onRe
     try {
       const current = repair ?? await startRepair(projectId, {
         executionRunId: runId, target: canChooseRepairTarget ? repairTarget : 'firmware', maxAttempts: 3,
+        requireReal: true, requestedBy: USER_ACTOR,
       });
       setRepair(current);
-      setRepair(await advanceRepair(projectId, current.repairId, current.revision));
+      setRepair(await advanceRepair(projectId, current.repairId, current.revision, false, USER_ACTOR));
     } catch { setError('Repair request failed. Inspect the run and try again.'); }
     finally { setBusy(false); }
   }
