@@ -47,7 +47,7 @@ availability, quotas, entitlements, and commercial terms are external to
 Nexus. Simulation outputs describe behavior observed in a surrogate provider
 model; they do not verify compatibility with the selected real component.
 
-The API simulation default is five simulated seconds (enough for at least 100
+The API simulation default is thirty simulated seconds (enough for at least 100
 TEL samples at 100 Hz after a one-second settle). Explicit duration requests
 remain supported. Wokwi gets a host budget of 20 times the simulated duration
 plus 10 seconds for startup, capped at 310 seconds. On host timeout, available

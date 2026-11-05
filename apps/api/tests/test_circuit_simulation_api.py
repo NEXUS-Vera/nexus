@@ -212,7 +212,20 @@ async def test_validate_endpoint_does_not_block_event_loop(monkeypatch: pytest.M
             await asyncio.wait_for(task, 3)
 
 
-def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
+@pytest.mark.parametrize(
+    ("duration_input", "expected_timeout_seconds"),
+    [
+        ({}, 30.0),
+        ({"maxDurationMs": None}, 30.0),
+        ({"maxDurationMs": 0}, 30.0),
+        ({"maxDurationMs": 5_000}, 5.0),
+        ({"maxDurationMs": 1}, 0.1),
+        ({"maxDurationMs": 400_000}, 300.0),
+    ],
+)
+def test_adapter_raises_typed_circuit_execution_error_on_timeout(
+    duration_input: dict[str, Any], expected_timeout_seconds: float
+) -> None:
     from unittest.mock import Mock
 
     from nexus_api.circuit_simulation import CircuitSimulationExecutionAdapter
@@ -249,9 +262,10 @@ def test_adapter_raises_typed_circuit_execution_error_on_timeout() -> None:
                 "artifactType": "electrical-architecture",
                 "artifactVersion": 1,
                 "snapshot": {"projectId": "proj_test", "content": {"structuredContent": {}}},
+                **duration_input,
             }
         )
-    assert provider.execute.call_args.args[0].timeout_seconds == 5
+    assert provider.execute.call_args.args[0].timeout_seconds == expected_timeout_seconds
     partial_outputs = getattr(error.value, "partial_outputs", [])
     assert partial_outputs[0]["structuredResult"]["truncated"] is True
     assert partial_outputs[0]["evidenceStatus"] == "unverified"
@@ -552,7 +566,7 @@ async def test_simulate_approved_pair_with_unapproved_fixture_roles(
             return RunnerResult(
                 exit_code=42,
                 timed_out=False,
-                stderr=b"Timeout: simulation did not finish in 5000ms\n",
+                stderr=b"Timeout: simulation did not finish in 30000ms\n",
                 outputs={"serial.log": b"TEL,0,0,0,1\n"},
             )
 
