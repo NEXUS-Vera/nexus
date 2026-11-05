@@ -117,9 +117,13 @@ Approved execution-plan materialization seeds a missing Test Plan from its
 verification objectives without replacing existing cases. Seeded cases are planned
 and unassessed. Exact golden IMU requirement statements receive the golden Test
 Plan methods and deterministic criteria (R1–R8). Live requirements can also derive criteria from
-structured sampling targets (Hz or intervals), accel_x RMS noise targets, or
+sampling targets in structured fields or requirement/acceptance text (Hz or intervals),
+accel_x RMS noise targets, or
 MPU6050 initialization on the approved I2C prototype. Sampling uses the golden
-±10% platform tolerance. Acceptance prose is retained; unmapped objectives remain
+±10% platform tolerance; sampling requirements without an explicit target use the
+supported ESP32/MPU6050 prototype’s 50 Hz target. Mixed inspection and measurement
+methods allow deterministic mapping; inspection-only requirements remain unassessed.
+Acceptance prose is retained; unmapped objectives remain
 manual without a criterion. Live initialization optionally proposes typed criteria per
 Execution Plan objective. Definitions reuse the Test Plan vocabulary and are validated
 before review (including a 4096-character definition bound); rejected or absent

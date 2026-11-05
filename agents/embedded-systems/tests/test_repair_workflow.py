@@ -1462,6 +1462,9 @@ def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> Non
         None,
         "valid",
         "criterion-only",
+        "live-f5",
+        "live-f2",
+        "live-inspection",
         "result",
         "unknown",
         "blank",
@@ -1558,6 +1561,29 @@ def test_live_structured_objectives(
             objective["criterion"]["result"] = "PASS"
         elif proposal == "unknown":
             objective["criterion"]["criterionType"] = "unknown"
+    if proposal in {"live-f5", "live-f2", "live-inspection"}:
+        reqs[4].pop("targetQuantity")
+        reqs[4]["statement"] = (
+            "The system shall sample acceleration data at a rate sufficient to characterize "
+            "vibration and compute a statistically meaningful RMS noise estimate within "
+            "the accel_x noise verification window."
+        )
+        reqs[4]["category"] = "functional" if proposal == "live-f2" else "performance"
+        reqs[4]["verificationMethod"] = {
+            "live-f5": (
+                "Inspection of firmware configuration and measurement: confirm the configured "
+                "sample rate and that the RMS window contains a sufficient number of samples "
+                "for a statistically valid estimate."
+            ),
+            "live-f2": "Measurement: confirm the configured sampling rate.",
+            "live-inspection": "Inspection of firmware configuration and sampling test results",
+        }[proposal]
+        objective["criterion"] = {
+            "criterionType": "numeric-comparison",
+            "metricId": "sampling_hz",
+            "operator": ">",
+            "expectedValue": 0,
+        }
     captured: dict[str, Any] = {}
 
     def get(project_id: str, kind: str) -> Any:
@@ -1579,6 +1605,14 @@ def test_live_structured_objectives(
     assert cases[1]["verificationMethod"] == "manual"
     assert cases[1].get("criterion") is None
     assert cases[3]["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    if proposal == "live-inspection":
+        assert cases[4]["verificationMethod"] == "manual"
+        assert "criterion" not in cases[4]
+        promoted, _ = promote_analysis_evidence_into_test_plan(
+            content, summary={"sampling_hz": 25}, execution_run_id="run_inspection"
+        )
+        assert "assessment" not in promoted["testCases"][4]
+        return
     assert cases[4]["criterion"] == {
         "criterionType": "range",
         "metricId": "sampling_hz",
@@ -1681,3 +1715,37 @@ def test_structured_noise_rejects_unsupported_units(unit: str, phrase: str) -> N
         )
         is None
     )
+
+
+@pytest.mark.parametrize(
+    "statement,acceptance,quantity,expected",
+    [
+        ("Sample acceleration at 100 Hz.", [], None, (90, 110)),
+        ("Telemetry interval is 40 ms.", [], None, (22.5, 27.5)),
+        ("Sample acceleration at the target rate.", ["Target is 100 Hz."], None, (90, 110)),
+        ("Sample acceleration at 100 Hz.", [], {"value": 50, "unit": "Hz"}, (45, 55)),
+    ],
+)
+def test_sampling_target_precedence(
+    statement: str,
+    acceptance: list[str],
+    quantity: dict[str, Any] | None,
+    expected: tuple[float, float],
+) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _structured_verification,
+    )
+
+    mapped = _structured_verification(
+        {
+            "statement": statement,
+            "category": "functional",
+            "verificationMethod": "Measurement",
+            "targetQuantity": quantity,
+        },
+        {"buildProfileId": "platformio-arduino-esp32-v1", "i2c": {"sdaPin": 21}},
+        acceptance,
+    )
+    assert mapped is not None
+    criterion = mapped["criterion"]
+    assert (criterion["minValue"], criterion["maxValue"]) == expected

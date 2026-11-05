@@ -139,25 +139,48 @@ PLATFORM_SAMPLING_TOLERANCE = 0.10
 PLATFORM_MPU6050_ADDRESS = "0x68"
 
 
+def _inspection_only(requirement: dict[str, Any]) -> bool:
+    method = str(requirement.get("verificationMethod") or "").lower()
+    return "inspection" in method and not re.search(r"\bmeasur", method)
+
+
 def _structured_verification(
-    requirement: dict[str, Any], configuration: dict[str, Any]
+    requirement: dict[str, Any],
+    configuration: dict[str, Any],
+    acceptance_criteria: list[str] | None = None,
 ) -> dict[str, Any] | None:
     """Derive definitions only; board verification alone assesses evidence."""
     text = requirement.get("statement", "").lower().replace("mpu-6050", "mpu6050")
     category = requirement.get("category")
-    if "inspection" in str(requirement.get("verificationMethod") or "").lower():
+    if _inspection_only(requirement):
         return None
     quantity = requirement.get("targetQuantity") or {}
     value = quantity.get("value")
     unit = quantity.get("unit")
-    if (
-        isinstance(value, (int, float))
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-        and value > 0
-        and category == "performance"
-    ):
-        if re.search(r"sampl|telemetry interval", text) and unit in {"Hz", "ms", "s"}:
+    if re.search(r"sampl|telemetry (?:interval|rate|frequency)", text) and category in {
+        "performance",
+        "functional",
+    }:
+        # Explicit targets take precedence; invalid targets must not use the default.
+        if not quantity:
+            prose = " ".join(
+                [text, *(requirement.get("acceptanceCriteria") or []), *(acceptance_criteria or [])]
+            )
+            target = re.search(r"\b(\d+(?:\.\d+)?)\s*(Hz|ms)\b", prose, re.IGNORECASE)
+            if target:
+                value = float(target.group(1))
+                unit = "Hz" if target.group(2).lower() == "hz" else "ms"
+            elif configuration.get(
+                "buildProfileId"
+            ) == "platformio-arduino-esp32-v1" and configuration.get("i2c"):
+                value, unit = 50, "Hz"
+        if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            and value > 0
+            and unit in {"Hz", "ms", "s"}
+        ):
             hz = value if unit == "Hz" else (1000 if unit == "ms" else 1) / value
             low = round(hz * (1 - PLATFORM_SAMPLING_TOLERANCE), 4)
             high = round(hz * (1 + PLATFORM_SAMPLING_TOLERANCE), 4)
@@ -173,23 +196,29 @@ def _structured_verification(
                     "unit": "Hz",
                 },
             }
-        if (
-            unit == "g"
-            and "accel_x" in text
-            and "rms" in text
-            and "noise" in text
-            and re.search(r"\b(?:below|less than|under|not exceed|at most)\b", text)
-        ):
-            return {
-                "verificationMethod": "analysis",
-                "criterion": {
-                    "criterionType": "numeric-comparison",
-                    "metricId": "accel_x_rms_noise_g",
-                    "operator": "<",
-                    "expectedValue": value,
-                    "unit": "g",
-                },
-            }
+    if (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+        and category == "performance"
+    ) and (
+        unit == "g"
+        and "accel_x" in text
+        and "rms" in text
+        and "noise" in text
+        and re.search(r"\b(?:below|less than|under|not exceed|at most)\b", text)
+    ):
+        return {
+            "verificationMethod": "analysis",
+            "criterion": {
+                "criterionType": "numeric-comparison",
+                "metricId": "accel_x_rms_noise_g",
+                "operator": "<",
+                "expectedValue": value,
+                "unit": "g",
+            },
+        }
     addresses = re.findall(r"0x[0-9a-f]+", text)
     if (
         category in {"functional", "interface"}
@@ -575,14 +604,14 @@ class ExecutionPlanWorkflow:
                 "containing time_ms,", "containing time_s,"
             )
             mapped = IMU_VERIFICATION.get(statement) or _structured_verification(
-                requirement, artifact["content"]["configuration"]
+                requirement, artifact["content"]["configuration"], objective["acceptanceCriteria"]
             )
             if (
                 not mapped
                 and evaluable_criterion_proposal(
                     objective.get("criterion"), objective.get("verificationMethod")
                 )
-                and "inspection" not in str(requirement.get("verificationMethod") or "").lower()
+                and not _inspection_only(requirement)
             ):
                 criterion = objective["criterion"]
                 default_method = {
