@@ -271,10 +271,14 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
   const [repairPending, setRepairPending] = useState(false);
   const [continuedRepair, setContinuedRepair] = useState<RepairState | null>(null);
   const repairInFlight = useRef(false);
+  const [cancelPending, setCancelPending] = useState(false);
+  const cancelInFlight = useRef(false);
+  const advanceInFlight = useRef<Promise<RepairState> | null>(null);
 
   const repairLoop = useRef<{ cancel: () => void } | null>(null);
 
   useEffect(() => {
+    setCancelPending(false);
     setRepairPending(false);
     setAppliedRepair(null);
     setContinuedRepair(null);
@@ -285,10 +289,40 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     };
   }, [projectId]);
 
+  const activeRepair = continuedRepair ?? appliedRepair ?? (repair?.projectId === projectId ? repair : null);
+  const canCancelRepair = activeRepair?.status === 'review' || activeRepair?.status === 'running';
+
+  const cancelRepair = async () => {
+    if (!activeRepair || !canCancelRepair || cancelInFlight.current) return;
+    cancelInFlight.current = true;
+    setCancelPending(true);
+    setError(null);
+    repairLoop.current?.cancel();
+    try {
+      // An advance may already be executing. Use its latest revision for cancel.
+      let current = activeRepair;
+      if (advanceInFlight.current) {
+        try {
+          current = await advanceInFlight.current;
+          setContinuedRepair(current);
+          onRepairChanged?.(current);
+        } catch { /* Cancel can still be attempted with the last known revision. */ }
+      }
+      const next = await advanceRepair(projectId, current.repairId, current.revision, true, USER_ACTOR, true);
+      setContinuedRepair(next);
+      onRepairChanged?.(next);
+    } catch {
+      setError('Could not cancel repair. Try again.');
+    } finally {
+      cancelInFlight.current = false;
+      setCancelPending(false);
+    }
+  };
+
   const repairContinuationStopped = continuedRepair !== null && continuedRepair.status !== 'running';
 
   const continueRepair = async () => {
-    if (!appliedRepair || appliedRepair.projectId !== projectId || repairInFlight.current || repairContinuationStopped) return;
+    if (!appliedRepair || appliedRepair.projectId !== projectId || repairInFlight.current || cancelInFlight.current || repairContinuationStopped) return;
     repairInFlight.current = true;
     setRepairPending(true);
     setError(null);
@@ -305,7 +339,14 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     try {
       // advance is also a status poll: active executions return the same revision.
       for (let calls = 0; calls < 120; calls += 1) {
-        const next = await advanceRepair(projectId, current.repairId, current.revision, false, actor);
+        const request = advanceRepair(projectId, current.repairId, current.revision, false, actor);
+        advanceInFlight.current = request;
+        let next: RepairState;
+        try {
+          next = await request;
+        } finally {
+          if (advanceInFlight.current === request) advanceInFlight.current = null;
+        }
         if (cancelled) return;
         current = next;
         setContinuedRepair(next);
@@ -1415,12 +1456,15 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
         </div>
       ) : null}
 
-      {appliedRepair?.projectId === projectId && (
+      {activeRepair?.projectId === projectId && (
         <div style={{ padding: '8px 12px' }}>
-          <button type="button" onClick={() => void continueRepair()}
-            disabled={repairPending || repairContinuationStopped}>
+          {appliedRepair && <button type="button" onClick={() => void continueRepair()}
+            disabled={repairPending || cancelPending || repairContinuationStopped}>
             Continue repair (rebuild &amp; verify)
-          </button>
+          </button>}
+          {canCancelRepair && <button type="button" onClick={() => void cancelRepair()} disabled={cancelPending}>
+            {cancelPending ? 'Cancelling repair…' : 'Cancel repair'}
+          </button>}
           {repairPending && <span role="status">Continuing repair…</span>}
           {continuedRepair && <div role="status">
             Repair: {continuedRepair.status}. Stage: {continuedRepair.stage}. {continuedRepair.explanation}

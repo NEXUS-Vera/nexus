@@ -1168,9 +1168,10 @@ export function advanceRepair(
   revision: number,
   cancel = false,
   requestedBy?: RequestedBy,
+  requireReal?: boolean,
 ): Promise<RepairState> {
   return postWorkflow(projectId, 'repair', {
-    action: cancel ? 'cancel' : 'advance', repairId, revision, requestedBy,
+    action: cancel ? 'cancel' : 'advance', repairId, revision, requestedBy, requireReal,
   });
 }
 
