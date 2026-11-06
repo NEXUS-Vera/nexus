@@ -307,8 +307,8 @@ async def _build_fault_repair_http(
             assert case["assessment"] == expected, case
             assert case["status"] == ("passed" if expected == "PASS" else "failed"), case
             assert case["assessmentAuthority"] == "deterministic-code"
-        # R2/R3 are inspection cases left ready/unassessed. Whether they must
-        # block full-loop completion remains an open product question.
+        # Option B (Pranay, 2026-10-29): R2/R3 stay unassessed for manual review
+        # and do not block completion. This fixture starts them ready, not planned.
         for rid in ("R2", "R3"):
             assert by_requirement[rid]["verificationMethod"] == "inspection"
             assert by_requirement[rid]["status"] == "ready"

@@ -67,4 +67,13 @@ Verification: observe three distinct external participants, capture consented an
 9. Accept an input revision and observe automatic M5 invalidation and authorized re-verification.
 10. Inspect artifacts, evidence, revisions, execution history and limitations in the UI.
 
+For this golden workflow, Pranay's October 29, 2026 operator decision settles
+**Option B**: after full repair completion (`status: "completed"`), require
+deterministic PASS for R1/R4/R5/R6/R7/R8. R2 (SDA/SCL structural-mapping
+inspection) and R3 (exact-match baud 115200 inspection) remain `planned` for
+manual review and must not block repair completion. Record that limitation;
+completion does not establish their PASS. Option A automated structural promotion
+is out of scope unless a future product decision reopens it. See the
+[runbook policy](../operations/first-loop-live-acceptance.md#r2r3--settled-option-b-acceptance-policy).
+
 P1–P5 are accepted only with their evidence and explicit limitations reviewed. This proposed contract makes no present MVP-complete claim.
