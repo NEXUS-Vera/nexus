@@ -1,8 +1,9 @@
 /**
  * Test Plan workspace — requirement coverage first (Phase 17E).
  */
-import { useMemo, useState } from 'react';
-import type { Artifact } from '@nexus/contracts';
+import { useEffect, useMemo, useState } from 'react';
+import type { Artifact, ExecutionRun, ProducedOutput } from '@nexus/contracts';
+import { getExecution, listProducedOutputs } from '../../api/client';
 import { themeColors } from '../../lib/theme';
 
 type TestPlanArtifact = Extract<Artifact, { artifactType: 'test-plan' }>;
@@ -194,6 +195,7 @@ export function TestPlanWorkspace({
                     </div>
                     {c.applicability ? <ApplicabilityBadges applicability={c.applicability} t={t} /> : null}
                   </button>
+                  <EvidenceDrawer key={`${artifact.projectId}-${c.testId}-${artifact.artifactVersion}`} projectId={artifact.projectId} testCase={c} t={t} />
                 </li>
               ))}
             </ul>
@@ -277,6 +279,84 @@ export function TestPlanWorkspace({
       </div>
     </div>
   );
+}
+
+function EvidenceDrawer({ projectId, testCase: c, t }: {
+  projectId: string;
+  testCase: TestPlanArtifact['content']['testCases'][number];
+  t: ReturnType<typeof themeColors>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [run, setRun] = useState<ExecutionRun | null>(null);
+  const [outputs, setOutputs] = useState<ProducedOutput[]>([]);
+  const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const runId = c.executionRunId ?? c.verificationBasis?.executionRunId;
+  useEffect(() => {
+    if (!open || !runId) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    setRun(null);
+    setOutputs([]);
+    Promise.all([getExecution(projectId, runId), listProducedOutputs(projectId, runId)])
+      .then(([result, items]) => {
+        if (cancelled) return;
+        setRun(result.executionRun);
+        setOutputs(items.filter((item) => item.executionRunId === runId));
+      })
+      .catch(() => { if (!cancelled) setError(true); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [open, projectId, runId]);
+  return (
+    <details onToggle={(event) => setOpen(event.currentTarget.open)} style={{ margin: '4px 12px 12px', padding: 10, border: `1px solid ${t.border}`, borderRadius: 6, color: t.textSec, fontSize: 12, overflowWrap: 'anywhere' }}>
+      <summary style={{ cursor: 'pointer', color: t.text }}>View Evidence</summary>
+      {open ? <div style={{ minHeight: 100 }}>
+        {c.status === 'planned' || !c.assessment || !c.evidenceReferences?.length ? <p>Evidence pending evaluation</p> : null}
+        <Meta label="Criterion" value={`${c.displayId} · ${c.testId}`} t={t} />
+        <Meta label="Evaluation method" value={c.verificationMethod} t={t} />
+        {/* The API exposes neither an evaluator rule ID nor an evaluation timestamp. */}
+        <Meta label="Rule id" value="Not provided" t={t} />
+        <Meta label="Criterion rule" value={c.criterion ? JSON.stringify(c.criterion) : 'Not provided'} t={t} />
+        <Meta label="Assessment authority" value={c.assessmentAuthority ?? 'none'} t={t} />
+        <Meta label="Execution runId" value={runId ?? 'Not provided'} t={t} />
+        <Meta label="Evaluation timestamp (ISO)" value="Not provided" t={t} />
+        {loading ? <p role="status">Loading execution provenance…</p> : null}
+        {error ? <p role="alert">Execution provenance unavailable. Close and reopen to retry.</p> : null}
+        {run?.completedAt ? <Meta label="Execution completed (ISO)" value={run.completedAt} t={t} /> : null}
+        <Meta label="Input snapshot" value={c.verificationBasis?.inputSnapshotId ?? run?.inputSnapshotId ?? 'Not provided'} t={t} />
+        {run?.workspaceId ? <Meta label="Workspace" value={run.workspaceId} t={t} /> : null}
+        {(c.verificationBasis?.dependencies ?? []).map((dep, index) => <div key={index}>
+          <Meta label="Artifact revision" value={`${dep.artifactType} · ${dep.artifactId} v${dep.artifactVersion}`} t={t} />
+          <Meta label="Content digest" value={dep.contentHash} t={t} />
+        </div>)}
+        {(c.evidenceReferences ?? []).map((ref) => <div key={ref.evidenceId}>
+          <Meta label="Evidence" value={ref.evidenceId} t={t} />
+          <Meta label="Source" value={`${ref.sourceType} · ${ref.sourceId} · ${ref.sourceLocator ?? 'No locator'}`} t={t} />
+        </div>)}
+        {outputs.map((output) => {
+          const data = output.content.kind === 'inline-structured' ? output.content.structuredResult : {};
+          return <div key={output.outputId}>
+            <Meta label="Output" value={`${output.name} · ${output.outputId}`} t={t} />
+            <Meta label="Output digest" value={output.contentDigest} t={t} />
+            {typeof data.inputSha256 === 'string' ? <Meta label="inputSha256" value={data.inputSha256} t={t} /> : null}
+            {typeof data.firmwareOutputId === 'string' ? <Meta label="firmwareOutputId" value={data.firmwareOutputId} t={t} /> : null}
+            {typeof data.text === 'string' ? <Observation text={data.text} t={t} /> : null}
+          </div>;
+        })}
+        <Observation text={c.actualResult ?? 'Observation not provided'} t={t} />
+      </div> : null}
+    </details>
+  );
+}
+
+function Observation({ text, t }: { text: string; t: ReturnType<typeof themeColors> }) {
+  return <div style={{ marginTop: 8 }}>
+    <div>Observation excerpt</div>
+    <pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 240, overflow: 'auto', color: t.text }}>{text.slice(0, 4000)}</pre>
+    {text.length > 4000 ? <div>Excerpt truncated to 4000 characters.</div> : null}
+  </div>;
 }
 
 function ApplicabilityBadges({ applicability, t }: { applicability: Applicability; t: ReturnType<typeof themeColors> }) {

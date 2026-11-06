@@ -1,8 +1,12 @@
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { TestPlanWorkspace } from './workspace';
 import type { Artifact } from '@nexus/contracts';
+import { getExecution, listProducedOutputs } from '../../api/client';
+
 import golden from '../../../../../packages/contracts/examples/valid/esp32-imu-vibration-monitor/test-plan-artifact.json';
+
+vi.mock('../../api/client', () => ({ getExecution: vi.fn(), listProducedOutputs: vi.fn() }));
 
 function withPromotedR7(base: typeof golden) {
   const content = structuredClone(base.content) as Record<string, unknown>;
@@ -196,5 +200,106 @@ describe('TestPlanWorkspace', () => {
     );
     expect(screen.getByTestId('test-plan-coverage-R8')).toHaveTextContent('UNCOVERED');
     expect(screen.getByTestId('test-plan-uncovered-R8')).toBeInTheDocument();
+  });
+});
+
+describe('criterion evidence disclosure', () => {
+  beforeEach(() => {
+    vi.mocked(getExecution).mockReset();
+    vi.mocked(listProducedOutputs).mockReset();
+  });
+
+  function setup(artifact = withPromotedR7(golden)) {
+    render(<TestPlanWorkspace artifact={artifact} isDark={false} selectedTestId="T7" onSelectTest={() => undefined} />);
+    fireEvent.click(screen.getByTestId('test-plan-tab-tests'));
+    return screen.getByTestId('test-plan-case-T7').parentElement!;
+  }
+
+  async function toggle(card: HTMLElement, open: boolean) {
+    const disclosure = card.querySelector('details')!;
+    fireEvent.click(within(card).getByText('View Evidence'));
+    await waitFor(() => {
+      expect(disclosure.open).toBe(open);
+      expect(disclosure.querySelector('div') !== null).toBe(open);
+    });
+    return disclosure;
+  }
+
+  it('toggles each card independently and renders artifact evidence without a network request', async () => {
+    const artifact = withPromotedR7(golden);
+    const c = artifact.content.testCases.find((item) => item.displayId === 'T7')!;
+    c.actualResult = 'line one\n  line two <script>alert(1)</script>';
+    const card = setup(artifact);
+    expect(within(card).queryByText('Assessment authority:')).not.toBeInTheDocument();
+    await toggle(card, true);
+    expect(card).toHaveTextContent('deterministic-code');
+    expect(card).toHaveTextContent('exec_GOLDEN_ANALYSIS_R7');
+    expect(card).toHaveTextContent('outputs/summary.json');
+    const observation = card.querySelector('pre')!;
+    expect(observation.textContent).toBe(c.actualResult);
+    expect(observation).toHaveStyle({ whiteSpace: 'pre-wrap' });
+    expect(card.querySelector('script')).toBeNull();
+    expect(card).toHaveTextContent('Evaluation timestamp (ISO): Not provided');
+    expect(getExecution).not.toHaveBeenCalled();
+    expect(screen.getByTestId('test-plan-case-T1').parentElement!.querySelector('details')!.open).toBe(false);
+    await toggle(card, false);
+    expect(card.querySelector('pre')).toBeNull();
+  });
+
+  it('loads existing run and output provenance and bounds long observations', async () => {
+    const artifact = withPromotedR7(golden);
+    const c = artifact.content.testCases.find((item) => item.displayId === 'T7')!;
+    c.executionRunId = 'run-7';
+    c.verificationBasis = { executionRunId: 'run-7', inputSnapshotId: 'snapshot-7', dependencies: [
+      { artifactId: 'firmware-1', artifactType: 'firmware', artifactVersion: 3, contentHash: 'sha256-source' },
+    ] };
+    vi.mocked(getExecution).mockResolvedValue({ executionRun: {
+      executionRunId: 'run-7', completedAt: '2026-11-06T05:00:00Z', workspaceId: 'workspace-7',
+    } } as Awaited<ReturnType<typeof getExecution>>);
+    vi.mocked(listProducedOutputs).mockResolvedValue([{
+      schemaVersion: '1.0.0', artifactId: 'artifact-7', createdAt: '2026-11-06T05:00:00Z',
+      evidenceStatus: 'tested', mediaType: 'text/plain', outputType: 'log', projectId: artifact.projectId, workspaceId: 'workspace-7', supports: [],
+      outputId: 'output-7', executionRunId: 'run-7', name: 'serial.log', contentDigest: 'sha256-output',
+      content: { kind: 'inline-structured', structuredResult: { text: 'x'.repeat(4001), inputSha256: 'sha256-input', firmwareOutputId: 'elf-7' } },
+    }] as Awaited<ReturnType<typeof listProducedOutputs>>);
+    const card = setup(artifact);
+    expect(getExecution).not.toHaveBeenCalled();
+    await toggle(card, true);
+    await waitFor(() => expect(card).toHaveTextContent('sha256-input'));
+    expect(getExecution).toHaveBeenCalledWith(artifact.projectId, 'run-7');
+    expect(listProducedOutputs).toHaveBeenCalledWith(artifact.projectId, 'run-7');
+    for (const value of ['2026-11-06T05:00:00Z', 'workspace-7', 'snapshot-7', 'firmware-1 v3', 'sha256-source', 'sha256-output', 'elf-7']) {
+      expect(card).toHaveTextContent(value);
+    }
+    expect(card.querySelector('pre')!.textContent).toHaveLength(4000);
+    expect(card).toHaveTextContent('Excerpt truncated to 4000 characters.');
+  });
+
+  it.each(['planned', 'ready', 'blocked'] as const)('keeps a stable pending state for %s criteria with missing evidence', async (status) => {
+    const artifact = structuredClone(golden) as unknown as Extract<Artifact, { artifactType: 'test-plan' }>;
+    const c = artifact.content.testCases.find((item) => item.displayId === 'T7')!;
+    c.status = status;
+    delete c.evidenceReferences;
+    delete c.actualResult;
+    const card = setup(artifact);
+    await toggle(card, true);
+    expect(card).toHaveTextContent('Evidence pending evaluation');
+    expect(card).toHaveTextContent('Observation not provided');
+    expect(card.querySelector('details > div')).toHaveStyle({ minHeight: '100px' });
+    expect(getExecution).not.toHaveBeenCalled();
+  });
+
+  it('retains artifact evidence on provenance failure and permits retry', async () => {
+    const artifact = withPromotedR7(golden);
+    artifact.content.testCases.find((item) => item.displayId === 'T7')!.executionRunId = 'run-7';
+    vi.mocked(getExecution).mockRejectedValue(new Error('offline'));
+    vi.mocked(listProducedOutputs).mockResolvedValue([]);
+    const card = setup(artifact);
+    await toggle(card, true);
+    expect(await within(card).findByRole('alert')).toHaveTextContent('Execution provenance unavailable');
+    expect(card).toHaveTextContent('0.0157 g');
+    await toggle(card, false);
+    await toggle(card, true);
+    await waitFor(() => expect(getExecution).toHaveBeenCalledTimes(2));
   });
 });
