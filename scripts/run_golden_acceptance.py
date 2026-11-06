@@ -46,7 +46,7 @@ class AcceptanceError(RuntimeError):
     """An HTTP or semantic acceptance failure."""
 
 
-def require(condition: Any, context: Any) -> None:
+def require(condition: object, context: object) -> None:
     if not condition:
         raise AcceptanceError(str(context))
 
@@ -69,7 +69,7 @@ def parser() -> argparse.ArgumentParser:
 
 class GoldenRunner:
     def __init__(
-        self, client: httpx.AsyncClient, *, require_real: Any = False, timeout: Any = 240
+        self, client: httpx.AsyncClient, *, require_real: bool = False, timeout: float = 240
     ) -> None:
         self.client = client
         self.real = require_real
@@ -87,13 +87,19 @@ class GoldenRunner:
         }
 
     @property
-    def root(self) -> Any:
+    def root(self) -> str:
         return f"/v1/projects/{self.pid}"
 
-    def workspace(self, kind: Any) -> Any:
+    def workspace(self, kind: str) -> str:
         return f"/artifacts/{kind}/workspace"
 
-    async def request(self, method: Any, route: Any, body: Any = None, **params: Any) -> Any:
+    async def request(
+        self,
+        method: str,
+        route: str,
+        body: dict[str, Any] | None = None,
+        **params: str | int | float | bool,
+    ) -> dict[str, Any]:
         remaining = self.deadline - time.monotonic()
         require(remaining > 0, "step timeout exceeded")
         if self.real:
@@ -105,20 +111,25 @@ class GoldenRunner:
         response = await self.client.request(
             method, route, json=body, params=params, timeout=remaining
         )
-        self.last_http = f"{method} {route}: HTTP {response.status_code}\n{response.text}"
+        text = response.text
+        if len(text) > 1000:
+            marker = "... [truncated]"
+            text = text[: 1000 - len(marker)] + marker
+        self.last_http = f"{method} {route}: HTTP {response.status_code}\n{text}"
         require(response.is_success, self.last_http)
-        return response.json()
+        result: dict[str, Any] = response.json()
+        return result
 
-    async def get(self, route: Any, **params: Any) -> Any:
-        return await self.request("GET", self.root + route, **params)
+    async def get(self, route: str, **params: str | int | float | bool) -> dict[str, Any]:
+        return await self.request("GET", self.root + route, body=None, **params)
 
-    async def post(self, route: Any, **body: Any) -> Any:
+    async def post(self, route: str, **body: Any) -> dict[str, Any]:
         return await self.request("POST", self.root + route, {"requestedBy": self.actor, **body})
 
-    async def runtime(self, kind: Any) -> Any:
+    async def runtime(self, kind: str) -> dict[str, Any]:
         return await self.get(self.workspace(kind) + "/runtime")
 
-    async def guards(self, kind: Any) -> Any:
+    async def guards(self, kind: str) -> dict[str, Any]:
         runtime = await self.runtime(kind)
         project = await self.get("")
         return {
@@ -127,7 +138,9 @@ class GoldenRunner:
             "baseProjectStateVersion": project["project"]["currentStateVersion"],
         }
 
-    async def command(self, kind: Any, binding: Any, data: Any) -> Any:
+    async def command(
+        self, kind: str, binding: dict[str, Any], data: dict[str, Any]
+    ) -> dict[str, Any]:
         project = await self.get("")
         result = await self.post(
             "/artifact-commands",
@@ -145,18 +158,18 @@ class GoldenRunner:
         require(result.get("status") == "completed", result)
         return result
 
-    async def lease(self, kind: Any) -> Any:
+    async def lease(self, kind: str) -> None:
         await self.command(
             "workspace.acquire-edit-lease", (await self.runtime(kind))["binding"], {}
         )
 
-    async def initialize(self) -> Any:
+    async def initialize(self) -> None:
         result = await self.request(
             "POST", "/v1/projects/initialize", {"message": PROMPT, "autonomyMode": "collaborate"}
         )
         self.pid = result["project"]["projectId"]
 
-    async def plan(self) -> Any:
+    async def plan(self) -> None:
         project = await self.get("")
         plan = await self.post(
             "/execution-plan/propose",
@@ -178,7 +191,7 @@ class GoldenRunner:
             await self.lease(kind)
         await self.lease("electrical-architecture")
 
-    async def apply(self, proposal_id: Any) -> Any:
+    async def apply(self, proposal_id: str) -> None:
         root = self.workspace("firmware")
         proposal = (await self.get(root + f"/patch/{proposal_id}"))["proposal"]
         require(proposal["status"] == "proposed", proposal)
@@ -207,7 +220,7 @@ class GoldenRunner:
         )
         require(result["status"] == "applied", result)
 
-    async def generate(self) -> Any:
+    async def generate(self) -> None:
         result = await self.post(
             self.workspace("firmware") + "/patch/propose",
             requestedChange="Implement the approved ESP32 MPU6050 monitor. "
@@ -218,12 +231,12 @@ class GoldenRunner:
         )
         await self.apply(result["proposal"]["proposalId"])
 
-    async def wait(self, run_id: Any, *, success: Any = True) -> Any:
+    async def wait(self, run_id: str, *, success: bool = True) -> dict[str, Any]:
         require(run_id, "missing executionRunId")
         self.run_ids.append(run_id)
         self.runs.append((self.pid, run_id))
         while True:
-            run = (await self.get(f"/executions/{run_id}"))["executionRun"]
+            run: dict[str, Any] = (await self.get(f"/executions/{run_id}"))["executionRun"]
             if run["status"] not in {"queued", "running", "pending"}:
                 if success:
                     require(run["status"] == "completed", run)
@@ -231,16 +244,16 @@ class GoldenRunner:
             require(time.monotonic() < self.deadline, run)
             await asyncio.sleep(min(0.5, max(0, self.deadline - time.monotonic())))
 
-    async def compile(self, *, success: Any = True) -> Any:
+    async def compile(self, *, success: bool = True) -> dict[str, Any]:
         result = await self.post(self.workspace("firmware") + "/compile")
         if self.real:
             require(result["toolchainProfile"]["executionMode"] == "platformio", result)
         return await self.wait(result["executionRun"]["executionRunId"], success=success)
 
-    async def promote(self, run_id: Any) -> Any:
+    async def promote(self, run_id: str) -> None:
         await self.post("/verify/promote-execution", executionRunId=run_id, accept=True)
 
-    async def verify(self, *, analyze: Any = True) -> Any:
+    async def verify(self, *, analyze: bool = True) -> str | None:
         for kind in ("firmware", "analysis", "electrical-architecture"):
             await self.lease(kind)
         run = await self.compile()
@@ -264,7 +277,8 @@ class GoldenRunner:
         require({"diagram.json", "mapping-manifest.json"} <= set(exported["files"]), exported)
         await self.promote(sim["executionRunId"])
         if not analyze:
-            return sim["executionRunId"]
+            run_id: str = sim["executionRunId"]
+            return run_id
         outputs = (await self.get("/outputs", executionRunId=sim["executionRunId"]))["items"]
         serial = next(o for o in outputs if o["name"] == "serial.log")
         await self.post(
@@ -276,8 +290,9 @@ class GoldenRunner:
         analysis = await self.post(self.workspace("analysis") + "/run")
         run = await self.wait(analysis["executionRun"]["executionRunId"])
         await self.promote(run["executionRunId"])
+        return None
 
-    async def cases(self) -> Any:
+    async def cases(self) -> dict[str, list[dict[str, Any]]]:
         project = await self.get("")
         artifacts = project["artifacts"]
         requirements = next(
@@ -289,18 +304,24 @@ class GoldenRunner:
         cases = next(
             a["content"]["testCases"] for a in artifacts if a["artifactType"] == "test-plan"
         )
-        return {ids.get(r, r): c for c in cases for r in c["linkedRequirementIds"]}
+        linked: dict[str, list[dict[str, Any]]] = {}
+        for case in cases:
+            for rid in case["linkedRequirementIds"]:
+                linked.setdefault(ids.get(rid, rid), []).append(case)
+        return linked
 
-    async def passed(self) -> Any:
+    async def passed(self) -> None:
         cases = await self.cases()
         for rid in DYNAMIC:
-            case = cases.get(rid, {})
-            require(
-                case.get("assessment") == "PASS"
-                and case.get("status") == "passed"
-                and case.get("assessmentAuthority") == "deterministic-code",
-                {rid: case},
-            )
+            linked = cases.get(rid, [])
+            require(linked, {"missingCases": rid})
+            for case in linked:
+                require(
+                    case.get("assessment") == "PASS"
+                    and case.get("status") == "passed"
+                    and case.get("assessmentAuthority") == "deterministic-code",
+                    {rid: case},
+                )
         chain = await self.get("/verify/evidence-chain")
         for rid in DYNAMIC:
             linked = [c for c in chain["chains"] if c.get("requirementId") == rid]
@@ -314,7 +335,7 @@ class GoldenRunner:
                     link,
                 )
 
-    async def write(self, source: Any) -> Any:
+    async def write(self, source: str) -> dict[str, Any]:
         await self.lease("firmware")
         return await self.request(
             "PUT",
@@ -329,12 +350,13 @@ class GoldenRunner:
             },
         )
 
-    async def source(self) -> Any:
-        return (await self.get(self.workspace("firmware") + "/file", path="src/main.cpp"))[
+    async def source(self) -> str:
+        content: str = (await self.get(self.workspace("firmware") + "/file", path="src/main.cpp"))[
             "content"
         ]
+        return content
 
-    async def repair(self, run_id: Any) -> Any:
+    async def repair(self, run_id: str) -> None:
         state = await self.post(
             "/repair",
             action="start",
@@ -360,7 +382,7 @@ class GoldenRunner:
             )
         await self.passed()
 
-    async def fault(self, fault: Any) -> Any:
+    async def fault(self, fault: str) -> None:
         if fault != "F2":
             await self.initialize()
             await self.plan()
@@ -384,7 +406,7 @@ class GoldenRunner:
             await self.verify(analyze=fault != "F4")
             cases = await self.cases()
             rid = "R4" if fault == "F4" else "R6"
-            require(cases[rid]["assessment"] == "FAIL", cases[rid])
+            require(any(c["assessment"] == "FAIL" for c in cases[rid]), cases[rid])
             chain = (await self.get("/verify/evidence-chain"))["chains"]
             failed = next(
                 c for c in chain if c.get("requirementId") == rid and c.get("assessment") == "FAIL"
@@ -392,7 +414,7 @@ class GoldenRunner:
             run = {"executionRunId": failed["executionRunId"]}
         await self.repair(run["executionRunId"])
 
-    async def stale(self) -> Any:
+    async def stale(self) -> None:
         await self.write(await self.source() + "\n// Golden acceptance M5 edit\n")
         binding = (await self.runtime("firmware"))["binding"]
         snapshot = await self.command("workspace.create-snapshot", binding, {"reason": "manual"})
@@ -408,7 +430,7 @@ class GoldenRunner:
             chain,
         )
 
-    async def persistence(self) -> Any:
+    async def persistence(self) -> None:
         # Read-after-write durability only. Restart requires operator-owned process control.
         current_pid = self.pid
         for pid, run_id in dict.fromkeys(self.runs):
@@ -441,8 +463,8 @@ class GoldenRunner:
         await self.passed()
         print("  Persistence: read-after-write only; restart not tested. R2/R3: manual review.")
 
-    async def run(self, through: Any = 10) -> Any:
-        async def baseline() -> Any:
+    async def run(self, through: int = 10) -> int:
+        async def baseline() -> None:
             await self.verify()
             await self.passed()
 
@@ -486,7 +508,7 @@ class GoldenRunner:
         return 0
 
 
-async def async_main(args: Any) -> Any:
+async def async_main(args: argparse.Namespace) -> int:
     token = os.environ.get("NEXUS_API_SESSION_TOKEN", "nexus-dev-session-token")
     async with httpx.AsyncClient(
         base_url=args.api_url, headers={"Authorization": f"Bearer {token}"}
@@ -496,7 +518,7 @@ async def async_main(args: Any) -> Any:
         )
 
 
-def main(argv: Any = None) -> Any:
+def main(argv: list[str] | None = None) -> int:
     return asyncio.run(async_main(parser().parse_args(argv)))
 
 

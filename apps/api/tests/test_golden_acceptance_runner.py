@@ -210,14 +210,143 @@ async def test_missing_or_stale_chain_rejected(state: str) -> None:
 
         async def cases() -> Any:
             return {
-                rid: {
-                    "assessment": "PASS",
-                    "status": "passed",
-                    "assessmentAuthority": "deterministic-code",
-                }
+                rid: [
+                    {
+                        "assessment": "PASS",
+                        "status": "passed",
+                        "assessmentAuthority": "deterministic-code",
+                    }
+                ]
                 for rid in runner.DYNAMIC
             }
 
         demo.cases = cases
         with pytest.raises(runner.AcceptanceError):
             await demo.passed()
+
+
+@pytest.mark.parametrize("bad_index", [None, 0, 1])
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"assessment": "FAIL"},
+        {"status": "planned"},
+        {"assessmentAuthority": "model"},
+    ],
+)
+async def test_all_linked_cases_checked(bad_index: int | None, override: dict[str, str]) -> None:
+    cases = [
+        {
+            "testCaseId": f"case_{index}",
+            "linkedRequirementIds": [f"req_{rid}" for rid in runner.DYNAMIC],
+            "assessment": "PASS",
+            "status": "passed",
+            "assessmentAuthority": "deterministic-code",
+        }
+        for index in range(2)
+    ]
+    if bad_index is not None:
+        cases[bad_index].update(override)
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/evidence-chain"):
+            return httpx.Response(
+                200,
+                json={
+                    "chains": [
+                        {
+                            "requirementId": rid,
+                            "assessment": "PASS",
+                            "executionRunId": "run_1",
+                            "evidenceReferences": [{"sourceId": "run_1"}],
+                            "applicability": {"state": "CURRENT"},
+                        }
+                        for rid in runner.DYNAMIC
+                    ]
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "artifacts": [
+                    {
+                        "artifactType": "requirement-set",
+                        "content": {
+                            "requirements": [
+                                {"requirementId": f"req_{rid}", "displayId": rid}
+                                for rid in runner.DYNAMIC
+                            ]
+                        },
+                    },
+                    {"artifactType": "test-plan", "content": {"testCases": cases}},
+                ]
+            },
+        )
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(handle), base_url="http://test"
+    ) as client:
+        demo = runner.GoldenRunner(client)
+        linked = await demo.cases()
+        assert all(linked[rid] == cases for rid in runner.DYNAMIC)
+        if bad_index is None:
+            await demo.passed()
+        else:
+            with pytest.raises(runner.AcceptanceError, match=f"case_{bad_index}"):
+                await demo.passed()
+
+
+async def test_missing_linked_cases_rejected() -> None:
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(
+            lambda r: httpx.Response(
+                200,
+                json={
+                    "artifacts": [
+                        {"artifactType": "requirement-set", "content": {"requirements": []}},
+                        {"artifactType": "test-plan", "content": {"testCases": []}},
+                    ]
+                },
+            )
+        ),
+        base_url="http://test",
+    ) as client:
+        with pytest.raises(runner.AcceptanceError, match="missingCases"):
+            await runner.GoldenRunner(client).passed()
+
+
+@pytest.mark.parametrize("length", [999, 1000, 1001, 10000])
+async def test_http_failure_excerpt_bounded(
+    length: int, capsys: pytest.CaptureFixture[str]
+) -> None:
+    body = "x" * length
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda r: httpx.Response(500, text=body)),
+        base_url="http://test",
+    ) as client:
+        demo = runner.GoldenRunner(client)
+        assert await demo.run(through=1) == 1
+    prefix, excerpt = demo.last_http.split("\n", 1)
+    assert "HTTP 500" in prefix
+    assert len(excerpt) == min(length, 1000)
+    if length > 1000:
+        assert excerpt.endswith("... [truncated]")
+    else:
+        assert excerpt == body
+    stderr = capsys.readouterr().err
+    assert demo.last_http in stderr
+    if length > 1000:
+        assert body not in stderr
+
+
+async def test_successful_response_excerpt_bounded() -> None:
+    payload = {"content": "x" * 2000}
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(lambda r: httpx.Response(200, json=payload)),
+        base_url="http://test",
+    ) as client:
+        demo = runner.GoldenRunner(client)
+        assert await demo.request("GET", "/large") == payload
+        excerpt = demo.last_http.split("\n", 1)[1]
+        assert len(excerpt) == 1000
+        assert excerpt.endswith("... [truncated]")
