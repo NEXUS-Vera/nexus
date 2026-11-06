@@ -61,3 +61,11 @@ The result retains exit code 42 and an informational `CAPTURE_WINDOW_REACHED`
 finding. Requested observations must still be present and complete. With
 expected text, the same timeout fails. Other nonzero exits fail with the exit
 code and a bounded, credential-redacted stderr tail in the diagnostic.
+
+Materialization accepts an optional execution-plan artifact on
+`MaterializationRequest.execution_plan` (an additive Python API field). The API
+supplies the user-approved plan. Its `configuration.i2c.sdaPin` and `sclPin`
+drive both diagram wiring and the manifest pin profile. Missing pins default to
+21/22. Pins must be distinct integers from the actionable v1 plan allowlist:
+21, 22, 25, 26, 27, 32, 33. Unsupported pins produce an error finding and no I2C
+wiring. Shared artifact schemas are unchanged.

@@ -673,3 +673,21 @@ async def test_simulate_approved_pair_with_unapproved_fixture_roles(
             ["mcu1:D21", "imu1:SDA"],
             ["mcu1:D22", "imu1:SCL"],
         ]
+
+
+def test_approved_execution_plan_custom_pins_reach_provider_diagram() -> None:
+    import json
+
+    from nexus_api.circuit_simulation import materialization_request
+    from nexus_circuit_simulation import WokwiProvider
+
+    electrical, components, approved = _live_simulation_inputs()
+    approved["content"]["configuration"]["i2c"].update(sdaPin=25, sclPin=26)
+    request = materialization_request(
+        electrical_artifact=electrical,
+        component_plan_artifact=components,
+        execution_plan_artifact=approved,
+    )
+    diagram = json.loads(WokwiProvider().materialize(request).text("diagram.json"))
+    assert ["mcu1:D25", "imu1:SDA", "green", []] in diagram["connections"]
+    assert ["mcu1:D26", "imu1:SCL", "blue", []] in diagram["connections"]
