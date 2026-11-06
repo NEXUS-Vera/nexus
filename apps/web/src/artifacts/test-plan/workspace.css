@@ -1,0 +1,9 @@
+.test-plan-spinner {
+  animation: test-plan-spin 1s linear infinite;
+}
+
+@keyframes test-plan-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

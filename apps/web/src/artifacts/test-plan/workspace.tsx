@@ -2,6 +2,7 @@
  * Test Plan workspace — requirement coverage first (Phase 17E).
  */
 import { useMemo, useRef, useState } from 'react';
+import './workspace.css';
 import { Loader2 } from 'lucide-react';
 import { getArtifactVersion, triggerVerification } from '../../api/client';
 import { USER_ACTOR } from '../../api/actor';
@@ -16,6 +17,7 @@ type Props = {
   isDark: boolean;
   selectedTestId: string | null;
   onSelectTest: (id: string) => void;
+  onArtifactUpdate?: (artifact: TestPlanArtifact) => void;
   requirementStatements?: Record<string, string>;
 };
 
@@ -43,6 +45,7 @@ function TestPlanContent({
   isDark,
   selectedTestId,
   onSelectTest,
+  onArtifactUpdate,
   requirementStatements = {},
 }: Props) {
   const t = themeColors(isDark);
@@ -71,7 +74,8 @@ function TestPlanContent({
         throw new Error('Unexpected Test Plan response');
       }
       setVerifiedArtifact(refreshed);
-      setVerificationMessage(refreshed.content.testCases.some((c) => needsVerification(c.applicability))
+      onArtifactUpdate?.(refreshed);
+      setVerificationMessage((refreshed.content.testCases?.some((c) => needsVerification(c.applicability)) ?? false)
         ? 'Verification finished; some criteria still require re-verification.'
         : 'Verification complete. Criteria are current.');
     } catch {
@@ -337,7 +341,7 @@ function ApplicabilityBadges({ applicability, evaluating, t }: { applicability: 
       </span>
       {evaluating && needsVerification(applicability) ? (
         <span role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <Loader2 size={12} aria-hidden="true"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></Loader2>
+          <Loader2 size={12} aria-hidden="true" className="test-plan-spinner" />
           Evaluating…
         </span>
       ) : null}

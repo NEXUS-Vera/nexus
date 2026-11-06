@@ -328,6 +328,14 @@ export function ProjectPage() {
       >
         <Renderer
           projectId={projectId}
+          onArtifactUpdate={artifact => setState(previous => {
+            if (!previous || previous.project.projectId !== artifact.projectId) return previous;
+            const artifacts: ProjectCurrentState['artifacts'] = [...previous.artifacts];
+            const index = artifacts.findIndex(current => current.artifactType === artifact.artifactType);
+            if (index < 0) return previous;
+            artifacts[index] = artifact;
+            return { ...previous, artifacts };
+          })}
           repair={Object.values(repairs).find(repair => repair.projectId === projectId &&
             repair.status === 'review' && repair.target === 'firmware' &&
             (!searchParams.get('proposalId') || repair.proposalId === searchParams.get('proposalId')))}

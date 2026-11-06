@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { USER_ACTOR } from '../../api/actor';
@@ -257,6 +258,36 @@ describe('Test Plan re-verification', () => {
     expect(screen.getByText(refreshed.updatedAt)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Re-verify Stale Criteria' })).toBeDisabled();
     expect(original.content.testCases.find((c) => c.displayId === 'T7')!.applicability!.state).toBe('STALE');
+  });
+
+  it('retains the refreshed artifact after navigating away and back', async () => {
+    const refreshed = stalePlan('CURRENT');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response({})).mockResolvedValueOnce(response(refreshed)));
+    function Parent() {
+      const [artifact, setArtifact] = useState(stalePlan());
+      const [visible, setVisible] = useState(true);
+      return <>
+        <button onClick={() => setVisible(!visible)}>Navigate</button>
+        {visible && <TestPlanWorkspace artifact={artifact} onArtifactUpdate={setArtifact} isDark={false} selectedTestId="T7" onSelectTest={() => undefined} />}
+      </>;
+    }
+    render(<Parent />);
+    fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
+    await waitFor(() => expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT'));
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate' }));
+    expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT');
+    expect(screen.getByRole('button', { name: 'Re-verify Stale Criteria' })).toBeDisabled();
+  });
+
+  it('handles a refreshed plan with omitted test cases', async () => {
+    const refreshed = stalePlan('CURRENT');
+    Reflect.deleteProperty(refreshed.content, 'testCases');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response({})).mockResolvedValueOnce(response(refreshed)));
+    mountPlan();
+    fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
+    await screen.findByText('Verification complete. Criteria are current.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it.each(['verify', 'refresh'])('preserves the plan on %s failure and permits retry', async (failure) => {
