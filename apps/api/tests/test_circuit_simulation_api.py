@@ -7,14 +7,14 @@ from typing import Any, cast
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api import main
 from nexus_api.config import settings
-from nexus_api.main import _kernel_store, app
 from nexus_board.ids import new_id, utc_now_iso
 
 
 @pytest.mark.asyncio
 async def test_support_health_and_controlled_export_without_provider_call() -> None:
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=main.app)
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
@@ -75,7 +75,7 @@ async def test_support_health_and_controlled_export_without_provider_call() -> N
             if artifact["artifactType"] == "electrical-architecture"
         )
         now = utc_now_iso()
-        _kernel_store.create_produced_output(
+        main._kernel_store.create_produced_output(
             {
                 "schemaVersion": "1.0.0",
                 "outputId": new_id("out"),
@@ -165,7 +165,7 @@ async def test_validate_endpoint_does_not_block_event_loop(monkeypatch: pytest.M
 
     monkeypatch.setattr(main, "_wokwi_provider", SlowProvider())
     async with AsyncClient(
-        transport=ASGITransport(app=app),
+        transport=ASGITransport(app=main.app),
         base_url="http://test",
         headers={"Authorization": f"Bearer {settings.session_token}"},
     ) as client:
@@ -576,7 +576,7 @@ async def test_simulate_approved_pair_with_unapproved_fixture_roles(
     provider = WokwiProvider(executable=executable, token="regression-only", runner=Runner())
     monkeypatch.setattr(main, "_wokwi_provider", provider)
     async with AsyncClient(
-        transport=ASGITransport(app=app), base_url="http://test", headers=AUTH
+        transport=ASGITransport(app=main.app), base_url="http://test", headers=AUTH
     ) as client:
         pid, configuration = await _setup(client, actor)
         proposal = (await _propose(client, pid, actor, configuration)).json()
