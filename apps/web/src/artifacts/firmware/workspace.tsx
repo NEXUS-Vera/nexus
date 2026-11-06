@@ -19,6 +19,7 @@ import {
 import {
   ApiClientError,
   advanceRepair,
+  rejectRepair,
   type RepairState,
   applyFirmwarePatch,
   compileFirmware,
@@ -273,12 +274,21 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
   const repairInFlight = useRef(false);
   const [cancelPending, setCancelPending] = useState(false);
   const cancelInFlight = useRef(false);
+  const [showRejectFeedback, setShowRejectFeedback] = useState(false);
+  const [rejectFeedback, setRejectFeedback] = useState('');
+  const [rejectedFeedback, setRejectedFeedback] = useState<string | null>(null);
+  const [rejectPending, setRejectPending] = useState(false);
+  const rejectInFlight = useRef(false);
   const advanceInFlight = useRef<Promise<RepairState> | null>(null);
 
   const repairLoop = useRef<{ cancel: () => void } | null>(null);
 
   useEffect(() => {
     setCancelPending(false);
+    setShowRejectFeedback(false);
+    setRejectFeedback('');
+    setRejectedFeedback(null);
+    setRejectPending(false);
     setRepairPending(false);
     setAppliedRepair(null);
     setContinuedRepair(null);
@@ -292,8 +302,38 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
   const activeRepair = continuedRepair ?? appliedRepair ?? (repair?.projectId === projectId ? repair : null);
   const canCancelRepair = activeRepair?.status === 'review' || activeRepair?.status === 'running';
 
+  const rejectedProposal = activeRepair?.status === 'rejected' && (!pendingProposalId || pendingProposalId === activeRepair.proposalId);
+  const reviewProposalId = rejectedProposal ? undefined : pendingProposalId ?? (activeRepair?.status === 'review' ? activeRepair.proposalId : undefined);
+  const canRejectRepair = activeRepair?.status === 'review' && !appliedRepair;
+
+  const rejectProposal = async () => {
+    if (!activeRepair || !canRejectRepair || rejectInFlight.current || cancelInFlight.current || patchApplying || patchDiscarding) return;
+    rejectInFlight.current = true;
+    setRejectPending(true);
+    setError(null);
+    try {
+      const feedback = rejectFeedback.trim() || undefined;
+      const next = await rejectRepair(projectId, activeRepair.repairId, activeRepair.revision, USER_ACTOR, true, feedback);
+      if (next.status !== 'rejected') throw new Error('Proposal was not rejected.');
+      repairLoop.current?.cancel();
+      setContinuedRepair(next);
+      setRejectedFeedback(feedback ?? null);
+      setShowRejectFeedback(false);
+      setPatchProposal(null);
+      setPatchPreviews([]);
+      setShowPatchPanel(false);
+      onRepairChanged?.(next);
+      onProposalDecided?.();
+    } catch {
+      setError('Could not reject proposal. Try again.');
+    } finally {
+      rejectInFlight.current = false;
+      setRejectPending(false);
+    }
+  };
+
   const cancelRepair = async () => {
-    if (!activeRepair || !canCancelRepair || cancelInFlight.current) return;
+    if (!activeRepair || !canCancelRepair || cancelInFlight.current || rejectInFlight.current) return;
     cancelInFlight.current = true;
     setCancelPending(true);
     setError(null);
@@ -903,14 +943,14 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     setPatchProposal(null);
     setPatchPreviews([]);
     setPatchProposalError(null);
-    setPatchProposalLoading(Boolean(pendingProposalId));
-    if (!pendingProposalId) return;
+    setPatchProposalLoading(Boolean(reviewProposalId));
+    if (!reviewProposalId) return;
     setShowPatchPanel(true);
     async function loadProposal() {
       try {
-        const result = await getFirmwarePatchProposal(projectId, pendingProposalId!);
+        const result = await getFirmwarePatchProposal(projectId, reviewProposalId!);
         const parsed = parsePatchProposal(result);
-        if (!parsed || parsed.proposalId !== pendingProposalId || parsed.status !== 'proposed' ||
+        if (!parsed || parsed.proposalId !== reviewProposalId || parsed.status !== 'proposed' ||
           parsed.operations.some(op => !op.path ||
             !['create-file', 'replace-file', 'delete-file'].includes(op.operationType) ||
             (op.operationType !== 'delete-file' && typeof op.content !== 'string'))) {
@@ -929,7 +969,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
     }
     void loadProposal();
     return () => { cancelled = true; };
-  }, [projectId, pendingProposalId]);
+  }, [projectId, reviewProposalId]);
 
   const proposePatch = useCallback(async () => {
     if (!binding) return;
@@ -1209,10 +1249,12 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
           <button
             type="button"
             data-testid="firmware-patch-toggle"
+            aria-expanded={showPatchPanel}
+            aria-controls="firmware-patch-panel"
             onClick={() => setShowPatchPanel((v) => !v)}
             style={btn(t)}
           >
-            <Sparkles size={14} /> Request firmware change
+            <Sparkles size={14} /> {canRejectRepair ? 'Proposed patch diff' : 'Request firmware change'}
           </button>
         ) : null}
         {files.length > 0 ? (
@@ -1316,6 +1358,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
       {showPatchPanel ? (
         <div
           data-testid="firmware-patch-panel"
+          id="firmware-patch-panel"
           style={{
             padding: '10px 12px',
             borderBottom: `1px solid ${t.border}`,
@@ -1435,7 +1478,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
                 <button
                   type="button"
                   data-testid="firmware-patch-apply"
-                  disabled={patchApplying || patchProposal.operations.length === 0}
+                  disabled={patchApplying || rejectPending || cancelPending || patchProposal.operations.length === 0}
                   onClick={() => void applyPatch()}
                   style={btn(t, patchApplying || patchProposal.operations.length === 0)}
                 >
@@ -1444,7 +1487,7 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
                 <button
                   type="button"
                   data-testid="firmware-patch-discard"
-                  disabled={patchDiscarding}
+                  disabled={patchDiscarding || rejectPending || cancelPending}
                   onClick={() => void discardPatch()}
                   style={btn(t, patchDiscarding)}
                 >
@@ -1462,10 +1505,32 @@ export function FirmwareWorkspace({ projectId, isDark, onCommandResult, pendingP
             disabled={repairPending || cancelPending || repairContinuationStopped}>
             Continue repair (rebuild &amp; verify)
           </button>}
-          {canCancelRepair && <button type="button" onClick={() => void cancelRepair()} disabled={cancelPending}>
+          {canCancelRepair && <button type="button" onClick={() => void cancelRepair()} disabled={cancelPending || rejectPending}>
             {cancelPending ? 'Cancelling repair…' : 'Cancel repair'}
           </button>}
+          {canRejectRepair && <button type="button" style={btn(t, rejectPending || cancelPending)}
+            disabled={rejectPending || cancelPending || patchApplying || patchDiscarding}
+            onClick={() => setShowRejectFeedback(true)}>Reject proposal</button>}
+          {canRejectRepair && showRejectFeedback && <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+            <label htmlFor="repair-reject-feedback">Feedback (optional)</label>
+            <textarea id="repair-reject-feedback" value={rejectFeedback} disabled={rejectPending}
+              onChange={event => setRejectFeedback(event.target.value)} rows={2}
+              style={{ background: t.surface, color: t.text, border: `1px solid ${t.border}`, borderRadius: 6 }} />
+            <button type="button" style={btn(t, rejectPending || cancelPending)} disabled={rejectPending || cancelPending || patchApplying || patchDiscarding}
+              onClick={() => void rejectProposal()}>{rejectPending ? 'Rejecting proposal…' : 'Confirm rejection'}</button>
+          </div>}
           {repairPending && <span role="status">Continuing repair…</span>}
+          {activeRepair.status === 'rejected' && <div>
+            <details open>
+              <summary>Repair attempt history</summary>
+              <ol>{activeRepair.attempts.map((attempt, index) => <li key={index}>
+                {attempt.proposalId && <span>Proposal: {attempt.proposalId}. </span>}
+                Runs: {attempt.runIds.join(', ') || 'none'}
+              </li>)}</ol>
+              {rejectedFeedback && <p>Rejection feedback: {rejectedFeedback}</p>}
+            </details>
+            <p>Edit firmware manually or request a revised patch using Request firmware change.</p>
+          </div>}
           {continuedRepair && <div role="status">
             Repair: {continuedRepair.status}. Stage: {continuedRepair.stage}. {continuedRepair.explanation}
             {continuedRepair.errorCode && <span> Error: {continuedRepair.errorCode}</span>}

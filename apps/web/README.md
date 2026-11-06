@@ -102,7 +102,7 @@ Client methods in `src/api/client.ts`:
 - `GET /v1/projects/:id/artifacts/execution-plan` (`getExecutionPlan`)
 - `POST /v1/projects/:id/execution-plan/propose` and `/materialize`
 - `POST /v1/projects/:id/artifact-commands` revision acceptance/rejection helpers
-- `POST /v1/projects/:id/repair` (`startRepair`, `getRepair`, `advanceRepair`, including cancellation)
+- `POST /v1/projects/:id/repair` (`startRepair`, `getRepair`, `advanceRepair`, `rejectRepair`, including cancellation and proposal rejection)
 - `GET /healthz` (`getHealthz`, including initialization provider and storage backend)
 
 Revision decision helpers take caller-supplied command IDs, timestamps, actor and
@@ -147,6 +147,14 @@ Active review/running repairs offer Cancel repair with the operator identity and
 `requireReal: true`. Cancellation stops continuation polling, waits for any in-flight
 advance to obtain the latest revision, and disables Continue after success. Failures
 remain inline and allow retry.
+Review repairs load their proposed patch into the collapsible Monaco diff panel.
+Reject proposal accepts optional feedback and posts `action: "reject"` with the
+repair revision, operator identity, and `requireReal: true`. Successful rejection
+stops progression, shows rejected status and feedback in attempt history, and
+leaves manual editing and patch generation available. Failures preserve review
+controls and feedback for retry. This requires backend support for `action: "reject"`;
+the baseline API currently accepts only advance/cancel. Feedback is retained in
+this workspace session.
 Repair state is retained while the project page stays mounted, not across reloads.
 The header LIVE/FIXTURE pill reads initialization mode from health and opens
 diagnostics; tool availability is explicitly unknown because health does not
