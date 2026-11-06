@@ -1175,6 +1175,19 @@ export function advanceRepair(
   });
 }
 
+export function rejectRepair(
+  projectId: string,
+  repairId: string,
+  revision: number,
+  requestedBy: RequestedBy,
+  requireReal: boolean,
+  feedback?: string,
+): Promise<RepairState> {
+  return postWorkflow(projectId, 'repair', {
+    action: 'reject', repairId, revision, feedback, requestedBy, requireReal,
+  });
+}
+
 export type HealthzResponse = {
   status: string;
   initializationProvider: string;
