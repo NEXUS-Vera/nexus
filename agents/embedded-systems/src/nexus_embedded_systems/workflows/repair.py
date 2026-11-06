@@ -182,6 +182,47 @@ class RepairWorkflow:
             or any(e.get("executionRunId") == run_id for e in c.get("evidenceReferences", []))
         ]
 
+    def reject(
+        self,
+        project_id: str,
+        repair_id: str,
+        actor: dict[str, Any],
+        revision: int,
+        *,
+        feedback: str | None = None,
+    ) -> dict[str, Any]:
+        """Reject a pending correction using the existing patch discard lifecycle."""
+        if feedback is not None and not isinstance(feedback, str):
+            raise CommandValidationError("feedback must be a string")
+        with _LOCK:
+            state = self.get(project_id, repair_id)
+            if state["revision"] != revision:
+                raise BoardError("Stale repair revision", code="REPAIR_CONFLICT")
+            if state["status"] != "review":
+                raise CommandValidationError("Repair must be in review to reject a proposal")
+            proposal = self.kernel.kernel_store.get_firmware_patch_proposal(state["proposalId"])
+            if proposal["status"] == "applied":
+                raise BoardError("Repair proposal already applied", code="REPAIR_CONFLICT")
+            if proposal["status"] != "discarded":
+                discard = (
+                    self.runtime.discard_firmware_patch
+                    if state["target"] == "firmware"
+                    else self.runtime.discard_analysis_patch
+                )
+                discard(
+                    project_id=project_id,
+                    artifact_type=state["target"],
+                    proposal_id=state["proposalId"],
+                    actor=actor,
+                    causation_id=repair_id,
+                )
+            if feedback is not None:
+                state["attempts"][-1]["feedback"] = feedback
+            state.update(status="rejected", explanation="Correction rejected; no rerun.")
+            # Review holds no workflow-owned lease; preserve caller-held leases,
+            # as cancel does. Discard never applies files or launches execution.
+            return self._save(state, actor)
+
     def advance(
         self,
         project_id: str,
