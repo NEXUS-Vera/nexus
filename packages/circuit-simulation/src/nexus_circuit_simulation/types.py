@@ -111,6 +111,7 @@ class MaterializationRequest:
     # `$serialMonitor` UART wiring. Validation/lint uses the same default so the
     # workspace validated for simulation matches the workspace executed later.
     include_serial_monitor: bool = True
+    execution_plan: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True)

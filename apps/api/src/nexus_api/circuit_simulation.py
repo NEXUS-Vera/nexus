@@ -207,6 +207,12 @@ def materialization_request(
         electrical_architecture=electrical_artifact,
         component_plan=component_plan_artifact,
         include_wokwi_toml=True,
+        execution_plan=(
+            execution_plan_artifact
+            if execution_plan_artifact
+            and execution_plan_artifact.get("approvalStatus") == "user-approved"
+            else None
+        ),
     )
 
 
