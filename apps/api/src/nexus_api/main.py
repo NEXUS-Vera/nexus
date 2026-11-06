@@ -29,6 +29,7 @@ from nexus_board.services.architecture_graph import materialize_layered_architec
 from nexus_board.services.filesystem_limits import WorkspaceFilesystemLimits
 from nexus_board.services.retention import RetentionPolicy
 from nexus_circuit_simulation import CircuitSimulationError, WokwiProvider
+from nexus_contracts.validation.schema_validator import validate_against_schema_id
 from nexus_embedded_systems.workflows.project_initialization import (
     InitializationProviderError,
     InitializationRoutingError,
@@ -2875,6 +2876,98 @@ async def test_artifact_firmware(
         elif "NOT_FOUND" in exc.code:
             status = 404
         return _error(status, code=exc.code, message=exc.message, request_id=request_id)
+
+
+@app.post("/v1/projects/{project_id}/verify", response_model=None)
+async def verify_project(project_id: str, request: Request) -> dict[str, Any] | JSONResponse:
+    """Reapply retained real execution evidence through ordinary promotion gates."""
+    request_id = _request_id(request)
+    invalid = _validate_project_id(project_id, request_id)
+    if invalid:
+        return invalid
+    body = await _optional_json_body(request)
+    if body is _INVALID_JSON_BODY:
+        return _invalid_json_body_error(request_id)
+    errors = validate_against_schema_id(
+        body, "https://nexus.local/schemas/executions/project-verify-request.v1.schema.json"
+    )
+    if errors:
+        return _error(
+            422,
+            code="COMMAND_VALIDATION_FAILED",
+            message="; ".join(e.message for e in errors),
+            request_id=request_id,
+        )
+    try:
+        _store.get_current_state(project_id)
+        run_id = body.get("executionRunId")
+        if run_id:
+            runs = [_kernel.kernel_store.get_execution_run(run_id)]
+        else:
+            runs = []
+            cursor = None
+            while True:
+                page, cursor = _kernel.kernel_store.list_execution_runs(
+                    project_id, limit=1000, cursor=cursor
+                )
+                runs.extend(page)
+                if not cursor:
+                    break
+            runs.sort(
+                key=lambda r: (
+                    r.get("completedAt") or r.get("startedAt") or r.get("createdAt") or "",
+                    r["executionRunId"],
+                ),
+                reverse=True,
+            )
+        selected = None
+        for run in runs:
+            if (
+                run.get("projectId") != project_id
+                or run.get("status") not in {"completed", "completed-with-warnings"}
+                or not _kernel.verification.is_real_execution(run)
+                or not run.get("outputReferences")
+            ):
+                continue
+            if _kernel.invalidation.run_is_current(project_id, run):
+                selected = run
+                break
+        if selected is None:
+            return _error(
+                422,
+                code="VERIFICATION_EVIDENCE_REQUIRED",
+                message="No current completed real execution evidence is available. "
+                "Rerun compile/simulation/analysis against current inputs, "
+                "then retry with its executionRunId.",
+                request_id=request_id,
+            )
+        result = _kernel.verification.promote_execution_evidence(
+            project_id=project_id,
+            execution_run_id=selected["executionRunId"],
+            actor=body["requestedBy"],
+            accept=True,
+        )
+        if result.get("accepted") is False:
+            return _error(
+                409,
+                code="VERIFICATION_CONFLICT",
+                message="Test Plan revision was not accepted; refresh and retry.",
+                request_id=request_id,
+            )
+        artifact = _store.get_artifact(project_id, "test-plan")
+        return {
+            "schemaVersion": "1.0.0",
+            "executionRunId": selected["executionRunId"],
+            "testPlanVersion": artifact["artifactVersion"],
+            "artifact": artifact,
+        }
+    except (BoardError, PersistenceNotFoundError) as exc:
+        return _error(
+            404 if "NOT_FOUND" in exc.code else 422,
+            code=exc.code,
+            message=exc.message,
+            request_id=request_id,
+        )
 
 
 @app.post("/v1/projects/{project_id}/verify/promote-execution", response_model=None)

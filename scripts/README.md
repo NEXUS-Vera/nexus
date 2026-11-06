@@ -42,3 +42,28 @@ python3 scripts/pyright-baseline.py --update
 ```
 
 Review the JSON diff before committing; updating accepts all current errors.
+
+## Golden acceptance entry point
+
+With the API running in the acceptance environment:
+
+```bash
+python scripts/run_golden_acceptance.py --api-url http://127.0.0.1:8000 --require-real
+```
+
+The runner reads `NEXUS_API_SESSION_TOKEN` (development token by default), creates
+fresh projects, accepts their derived plans and applies bounded firmware proposals
+as the demo operator. It drives baseline verification, F2/F4/F5 repairs, M5
+invalidation and re-verification through public HTTP endpoints. `--timeout` is a
+per-step deadline in seconds (default 240); `--step N` runs prerequisites through
+step N, with no resume state. Failures include step, project and HTTP context.
+The initialization provider must produce a supported ESP32/MPU6050 pair; unsupported
+or ambiguous fixture/live plans fail visibly rather than rewriting project intent.
+
+`--require-real` rejects fixture compile/proposal metadata and requests real
+execution; it does not prove physical hardware behavior. R2/R3 remain manual
+inspection. Persistence checks cover repeated HTTP reads, immutable run inputs and
+analysis input hashes; process restart is covered separately by the API restart
+test. Follow [live acceptance](../docs/operations/first-loop-live-acceptance.md)
+for environment prerequisites and failure triage. Offline ASGI/mock tests are
+regression evidence only.

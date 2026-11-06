@@ -180,3 +180,9 @@ Criteria reuse the Test Plan v1 closed vocabulary, with bounded proposal fields 
 required operands per type. Semantic validation additionally rejects inverted ranges
 and definitions exceeding 4096 serialized characters. Results and assessments are
 not part of this additive definition contract. Legacy objectives remain valid.
+
+Project re-verification uses `project-verify-request.v1.schema.json` and
+`project-verify-result.v1.schema.json`: an explicit user and `requireReal: true`
+are required. The response includes the server-accepted Test Plan artifact.
+Omitting `executionRunId` selects the newest eligible retained real run; this
+operation promotes stored evidence and does not launch tools.
