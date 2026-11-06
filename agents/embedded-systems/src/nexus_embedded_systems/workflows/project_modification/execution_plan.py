@@ -28,7 +28,9 @@ from nexus_board.verification.coverage import (
     compute_requirement_coverage,
     compute_test_plan_coverage_summary,
 )
-from nexus_contracts.validation.execution_plan_validator import validate_execution_plan
+from nexus_contracts.validation.execution_plan_validator import (
+    validate_execution_plan,
+)
 from nexus_contracts.validation.schema_validator import (
     load_schemas_by_id,
     make_validator,
@@ -38,8 +40,10 @@ from nexus_persistence.errors import ArtifactNotFoundError
 from nexus_persistence.file_store.hashing import blob_digest
 
 from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
+    PLATFORM_MPU_READY_MARKER,
     DefaultConfigurationError,
     compose_execution_plan,
+    evaluable_criterion_proposal,
 )
 from nexus_embedded_systems.workflows.project_initialization.execution_plan import (
     derive_default_configuration as _derive_default_configuration,
@@ -48,10 +52,6 @@ from nexus_embedded_systems.workflows.project_initialization.execution_plan impo
 CONTENT_SCHEMA = (
     "https://nexus.local/schemas/artifacts/content/actionable-execution-plan.v1.schema.json"
 )
-
-
-# Readiness marker emitted by nexus_board/firmware/patch.py.
-PLATFORM_MPU_READY_MARKER = "NEXUS_MPU_READY"
 
 
 # Exact requirement semantics and criteria from packages/contracts/examples/valid/
@@ -139,25 +139,71 @@ PLATFORM_SAMPLING_TOLERANCE = 0.10
 PLATFORM_MPU6050_ADDRESS = "0x68"
 
 
+def _inspection_only(requirement: dict[str, Any]) -> bool:
+    method = str(requirement.get("verificationMethod") or "").lower()
+    return "inspection" in method and not re.search(r"\bmeasur", method)
+
+
 def _structured_verification(
-    requirement: dict[str, Any], configuration: dict[str, Any]
+    requirement: dict[str, Any],
+    configuration: dict[str, Any],
+    acceptance_criteria: list[str] | None = None,
 ) -> dict[str, Any] | None:
     """Derive definitions only; board verification alone assesses evidence."""
     text = requirement.get("statement", "").lower().replace("mpu-6050", "mpu6050")
     category = requirement.get("category")
-    if "inspection" in str(requirement.get("verificationMethod") or "").lower():
+    if _inspection_only(requirement):
         return None
     quantity = requirement.get("targetQuantity") or {}
     value = quantity.get("value")
     unit = quantity.get("unit")
-    if (
-        isinstance(value, (int, float))
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-        and value > 0
-        and category == "performance"
-    ):
-        if re.search(r"sampl|telemetry interval", text) and unit in {"Hz", "ms", "s"}:
+    rate_phrase = (
+        r"\b(?:sampl(?:e|es|ing)|telemetry)\s+(?:rate|frequency|interval|cadence|period)\b"
+    )
+    sample_at = r"\bsampl(?:e|es|ing)\b(?:\s+[a-z_]+){0,4}\s+at\s+"
+    number = r"(\d+(?:\.\d+)?)\s*(Hz|ms)\b"
+    if re.search(
+        rf"{rate_phrase}|{sample_at}(?:(?:a|the|target|configured|defined|consistent)\s+)*(?:rate\b|\d+(?:\.\d+)?\s*(?:Hz|ms)\b)",
+        text,
+        re.IGNORECASE,
+    ) and category in {
+        "performance",
+        "functional",
+    }:
+        # Explicit targets take precedence; invalid targets must not use the default.
+        if not quantity:
+            prose = " . ".join(
+                dict.fromkeys(
+                    [
+                        text,
+                        *(requirement.get("acceptanceCriteria") or []),
+                        *(acceptance_criteria or []),
+                    ]
+                )
+            )
+            # Require a direct rate/value link, excluding window and filter values.
+            target = re.search(
+                rf"{rate_phrase}(?:\s*[:=]\s*|\s+)(?:(?:is|of|at|target|shall|be|configured|to)\s+)*{number}"
+                rf"|\b{number}\s+{rate_phrase}"
+                rf"|{sample_at}(?:(?:a|the)\s+rate\s+(?:of\s+)?)?{number}",
+                prose,
+                re.IGNORECASE,
+            )
+            if target:
+                value_text, unit_text = [group for group in target.groups() if group is not None]
+                value = float(value_text)
+                unit = "Hz" if unit_text.lower() == "hz" else "ms"
+            elif configuration.get(
+                "buildProfileId"
+            ) == "platformio-arduino-esp32-v1" and configuration.get("i2c"):
+                value, unit = 50, "Hz"
+        if (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and math.isfinite(value)
+            and value > 0
+            and unit in {"Hz", "ms", "s"}
+        ):
             hz = value if unit == "Hz" else (1000 if unit == "ms" else 1) / value
             low = round(hz * (1 - PLATFORM_SAMPLING_TOLERANCE), 4)
             high = round(hz * (1 + PLATFORM_SAMPLING_TOLERANCE), 4)
@@ -173,23 +219,29 @@ def _structured_verification(
                     "unit": "Hz",
                 },
             }
-        if (
-            unit == "g"
-            and "accel_x" in text
-            and "rms" in text
-            and "noise" in text
-            and re.search(r"\b(?:below|less than|under|not exceed|at most)\b", text)
-        ):
-            return {
-                "verificationMethod": "analysis",
-                "criterion": {
-                    "criterionType": "numeric-comparison",
-                    "metricId": "accel_x_rms_noise_g",
-                    "operator": "<",
-                    "expectedValue": value,
-                    "unit": "g",
-                },
-            }
+    if (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+        and category == "performance"
+    ) and (
+        unit == "g"
+        and "accel_x" in text
+        and "rms" in text
+        and "noise" in text
+        and re.search(r"\b(?:below|less than|under|not exceed|at most)\b", text)
+    ):
+        return {
+            "verificationMethod": "analysis",
+            "criterion": {
+                "criterionType": "numeric-comparison",
+                "metricId": "accel_x_rms_noise_g",
+                "operator": "<",
+                "expectedValue": value,
+                "unit": "g",
+            },
+        }
     addresses = re.findall(r"0x[0-9a-f]+", text)
     if (
         category in {"functional", "interface"}
@@ -268,6 +320,16 @@ class ExecutionPlanWorkflow:
         current["artifacts"] = [
             a for a in current["artifacts"] if a["artifactType"] != "execution-plan"
         ]
+        initial_plan = current["project"].get("executionPlan")
+        if (
+            plan is None
+            and initial_plan
+            and initial_plan["basisProjectStateVersion"] == base
+            and not validate_execution_plan(
+                initial_plan, current["artifacts"], current["openQuestions"]
+            )
+        ):
+            plan = initial_plan
         content = {
             "plan": plan or compose_execution_plan(current),
             "configuration": (
@@ -565,8 +627,30 @@ class ExecutionPlanWorkflow:
                 "containing time_ms,", "containing time_s,"
             )
             mapped = IMU_VERIFICATION.get(statement) or _structured_verification(
-                requirement, artifact["content"]["configuration"]
+                requirement,
+                artifact["content"]["configuration"],
+                objective.get("acceptanceCriteria"),
             )
+            if (
+                not mapped
+                and evaluable_criterion_proposal(
+                    objective.get("criterion"), objective.get("verificationMethod")
+                )
+                and not _inspection_only(requirement)
+            ):
+                criterion = objective["criterion"]
+                default_method = {
+                    "numeric-comparison": "analysis",
+                    "range": "analysis",
+                    "existence": "analysis",
+                    "contains": "execution-output",
+                    "exact-match": "execution-output",
+                    "structural-mapping": "inspection",
+                }[criterion["criterionType"]]
+                mapped = {
+                    "criterion": criterion,
+                    "verificationMethod": objective.get("verificationMethod") or default_method,
+                }
             if mapped:
                 case.update(mapped)
                 case["expectedResult"] = mapped.get(

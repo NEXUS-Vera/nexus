@@ -1456,9 +1456,36 @@ def test_compile_stage_repair_ignores_serial_outputs(inspection_env: Any) -> Non
 
 @pytest.mark.parametrize("repair_env", ["live"], indirect=True)
 @pytest.mark.parametrize("unit,value", [("Hz", 50), ("ms", 20), ("s", 0.02)])
+@pytest.mark.parametrize(
+    "proposal",
+    [
+        None,
+        "valid",
+        "criterion-only",
+        "live-f5",
+        "live-f2",
+        "live-inspection",
+        "result",
+        "unknown",
+        "blank",
+        "weaker",
+        "equal",
+        "inverted",
+        "imu_sample_rate_hz",
+        "configured-sample-rate-hz",
+        "inter_sample_interval_deviation_percent",
+        "power_stable_during_full_load",
+    ],
+)
 @pytest.mark.parametrize("noise,assessment", [(0.04, "PASS"), (0.12, "FAIL")])
 def test_live_structured_objectives(
-    repair_env: Any, monkeypatch: Any, unit: str, value: float, noise: float, assessment: str
+    repair_env: Any,
+    monkeypatch: Any,
+    unit: str,
+    value: float,
+    proposal: str | None,
+    noise: float,
+    assessment: str,
 ) -> None:
     from nexus_board.verification.close import (
         promote_analysis_evidence_into_test_plan,
@@ -1473,6 +1500,9 @@ def test_live_structured_objectives(
     original = kernel.project_store.get_artifact
     requirements = copy.deepcopy(original(pid, "requirement-set"))
     reqs = requirements["content"]["requirements"]
+    reqs[0]["statement"] = "Power stays stable during full load."
+    reqs[1]["statement"] = "Inspect the live prototype wiring before acquisition."
+    reqs[1]["verificationMethod"] = "Hardware inspection"
     reqs[3]["statement"] = "Initialize the MPU-6050 at I2C address 0x68 before acquisition."
     reqs[3]["acceptanceCriteria"] = ["Report readiness after initialization."]
     reqs[4]["statement"] = "Acquire acceleration samples at the configured sampling cadence."
@@ -1485,6 +1515,75 @@ def test_live_structured_objectives(
     plan = copy.deepcopy(original(pid, "execution-plan"))
     for objective, req in zip(plan["content"]["plan"]["verificationObjectives"], reqs, strict=True):
         objective["acceptanceCriteria"] = req.get("acceptanceCriteria", [])
+    plan["content"]["plan"]["verificationObjectives"][0].update(
+        criterion={"criterionType": "existence", "outputName": "power_stable_during_full_load"},
+        verificationMethod="analysis",
+    )
+    if proposal:
+        inspection = plan["content"]["plan"]["verificationObjectives"][1]
+        inspection.update(
+            criterion={"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+            verificationMethod="simulation",
+        )
+        objective = plan["content"]["plan"]["verificationObjectives"][4]
+        objective["verificationMethod"] = "analysis"
+        objective["criterion"] = {
+            "criterionType": "range",
+            "metricId": "sampling_hz",
+            "minValue": 48,
+            "maxValue": 52,
+        }
+        if proposal == "blank":
+            objective["criterion"] = {"criterionType": "contains", "marker": " "}
+        elif proposal in {"weaker", "equal"}:
+            objective["criterion"].update(
+                minValue=40 if proposal == "weaker" else 45,
+                maxValue=60 if proposal == "weaker" else 55,
+            )
+        elif proposal == "inverted":
+            objective["criterion"] = {
+                "criterionType": "numeric-comparison",
+                "metricId": "sampling_hz",
+                "operator": ">",
+                "expectedValue": 45,
+            }
+        if proposal in {
+            "imu_sample_rate_hz",
+            "configured-sample-rate-hz",
+            "power_stable_during_full_load",
+        }:
+            objective["criterion"] = {"criterionType": "existence", "outputName": proposal}
+        elif proposal == "inter_sample_interval_deviation_percent":
+            objective["criterion"]["metricId"] = proposal
+        if proposal == "criterion-only":
+            objective.pop("verificationMethod")
+        if proposal == "result":
+            objective["criterion"]["result"] = "PASS"
+        elif proposal == "unknown":
+            objective["criterion"]["criterionType"] = "unknown"
+    if proposal in {"live-f5", "live-f2", "live-inspection"}:
+        reqs[4].pop("targetQuantity")
+        reqs[4]["statement"] = (
+            "The system shall sample acceleration data at a rate sufficient to characterize "
+            "vibration and compute a statistically meaningful RMS noise estimate within "
+            "the accel_x noise verification window."
+        )
+        reqs[4]["category"] = "functional" if proposal == "live-f2" else "performance"
+        reqs[4]["verificationMethod"] = {
+            "live-f5": (
+                "Inspection of firmware configuration and measurement: confirm the configured "
+                "sample rate and that the RMS window contains a sufficient number of samples "
+                "for a statistically valid estimate."
+            ),
+            "live-f2": "Measurement: confirm the configured sampling rate.",
+            "live-inspection": "Inspection of firmware configuration and sampling test results",
+        }[proposal]
+        objective["criterion"] = {
+            "criterionType": "numeric-comparison",
+            "metricId": "sampling_hz",
+            "operator": ">",
+            "expectedValue": 0,
+        }
     captured: dict[str, Any] = {}
 
     def get(project_id: str, kind: str) -> Any:
@@ -1501,7 +1600,19 @@ def test_live_structured_objectives(
     ExecutionPlanWorkflow(kernel)._seed_test_plan(pid, plan)
     content = captured["new_artifact"]["content"]
     cases = content["testCases"]
+    assert cases[0]["verificationMethod"] == "manual"
+    assert "criterion" not in cases[0]
+    assert cases[1]["verificationMethod"] == "manual"
+    assert cases[1].get("criterion") is None
     assert cases[3]["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    if proposal == "live-inspection":
+        assert cases[4]["verificationMethod"] == "manual"
+        assert "criterion" not in cases[4]
+        promoted, _ = promote_analysis_evidence_into_test_plan(
+            content, summary={"sampling_hz": 25}, execution_run_id="run_inspection"
+        )
+        assert "assessment" not in promoted["testCases"][4]
+        return
     assert cases[4]["criterion"] == {
         "criterionType": "range",
         "metricId": "sampling_hz",
@@ -1521,6 +1632,11 @@ def test_live_structured_objectives(
     )
     assert promoted["testCases"][3]["assessment"] == "PASS"
     assert promoted["testCases"][4]["assessment"] == "PASS"
+    slow, _ = promote_analysis_evidence_into_test_plan(
+        content, summary={"sampling_hz": 25}, execution_run_id="run_live_slow"
+    )
+    assert slow["testCases"][4]["assessment"] == "FAIL"
+
     assert cases[6]["criterion"]["metricId"] == "accel_x_rms_noise_g"
     assert promoted["testCases"][6]["assessment"] == assessment
     assert all(promoted["testCases"][i]["status"] == "planned" for i in (1, 2))
@@ -1596,6 +1712,87 @@ def test_structured_noise_rejects_unsupported_units(unit: str, phrase: str) -> N
                 "targetQuantity": {"value": 0.08, "unit": unit},
             },
             {},
+        )
+        is None
+    )
+
+
+@pytest.mark.parametrize(
+    "statement,acceptance,quantity,expected",
+    [
+        ("Sample acceleration at 100 Hz.", [], None, (90, 110)),
+        ("Sampling rate: 100 Hz", [], None, (90, 110)),
+        ("sampling rate = 100 Hz", [], None, (90, 110)),
+        ("sample acceleration at 20 ms", [], None, (45, 55)),
+        ("Telemetry interval is 40 ms.", [], None, (22.5, 27.5)),
+        ("Use a 50 Hz sampling rate.", [], None, (45, 55)),
+        ("Sample acceleration data at a rate of 100 Hz.", [], None, (90, 110)),
+        ("Sample acceleration at the target rate.", ["Target is 100 Hz."], None, (45, 55)),
+        ("Use a sample interval of 20 ms.", [], None, (45, 55)),
+        ("Configure the sampling rate and low-pass filter at 10 Hz.", [], None, (45, 55)),
+        ("Configure the sampling rate over a 500 ms sample window.", [], None, (45, 55)),
+        (
+            "Configure the sampling rate.",
+            ["Verify noise over a 500 ms sample window."],
+            None,
+            (45, 55),
+        ),
+        (
+            "Sample acceleration at the target rate.",
+            ["Sample rate target is 100 Hz."],
+            None,
+            (90, 110),
+        ),
+        ("Sample acceleration at 100 Hz.", [], {"value": 50, "unit": "Hz"}, (45, 55)),
+    ],
+)
+def test_sampling_target_precedence(
+    statement: str,
+    acceptance: list[str],
+    quantity: dict[str, Any] | None,
+    expected: tuple[float, float],
+) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _structured_verification,
+    )
+
+    mapped = _structured_verification(
+        {
+            "statement": statement,
+            "category": "functional",
+            "verificationMethod": "Measurement",
+            "targetQuantity": quantity,
+        },
+        {"buildProfileId": "platformio-arduino-esp32-v1", "i2c": {"sdaPin": 21}},
+        acceptance,
+    )
+    assert mapped is not None
+    criterion = mapped["criterion"]
+    assert (criterion["minValue"], criterion["maxValue"]) == expected
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "The system shall collect 500 samples in a buffer for RMS computation.",
+        "Verify noise over a 500 ms sample window.",
+        "Apply a low-pass filter at 10 Hz to the acceleration samples.",
+        "Sampling duration shall be 500 ms.",
+    ],
+)
+def test_non_rate_sample_requirements_are_not_sampling_criteria(statement: str) -> None:
+    from nexus_embedded_systems.workflows.project_modification.execution_plan import (
+        _structured_verification,
+    )
+
+    assert (
+        _structured_verification(
+            {
+                "statement": statement,
+                "category": "performance",
+                "verificationMethod": "Measurement",
+            },
+            {"buildProfileId": "platformio-arduino-esp32-v1", "i2c": {"sdaPin": 21}},
         )
         is None
     )

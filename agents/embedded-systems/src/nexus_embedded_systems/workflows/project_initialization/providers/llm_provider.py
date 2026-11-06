@@ -38,6 +38,7 @@ from ..execution_plan import (
     DefaultConfigurationError,
     compose_execution_plan,
     derive_default_configuration,
+    propose_execution_plan_criteria,
 )
 from ..generation.repair import repair_artifact
 from ..generation.schemas import (
@@ -331,6 +332,9 @@ class LlmInitializationProvider:
             schema_errors = validate_initialization_result_schema(result)
             if not schema_errors:
                 result["project"]["executionPlan"] = compose_execution_plan(result)
+                await propose_execution_plan_criteria(
+                    result["project"]["executionPlan"], result, self.gateway, self.model_policy
+                )
                 schema_errors = validate_initialization_result_schema(result)
             if schema_errors:
                 ledger.fail_step(step)
