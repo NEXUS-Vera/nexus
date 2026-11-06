@@ -1,0 +1,15 @@
+/* This file is GENERATED from packages/contracts/schemas.
+ * Do not edit manually. Re-run: make generate-contract-types
+ */
+export interface ProjectVerifyRequest {
+  executionRunId?: string;
+  requestedBy: ActorReference;
+  requireReal: true;
+  schemaVersion?: '1.0.0';
+}
+export interface ActorReference {
+  actorId: string;
+  actorType: 'user';
+  displayName?: string;
+  schemaVersion: '1.0.0';
+}
