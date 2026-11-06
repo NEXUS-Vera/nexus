@@ -66,6 +66,7 @@ export type WorkspaceRenderProps = {
   onChangeElectricalMode?: (mode: 'design' | 'simulation') => void;
   architectureNodeIdsByRequirement?: Record<string, string[]>;
   onCommandResult?: (result: ArtifactCommandResult) => void;
+  onArtifactUpdate?: (artifact: Artifact) => void;
   onProjectRefresh?: () => void;
   onSubmitTurn?: (message: string) => Promise<boolean>;
   turnBusy?: boolean;
@@ -241,6 +242,7 @@ function TestPlanRenderer(props: WorkspaceRenderProps) {
       isDark={props.isDark}
       selectedTestId={props.selectedTestId ?? null}
       onSelectTest={props.onSelectTest}
+      onArtifactUpdate={props.onArtifactUpdate}
       requirementStatements={statements}
     />
   );

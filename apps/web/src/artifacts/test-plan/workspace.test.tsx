@@ -1,5 +1,7 @@
-import { render, screen, fireEvent, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { useState } from 'react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { USER_ACTOR } from '../../api/actor';
 import { TestPlanWorkspace } from './workspace';
 import type { Artifact } from '@nexus/contracts';
 import golden from '../../../../../packages/contracts/examples/valid/esp32-imu-vibration-monitor/test-plan-artifact.json';
@@ -196,5 +198,122 @@ describe('TestPlanWorkspace', () => {
     );
     expect(screen.getByTestId('test-plan-coverage-R8')).toHaveTextContent('UNCOVERED');
     expect(screen.getByTestId('test-plan-uncovered-R8')).toBeInTheDocument();
+  });
+});
+
+function stalePlan(state: 'STALE' | 'RECHECK_REQUIRED' | 'CURRENT' = 'STALE') {
+  const artifact = withPromotedR7(golden);
+  artifact.content.testCases.find((c) => c.displayId === 'T7')!.applicability = {
+    state, reasons: state === 'CURRENT' ? [] : [{ reason: 'INPUT_REVISED', eventId: 'event-input-revised', fromVersion: 1, toVersion: 2, path: ['requirement-set', 'test-plan'], triggerArtifactId: 'artifact-requirements', triggerArtifactType: 'requirement-set' }],
+  };
+  return artifact;
+}
+
+function mountPlan(artifact = stalePlan()) {
+  return render(<TestPlanWorkspace artifact={artifact} isDark={false} selectedTestId="T7" onSelectTest={() => undefined} />);
+}
+
+function response(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), { status });
+}
+
+describe('Test Plan re-verification', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it.each(['STALE', 'RECHECK_REQUIRED', 'CURRENT'] as const)('enables only stale criteria: %s', (state) => {
+    mountPlan(stalePlan(state));
+    expect(screen.getByRole('button', { name: 'Re-verify Stale Criteria' })).toHaveProperty('disabled', state === 'CURRENT');
+  });
+
+  it('disables re-verification when applicability is absent', () => {
+    mountPlan(withPromotedR7(golden));
+    expect(screen.getByRole('button', { name: 'Re-verify Stale Criteria' })).toBeDisabled();
+  });
+
+  it('posts real verification as the user, shows loading, and uses the refreshed plan in place', async () => {
+    let finish!: (value: Response) => void;
+    const refreshed = stalePlan('CURRENT');
+    refreshed.updatedAt = '2026-11-06T12:00:00Z';
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }))
+      .mockResolvedValueOnce(response(refreshed));
+    vi.stubGlobal('fetch', fetchMock);
+    const original = stalePlan();
+    mountPlan(original);
+    fireEvent.click(screen.getByTestId('test-plan-tab-tests'));
+    fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe(`http://127.0.0.1:8000/v1/projects/${original.projectId}/verify`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ requireReal: true, requestedBy: USER_ACTOR });
+    expect(screen.getByRole('button', { name: 'Evaluating…' })).toBeDisabled();
+    expect(within(screen.getByTestId('test-plan-case-T7')).getByRole('status')).toHaveTextContent('Evaluating');
+    expect(within(screen.getByTestId('test-plan-case-T1')).queryByRole('status')).not.toBeInTheDocument();
+    finish(response({}));
+    await screen.findByText('Verification complete. Criteria are current.');
+    expect(fetchMock.mock.calls[1][0]).toBe(`http://127.0.0.1:8000/v1/projects/${original.projectId}/artifacts/test-plan`);
+    expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT');
+    expect(screen.getByTestId('test-plan-case-T7')).toHaveTextContent('CURRENT');
+    expect(screen.queryByText('INPUT_REVISED')).not.toBeInTheDocument();
+    expect(screen.getByText(refreshed.updatedAt)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Re-verify Stale Criteria' })).toBeDisabled();
+    expect(original.content.testCases.find((c) => c.displayId === 'T7')!.applicability!.state).toBe('STALE');
+  });
+
+  it('retains the refreshed artifact after navigating away and back', async () => {
+    const refreshed = stalePlan('CURRENT');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response({})).mockResolvedValueOnce(response(refreshed)));
+    function Parent() {
+      const [artifact, setArtifact] = useState(stalePlan());
+      const [visible, setVisible] = useState(true);
+      return <>
+        <button onClick={() => setVisible(!visible)}>Navigate</button>
+        {visible && <TestPlanWorkspace artifact={artifact} onArtifactUpdate={setArtifact} isDark={false} selectedTestId="T7" onSelectTest={() => undefined} />}
+      </>;
+    }
+    render(<Parent />);
+    fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
+    await waitFor(() => expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT'));
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Navigate' }));
+    expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT');
+    expect(screen.getByRole('button', { name: 'Re-verify Stale Criteria' })).toBeDisabled();
+  });
+
+  it('handles a refreshed plan with omitted test cases', async () => {
+    const refreshed = stalePlan('CURRENT');
+    Reflect.deleteProperty(refreshed.content, 'testCases');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response({})).mockResolvedValueOnce(response(refreshed)));
+    mountPlan();
+    fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
+    await screen.findByText('Verification complete. Criteria are current.');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it.each(['verify', 'refresh'])('preserves the plan on %s failure and permits retry', async (failure) => {
+    const fetchMock = vi.fn();
+    if (failure === 'refresh') fetchMock.mockResolvedValueOnce(response({}));
+    fetchMock.mockResolvedValueOnce(response({ error: { message: 'Unavailable' } }, 503))
+      .mockResolvedValueOnce(response({}))
+      .mockResolvedValueOnce(response(stalePlan('CURRENT')));
+    vi.stubGlobal('fetch', fetchMock);
+    mountPlan();
+    fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Please retry');
+    expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('STALE');
+    expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('INPUT_REVISED');
+    expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('PASS');
+    fireEvent.click(screen.getByRole('button', { name: 'Retry Re-verify Stale Criteria' }));
+    await waitFor(() => expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT'));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('retains stale badges returned by the server after a successful verify', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response({})).mockResolvedValueOnce(response(stalePlan())));
+    mountPlan();
+    fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
+    await screen.findByText('Verification finished; some criteria still require re-verification.');
+    expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('STALE');
+    expect(screen.getByRole('button', { name: 'Re-verify Stale Criteria' })).toBeEnabled();
   });
 });
