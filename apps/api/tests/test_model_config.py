@@ -14,7 +14,14 @@ from nexus_embedded_systems.workflows.project_initialization.providers.factory i
 from nexus_embedded_systems.workflows.project_initialization.providers.llm_provider import (
     LlmInitializationProvider,
 )
-from nexus_model_gateway import AnthropicGateway, ModelGatewayError
+from nexus_model_gateway import AnthropicGateway, ModelGatewayError, ModelPolicy
+
+
+def test_model_policy_timeout() -> None:
+    assert ModelPolicy(provider="test", model="test").timeout_seconds == 240.0
+    assert (
+        ModelPolicy(provider="test", model="test", timeout_seconds=123.5).timeout_seconds == 123.5
+    )
 
 
 @pytest.mark.parametrize(

@@ -12,7 +12,7 @@ class ModelPolicy:
 
     provider: str
     model: str
-    timeout_seconds: float = 60.0
+    timeout_seconds: float = 240.0
     max_transport_retries: int = 2
     temperature: float = 0.0
 

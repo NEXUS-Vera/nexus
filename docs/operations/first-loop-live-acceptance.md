@@ -61,7 +61,10 @@ credential-bearing database URL. Choose a provider/model supported by the
 configured gateway. Set `NEXUS_INITIALIZATION_PROVIDER=llm`,
 `NEXUS_FIRMWARE_USE_STUB=0`, and `NEXUS_ANALYSIS_USE_STUB=0`.
 `NEXUS_MODEL_TIMEOUT_SECONDS` now defaults to 240 seconds to accommodate live
-model generation; set it explicitly to override the default:
+model generation. On November 2, live
+`generate-functional-architecture` took ~65 seconds and exceeded the old 60-second
+default, returning HTTP 503 `MODEL_PROVIDER_UNAVAILABLE`. An explicit environment
+override is optional:
 
 ```bash
 NEXUS_MODEL_TIMEOUT_SECONDS=240 NEXUS_INITIALIZATION_PROVIDER=llm NEXUS_FIRMWARE_USE_STUB=0 NEXUS_ANALYSIS_USE_STUB=0 make dev-api
