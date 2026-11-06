@@ -65,7 +65,7 @@ class Settings:
     model_name: str = "gpt-4.1-mini"
     model_credential: str = ""
     model_base_url: str = "https://api.openai.com/v1"
-    model_timeout_seconds: float = 60.0
+    model_timeout_seconds: float = 240.0
     model_max_repair_attempts: int = 1
     file_store_root: str = ""
     workspace_max_file_bytes: int = 1_048_576
@@ -122,7 +122,7 @@ def load_settings() -> Settings:
         model_name=os.environ.get("NEXUS_MODEL_NAME", "gpt-4.1-mini"),
         model_credential=os.environ.get("NEXUS_MODEL_API_KEY", ""),
         model_base_url=os.environ.get("NEXUS_MODEL_BASE_URL", default_base_url),
-        model_timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
+        model_timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "240")),
         model_max_repair_attempts=int(os.environ.get("NEXUS_MODEL_MAX_REPAIR_ATTEMPTS", "1")),
         file_store_root=file_root,
         workspace_max_file_bytes=int(os.environ.get("NEXUS_WORKSPACE_MAX_FILE_BYTES", "1048576")),

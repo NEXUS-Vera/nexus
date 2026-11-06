@@ -60,7 +60,7 @@ def build_initialization_provider(
     model_policy = ModelPolicy(
         provider=provider_name,
         model=os.environ.get("NEXUS_MODEL_NAME") or default_model,
-        timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "60")),
+        timeout_seconds=float(os.environ.get("NEXUS_MODEL_TIMEOUT_SECONDS", "240")),
     )
     max_repair = int(os.environ.get("NEXUS_MODEL_MAX_REPAIR_ATTEMPTS", "1"))
     # Env var name stays NEXUS_MODEL_API_KEY (uppercase; docs/config). Local

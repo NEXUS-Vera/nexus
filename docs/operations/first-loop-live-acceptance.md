@@ -59,11 +59,9 @@ Configuration names: `NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`, optional
 `NEXUS_DATABASE_URL`, and optionally `NEXUS_FILE_STORE_ROOT`. Do not record a
 credential-bearing database URL. Choose a provider/model supported by the
 configured gateway. Set `NEXUS_INITIALIZATION_PROVIDER=llm`,
-`NEXUS_FIRMWARE_USE_STUB=0`, and `NEXUS_ANALYSIS_USE_STUB=0`. For live runs,
-recommend `NEXUS_MODEL_TIMEOUT_SECONDS=240`: the real-model
-`generate-functional-architecture` stage took about 65 seconds in the November 2
-attempt, exceeding the default 60-second timeout and causing
-`POST /v1/projects/initialize` to return HTTP 503 `MODEL_PROVIDER_UNAVAILABLE`:
+`NEXUS_FIRMWARE_USE_STUB=0`, and `NEXUS_ANALYSIS_USE_STUB=0`.
+`NEXUS_MODEL_TIMEOUT_SECONDS` now defaults to 240 seconds to accommodate live
+model generation; set it explicitly to override the default:
 
 ```bash
 NEXUS_MODEL_TIMEOUT_SECONDS=240 NEXUS_INITIALIZATION_PROVIDER=llm NEXUS_FIRMWARE_USE_STUB=0 NEXUS_ANALYSIS_USE_STUB=0 make dev-api
