@@ -6,6 +6,7 @@ import type { Artifact } from '@nexus/contracts';
 import { themeColors } from '../../lib/theme';
 
 type TestPlanArtifact = Extract<Artifact, { artifactType: 'test-plan' }>;
+type Applicability = NonNullable<TestPlanArtifact['content']['testCases'][number]['applicability']>;
 
 type Props = {
   artifact: TestPlanArtifact;
@@ -191,6 +192,7 @@ export function TestPlanWorkspace({
                       {c.status.toUpperCase()}
                       {c.assessment ? ` · ${c.assessment}` : ''}
                     </div>
+                    {c.applicability ? <ApplicabilityBadges applicability={c.applicability} t={t} /> : null}
                   </button>
                 </li>
               ))}
@@ -239,6 +241,7 @@ export function TestPlanWorkspace({
                 >
                   {selected.assessment ?? selected.status.toUpperCase()}
                 </div>
+                {selected.applicability ? <ApplicabilityBadges applicability={selected.applicability} t={t} /> : null}
                 <div data-testid="test-plan-assessment-authority" style={{ fontSize: 10, color: t.textMuted, marginTop: 6 }}>
                   Authority:{' '}
                   {selected.assessmentAuthority === 'deterministic-code'
@@ -272,6 +275,22 @@ export function TestPlanWorkspace({
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function ApplicabilityBadges({ applicability, t }: { applicability: Applicability; t: ReturnType<typeof themeColors> }) {
+  const color = applicability.state === 'CURRENT' ? STATUS_TONE.passed : STATUS_TONE.blocked;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, fontSize: 11 }}>
+      <span style={{ color, border: `1px solid ${color}`, borderRadius: 4, padding: '2px 6px', fontWeight: 650 }}>
+        {applicability.state}
+      </span>
+      {applicability.reasons.map((reason, index) => (
+        <span key={index} style={{ color: t.textSec, background: t.surface2, borderRadius: 4, padding: '2px 6px', overflowWrap: 'anywhere', minWidth: 0 }}>
+          {reason.reason}
+        </span>
+      ))}
     </div>
   );
 }

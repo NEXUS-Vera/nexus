@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { TestPlanWorkspace } from './workspace';
 import type { Artifact } from '@nexus/contracts';
@@ -72,6 +72,44 @@ describe('TestPlanWorkspace', () => {
     expect(screen.getByTestId('test-plan-assessment-authority')).toHaveTextContent(/Deterministic/i);
     expect(screen.getByTestId('test-plan-evidence')).toBeInTheDocument();
     expect(screen.getByTestId('test-plan-detail')).toHaveTextContent(/0\.0157/);
+  });
+
+  it.each([
+    { state: 'STALE' as const, reasons: ['INPUT_REVISED'], assessment: 'PASS' as const },
+    { state: 'CURRENT' as const, reasons: [], assessment: 'PASS' as const },
+    { state: 'RECHECK_REQUIRED' as const, reasons: ['INPUT_REVISED', 'TRANSITIVE_DEPENDENCY_CHANGED'], assessment: 'FAIL' as const },
+  ])('shows $state applicability alongside historical $assessment', ({ state, reasons, assessment }) => {
+    const artifact = withPromotedR7(golden);
+    const testCase = artifact.content.testCases.find((c) => c.displayId === 'T7')!;
+    testCase.assessment = assessment;
+    testCase.status = assessment === 'PASS' ? 'passed' : 'failed';
+    testCase.applicability = {
+      state,
+      reasons: reasons.map((reason) => ({
+        reason,
+        eventId: 'event-input-revised',
+        fromVersion: 1,
+        toVersion: 2,
+        path: ['requirement-set', 'test-plan'],
+        triggerArtifactId: 'artifact-requirements',
+        triggerArtifactType: 'requirement-set',
+      })),
+    };
+    render(
+      <TestPlanWorkspace artifact={artifact} isDark={false} selectedTestId="T7" onSelectTest={() => undefined} />,
+    );
+    const detail = within(screen.getByTestId('test-plan-assessment'));
+    expect(detail.getByText(assessment)).toBeVisible();
+    expect(detail.getByText(state)).toBeVisible();
+    expect(detail.getByText(state)).toHaveStyle({ color: state === 'CURRENT' ? '#15803d' : '#b45309' });
+    for (const reason of reasons) expect(detail.getByText(reason)).toBeVisible();
+    fireEvent.click(screen.getByTestId('test-plan-tab-tests'));
+    const row = within(screen.getByTestId('test-plan-case-T7'));
+    expect(row.getByText(state)).toBeVisible();
+    expect(screen.getByTestId('test-plan-case-T7')).toHaveTextContent(assessment);
+    for (const reason of reasons) expect(row.getByText(reason)).toBeVisible();
+    // Cases without applicability keep their existing status presentation.
+    expect(within(screen.getByTestId('test-plan-case-T1')).queryByText(state)).not.toBeInTheDocument();
   });
 
   it('surfaces FAIL, BLOCKED, and INCONCLUSIVE assessment states', () => {
