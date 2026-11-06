@@ -824,6 +824,97 @@ describe('pending repair patch review', () => {
     return { ...view, advance };
   }
 
+  it('loads an expandable proposed patch diff from the review repair', async () => {
+    mockWorkspace(async () => proposalResponse());
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} repair={repair} />);
+    expect(await screen.findByTestId('firmware-diff-host')).toHaveAttribute('data-path', 'src/main.cpp');
+    expect(screen.getByTestId('firmware-diff-original')).toHaveTextContent('// original');
+    expect(screen.getByTestId('firmware-diff-modified')).toHaveTextContent('// repaired');
+    fireEvent.click(screen.getByRole('button', { name: 'Proposed patch diff' }));
+    expect(screen.queryByTestId('firmware-diff-host')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Proposed patch diff' }));
+    expect(screen.getByTestId('firmware-diff-host')).toBeInTheDocument();
+  });
+
+  it.each(['Check the initialization order', ''])('rejects a proposal with optional feedback: %s', async feedback => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    const original = fetchMock.getMockImplementation()!;
+    let resolve!: (response: Response) => void;
+    const pending = new Promise<Response>(done => { resolve = done; });
+    fetchMock.mockImplementation((input, init) => String(input).endsWith('/repair') ? pending : original(input, init));
+    const changed = vi.fn();
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} repair={repair} onRepairChanged={changed} />);
+    await screen.findByTestId('firmware-patch-apply');
+    fireEvent.click(screen.getByRole('button', { name: 'Reject proposal' }));
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair'))).toHaveLength(0);
+    fireEvent.change(screen.getByLabelText('Feedback (optional)'), { target: { value: feedback } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm rejection' }));
+    expect(screen.getByRole('button', { name: 'Rejecting proposal…' })).toBeDisabled();
+    expect(screen.getByTestId('firmware-patch-apply')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel repair' })).toBeDisabled();
+    const calls = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair'));
+    expect(calls).toHaveLength(1);
+    expect(calls[0][1]?.method).toBe('POST');
+    expect(JSON.parse(String(calls[0][1]?.body))).toEqual({
+      action: 'reject', repairId: repair.repairId, revision: repair.revision,
+      requestedBy: USER_ACTOR, requireReal: true, ...(feedback ? { feedback } : {}),
+    });
+    const rejected = { ...repair, revision: 4, status: 'rejected' };
+    resolve(jsonResponse(rejected));
+    await screen.findByText(/Repair: rejected/);
+    expect(changed).toHaveBeenCalledWith(rejected);
+    expect(screen.queryByRole('button', { name: 'Reject proposal' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel repair' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Continue repair/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('firmware-patch-apply')).not.toBeInTheDocument();
+    expect(screen.getByText('Repair attempt history')).toBeInTheDocument();
+    if (feedback) expect(screen.getByText(`Rejection feedback: ${feedback}`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Request firmware change' }));
+    expect(screen.getByRole('button', { name: 'Generate patch proposal' })).toBeEnabled();
+    vi.useFakeTimers();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair'))).toHaveLength(1);
+  });
+
+  it('does not restore a rejected proposal when its preview arrives late', async () => {
+    let resolve!: (response: Response) => void;
+    const pending = new Promise<Response>(done => { resolve = done; });
+    const fetchMock = mockWorkspace(() => pending);
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((input, init) => String(input).endsWith('/repair')
+      ? Promise.resolve(jsonResponse({ ...repair, revision: 4, status: 'rejected' })) : original(input, init));
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} repair={repair} pendingProposalId="pending" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Reject proposal' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm rejection' }));
+    await screen.findByText(/Repair: rejected/);
+    await act(async () => { resolve(proposalResponse()); });
+    fireEvent.click(await screen.findByRole('button', { name: 'Request firmware change' }));
+    expect(screen.queryByTestId('firmware-patch-apply')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate patch proposal' })).toBeEnabled();
+  });
+
+  it.each([409, 503, 200])('preserves review controls and feedback when rejection fails (%s)', async status => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation((input, init) => String(input).endsWith('/repair')
+      ? Promise.resolve(jsonResponse(status === 200 ? repair : {}, status)) : original(input, init));
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} repair={repair} />);
+    await screen.findByTestId('firmware-patch-apply');
+    fireEvent.click(screen.getByRole('button', { name: 'Reject proposal' }));
+    fireEvent.change(screen.getByLabelText('Feedback (optional)'), { target: { value: 'Keep this feedback' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm rejection' }));
+    await screen.findByText('Could not reject proposal. Try again.');
+    expect(screen.getByRole('button', { name: 'Confirm rejection' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Cancel repair' })).toBeEnabled();
+    expect(screen.getByTestId('firmware-patch-apply')).toBeEnabled();
+    expect(screen.getByLabelText('Feedback (optional)')).toHaveValue('Keep this feedback');
+    expect(screen.getByTestId('firmware-diff-host')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm rejection' }));
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair'))).toHaveLength(2));
+    const bodies = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/repair')).map(([, init]) => JSON.parse(String(init?.body)));
+    expect(bodies[1]).toEqual(bodies[0]);
+  });
+
   it('cancels a review repair with the operator and real execution guard', async () => {
     const fetchMock = mockWorkspace(async () => proposalResponse());
     const original = fetchMock.getMockImplementation()!;
