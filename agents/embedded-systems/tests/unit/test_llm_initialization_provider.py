@@ -143,6 +143,9 @@ async def test_invalid_brief_then_successful_repair() -> None:
     assert validate_initialization_result_schema(result) == []
     step_types = [s["stepType"] for s in result["workflowRun"]["stepRecords"]]
     assert step_types.count("repair-project-brief") == 1
+    task_names = [call["task_name"] for call in gateway.call_log]
+    assert "generate-project-brief" in task_names
+    assert task_names.count("artifact-repair") == 1
     assert "repair-requirements" not in step_types
     assert "repair-functional-architecture" not in step_types
 
