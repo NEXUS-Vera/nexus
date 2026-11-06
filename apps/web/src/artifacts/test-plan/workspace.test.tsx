@@ -270,8 +270,10 @@ describe('Test Plan re-verification', () => {
     expect(original.content.testCases.find((c) => c.displayId === 'T7')!.applicability!.state).toBe('STALE');
   });
 
-  it('retains the refreshed artifact after navigating away and back', async () => {
+  it('preserves success after the parent artifact update and retains the refreshed plan across navigation', async () => {
     const refreshed = stalePlan('CURRENT');
+    refreshed.artifactVersion += 1;
+    refreshed.updatedAt = '2026-11-06T12:00:00Z';
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(response({})).mockResolvedValueOnce(response(refreshed)));
     function Parent() {
       const [artifact, setArtifact] = useState(stalePlan());
@@ -284,6 +286,7 @@ describe('Test Plan re-verification', () => {
     render(<Parent />);
     fireEvent.click(screen.getByRole('button', { name: 'Re-verify Stale Criteria' }));
     await waitFor(() => expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT'));
+    expect(screen.getByRole('status')).toHaveTextContent('Verification complete. Criteria are current.');
     fireEvent.click(screen.getByRole('button', { name: 'Navigate' }));
     fireEvent.click(screen.getByRole('button', { name: 'Navigate' }));
     expect(screen.getByTestId('test-plan-assessment')).toHaveTextContent('CURRENT');

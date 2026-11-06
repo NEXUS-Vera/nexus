@@ -117,12 +117,11 @@ Health fields describe initialization and persistence, not toolchain availabilit
 deduplicate tests linked to multiple requirements. These helpers have no visible UI.
 
 The Test Plan header enables Re-verify Stale Criteria when any test has `STALE`
-or `RECHECK_REQUIRED` applicability. It requests verification with `requireReal: true`
-and the operator identity, shows evaluating indicators, then reloads the saved Test
-Plan for server-owned badges, reasons, assessments, and timestamps. Failures preserve
-the displayed plan and offer retry. The current API baseline does not expose the
-root `POST /verify` route; until it is available, this action reports the failure
-inline rather than clearing badges locally.
+or `RECHECK_REQUIRED` applicability. It calls the real
+`POST /v1/projects/:id/verify` route through `triggerVerification` with
+`requireReal: true` and `requestedBy: USER_ACTOR`, shows evaluating indicators, then
+reloads the saved Test Plan for server-owned badges, reasons, assessments, and
+timestamps. Failures preserve the displayed plan and offer retry.
 
 Board / kernel endpoints may return 404 until the API lands; the UI falls back
 gracefully to current-state artifacts.
