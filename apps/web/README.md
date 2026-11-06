@@ -97,6 +97,7 @@ Client methods in `src/api/client.ts`:
 - `GET|POST /v1/projects/:id/artifacts/:type/workspace`
 - `POST /v1/projects/:id/artifact-commands`
 - `GET /v1/projects/:id/executions`
+- `POST /v1/projects/:id/verify` (`triggerVerification`)
 - `GET /v1/projects/:id/events`
 - `GET /v1/projects/:id/graph`
 - `GET /v1/projects/:id/artifacts/execution-plan` (`getExecutionPlan`)
@@ -114,6 +115,14 @@ Health fields describe initialization and persistence, not toolchain availabilit
 `src/lib/invalidation-counts.ts` counts evidence-chain rows whose applicability is
 `STALE` or `RECHECK_REQUIRED`, independently of historical assessments. It does not
 deduplicate tests linked to multiple requirements. These helpers have no visible UI.
+
+The Test Plan header enables Re-verify Stale Criteria when any test has `STALE`
+or `RECHECK_REQUIRED` applicability. It requests verification with `requireReal: true`
+and the operator identity, shows evaluating indicators, then reloads the saved Test
+Plan for server-owned badges, reasons, assessments, and timestamps. Failures preserve
+the displayed plan and offer retry. The current API baseline does not expose the
+root `POST /verify` route; until it is available, this action reports the failure
+inline rather than clearing badges locally.
 
 Board / kernel endpoints may return 404 until the API lands; the UI falls back
 gracefully to current-state artifacts.

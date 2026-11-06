@@ -1,7 +1,10 @@
 /**
  * Test Plan workspace — requirement coverage first (Phase 17E).
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { getArtifactVersion, triggerVerification } from '../../api/client';
+import { USER_ACTOR } from '../../api/actor';
 import type { Artifact } from '@nexus/contracts';
 import { themeColors } from '../../lib/theme';
 
@@ -26,7 +29,16 @@ const STATUS_TONE: Record<string, string> = {
   running: '#7c3aed',
 };
 
-export function TestPlanWorkspace({
+export function TestPlanWorkspace(props: Props) {
+  const { artifact } = props;
+  return <TestPlanContent key={`${artifact.projectId}:${artifact.artifactId}:${artifact.artifactVersion}:${artifact.updatedAt}`} {...props} />;
+}
+
+function needsVerification(applicability?: Applicability) {
+  return applicability?.state === 'STALE' || applicability?.state === 'RECHECK_REQUIRED';
+}
+
+function TestPlanContent({
   artifact,
   isDark,
   selectedTestId,
@@ -34,10 +46,42 @@ export function TestPlanWorkspace({
   requirementStatements = {},
 }: Props) {
   const t = themeColors(isDark);
-  const content = artifact.content;
+  const [verifiedArtifact, setVerifiedArtifact] = useState<TestPlanArtifact | null>(null);
+  const [evaluating, setEvaluating] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
+  const [verificationError, setVerificationError] = useState(false);
+  const inFlight = useRef(false);
+  const plan = verifiedArtifact ?? artifact;
+  const content = plan.content;
   const cases = content.testCases ?? [];
   const summary = content.coverageSummary;
   const [tab, setTab] = useState<'coverage' | 'tests'>('coverage');
+  const hasStaleCases = cases.some((c) => needsVerification(c.applicability));
+
+  async function reverify() {
+    if (inFlight.current || !hasStaleCases) return;
+    inFlight.current = true;
+    setEvaluating(true);
+    setVerificationMessage('');
+    setVerificationError(false);
+    try {
+      await triggerVerification(artifact.projectId, { requireReal: true, requestedBy: USER_ACTOR });
+      const refreshed = await getArtifactVersion({ projectId: artifact.projectId, artifactType: 'test-plan' });
+      if (refreshed.artifactType !== 'test-plan' || refreshed.projectId !== artifact.projectId) {
+        throw new Error('Unexpected Test Plan response');
+      }
+      setVerifiedArtifact(refreshed);
+      setVerificationMessage(refreshed.content.testCases.some((c) => needsVerification(c.applicability))
+        ? 'Verification finished; some criteria still require re-verification.'
+        : 'Verification complete. Criteria are current.');
+    } catch {
+      setVerificationError(true);
+      setVerificationMessage('Re-verification failed. Your Test Plan is unchanged. Please retry.');
+    } finally {
+      inFlight.current = false;
+      setEvaluating(false);
+    }
+  }
 
   const coverageRows = useMemo(() => {
     type Case = (typeof cases)[number];
@@ -106,6 +150,11 @@ export function TestPlanWorkspace({
         <span>Blocked: {summary.blockedRequirements}</span>
         <span>Unverified: {summary.unverifiedRequirements}</span>
         <span>Uncovered: {summary.uncoveredRequirements}</span>
+        <button type="button" onClick={() => void reverify()} disabled={!hasStaleCases || evaluating} style={tabBtn(false, t)}>
+          {evaluating ? 'Evaluating…' : verificationError ? 'Retry Re-verify Stale Criteria' : 'Re-verify Stale Criteria'}
+        </button>
+        {verifiedArtifact ? <span>Updated: <time dateTime={plan.updatedAt}>{plan.updatedAt}</time></span> : null}
+        {verificationMessage ? <span role={verificationError ? 'alert' : 'status'} style={{ color: verificationError ? STATUS_TONE.failed : t.textSec }}>{verificationMessage}</span> : null}
       </div>
 
       <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: `1px solid ${t.border}` }}>
@@ -192,7 +241,7 @@ export function TestPlanWorkspace({
                       {c.status.toUpperCase()}
                       {c.assessment ? ` · ${c.assessment}` : ''}
                     </div>
-                    {c.applicability ? <ApplicabilityBadges applicability={c.applicability} t={t} /> : null}
+                    {c.applicability ? <ApplicabilityBadges applicability={c.applicability} evaluating={evaluating} t={t} /> : null}
                   </button>
                 </li>
               ))}
@@ -241,7 +290,7 @@ export function TestPlanWorkspace({
                 >
                   {selected.assessment ?? selected.status.toUpperCase()}
                 </div>
-                {selected.applicability ? <ApplicabilityBadges applicability={selected.applicability} t={t} /> : null}
+                {selected.applicability ? <ApplicabilityBadges applicability={selected.applicability} evaluating={evaluating} t={t} /> : null}
                 <div data-testid="test-plan-assessment-authority" style={{ fontSize: 10, color: t.textMuted, marginTop: 6 }}>
                   Authority:{' '}
                   {selected.assessmentAuthority === 'deterministic-code'
@@ -279,13 +328,19 @@ export function TestPlanWorkspace({
   );
 }
 
-function ApplicabilityBadges({ applicability, t }: { applicability: Applicability; t: ReturnType<typeof themeColors> }) {
+function ApplicabilityBadges({ applicability, evaluating, t }: { applicability: Applicability; evaluating: boolean; t: ReturnType<typeof themeColors> }) {
   const color = applicability.state === 'CURRENT' ? STATUS_TONE.passed : STATUS_TONE.blocked;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6, fontSize: 11 }}>
       <span style={{ color, border: `1px solid ${color}`, borderRadius: 4, padding: '2px 6px', fontWeight: 650 }}>
         {applicability.state}
       </span>
+      {evaluating && needsVerification(applicability) ? (
+        <span role="status" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          <Loader2 size={12} aria-hidden="true"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" /></Loader2>
+          Evaluating…
+        </span>
+      ) : null}
       {applicability.reasons.map((reason, index) => (
         <span key={index} style={{ color: t.textSec, background: t.surface2, borderRadius: 4, padding: '2px 6px', overflowWrap: 'anywhere', minWidth: 0 }}>
           {reason.reason}

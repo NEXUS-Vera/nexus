@@ -871,6 +871,21 @@ export async function runAnalysis(
 }
 
 
+export async function triggerVerification(
+  projectId: string,
+  options: {
+    requireReal: boolean;
+    requestedBy: import('@nexus/contracts').ArtifactCommand['requestedBy'];
+  },
+): Promise<unknown> {
+  return requestJson(`/v1/projects/${projectId}/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options),
+  });
+}
+
+
 export async function promoteAnalysisSummary(
   projectId: string,
   body: Record<string, unknown>,
