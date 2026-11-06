@@ -3470,7 +3470,7 @@ async def preview_analysis_produced_output(
 async def advance_embedded_repair(
     project_id: str, request: Request
 ) -> dict[str, Any] | JSONResponse:
-    """Start, advance, inspect or cancel the bounded embedded repair workflow."""
+    """Start, advance, inspect, reject or cancel the bounded embedded repair workflow."""
     from nexus_embedded_systems.workflows.repair import RepairWorkflow
 
     request_id = _request_id(request)
@@ -3498,9 +3498,20 @@ async def advance_embedded_repair(
             )
         if action == "get":
             return workflow.get(project_id, body["repairId"])
-        if action not in {"advance", "cancel"}:
+        if action not in {"advance", "cancel", "reject"}:
             raise CommandValidationError("Unsupported repair action")
         revision = _require_int(body, "revision")
+        if action == "reject":
+            if "feedback" in body and not isinstance(body["feedback"], str):
+                raise CommandValidationError("feedback must be a string")
+            return await run_in_threadpool(
+                workflow.reject,
+                project_id,
+                body["repairId"],
+                actor,
+                revision,
+                feedback=body.get("feedback"),
+            )
         result = await run_in_threadpool(
             workflow.advance,
             project_id,

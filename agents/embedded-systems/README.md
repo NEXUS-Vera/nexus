@@ -149,3 +149,10 @@ leases for the simulation snapshot and analysis import/execution, releasing only
 leases it acquired. Callers need not separately lease these downstream workspaces.
 An active lease belonging to another actor stops repair and names the blocked
 workspace; compile and patch approval retain their existing lease requirements.
+
+The repair HTTP action `reject` requires `repairId`, the current `revision`, and
+`requestedBy`. It accepts optional string `feedback`, retained on the current
+attempt. Only a repair in `review` can be rejected; stale revisions or an already
+applied proposal return 409. Rejection discards the pending patch, records terminal
+`rejected` status, and never applies files or starts another run. Like cancel, it
+preserves caller-held edit leases; review holds no workflow-owned lease.
