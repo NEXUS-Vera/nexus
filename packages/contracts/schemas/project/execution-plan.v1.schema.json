@@ -209,6 +209,172 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "criterion": {
+            "allOf": [
+              {
+                "$ref": "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json#/$defs/criterion"
+              },
+              {
+                "properties": {
+                  "metricId": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "unit": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "marker": {
+                    "type": "string",
+                    "pattern": "\\S",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "outputName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "signal": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "expectedMapping": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4096
+                  },
+                  "minValue": {
+                    "type": "number",
+                    "minimum": -1e+308,
+                    "maximum": 1e+308
+                  },
+                  "maxValue": {
+                    "type": "number",
+                    "minimum": -1e+308,
+                    "maximum": 1e+308
+                  },
+                  "tolerance": {
+                    "type": "number",
+                    "minimum": -1e+308,
+                    "maximum": 1e+308
+                  },
+                  "expectedValue": {
+                    "type": [
+                      "string",
+                      "number",
+                      "boolean"
+                    ],
+                    "maxLength": 4096
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "criterionType": {
+                          "const": "numeric-comparison"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "metricId",
+                        "operator",
+                        "expectedValue"
+                      ],
+                      "properties": {
+                        "expectedValue": {
+                          "type": "number",
+                          "minimum": -1e+308,
+                          "maximum": 1e+308
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "criterionType": {
+                          "const": "range"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "metricId",
+                        "minValue",
+                        "maxValue"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "criterionType": {
+                          "const": "contains"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "marker"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "criterionType": {
+                          "const": "exact-match"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "expectedValue"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "criterionType": {
+                          "const": "existence"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "outputName"
+                      ]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "criterionType": {
+                          "const": "structural-mapping"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": [
+                        "signal",
+                        "expectedMapping"
+                      ]
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "verificationMethod": {
+            "$ref": "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json#/$defs/verificationMethod"
           }
         }
       },

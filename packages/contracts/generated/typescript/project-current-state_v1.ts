@@ -1684,16 +1684,48 @@ export interface ExecutionPlan {
   verificationObjectives: [
     {
       acceptanceCriteria: string[];
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: string | number | boolean;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
       method: string;
       objectiveId: string;
       requirementId: string;
+      verificationMethod?: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
       workspaceKey: string;
     },
     ...{
       acceptanceCriteria: string[];
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: string | number | boolean;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
       method: string;
       objectiveId: string;
       requirementId: string;
+      verificationMethod?: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
       workspaceKey: string;
     }[]
   ];
@@ -1862,16 +1894,48 @@ export interface ExecutionPlan1 {
   verificationObjectives: [
     {
       acceptanceCriteria: string[];
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: string | number | boolean;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
       method: string;
       objectiveId: string;
       requirementId: string;
+      verificationMethod?: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
       workspaceKey: string;
     },
     ...{
       acceptanceCriteria: string[];
+      criterion?: {
+        criterionType: 'numeric-comparison' | 'exact-match' | 'contains' | 'existence' | 'structural-mapping' | 'range';
+        expectedMapping?: string;
+        expectedValue?: string | number | boolean;
+        marker?: string;
+        maxValue?: number;
+        metricId?: string;
+        minValue?: number;
+        operator?: '<' | '<=' | '>' | '>=' | '==' | '!=';
+        outputName?: string;
+        signal?: string;
+        tolerance?: number;
+        toleranceUnit?: 'absolute' | 'percent';
+        unit?: string;
+      };
       method: string;
       objectiveId: string;
       requirementId: string;
+      verificationMethod?: 'inspection' | 'simulation' | 'firmware-test' | 'analysis' | 'execution-output' | 'manual';
       workspaceKey: string;
     }[]
   ];

@@ -115,9 +115,22 @@ control flow only. This workflow does not add W6 provenance or W8 UI integration
 
 Approved execution-plan materialization seeds a missing Test Plan from its
 verification objectives without replacing existing cases. Seeded cases are planned
-and unassessed. Exact golden IMU requirement statements without additional acceptance
-criteria receive the golden Test Plan methods and deterministic criteria (R1–R8);
-unmapped objectives remain manual without a criterion. Repair
+and unassessed. Exact golden IMU requirement statements receive the golden Test
+Plan methods and deterministic criteria (R1–R8). Live requirements can also derive criteria from
+sampling targets in structured fields or requirement/acceptance text (Hz or intervals),
+accel_x RMS noise targets, or
+MPU6050 initialization on the approved I2C prototype. Sampling uses the golden
+±10% platform tolerance; sampling requirements without an explicit target use the
+supported ESP32/MPU6050 prototype’s 50 Hz target. Mixed inspection and measurement
+methods allow deterministic mapping; inspection-only requirements remain unassessed.
+Acceptance prose is retained; unmapped objectives remain
+manual without a criterion. Live initialization optionally proposes typed criteria per
+Execution Plan objective. Definitions reuse the Test Plan vocabulary and are validated
+before review (including a 4096-character definition bound); rejected or absent
+proposals fall back to manual review. Platform rules above always take precedence;
+proposals must use the platform catalog of emitted metrics, outputs, markers, and
+wiring signals, with a compatible verification method. No model-authored
+results are accepted. Inspection cases remain planned. Repair
 stops on unsupported architectures and unavailable simulator prerequisites, retaining
 the error code rather than proposing a firmware correction. Missing legacy Test Plans
 yield empty inspection cases and `TEST_PLAN_MISSING` on evidence promotion.

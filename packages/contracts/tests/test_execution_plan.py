@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from pathlib import Path
+from typing import Any
 
 import pytest
 from nexus_contracts.validation.execution_plan_validator import validate_execution_plan
@@ -181,3 +182,32 @@ def test_actionable_plan_contract_preserves_initialization_plan(package, mutatio
     assert not validate_against_schema_id(
         package["project"], "https://nexus.local/schemas/project/project.v1.schema.json"
     )
+
+
+@pytest.mark.parametrize(
+    "invalid", [None, "result", "unknown", "oversize", "range", "blank", "empty"]
+)
+def test_optional_typed_criterion_contract(package: dict[str, Any], invalid: str | None) -> None:
+    plan = deepcopy(package["project"]["executionPlan"])
+    objective = plan["verificationObjectives"][0]
+    objective.update(
+        criterion={"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+        verificationMethod="simulation",
+    )
+    if invalid in {"blank", "empty"}:
+        objective["criterion"]["marker"] = " " if invalid == "blank" else ""
+    elif invalid == "result":
+        objective["criterion"]["result"] = "PASS"
+    elif invalid == "unknown":
+        objective["criterion"]["criterionType"] = "model-verdict"
+    elif invalid == "oversize":
+        objective["criterion"]["marker"] = "x" * 4097
+    elif invalid == "range":
+        objective["criterion"] = {
+            "criterionType": "range",
+            "metricId": "m",
+            "minValue": 10,
+            "maxValue": 1,
+        }
+    errors = validate_execution_plan(plan, package["artifacts"], package["openQuestions"])
+    assert bool(errors) == (invalid is not None)

@@ -507,3 +507,31 @@ async def test_captured_live_initialization(fixture: str, variant: str) -> None:
     named = [c for c in plan["candidates"] if c["source"] == "user-provided"]
     assert sorted(c["partNumber"] for c in named) == ["ESP32-DEVKIT-V1", "MPU6050"]
     assert all(c["evidenceStatus"] == "unverified" for c in named)
+
+
+async def test_live_initialization_requests_validated_plan_criterion() -> None:
+    gateway = build_success_gateway()
+
+    def propose(
+        _task: str, payload: dict[str, object], _schema: dict[str, object]
+    ) -> dict[str, Any]:
+        objectives = payload["objectives"]
+        assert isinstance(objectives, list)
+        return {
+            "objectives": [
+                {
+                    "objectiveId": objectives[0]["objectiveId"],
+                    "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+                    "verificationMethod": "simulation",
+                }
+            ]
+        }
+
+    gateway.set_script("propose-execution-plan-criteria", propose)
+    result = await LlmInitializationProvider(gateway=gateway, model_policy=MODEL_POLICY).initialize(
+        WEARABLE_TREMOR_PROMPT, "collaborate", _context()
+    )
+    objective = result["project"]["executionPlan"]["verificationObjectives"][0]
+    assert objective["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    assert objective["verificationMethod"] == "simulation"
+    assert validate_initialization_result_schema(result) == []
