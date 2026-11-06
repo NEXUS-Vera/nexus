@@ -6,8 +6,8 @@ import copy
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from nexus_api import main
 from nexus_api.config import settings
-from nexus_api.main import _store, app
 from nexus_board.ids import new_id, utc_now_iso
 
 
@@ -206,14 +206,14 @@ def _seed_pre_phase13_project() -> str:
             "createdArtifactReferences": [],
         },
     }
-    _store.save_initialization_package(copy.deepcopy(package))
+    main._store.save_initialization_package(copy.deepcopy(package))
     return project_id
 
 
 @pytest.mark.asyncio
 async def test_ensure_layered_architecture_api_idempotent() -> None:
     project_id = _seed_pre_phase13_project()
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=main.app)
     async with AsyncClient(
         transport=transport,
         base_url="http://test",
