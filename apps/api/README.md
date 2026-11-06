@@ -406,7 +406,10 @@ After apply, advance schedules/polls the existing jobs. Full-scope firmware
 corrections rerun compile → simulation using that exact ELF → observation import → Python analysis
 → deterministic evidence promotion. Analysis corrections rerun analysis against
 its existing input. Leases on affected workspaces are still required. Full scope
-requires linked cases with deterministic PASS and passed status to finish the loop. Exhaustion,
+requires linked execution cases with deterministic PASS and passed status to finish the loop.
+Under the [settled Option B policy](../../docs/operations/first-loop-live-acceptance.md#r2r3--settled-option-b-acceptance-policy),
+R1/R4/R5/R6/R7/R8 must PASS; R2/R3 remain `planned` for manual review and do not
+block repair completion. Exhaustion,
 rejection, timeout, cancellation and unavailable prerequisites remain explicit
 terminal outcomes; none becomes PASS. `requireReal: false` permits regression
 execution only, not a live acceptance claim.
