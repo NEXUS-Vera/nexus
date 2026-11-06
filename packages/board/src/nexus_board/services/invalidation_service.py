@@ -329,6 +329,14 @@ class InvalidationService:
                     return []
                 continue
             kind = artifact["artifactType"]
+            # Build-output existence proves compilation, independent of wiring.
+            # Runtime marker checks and downstream simulations retain the circuit.
+            if (
+                workspace["artifactType"] == "firmware"
+                and (case.get("criterion") or {}).get("criterionType") == "existence"
+                and kind == "electrical-architecture"
+            ):
+                continue
             value = artifact["content"]
             if entry_id:
                 entries = value.get(
