@@ -57,11 +57,44 @@ class Step(TypedDict, closed=True):
     title: str
     workspaceKeys: list[str]
 
+class Criterion(TypedDict, closed=True):
+    criterionType: Literal[
+        'numeric-comparison',
+        'exact-match',
+        'contains',
+        'existence',
+        'structural-mapping',
+        'range',
+    ]
+    expectedMapping: NotRequired[str]
+    expectedValue: NotRequired[str | float | bool]
+    marker: NotRequired[str]
+    maxValue: NotRequired[float]
+    metricId: NotRequired[str]
+    minValue: NotRequired[float]
+    operator: NotRequired[Literal['<', '<=', '>', '>=', '==', '!=']]
+    outputName: NotRequired[str]
+    signal: NotRequired[str]
+    tolerance: NotRequired[float]
+    toleranceUnit: NotRequired[Literal['absolute', 'percent']]
+    unit: NotRequired[str]
+
 class VerificationObjective(TypedDict, closed=True):
     acceptanceCriteria: list[str]
+    criterion: NotRequired[Criterion]
     method: str
     objectiveId: str
     requirementId: str
+    verificationMethod: NotRequired[
+        Literal[
+            'inspection',
+            'simulation',
+            'firmware-test',
+            'analysis',
+            'execution-output',
+            'manual',
+        ]
+    ]
     workspaceKey: str
 
 class Workspace(TypedDict, closed=True):

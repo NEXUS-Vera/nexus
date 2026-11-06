@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from dataclasses import dataclass
@@ -85,7 +86,9 @@ class AnthropicGateway:
         started = time.perf_counter()
         while retries <= model_policy.max_transport_retries:
             try:
-                payload = self._post_messages(body, timeout=model_policy.timeout_seconds)
+                payload = await asyncio.to_thread(
+                    self._post_messages, body, timeout=model_policy.timeout_seconds
+                )
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 return _parse_messages_response(
                     payload,

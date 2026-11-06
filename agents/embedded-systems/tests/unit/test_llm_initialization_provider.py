@@ -143,6 +143,9 @@ async def test_invalid_brief_then_successful_repair() -> None:
     assert validate_initialization_result_schema(result) == []
     step_types = [s["stepType"] for s in result["workflowRun"]["stepRecords"]]
     assert step_types.count("repair-project-brief") == 1
+    task_names = [call["task_name"] for call in gateway.call_log]
+    assert "generate-project-brief" in task_names
+    assert task_names.count("artifact-repair") == 1
     assert "repair-requirements" not in step_types
     assert "repair-functional-architecture" not in step_types
 
@@ -507,3 +510,31 @@ async def test_captured_live_initialization(fixture: str, variant: str) -> None:
     named = [c for c in plan["candidates"] if c["source"] == "user-provided"]
     assert sorted(c["partNumber"] for c in named) == ["ESP32-DEVKIT-V1", "MPU6050"]
     assert all(c["evidenceStatus"] == "unverified" for c in named)
+
+
+async def test_live_initialization_requests_validated_plan_criterion() -> None:
+    gateway = build_success_gateway()
+
+    def propose(
+        _task: str, payload: dict[str, object], _schema: dict[str, object]
+    ) -> dict[str, Any]:
+        objectives = payload["objectives"]
+        assert isinstance(objectives, list)
+        return {
+            "objectives": [
+                {
+                    "objectiveId": objectives[0]["objectiveId"],
+                    "criterion": {"criterionType": "contains", "marker": "NEXUS_MPU_READY"},
+                    "verificationMethod": "simulation",
+                }
+            ]
+        }
+
+    gateway.set_script("propose-execution-plan-criteria", propose)
+    result = await LlmInitializationProvider(gateway=gateway, model_policy=MODEL_POLICY).initialize(
+        WEARABLE_TREMOR_PROMPT, "collaborate", _context()
+    )
+    objective = result["project"]["executionPlan"]["verificationObjectives"][0]
+    assert objective["criterion"] == {"criterionType": "contains", "marker": "NEXUS_MPU_READY"}
+    assert objective["verificationMethod"] == "simulation"
+    assert validate_initialization_result_schema(result) == []

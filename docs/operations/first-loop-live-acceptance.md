@@ -102,7 +102,7 @@ criteria. The default Wokwi hang triage threshold remains **30 seconds**; do not
 increase it to obtain PASS. This is the operator hang threshold, distinct from
 simulated duration (`maxDurationMs`) and the provider's calculated host-process
 watchdog. Preserve run state/logs on a hang; only report `SIMULATION_TIMEOUT` when
-that code is actually returned. R2/R3 sign-off remains the separate open question below.
+that code is actually returned. R2/R3 follow the settled Option B acceptance policy below.
 
 ## Request conventions
 
@@ -612,28 +612,27 @@ criterion throughout diagnosis and repair.
    `sampling_hz` in 45–55, deterministic R1/R4/R5/R6/R7/R8 PASS and repair
    `status:"completed"`. Retain original FAIL and repaired PASS evidence.
 
-## R2/R3 today and the open product question for Pranay
+## R2/R3 — settled Option B acceptance policy
+
+**Operator decision: Pranay, acceptance environment owner, chose Option B on
+October 29, 2026.** With #172/#173 on main, acceptance requires full dynamic
+repair completion (`status: "completed"`) and deterministic PASS for the six
+execution cases **R1/R4/R5/R6/R7/R8** after repair completion.
 
 R2 is inspection with `structural-mapping` (`SDA` → `GPIO21`; requirement also
 names SCL GPIO22). R3 is inspection with `exact-match`, expected value `115200`.
-The marker and analysis promoters in
+These cases remain `planned` for manual review, explicitly documented in the
+review plan; they must not block repair `status: "completed"`. The marker and
+analysis promoters in
 [close.py](../../packages/board/src/nexus_board/verification/close.py) do not
-promote these inspection cases. They remain `planned` and have no repair-run
-link, so they do not block today's repair completion.
+promote these inspection cases, and they have no repair-run link. Record their
+manual-review limitation alongside the six execution results; do not claim
+R2/R3 PASS from repair completion or prose.
 
-**Open product question for Pranay, acceptance environment owner — undecided:**
-
-- **Option A:** require 100% PASS for all R1–R8. Should R2 use the existing
-  `POST /v1/projects/{projectId}/verify/promote-structural` with
-  `{"signalMap":{"SDA":"GPIO21"},"requestedBy":actor,"accept":true,"requireReal":true}`,
-  and should R3 receive automated code inspection or formal manual verification?
-  The route accepts a caller-supplied map; that alone does not prove wiring.
-- **Option B:** require full dynamic repair completion and deterministic PASS
-  for R1/R4/R5/R6/R7/R8, leaving R2/R3 explicitly documented in the review plan.
-
-Do not execute Option A merely because its route is listed, resolve R3 by prose,
-or represent Option B as an agreed acceptance policy. Record dynamic results
-and leave final sign-off pending Pranay's decision.
+Option A automated structural promotion and an all-R1–R8 PASS gate are explicitly
+out of scope unless a future product decision reopens them. This decision
+records acceptance policy; it does not change repair completion semantics or
+claim that a live acceptance run has passed.
 
 ## Failure triage
 
