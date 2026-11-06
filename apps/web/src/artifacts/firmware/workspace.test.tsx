@@ -824,6 +824,72 @@ describe('pending repair patch review', () => {
     return { ...view, advance };
   }
 
+  it('cancels a review repair with the operator and real execution guard', async () => {
+    const fetchMock = mockWorkspace(async () => proposalResponse());
+    const original = fetchMock.getMockImplementation()!;
+    const cancelled = { ...repair, revision: 4, status: 'cancelled' };
+    fetchMock.mockImplementation((input, init) => String(input).endsWith('/repair')
+      ? Promise.resolve(jsonResponse(cancelled)) : original(input, init));
+    const changed = vi.fn();
+    render(<FirmwareWorkspace projectId="proj_test" isDark={false} repair={repair} onRepairChanged={changed} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel repair' }));
+    await screen.findByText(/Repair: cancelled/);
+    const call = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/repair'))!;
+    expect(call[1]?.method).toBe('POST');
+    expect(JSON.parse(String(call[1]?.body))).toEqual({
+      action: 'cancel', repairId: repair.repairId, revision: 3, requestedBy: USER_ACTOR, requireReal: true,
+    });
+    expect(changed).toHaveBeenCalledWith(cancelled);
+    expect(screen.queryByRole('button', { name: 'Cancel repair' })).not.toBeInTheDocument();
+  });
+
+  it('stops polling after cancel and disables Continue', async () => {
+    const { advance } = await startContinuation([
+      { ...repair, revision: 4, status: 'running' },
+      { ...repair, revision: 5, status: 'cancelled' },
+    ]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Cancel repair' })); });
+    expect(advance.mock.calls[1][0]).toEqual({
+      action: 'cancel', repairId: repair.repairId, revision: 4, requestedBy: USER_ACTOR, requireReal: true,
+    });
+    expect(screen.getByText(/Repair: cancelled/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Continue repair/ })).toBeDisabled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
+    expect(advance).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for an in-flight advance and cancels with its latest revision', async () => {
+    const { advance } = await startContinuation([{ ...repair, revision: 4, status: 'running' }]);
+    let resolve!: (response: Response) => void;
+    advance.mockImplementationOnce(() => new Promise<Response>(done => { resolve = done; }));
+    await act(async () => { await vi.advanceTimersByTimeAsync(2500); });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel repair' }));
+    expect(screen.getByRole('button', { name: 'Cancelling repair…' })).toBeDisabled();
+    expect(advance).toHaveBeenCalledTimes(2);
+    advance.mockResolvedValueOnce(jsonResponse({ ...repair, revision: 6, status: 'cancelled' }));
+    await act(async () => { resolve(jsonResponse({ ...repair, revision: 5, status: 'running' })); });
+    expect(advance.mock.calls[2][0]).toEqual({
+      action: 'cancel', repairId: repair.repairId, revision: 5, requestedBy: USER_ACTOR, requireReal: true,
+    });
+    expect(screen.getByText(/Repair: cancelled/)).toBeInTheDocument();
+    await act(async () => { await vi.advanceTimersByTimeAsync(10000); });
+    expect(advance).toHaveBeenCalledTimes(3);
+  });
+
+  it('preserves repair state and allows retry after cancel fails', async () => {
+    const { advance } = await startContinuation([
+      { ...repair, revision: 4, status: 'running' }, new Error('cancel failed'),
+      { ...repair, revision: 5, status: 'cancelled' },
+    ]);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Cancel repair' })); });
+    expect(screen.getByText(/Could not cancel repair/)).toBeInTheDocument();
+    expect(screen.getByText(/Repair: running/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Continue repair/ })).toBeEnabled();
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Cancel repair' })); });
+    expect(advance.mock.calls[1][0]).toEqual(advance.mock.calls[2][0]);
+    expect(screen.getByText(/Repair: cancelled/)).toBeInTheDocument();
+  });
+
   it('polls rebuild, then simulates and analyzes through deterministic completion', async () => {
     const states: RepairState[] = [
       { ...repair, revision: 4, status: 'running', stage: 'compile' },

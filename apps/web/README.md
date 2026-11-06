@@ -143,6 +143,10 @@ After Apply succeeds, Continue repair (rebuild & verify) advances the associated
 repair with its revision guard. It disables while pending and after success,
 shows the returned repair status/run, and opens the run log through Inspect repair
 run. Failed requests permit retry with the same revision; Discard offers no continuation.
+Active review/running repairs offer Cancel repair with the operator identity and
+`requireReal: true`. Cancellation stops continuation polling, waits for any in-flight
+advance to obtain the latest revision, and disables Continue after success. Failures
+remain inline and allow retry.
 Repair state is retained while the project page stays mounted, not across reloads.
 The header LIVE/FIXTURE pill reads initialization mode from health and opens
 diagnostics; tool availability is explicitly unknown because health does not
