@@ -2920,7 +2920,8 @@ async def verify_project(project_id: str, request: Request) -> dict[str, Any] | 
                 ),
                 reverse=True,
             )
-        selected = None
+        selected: list[dict[str, Any]] = []
+        selected_kinds: set[tuple[str | None, str | None]] = set()
         for run in runs:
             if (
                 run.get("projectId") != project_id
@@ -2930,9 +2931,11 @@ async def verify_project(project_id: str, request: Request) -> dict[str, Any] | 
             ):
                 continue
             if _kernel.invalidation.run_is_current(project_id, run):
-                selected = run
-                break
-        if selected is None:
+                kind = (run.get("artifactType"), run.get("capability"))
+                if kind not in selected_kinds:
+                    selected.append(run)
+                    selected_kinds.add(kind)
+        if not selected:
             return _error(
                 422,
                 code="VERIFICATION_EVIDENCE_REQUIRED",
@@ -2941,23 +2944,50 @@ async def verify_project(project_id: str, request: Request) -> dict[str, Any] | 
                 "then retry with its executionRunId.",
                 request_id=request_id,
             )
-        result = _kernel.verification.promote_execution_evidence(
-            project_id=project_id,
-            execution_run_id=selected["executionRunId"],
-            actor=body["requestedBy"],
-            accept=True,
-        )
-        if result.get("accepted") is False:
-            return _error(
-                409,
-                code="VERIFICATION_CONFLICT",
-                message="Test Plan revision was not accepted; refresh and retry.",
-                request_id=request_id,
+        # Timestamps have second precision. Follow consumed outputs rather than
+        # assuming timestamp/ID ordering puts producers before their consumers.
+        ordered: list[dict[str, Any]] = []
+        visited: set[str] = set()
+        by_output = {oid: run for run in selected for oid in run["outputReferences"]}
+
+        def visit(run: dict[str, Any]) -> None:
+            if run["executionRunId"] in visited:
+                return
+            visited.add(run["executionRunId"])
+            inputs = list(run.get("inputOutputReferences") or [])
+            snapshot = _kernel.kernel_store.get_snapshot(run["inputSnapshotId"])
+            entries = (snapshot.get("content", {}).get("filesystemManifest") or {}).get(
+                "entries", []
             )
+            for entry in entries:
+                marker = str(entry.get("generatedFrom", ""))
+                if marker.startswith("imported-output:"):
+                    inputs.append(marker.partition(":")[2])
+            for oid in inputs:
+                if oid in by_output:
+                    visit(by_output[oid])
+            ordered.append(run)
+
+        for run in reversed(selected):
+            visit(run)
+        for run in ordered:
+            result = _kernel.verification.promote_execution_evidence(
+                project_id=project_id,
+                execution_run_id=run["executionRunId"],
+                actor=body["requestedBy"],
+                accept=True,
+            )
+            if result.get("accepted") is False:
+                return _error(
+                    409,
+                    code="VERIFICATION_CONFLICT",
+                    message="Test Plan revision was not accepted; refresh and retry.",
+                    request_id=request_id,
+                )
         artifact = _store.get_artifact(project_id, "test-plan")
         return {
             "schemaVersion": "1.0.0",
-            "executionRunId": selected["executionRunId"],
+            "executionRunId": selected[0]["executionRunId"],
             "testPlanVersion": artifact["artifactVersion"],
             "artifact": artifact,
         }
