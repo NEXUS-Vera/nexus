@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/executions/project-verify-request.v1.schema.json",
+  "title": "ProjectVerifyRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "requireReal",
+    "requestedBy"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "requireReal": {
+      "type": "boolean",
+      "const": true
+    },
+    "requestedBy": {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/common/actor-reference.v1.schema.json"
+        },
+        {
+          "properties": {
+            "actorType": {
+              "const": "user"
+            }
+          }
+        }
+      ]
+    },
+    "executionRunId": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

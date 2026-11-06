@@ -35,6 +35,8 @@ class VerificationError(BoardError):
 class _KernelStore(Protocol):
     def get_execution_run(self, execution_run_id: str) -> dict[str, Any]: ...
 
+    def get_snapshot(self, snapshot_id: str) -> dict[str, Any]: ...
+
     def get_execution_job(self, execution_job_id: str) -> dict[str, Any]: ...
 
     def get_produced_output(self, output_id: str) -> dict[str, Any]: ...
@@ -81,6 +83,73 @@ class VerificationService:
         self._projection = projection
         self._files = file_store
         self._invalidation = invalidation
+
+    def is_real_execution(self, run: dict[str, Any], seen: set[str] | None = None) -> bool:
+        """Check persisted runtime/command provenance, including consumed outputs."""
+        seen = set() if seen is None else seen
+        run_id = run["executionRunId"]
+        if run_id in seen:
+            return False
+        seen = seen | {run_id}
+        if run.get("status") not in {"completed", "completed-with-warnings"}:
+            return False
+        try:
+            outputs = [
+                self._kernel.get_produced_output(oid) for oid in run.get("outputReferences", [])
+            ]
+            if not outputs or any(
+                o.get("projectId") != run["projectId"] or o.get("executionRunId") != run_id
+                for o in outputs
+            ):
+                return False
+            if run.get("executionJobId"):
+                job = self._kernel.get_execution_job(run["executionJobId"])
+                spec = job.get("commandSpec") or {}
+                identity = run.get("runtimeIdentity") or {}
+                if (
+                    identity.get("runtimeKind") not in {"process", "container"}
+                    or job.get("status") != "succeeded"
+                    or job.get("logTruncated")
+                ):
+                    return False
+                if not (
+                    (
+                        spec.get("executable") == "python3"
+                        and spec.get("arguments") == ["analysis.py"]
+                    )
+                    or (
+                        spec.get("executable") == "pio"
+                        and spec.get("arguments")
+                        in (["run", "-e", "nexus"], ["test", "-e", "nexus"])
+                    )
+                ):
+                    return False
+            else:
+                if any(o.get("providerId") != "wokwi" for o in outputs):
+                    return False
+            output_ids = list(run.get("inputOutputReferences") or [])
+            # Analysis imports are captured in the immutable snapshot manifest.
+            snapshot = self._kernel.get_snapshot(run["inputSnapshotId"])
+            entries = (snapshot.get("content", {}).get("filesystemManifest") or {}).get(
+                "entries", []
+            )
+            for entry in entries:
+                marker = str(entry.get("generatedFrom", ""))
+                if marker.startswith("imported-output:"):
+                    output_ids.append(marker.partition(":")[2])
+            for oid in set(output_ids):
+                output = self._kernel.get_produced_output(oid)
+                upstream = self._kernel.get_execution_run(output["executionRunId"])
+                if (
+                    output.get("projectId") != run["projectId"]
+                    or upstream.get("projectId") != run["projectId"]
+                    or oid not in upstream.get("outputReferences", [])
+                    or not self.is_real_execution(upstream, seen)
+                ):
+                    return False
+            return True
+        except (KeyError, PersistenceNotFoundError):
+            return False
 
     def promote_execution_evidence(
         self,
