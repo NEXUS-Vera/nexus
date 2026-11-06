@@ -105,6 +105,7 @@ Workspace-id addressed file routes (the workspace id comes from the runtime bind
 
 ### Verification
 
+- `POST /v1/projects/{projectId}/verify` - requires `requireReal: true` and a valid user `requestedBy`; promotes retained current completed process/container execution outputs (optional `executionRunId`, otherwise newest eligible run). Returns `artifact` and `testPlanVersion`; missing/stale evidence requires rerunning compile/simulation/analysis, never clears applicability locally.
 - `POST /v1/projects/{projectId}/verify/promote-execution` - promote an execution run's produced outputs into a Test Plan revision
 - `POST /v1/projects/{projectId}/verify/promote-analysis-summary` - promote a deterministic analysis summary into a Test Plan revision
 - `POST /v1/projects/{projectId}/verify/promote-structural` - promote Electrical/Wokwi pin maps into structural Test Plan evidence
@@ -382,7 +383,7 @@ separate work packages.
 
 ### Bounded repair (W5 / P2)
 
-- `POST /v1/projects/{projectId}/repair` - start, get, advance or cancel a bounded embedded repair
+- `POST /v1/projects/{projectId}/repair` - start, get, advance, reject or cancel a bounded embedded repair
 
 Send `action: start`, `executionRunId`, `target: firmware|analysis`, and optional
 `maxAttempts` (1–3, including the original failed attempt), `requireReal` (default
@@ -393,14 +394,20 @@ After approved patch application, build scope compiles with `requireReal` honore
 A successful rebuild completes at stage `compile` without simulation, analysis
 or evidence promotion; it does not count toward P1–P5. Failed rebuilds return to
 inspection and consume an attempt under the same `maxAttempts` bound.
-Subsequent `get` requests name `repairId`; `advance` and `cancel` also
+Subsequent `get` requests name `repairId`; `advance`, `reject` and `cancel` also
 require the returned `revision`. Progress is retained in the existing append-only
 project events, including diagnosis excerpts, proposal IDs and every run ID.
 Concurrent stale advances return `REPAIR_CONFLICT`. Reconstruct after restart with
 `get`; an interrupted launch stops for inspection rather than resubmitting work.
 
 Advance inspects stored job diagnostics and deterministic failed test cases,
-then pauses in `review`. Use the ordinary guarded patch apply/discard endpoints;
+then pauses in `review`. Send `action: reject` with `repairId`, `revision`,
+`requestedBy`, and optional string `feedback` to discard the correction and record
+terminal `rejected` progress. Feedback is retained on the current attempt. A stale
+revision or already applied patch returns 409; rejecting outside review returns
+422. Rejection preserves caller-held leases and starts no execution. `requireReal`
+is accepted with reject but no provider runs. Alternatively, use the ordinary
+guarded patch apply/discard endpoints;
 advance never approves a patch. Stale patch bases still require a new review.
 After apply, advance schedules/polls the existing jobs. Full-scope firmware
 corrections rerun compile → simulation using that exact ELF → observation import → Python analysis

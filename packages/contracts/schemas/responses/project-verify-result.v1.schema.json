@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://nexus.local/schemas/responses/project-verify-result.v1.schema.json",
+  "title": "ProjectVerifyResult",
+  "description": "Promotion result plus the accepted Test Plan artifact. No new assessment semantics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "executionRunId",
+    "testPlanVersion",
+    "artifact"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "executionRunId": {
+      "type": "string"
+    },
+    "testPlanVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "artifact": {
+      "allOf": [
+        {
+          "$ref": "https://nexus.local/schemas/artifacts/envelope/artifact-envelope.v1.schema.json"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "artifactType": {
+              "const": "test-plan"
+            },
+            "content": {
+              "$ref": "https://nexus.local/schemas/artifacts/content/test-plan.v1.schema.json"
+            }
+          },
+          "required": [
+            "artifactType",
+            "content"
+          ]
+        }
+      ]
+    }
+  }
+}

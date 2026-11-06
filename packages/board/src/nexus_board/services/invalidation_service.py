@@ -167,6 +167,29 @@ class InvalidationService:
         except (KeyError, PersistenceNotFoundError):
             return False
 
+    def run_is_current(self, project_id: str, run: dict[str, Any]) -> bool:
+        """Preflight captured dependencies without revising any verification state."""
+        plan = self._projects.get_artifact(project_id, "test-plan")
+        resolved = False
+        for case in plan["content"].get("testCases", []):
+            dependencies = self._run_dependencies(project_id, run, case)
+            if not dependencies:
+                continue
+            resolved = True
+            if not self.basis_is_current(
+                project_id,
+                {
+                    **case,
+                    "verificationBasis": {
+                        "executionRunId": run["executionRunId"],
+                        "inputSnapshotId": run.get("inputSnapshotId"),
+                        "dependencies": dependencies,
+                    },
+                },
+            ):
+                return False
+        return resolved
+
     def stamp(
         self, project_id: str, before: dict[str, Any], content: dict[str, Any], run_id: str
     ) -> None:
