@@ -101,6 +101,8 @@ PUBLIC_SCHEMA_STEMS = [
     "project-initialization-result.v1",
     "project-current-state.v1",
     "project-history.v1",
+    "project-verify-request.v1",
+    "project-verify-result.v1",
     "project-turn-result.v1",
     "project-change-intent.v1",
     "project-impact-analysis.v1",
@@ -503,6 +505,8 @@ async function main() {
   const indexLines = [
     "export type { ProjectInitializationResult } from './project-initialization-result_v1';",
     "export type { ProjectCurrentState } from './project-current-state_v1';",
+    "export type { ProjectVerifyRequest } from './project-verify-request_v1';",
+    "export type { ProjectVerifyResult } from './project-verify-result_v1';",
     "export type { ProjectHistory } from './project-history_v1';",
     "export type { ProjectTurnResult } from './project-turn-result_v1';",
     "export type { ProjectChangeIntent } from './project-change-intent_v1';",

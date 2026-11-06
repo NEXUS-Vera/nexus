@@ -105,6 +105,7 @@ Workspace-id addressed file routes (the workspace id comes from the runtime bind
 
 ### Verification
 
+- `POST /v1/projects/{projectId}/verify` - requires `requireReal: true` and a valid user `requestedBy`; promotes retained current completed process/container execution outputs (optional `executionRunId`, otherwise newest eligible run). Returns `artifact` and `testPlanVersion`; missing/stale evidence requires rerunning compile/simulation/analysis, never clears applicability locally.
 - `POST /v1/projects/{projectId}/verify/promote-execution` - promote an execution run's produced outputs into a Test Plan revision
 - `POST /v1/projects/{projectId}/verify/promote-analysis-summary` - promote a deterministic analysis summary into a Test Plan revision
 - `POST /v1/projects/{projectId}/verify/promote-structural` - promote Electrical/Wokwi pin maps into structural Test Plan evidence

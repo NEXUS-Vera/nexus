@@ -57,6 +57,8 @@ from .project_history_v1 import *  # noqa: F403
 from .project_impact_analysis_v1 import *  # noqa: F403
 from .project_initialization_result_v1 import *  # noqa: F403
 from .project_turn_result_v1 import *  # noqa: F403
+from .project_verify_request_v1 import *  # noqa: F403
+from .project_verify_result_v1 import *  # noqa: F403
 from .project_v1 import *  # noqa: F403
 from .quantity_v1 import *  # noqa: F403
 from .requirement_set_v1 import *  # noqa: F403
@@ -131,6 +133,8 @@ __all__ = [
     "project_impact_analysis_v1",
     "project_initialization_result_v1",
     "project_turn_result_v1",
+    "project_verify_request_v1",
+    "project_verify_result_v1",
     "project_v1",
     "quantity_v1",
     "requirement_set_v1",
