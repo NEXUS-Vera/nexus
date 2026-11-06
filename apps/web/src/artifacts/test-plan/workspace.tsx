@@ -33,7 +33,7 @@ const STATUS_TONE: Record<string, string> = {
 
 export function TestPlanWorkspace(props: Props) {
   const { artifact } = props;
-  return <TestPlanContent key={`${artifact.projectId}:${artifact.artifactId}:${artifact.artifactVersion}:${artifact.updatedAt}`} {...props} />;
+  return <TestPlanContent key={`${artifact.projectId}:${artifact.artifactId}`} {...props} />;
 }
 
 function needsVerification(applicability?: Applicability) {
