@@ -13,6 +13,7 @@ import { Onboarding } from "./components/Onboarding";
 import { ArtifactLoop } from "./components/ArtifactLoop";
 import { ReviewQueue } from "./components/ReviewQueue";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { DebugCompanion } from "./components/DebugCompanion";
 import { MapView } from "./components/MapView";
 import { Gallery } from "./components/Gallery";
 import { EmptyState, ErrorState, LoadingState, PartialState } from "./components/SurfaceStates";
@@ -60,6 +61,7 @@ export default function App() {
   const [health, setHealth] = useState<Health | "unknown">("unknown");
   const [onboarding, setOnboarding] = useState(false);
   const [settings, setSettings] = useState(false);
+  const [debugCompanion, setDebugCompanion] = useState(false);
   const [predicting, setPredicting] = useState(false);
   const [ask, setAsk] = useState("");
 
@@ -140,6 +142,12 @@ export default function App() {
           }} />
 
         {settings && <SettingsPanel />}
+
+        {!debugCompanion && (
+          <button className="dc-fab" onClick={() => setDebugCompanion(true)}
+            aria-label="Debug companion" title="Debug companion">?</button>
+        )}
+        {debugCompanion && <DebugCompanion onClose={() => setDebugCompanion(false)} />}
 
         {ui.surface === "bench" && (
           <>
