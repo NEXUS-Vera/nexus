@@ -29,6 +29,33 @@ Each row is one small reviewable work package mapped to exactly one P criterion.
 
 W6 can start once W4 yields real handoff artifacts; W5 and W6 converge at W7. W9 protocol preparation can occur after contract review, but participant acceptance sessions require W8's usable workflow. No parallel-agent execution is prescribed.
 
+### W8 live-mode journey
+
+Run `./scripts/run-w8-live-e2e.sh` for the paid, opt-in single-project browser
+journey (`NEXUS_W8_LIVE_E2E=1`), with the real API, temporary SQLite/file store,
+LLM initialization/firmware patching, PlatformIO builds, Wokwi and Python analysis.
+Requires installed web/Python dependencies, Chromium, `pio`/`platformio`,
+`wokwi-cli` (or `NEXUS_WOKWI_CLI`) and `WOKWI_CLI_TOKEN`.
+Supply `NEXUS_MODEL_API_KEY` or `ANTHROPIC_API_KEY`; optional
+`NEXUS_MODEL_PROVIDER`, `NEXUS_MODEL_NAME`, `NEXUS_MODEL_BASE_URL` default to
+`anthropic`, `claude-sonnet-4-6`, `https://api.anthropic.com`. Model timeout is 240s;
+firmware and analysis stubs are disabled. Never put credentials in command arguments
+or enable shell tracing. Failed runs retain their printed `/tmp` evidence directory;
+success removes it unless `KEEP_RUN_DIR` is set.
+
+Limits: process restart has no UI control and is performed by the spec. The only
+API-side inputs are a USER workspace compile-fault edit and user analysis files
+(golden noise CSV/script and a cancellation probe); state/log polling uses real
+API reads. Diagnostics expose LIVE and SQLite, not the model vendor/name; the
+spec checks LLM mode and the model name in firmware proposal metadata instead.
+Failed compile output currently has no direct Inspect Run Logs control. The spec
+tries Evidence Explorer and fails explicitly if that failed run is unreachable,
+rather than substituting API repair actions for the UI journey.
+
+**Live result not yet recorded.** The manager runs this journey and records its
+results and any blockers; this addition claims no live pass and does not close W8.
+The existing fixture journey remains a separate regression probe.
+
 W8 slice 1 (N192), approved D1/D2: keep Next Action and add Execution Plan under
 FOUNDATION. The workspace mounts the typed plan review and sends revision decisions
 through the typed API client. Reject is one click with an optional inline reason;
