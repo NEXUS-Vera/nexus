@@ -59,9 +59,12 @@ function TestPlanContent({
   const cases = content.testCases ?? [];
   const summary = content.coverageSummary;
   const dynamicCases = cases.filter((c) => c.verificationMethod !== 'inspection');
-  const dynamicPassed = dynamicCases.filter((c) => c.assessment === 'PASS').length;
-  const dynamicFailed = dynamicCases.filter((c) => c.assessment === 'FAIL');
-  const dynamicComplete = dynamicCases.length > 0 && dynamicPassed === dynamicCases.length;
+  const dynamicPassed = dynamicCases.filter(
+    (c) => c.assessment === 'PASS' && c.status === 'passed' && !needsVerification(c.applicability),
+  ).length;
+  const dynamicFailed = dynamicCases.filter((c) => c.assessment === 'FAIL' || c.status === 'failed');
+  const dynamicComplete = dynamicCases.length > 0 && dynamicFailed.length === 0 && dynamicPassed === dynamicCases.length;
+  const hasInspectionCases = cases.some((c) => c.verificationMethod === 'inspection');
   const [tab, setTab] = useState<'coverage' | 'tests'>('coverage');
   const hasStaleCases = cases.some((c) => needsVerification(c.applicability));
 
@@ -165,7 +168,7 @@ function TestPlanContent({
         {verificationMessage ? <span role={verificationError ? 'alert' : 'status'} style={{ color: verificationError ? STATUS_TONE.failed : t.textSec }}>{verificationMessage}</span> : null}
       </div>
 
-      <div
+      {dynamicCases.length > 0 ? <div
         role={dynamicFailed.length > 0 ? 'alert' : 'status'}
         style={{ padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.surface, color: t.text, fontSize: 12 }}
       >
@@ -176,8 +179,8 @@ function TestPlanContent({
               ? `Dynamic Verification PASS (Option B, ${dynamicPassed}/${dynamicCases.length} cases)`
               : `Dynamic verification in progress (${dynamicPassed}/${dynamicCases.length} passed)`}
         </strong>
-        <div style={{ marginTop: 4, color: t.textSec }}>Manual-review cases are not established as PASS.</div>
-      </div>
+        {dynamicComplete && hasInspectionCases ? <div style={{ marginTop: 4, color: t.textSec }}>Manual-review cases are not established as PASS.</div> : null}
+      </div> : null}
 
       <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: `1px solid ${t.border}` }}>
         <button type="button" data-testid="test-plan-tab-coverage" onClick={() => setTab('coverage')} style={tabBtn(tab === 'coverage', t)}>

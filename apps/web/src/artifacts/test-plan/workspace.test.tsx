@@ -467,31 +467,49 @@ describe('Option B dynamic verification', () => {
 
   it('names dynamic failures even when inspections remain planned', () => {
     const artifact = completedPlan();
-    for (const c of artifact.content.testCases.filter((item) => item.verificationMethod === 'analysis')) {
-      c.assessment = 'FAIL';
-      c.status = 'failed';
-    }
+    const failed = artifact.content.testCases.find((item) => item.displayId === 'T6')!;
+    failed.assessment = 'FAIL';
+    failed.status = 'failed';
     mountPlan(artifact);
     const banner = screen.getByRole('alert');
     expect(banner).toHaveTextContent('Dynamic Verification FAIL (Option B)');
-    for (const c of artifact.content.testCases.filter((item) => item.assessment === 'FAIL')) {
-      expect(banner).toHaveTextContent(`${c.displayId} — ${c.title}`);
-    }
+    expect(banner).toHaveTextContent(`${failed.displayId} — ${failed.title}`);
+    expect(screen.queryByText('Manual-review cases are not established as PASS.')).not.toBeInTheDocument();
     expect(screen.queryByText(/Dynamic Verification PASS/)).not.toBeInTheDocument();
   });
 
-  it.each(['INCONCLUSIVE', 'planned', 'missing'] as const)('keeps %s dynamic cases in progress', (state) => {
+  it.each(['INCONCLUSIVE', 'planned', 'ready', 'blocked', 'running', 'missing'] as const)('keeps %s dynamic cases in progress', (state) => {
     const artifact = completedPlan();
     const c = artifact.content.testCases.find((item) => item.verificationMethod !== 'inspection')!;
     if (state === 'INCONCLUSIVE') {
       c.assessment = 'INCONCLUSIVE';
       c.status = 'inconclusive';
-    } else {
+    } else if (state === 'missing') {
       delete c.assessment;
-      if (state === 'planned') c.status = 'planned';
+    } else {
+      c.status = state;
     }
     mountPlan(artifact);
     expect(screen.getByRole('status')).toHaveTextContent('Dynamic verification in progress (5/6 passed)');
+    expect(screen.queryByText(/Dynamic Verification PASS/)).not.toBeInTheDocument();
+  });
+
+  it.each(['STALE', 'RECHECK_REQUIRED'] as const)('does not count historical PASS with %s applicability', (state) => {
+    const artifact = completedPlan();
+    const c = artifact.content.testCases.find((item) => item.verificationMethod !== 'inspection')!;
+    c.applicability = { state, reasons: [] };
+    mountPlan(artifact);
+    expect(screen.getByRole('status')).toHaveTextContent('Dynamic verification in progress (5/6 passed)');
+    expect(screen.queryByText(/Dynamic Verification PASS/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Manual-review cases are not established as PASS.')).not.toBeInTheDocument();
+  });
+
+  it('treats failed status as failure even with a historical PASS assessment', () => {
+    const artifact = completedPlan();
+    const c = artifact.content.testCases.find((item) => item.displayId === 'T6')!;
+    c.status = 'failed';
+    mountPlan(artifact);
+    expect(screen.getByRole('alert')).toHaveTextContent(`Dynamic Verification FAIL (Option B): ${c.displayId} — ${c.title}`);
     expect(screen.queryByText(/Dynamic Verification PASS/)).not.toBeInTheDocument();
   });
 
@@ -502,6 +520,7 @@ describe('Option B dynamic verification', () => {
     mountPlan(artifact);
     fireEvent.click(screen.getByRole('button', { name: 'Test cases' }));
     expect(screen.queryByText('Manual Review (Option B)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Manual-review cases are not established as PASS.')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('Dynamic Verification PASS (Option B, 6/6 cases)');
   });
 
@@ -510,7 +529,9 @@ describe('Option B dynamic verification', () => {
     const cases = artifact.content.testCases;
     cases.splice(0, cases.length, ...cases.filter((c) => c.verificationMethod === 'inspection'));
     mountPlan(artifact);
-    expect(screen.getByRole('status')).toHaveTextContent('Dynamic verification in progress (0/0 passed)');
+    expect(screen.queryByText(/Dynamic verification in progress/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/0\/0/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Manual-review cases are not established as PASS.')).not.toBeInTheDocument();
     expect(screen.queryByText(/Dynamic Verification PASS/)).not.toBeInTheDocument();
   });
 });
