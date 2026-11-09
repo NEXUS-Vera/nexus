@@ -129,7 +129,10 @@ class VerificationService:
                     return False
             output_ids = list(run.get("inputOutputReferences") or [])
             # Analysis imports are captured in the immutable snapshot manifest.
-            snapshot = self._kernel.get_snapshot(run["inputSnapshotId"])
+            snapshot_id = run.get("inputSnapshotId")
+            if not snapshot_id:
+                return False
+            snapshot = self._kernel.get_snapshot(snapshot_id)
             entries = (snapshot.get("content", {}).get("filesystemManifest") or {}).get(
                 "entries", []
             )

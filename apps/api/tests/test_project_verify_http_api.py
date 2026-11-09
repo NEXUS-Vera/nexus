@@ -30,7 +30,7 @@ def _validate_result(payload: Any) -> None:
     Draft202012Validator(schemas[RESULT_SCHEMA], registry=registry).validate(payload)
 
 
-def _run(kernel: Any, pid: str, run_id: str, *, mode: str = "real") -> None:
+def _run(kernel: Any, pid: str, run_id: str, *, mode: str = "real", kind: str = "analysis") -> None:
     existing = kernel.kernel_store.list_execution_runs(pid)[0]
     provenance = (
         {
@@ -41,11 +41,14 @@ def _run(kernel: Any, pid: str, run_id: str, *, mode: str = "real") -> None:
         else _seed_run_inputs(kernel, pid)
     )
     outputs: list[str] = []
-    for name, text in [
-        ("outputs/summary.json", json.dumps({"accel_x_rms_noise_g": 0.0157})),
+    files = [
+        ("outputs/summary.json", json.dumps({"accel_x_rms_noise_g": 0.0157, "sampling_hz": 50})),
         ("outputs/processed.csv", "t,x\n0,0.01\n"),
         ("outputs/accel_plot.png", "png"),
-    ]:
+    ]
+    if kind == "simulation":
+        files = [("serial.log", "NEXUS_MPU_READY\ntime_ms,accel_x_g,accel_y_g,accel_z_g")]
+    for name, text in files:
         oid = f"out_{run_id}_{len(outputs)}"
         kernel.kernel_store.create_produced_output(
             {
@@ -54,7 +57,8 @@ def _run(kernel: Any, pid: str, run_id: str, *, mode: str = "real") -> None:
                 "projectId": pid,
                 "executionRunId": run_id,
                 "name": name,
-                "outputType": "file",
+                "outputType": "log" if kind == "simulation" else "file",
+                "providerId": "wokwi" if kind == "simulation" else "python",
                 "content": {"kind": "inline-structured", "structuredResult": {"text": text}},
                 "createdAt": utc_now_iso(),
             }
@@ -67,12 +71,15 @@ def _run(kernel: Any, pid: str, run_id: str, *, mode: str = "real") -> None:
         "projectId": pid,
         **provenance,
         "artifactType": "analysis",
+        "capability": "circuit-simulation" if kind == "simulation" else "analysis-run",
         "status": "failed" if mode == "failed" else "completed",
         "createdAt": utc_now_iso(),
         "outputReferences": outputs,
         "executionJobId": job_id,
         "runtimeIdentity": {"runtimeKind": "process"},
     }
+    if kind == "simulation":
+        run.pop("executionJobId")
     kernel.kernel_store.create_execution_run(run)
     kernel.kernel_store.create_execution_job(
         {
@@ -226,6 +233,84 @@ async def test_consumed_fixture_evidence_is_rejected(context: Any) -> None:
             "requestedBy": user,
             "executionRunId": "exec_consumer",
         },
+    )
+    assert response.status_code == 422, response.text
+    assert projects.get_artifact(pid, "test-plan") == before
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+async def test_verify_promotes_both_run_kinds_and_is_idempotent(
+    context: Any, explicit: bool
+) -> None:
+    kernel, projects, pid, user, client = context
+    dynamic = {"T1", "T4", "T5", "T6", "T7", "T8"}
+
+    def cases() -> dict[str, Any]:
+        return {
+            c["displayId"]: c
+            for c in projects.get_artifact(pid, "test-plan")["content"]["testCases"]
+            if c["displayId"] in dynamic
+        }
+
+    def seed_pair(suffix: str) -> None:
+        _run(kernel, pid, f"exec_sim_{suffix}", kind="simulation")
+        _run(kernel, pid, f"exec_analysis_{suffix}")
+        # Tie timestamps deliberately: the consumed-output edge must determine order.
+        timestamp = "2026-11-01T00:00:00Z" if suffix == "original" else "2026-11-02T00:00:00Z"
+        simulation = kernel.kernel_store.get_execution_run(f"exec_sim_{suffix}")
+        simulation["createdAt"] = timestamp
+        kernel.kernel_store.update_execution_status(simulation["executionRunId"], simulation)
+        run = kernel.kernel_store.get_execution_run(f"exec_analysis_{suffix}")
+        run["createdAt"] = timestamp
+        run["inputOutputReferences"] = [f"out_exec_sim_{suffix}_0"]
+        kernel.kernel_store.update_execution_status(run["executionRunId"], run)
+        kernel.invalidation.record_run(run)
+
+    url = f"/v1/projects/{pid}/verify"
+    body = {"requireReal": True, "requestedBy": user}
+    seed_pair("original")
+    response = await client.post(url, json=body)
+    assert response.status_code == 200, response.text
+    assert all(c["applicability"]["state"] == "CURRENT" for c in cases().values())
+    for display in ("R1", "R4", "R5", "R6", "R7", "R8"):
+        _change_requirement(kernel, pid, display)
+    assert len(cases()) == 6
+    assert all(c["applicability"]["state"] == "STALE" for c in cases().values())
+    seed_pair("fresh")
+    if explicit:
+        body["executionRunId"] = "exec_analysis_fresh"
+    response = await client.post(url, json=body)
+    assert response.status_code == 200, response.text
+    if explicit:
+        assert all(cases()[t]["applicability"]["state"] == "STALE" for t in ("T1", "T4", "T5"))
+        assert all(
+            cases()[t]["verificationBasis"]["executionRunId"] == "exec_analysis_fresh"
+            for t in ("T6", "T7", "T8")
+        )
+        return
+    _validate_result(response.json())
+    for display, case in cases().items():
+        assert case["applicability"]["state"] == "CURRENT", case
+        assert case["assessment"] == "PASS", case
+        expected = "exec_sim_fresh" if display in {"T1", "T4", "T5"} else "exec_analysis_fresh"
+        assert case["verificationBasis"]["executionRunId"] == expected
+    after = projects.get_artifact(pid, "test-plan")
+    repeated = await client.post(url, json=body)
+    assert repeated.status_code == 200, repeated.text
+    assert repeated.json()["artifact"] == after
+
+
+@pytest.mark.parametrize("snapshot_id", [None, ""])
+async def test_null_snapshot_is_unusable(context: Any, snapshot_id: Any) -> None:
+    kernel, projects, pid, user, client = context
+    _run(kernel, pid, "exec_no_snapshot")
+    run = kernel.kernel_store.get_execution_run("exec_no_snapshot")
+    run["inputSnapshotId"] = snapshot_id
+    kernel.kernel_store.update_execution_status(run["executionRunId"], run)
+    assert kernel.verification.is_real_execution(run) is False
+    before = projects.get_artifact(pid, "test-plan")
+    response = await client.post(
+        f"/v1/projects/{pid}/verify", json={"requireReal": True, "requestedBy": user}
     )
     assert response.status_code == 422, response.text
     assert projects.get_artifact(pid, "test-plan") == before
