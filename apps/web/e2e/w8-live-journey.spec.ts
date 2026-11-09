@@ -132,10 +132,10 @@ test('W8 live journey through the real API, SQLite, model and tools', async ({ p
       return text;
     }
     // Capture only responses caused by the UI action, never synthesize results.
-    async function uiResponse(control: Locator, suffix: string) {
+    async function uiResponse(control: Locator, suffix: string, repairAction?: string) {
       const response = page.waitForResponse(r => r.url().endsWith(suffix) && r.request().method() === 'POST' &&
         (suffix !== '/artifact-commands' || r.request().postDataJSON()?.commandType === 'artifact.execute') &&
-        (suffix !== '/repair' || r.request().postDataJSON()?.action !== 'start'), { timeout: 300_000 });
+        (!repairAction || r.request().postDataJSON()?.action === repairAction), { timeout: 300_000 });
       await keyboardActivate(control);
       return body(await response);
     }
@@ -184,7 +184,7 @@ test('W8 live journey through the real API, SQLite, model and tools', async ({ p
     const simulation = await uiResponse(page.getByTestId('run-circuit-simulation'), '/artifact-commands');
     expect(simulation.status).not.toBe('failed');
     // Execution command returns the actual run ID.
-    const simId = simulation.executionRunId;
+    const simId = simulation.executionRunId ?? simulation.resultPayload?.executionRunId ?? simulation.resultPayload?.runId;
     expect(simId).toBeTruthy();
     await finishRun(simId);
     await expect(page.getByTestId('latest-simulation-run')).toContainText('wokwi');
@@ -229,19 +229,33 @@ test('W8 live journey through the real API, SQLite, model and tools', async ({ p
         await keyboardActivate(controls.nth(n));
         const inspected = (await body(await response)).executionRun;
         if (inspected.executionRunId === id) return;
-        await page.getByRole('dialog', { name: 'Run logs' }).press('Escape');
+        const dialog = page.getByRole('dialog', { name: 'Run logs', exact: true });
+        await dialog.press('Escape');
+        await expect(dialog).toHaveCount(0);
       }
-      throw new Error(`W8 UI gap: failed compile ${id} has no Inspect Run Logs navigation; cannot reach Diagnose & Repair. No API repair input was substituted.`);
+      expect(false, `W8 UI navigation limit: failed compile ${id} is absent from Evidence Explorer Inspect Run Logs controls; cannot reach Diagnose & Repair. No API repair input was substituted; W8 remains open.`).toBe(true);
     }
     await openFailedBuild(failedBuild);
-    async function diagnose() {
-      let state;
-      for (let n = 0; n < 8; n++) {
-        state = await uiResponse(page.getByRole('button', { name: /Diagnose & Repair/ }), '/repair');
-        if (state.status === 'review') return state;
-        expect(['inspect', 'diagnosing', 'running'], diagnostics(state)).toContain(state.status);
-      }
-      throw new Error(`Repair never reached review: ${diagnostics(state)}`);
+    async function diagnose(start = true) {
+      // RunLogModal starts once, then automatically advances with the returned revision.
+      // Register both listeners before clicking so the automatic advance cannot race us.
+      const advanced = page.waitForResponse(r => r.url() === `${root}/repair` &&
+        r.request().method() === 'POST' && r.request().postDataJSON()?.action === 'advance',
+      { timeout: 300_000 });
+      const control = page.getByRole('button', { name: /Diagnose & Repair/ });
+      const [response] = await Promise.all([advanced, (async () => {
+        if (start) {
+          const started = await uiResponse(control, '/repair', 'start');
+          expect(started.status, diagnostics(started)).toBe('inspect');
+        } else {
+          // An inspect retry already has a repair: advance it without starting again.
+          await keyboardActivate(control);
+        }
+      })()]);
+      const state = await body(response);
+      expect(state.status, `Repair diagnosis did not reach review: ${diagnostics(state)}`).toBe('review');
+      await expect(page.getByRole('button', { name: 'Review repair patch in Workspace' })).toBeVisible();
+      return state;
     }
     const rejected = await diagnose();
     await keyboardActivate(page.getByRole('button', { name: 'Review repair patch in Workspace' }));
@@ -252,6 +266,9 @@ test('W8 live journey through the real API, SQLite, model and tools', async ({ p
     expect(rejection.repairId).toBe(rejected.repairId);
     // A fresh failed build provides a new run from which to start the revised repair.
     await keyboardActivate(page.getByRole('button', { name: 'Firmware', exact: true }));
+    // Repair state belongs to the mounted project page; clear the rejected session
+    // before starting a new repair from the new failed run.
+    await page.reload();
     await openFailedBuild(await compile('failed'));
     let repair = await diagnose();
     for (let n = 0; n < 3 && repair.status === 'review'; n++) {
@@ -264,14 +281,14 @@ test('W8 live journey through the real API, SQLite, model and tools', async ({ p
       }, { timeout: 600_000, intervals: [2000, 5000] }).not.toBe('running');
       if (repair.status === 'inspect' || repair.status === 'review') {
         await keyboardActivate(page.getByRole('button', { name: 'Inspect repair run' }));
-        if (repair.status === 'inspect') repair = await diagnose();
+        if (repair.status === 'inspect') repair = await diagnose(false);
       }
     }
     expect(repair.status, `Terminal repair state and last diagnostics: ${diagnostics(repair)}`).toBe('completed');
     await compile();
     await keyboardActivate(page.getByRole('button', { name: 'Test Plan', exact: true }));
     const verify = page.getByRole('button', { name: 'Re-verify Stale Criteria', exact: true });
-    if (await verify.isEnabled()) await keyboardActivate(verify);
+    if (await verify.isVisible() && await verify.isEnabled({ timeout: 2000 })) await keyboardActivate(verify);
     await keyboardActivate(page.getByTestId('test-plan-tab-tests'));
     const testPlan = await body(await request.get(`${root}/artifacts/test-plan`, { headers }));
     const inspections = testPlan.content.testCases.filter((c: { verificationMethod: string }) => c.verificationMethod === 'inspection');
@@ -315,11 +332,13 @@ test('W8 live journey through the real API, SQLite, model and tools', async ({ p
     const inspect = evidence.getByRole('button', { name: 'Inspect Run Logs', exact: true });
     expect(await inspect.count()).toBeGreaterThanOrEqual(3);
     for (let n = 0; n < await inspect.count(); n++) {
+      const detail = page.waitForResponse(r => r.url().includes('/executions/') && !r.url().includes('/logs') && r.request().method() === 'GET');
       await keyboardActivate(inspect.nth(n));
+      const inspected = (await body(await detail)).executionRun;
       const logs = page.getByRole('dialog', { name: 'Run logs', exact: true });
-      await expect(logs).toContainText('Status: completed');
+      await expect(logs).toContainText(`Status: ${inspected.status}`);
       await expect(logs).not.toContainText(/fixture|stub/i);
-      await expect.poll(async () => {
+      if (inspected.status === 'completed') await expect.poll(async () => {
         const text = await logs.innerText();
         for (const marker of ['platformio', 'wokwi', 'NEXUS_ANALYSIS_R7']) {
           if (text.toLowerCase().includes(marker.toLowerCase())) seen.add(marker);
@@ -327,6 +346,7 @@ test('W8 live journey through the real API, SQLite, model and tools', async ({ p
         return /platformio|wokwi|NEXUS_ANALYSIS_R7/i.test(text);
       }).toBe(true);
       await logs.press('Escape');
+      await expect(logs).toHaveCount(0);
     }
     expect([...seen]).toEqual(expect.arrayContaining(['platformio', 'wokwi', 'NEXUS_ANALYSIS_R7']));
     for (const [id, status] of savedRuns) expect((await getRun(id)).status).toBe(status);

@@ -49,8 +49,12 @@ API-side inputs are a USER workspace compile-fault edit and user analysis files
 API reads. Diagnostics expose LIVE and SQLite, not the model vendor/name; the
 spec checks LLM mode and the model name in firmware proposal metadata instead.
 Failed compile output currently has no direct Inspect Run Logs control. The spec
-tries Evidence Explorer and fails explicitly if that failed run is unreachable,
-rather than substituting API repair actions for the UI journey.
+tries Evidence Explorer and fails with a named W8 UI navigation limit assertion
+if that failed run is unreachable, rather than substituting API repair actions for the UI journey. A Diagnose click
+captures both the start response and the modal’s automatic advance response;
+subsequent rebuilds use Continue repair and its existing UI polling. Evidence
+inspection accepts the actual run status, including failed runs, while collecting
+real tool markers from completed runs.
 
 **Live result not yet recorded.** The manager runs this journey and records its
 results and any blockers; this addition claims no live pass and does not close W8.
