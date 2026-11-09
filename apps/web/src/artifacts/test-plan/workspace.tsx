@@ -58,6 +58,10 @@ function TestPlanContent({
   const content = plan.content;
   const cases = content.testCases ?? [];
   const summary = content.coverageSummary;
+  const dynamicCases = cases.filter((c) => c.verificationMethod !== 'inspection');
+  const dynamicPassed = dynamicCases.filter((c) => c.assessment === 'PASS').length;
+  const dynamicFailed = dynamicCases.filter((c) => c.assessment === 'FAIL');
+  const dynamicComplete = dynamicCases.length > 0 && dynamicPassed === dynamicCases.length;
   const [tab, setTab] = useState<'coverage' | 'tests'>('coverage');
   const hasStaleCases = cases.some((c) => needsVerification(c.applicability));
 
@@ -161,6 +165,20 @@ function TestPlanContent({
         {verificationMessage ? <span role={verificationError ? 'alert' : 'status'} style={{ color: verificationError ? STATUS_TONE.failed : t.textSec }}>{verificationMessage}</span> : null}
       </div>
 
+      <div
+        role={dynamicFailed.length > 0 ? 'alert' : 'status'}
+        style={{ padding: '10px 16px', borderBottom: `1px solid ${t.border}`, background: t.surface, color: t.text, fontSize: 12 }}
+      >
+        <strong style={{ color: dynamicFailed.length > 0 ? STATUS_TONE.failed : dynamicComplete ? STATUS_TONE.passed : t.textSec }}>
+          {dynamicFailed.length > 0
+            ? `Dynamic Verification FAIL (Option B): ${dynamicFailed.map((c) => `${c.displayId} — ${c.title}`).join(', ')}`
+            : dynamicComplete
+              ? `Dynamic Verification PASS (Option B, ${dynamicPassed}/${dynamicCases.length} cases)`
+              : `Dynamic verification in progress (${dynamicPassed}/${dynamicCases.length} passed)`}
+        </strong>
+        <div style={{ marginTop: 4, color: t.textSec }}>Manual-review cases are not established as PASS.</div>
+      </div>
+
       <div style={{ display: 'flex', gap: 8, padding: '8px 16px', borderBottom: `1px solid ${t.border}` }}>
         <button type="button" data-testid="test-plan-tab-coverage" onClick={() => setTab('coverage')} style={tabBtn(tab === 'coverage', t)}>
           Requirement coverage
@@ -245,6 +263,7 @@ function TestPlanContent({
                       {c.status.toUpperCase()}
                       {c.assessment ? ` · ${c.assessment}` : ''}
                     </div>
+                    {c.verificationMethod === 'inspection' ? <ManualReviewNotice t={t} /> : null}
                     {c.applicability ? <ApplicabilityBadges applicability={c.applicability} evaluating={evaluating} t={t} /> : null}
                   </button>
                   <EvidenceDrawer key={`${artifact.projectId}-${c.testId}-${artifact.artifactVersion}`} projectId={artifact.projectId} testCase={c} t={t} />
@@ -262,6 +281,7 @@ function TestPlanContent({
               <h3 style={{ margin: '0 0 8px', color: t.text }}>
                 {selected.displayId} — {selected.title}
               </h3>
+              {selected.verificationMethod === 'inspection' ? <ManualReviewNotice t={t} /> : null}
               <Meta label="Linked requirements" value={(selected.linkedRequirementIds ?? []).join(' · ') || '—'} t={t} />
               <Meta label="Linked components" value={(selected.linkedComponentIds ?? []).join(' · ') || '—'} t={t} />
               <Meta label="Method" value={selected.verificationMethod} t={t} />
@@ -331,6 +351,15 @@ function TestPlanContent({
       </div>
     </div>
   );
+}
+
+function ManualReviewNotice({ t }: { t: ReturnType<typeof themeColors> }) {
+  return <div style={{ margin: '6px 0', fontSize: 11, color: t.textSec }}>
+    <span style={{ display: 'inline-block', border: `1px solid ${t.border}`, borderRadius: 4, padding: '2px 6px', fontWeight: 650 }}>
+      Manual Review (Option B)
+    </span>
+    <div style={{ marginTop: 4 }}>Planned for manual inspection; does not block completion</div>
+  </div>;
 }
 
 function EvidenceDrawer({ projectId, testCase: c, t }: {
