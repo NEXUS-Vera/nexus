@@ -148,6 +148,24 @@ def _selected_candidates(
     return selected, findings
 
 
+def _i2c_pins(request: MaterializationRequest) -> tuple[tuple[int, int], list[Finding]]:
+    """Use the execution plan's v1 ESP32 output-pin allowlist."""
+    configuration = _object(_content(request.execution_plan or {}).get("configuration"))
+    i2c = _object(configuration.get("i2c"))
+    sda = i2c.get("sdaPin", 21)
+    scl = i2c.get("sclPin", 22)
+    allowed = {21, 22, 25, 26, 27, 32, 33}
+    if type(sda) is int and type(scl) is int and sda in allowed and scl in allowed and sda != scl:
+        return (sda, scl), []
+    return (21, 22), [
+        Finding(
+            code="I2C_PIN_UNSUPPORTED",
+            message="I2C requires distinct ESP32 pins from 21, 22, 25, 26, 27, 32, 33",
+            severity=FindingSeverity.ERROR,
+        )
+    ]
+
+
 def assess_support(request: MaterializationRequest) -> SupportAssessment:
     selected, findings = _selected_candidates(request)
     mappings: list[ComponentMapping] = []
@@ -178,6 +196,7 @@ def assess_support(request: MaterializationRequest) -> SupportAssessment:
         mappings.append(mapping)
 
     findings.extend(_validate_golden_interfaces(request, selected, mappings))
+    findings.extend(_i2c_pins(request)[1])
     has_errors = any(item.severity is FindingSeverity.ERROR for item in findings)
     if not mappings:
         status = SupportStatus.UNSUPPORTED
@@ -192,7 +211,8 @@ def assess_support(request: MaterializationRequest) -> SupportAssessment:
 
 def materialize_workspace(request: MaterializationRequest) -> ProviderWorkspace:
     selected, selection_findings = _selected_candidates(request)
-    findings = list(selection_findings)
+    (sda, scl), pin_findings = _i2c_pins(request)
+    findings = [*selection_findings, *pin_findings]
     architecture = _content(request.electrical_architecture)
     nodes = _objects(architecture.get("nodes"))
     diagram_parts: list[dict[str, object]] = []
@@ -231,9 +251,10 @@ def materialize_workspace(request: MaterializationRequest) -> ProviderWorkspace:
             )
             continue
 
-        provider_pin_profiles[mapping.provider_part] = {
-            pin.source_pin: pin.provider_pin for pin in mapping.pins
-        }
+        pin_profile = {pin.source_pin: pin.provider_pin for pin in mapping.pins}
+        if mapping.provider_part == WOKWI_ESP32_PROVIDER_PART:
+            pin_profile = {"3V3": "3V3", "GND": "GND.1", str(sda): f"D{sda}", str(scl): f"D{scl}"}
+        provider_pin_profiles[mapping.provider_part] = pin_profile
         matching_nodes = [
             node
             for node in nodes
@@ -298,10 +319,10 @@ def materialize_workspace(request: MaterializationRequest) -> ProviderWorkspace:
                 ],
                 "pinProfile": [
                     {
-                        "sourcePin": pin.source_pin,
-                        "providerPin": pin.provider_pin,
+                        "sourcePin": source_pin,
+                        "providerPin": provider_pin,
                     }
-                    for pin in mapping.pins
+                    for source_pin, provider_pin in pin_profile.items()
                 ],
             }
         )
@@ -326,6 +347,7 @@ def materialize_workspace(request: MaterializationRequest) -> ProviderWorkspace:
     connections: list[list[object]] = []
     if (
         not interface_findings
+        and not pin_findings
         and len(part_ids_by_type["mcu"]) == 1
         and len(part_ids_by_type["imu"]) == 1
     ):
@@ -335,8 +357,8 @@ def materialize_workspace(request: MaterializationRequest) -> ProviderWorkspace:
         connections = [
             [f"{mcu}:{mcu_pins['3V3']}", f"{imu}:VCC", "red", []],
             [f"{mcu}:{mcu_pins['GND']}", f"{imu}:GND", "black", []],
-            [f"{mcu}:{mcu_pins['21']}", f"{imu}:SDA", "green", []],
-            [f"{mcu}:{mcu_pins['22']}", f"{imu}:SCL", "blue", []],
+            [f"{mcu}:{mcu_pins[str(sda)]}", f"{imu}:SDA", "green", []],
+            [f"{mcu}:{mcu_pins[str(scl)]}", f"{imu}:SCL", "blue", []],
         ]
     if request.include_serial_monitor and len(part_ids_by_type["mcu"]) == 1:
         connections.extend(esp32_serial_monitor_connections(part_ids_by_type["mcu"][0]))

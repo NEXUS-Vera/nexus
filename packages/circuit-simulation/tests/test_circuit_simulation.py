@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -702,3 +703,37 @@ def test_safe_runner_preserves_stderr_tail() -> None:
     )
     assert result.stderr == b"efgh"
     assert "stderr" in result.truncated_outputs
+
+
+@pytest.mark.parametrize("sda,scl", [(25, 26), (22, 21), (32, 33), (27, 22)])
+def test_execution_plan_pins_materialize_diagram_and_manifest(sda: int, scl: int) -> None:
+    request = replace(
+        simulation_request(),
+        execution_plan={"content": {"configuration": {"i2c": {"sdaPin": sda, "sclPin": scl}}}},
+    )
+    workspace = WokwiProvider().materialize(request)
+    diagram = json.loads(workspace.text("diagram.json"))
+    assert [f"mcu1:D{sda}", "imu1:SDA", "green", []] in diagram["connections"]
+    assert [f"mcu1:D{scl}", "imu1:SCL", "blue", []] in diagram["connections"]
+    manifest = json.loads(workspace.text("mapping-manifest.json"))
+    mcu = next(item for item in manifest["mappings"] if item["providerPartId"] == "mcu1")
+    assert mcu["pinProfile"][2:] == [
+        {"sourcePin": str(sda), "providerPin": f"D{sda}"},
+        {"sourcePin": str(scl), "providerPin": f"D{scl}"},
+    ]
+
+
+@pytest.mark.parametrize("sda,scl", [(34, 22), (6, 22), (21, 40), (21, 21), (True, 22), ("25", 26)])
+def test_invalid_execution_plan_pins_reject_support_and_wiring(sda: object, scl: object) -> None:
+    request = replace(
+        simulation_request(),
+        execution_plan={"configuration": {"i2c": {"sdaPin": sda, "sclPin": scl}}},
+    )
+    provider = WokwiProvider()
+    assert any(
+        item.code == "I2C_PIN_UNSUPPORTED" for item in provider.assess_support(request).findings
+    )
+    workspace = provider.materialize(request)
+    assert any(item.code == "I2C_PIN_UNSUPPORTED" for item in workspace.findings)
+    diagram = json.loads(workspace.text("diagram.json"))
+    assert not any(item[1] == "imu1:SDA" for item in diagram["connections"])
