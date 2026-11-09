@@ -473,6 +473,16 @@ class RepairWorkflow:
             diagnostics["logExcerpt"] = _excerpt(diagnostics["logExcerpt"], limit) if limit else ""
             diagnostics["logExcerptLimited"] = True
             request = EXECUTION_REPAIR_REQUEST + json.dumps(diagnostics, ensure_ascii=True)
+        # Case summaries can exceed the envelope even with no log excerpt.
+        # Only these diagnostic copies change; linked execution evidence stays intact.
+        if len(request) > 4096:
+            for case in diagnostics["testCases"]:
+                case["actualResult"] = _excerpt(str(case.get("actualResult") or ""), 100)
+            request = EXECUTION_REPAIR_REQUEST + json.dumps(diagnostics, ensure_ascii=True)
+        while len(request) > 4096 and diagnostics["testCases"]:
+            diagnostics["testCases"].pop()
+            diagnostics["testCasesLimited"] = True
+            request = EXECUTION_REPAIR_REQUEST + json.dumps(diagnostics, ensure_ascii=True)
         if len(request) > 4096:
             raise CommandValidationError(
                 "Failure criteria exceed generation bound; inspect linked evidence"

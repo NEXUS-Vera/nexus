@@ -273,3 +273,104 @@ async def test_http_repair_stale_revision_conflict(monkeypatch: pytest.MonkeyPat
         persisted = await client.post(route, json={"action": "get", "repairId": state["repairId"]})
         assert persisted.status_code == 200, persisted.text
         assert persisted.json() == current
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("ticking_http_loop")
+@pytest.mark.parametrize("criterion_size", [40, 6000], ids=["many-cases", "oversized-case"])
+async def test_http_repair_verbose_failing_cases_reach_review(
+    monkeypatch: pytest.MonkeyPatch, criterion_size: int
+) -> None:
+    monkeypatch.setenv("NEXUS_FIRMWARE_USE_STUB", "1")
+    kernel = main._kernel
+    gateway = FakeModelGateway()
+    requests = []
+
+    def correction(_task: Any, payload: Any, _schema: Any) -> dict[str, Any]:
+        requests.append(payload["requestedChange"])
+        return {
+            "operations": [
+                {"operationType": "replace-file", "path": "src/main.cpp", "content": "// fix\n"}
+            ]
+        }
+
+    gateway.set_script("firmware.patch-proposal", correction)
+    monkeypatch.setattr(
+        kernel.workspace_runtime,
+        "_firmware_patch_generator",
+        LiveFirmwarePatchGenerator(
+            gateway=gateway, model_policy=ModelPolicy(provider="fake", model="regression")
+        ),
+    )
+    user = _actor()
+    async with AsyncClient(
+        transport=ASGITransport(app=main.app), base_url="http://test", headers=AUTH
+    ) as client:
+        pid, _root, initial = await _start_failed_repair(client, user)
+        # Seed retained simulation evidence at the offline provider boundary.
+        run = kernel.kernel_store.get_execution_run(initial["runId"])
+        run.update(executionRunId=f"exec_verbose_{criterion_size}", capability="circuit-simulation")
+        kernel.kernel_store.create_execution_run(run)
+        run_id = run["executionRunId"]
+        artifact = kernel.project_store.get_artifact(pid, "test-plan")
+        template = artifact["content"]["testCases"][0]
+        cases = [
+            {
+                **template,
+                "testId": f"test_verbose_{i}",
+                "executionRunId": run_id,
+                "criterion": "C" * criterion_size,
+                "actualResult": f"Case {i}: " + "verbose failure 雪\n" * 60,
+                "assessment": "FAIL",
+                "status": "failed",
+            }
+            for i in range(10)
+        ]
+        artifact["content"]["testCases"] = cases
+        project = kernel.project_store.get_project(pid)
+        kernel.project_store.apply_accepted_artifact_revision(
+            project_id=pid,
+            new_artifact=artifact,
+            next_state_version=project["currentStateVersion"] + 1,
+            updated_at=artifact["updatedAt"],
+        )
+        route = f"/v1/projects/{pid}/repair"
+        started = await client.post(
+            route,
+            json={
+                "action": "start",
+                "executionRunId": run_id,
+                "target": "firmware",
+                "requireReal": False,
+                "requestedBy": user,
+            },
+        )
+        assert started.status_code == 200, started.text
+        state = started.json()
+        response = await client.post(
+            route,
+            json={
+                "action": "advance",
+                "repairId": state["repairId"],
+                "revision": state["revision"],
+                "requestedBy": user,
+            },
+        )
+        assert response.status_code == 200, response.text
+        state = response.json()
+        assert state["status"] == "review", state.get("explanation", state)
+        assert len(requests) == 1
+        assert len(requests[0]) <= 4096
+        diagnostics = state["attempts"][0]["diagnostics"]
+        assert diagnostics["logExcerptLimited"] is True
+        if criterion_size > 4096:
+            assert diagnostics["testCasesLimited"] is True
+            assert diagnostics["testCases"] == []
+        else:
+            assert len(diagnostics["testCases"]) == len(cases)
+        assert all(len(c["actualResult"]) <= 100 for c in diagnostics["testCases"])
+        assert kernel.kernel_store.get_execution_run(run_id) == run
+        assert kernel.project_store.get_artifact(pid, "test-plan")["content"]["testCases"] == cases
+        persisted = await client.post(route, json={"action": "get", "repairId": state["repairId"]})
+        assert persisted.status_code == 200, persisted.text
+        assert persisted.json() == state
